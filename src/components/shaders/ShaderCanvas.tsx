@@ -1,157 +1,158 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface ShaderCanvasProps {
   scrollProgress: number;
   onReady?: () => void;
 }
 
-// Hyperspace Shader: Twinkling 3D Stars + Mobile Optimized Drift
 const fragmentShader = `
   precision highp float;
   
   uniform float uTime;
   uniform vec2 uResolution;
   uniform float uScroll;
+  uniform vec2 uMouse; 
   
-  #define PI 3.14159265359
-  #define PIXEL_SIZE 1.0 
-  
-  // --- 3D NOISE ---
-  vec3 hash( vec3 p ) {
-    p = vec3( dot(p,vec3(127.1,311.7, 74.7)),
-              dot(p,vec3(269.5,183.3,246.1)),
-              dot(p,vec3(113.5,271.9,124.6)));
+  // --- STAR NEST + LENSING (High Fidelity) ---
 
-    return -1.0 + 2.0*fract(sin(p)*43758.5453123);
-  }
-  
-  float noise( in vec3 p ) {
-    vec3 i = floor( p );
-    vec3 f = fract( p );
-    
-    vec3 u = f*f*(3.0-2.0*f);
+  #define ITERATIONS 15 // Sharper fractal details
+  #define FORMUPARAM 0.53
 
-    return mix( mix( mix( dot( hash( i + vec3(0.0,0.0,0.0) ), f - vec3(0.0,0.0,0.0) ), 
-                          dot( hash( i + vec3(1.0,0.0,0.0) ), f - vec3(1.0,0.0,0.0) ), u.x),
-                     mix( dot( hash( i + vec3(0.0,1.0,0.0) ), f - vec3(0.0,1.0,0.0) ), 
-                          dot( hash( i + vec3(1.0,1.0,0.0) ), f - vec3(1.0,1.0,0.0) ), u.x), u.y),
-                mix( mix( dot( hash( i + vec3(0.0,0.0,1.0) ), f - vec3(0.0,0.0,1.0) ), 
-                          dot( hash( i + vec3(1.0,0.0,1.0) ), f - vec3(1.0,0.0,1.0) ), u.x),
-                     mix( dot( hash( i + vec3(0.0,1.0,1.0) ), f - vec3(0.0,1.0,1.0) ), 
-                          dot( hash( i + vec3(1.0,1.0,1.0) ), f - vec3(1.0,1.0,1.0) ), u.x), u.y), u.z );
-  }
+  #define VOLSTEPS 12 // Deeper volume sampling
+  #define STEPSIZE 0.08 // Finer step increments
 
-  // --- 2D FBM ---
-  float hash2d(vec2 p) {
-      p = fract(p * vec2(123.34, 456.21));
-      p += dot(p, p + 45.32);
-      return fract(p.x * p.y);
-  }
+  #define ZOOM   0.800
+  #define TILE   0.850
+  #define SPEED  0.010 
 
-  float noise2d(vec2 p) {
-      vec2 i = floor(p);
-      vec2 f = fract(p);
-      f = f * f * (3.0 - 2.0 * f);
-      return mix(mix(hash2d(i), hash2d(i + vec2(1.0, 0.0)), f.x),
-                 mix(hash2d(i + vec2(0.0, 1.0)), hash2d(i + vec2(1.0, 1.0)), f.x), f.y);
+  #define BRIGHTNESS 0.0015
+  #define DARKMATTER 0.300
+  #define DISTFADING 0.730
+  #define SATURATION 0.85
+
+  // Tweak Radius
+  #define BLACKHOLE_CENTER vec3(0.0, 0.0, -2.0)
+  #define BLACKHOLE_RADIUS 0.4 
+  #define BLACKHOLE_INTENSITY 1.0
+
+  float iSphere(vec3 ray, vec3 dir, vec3 center, float radius)
+  {
+    vec3 rc = ray-center;
+    float c = dot(rc, rc) - (radius*radius);
+    float b = dot(dir, rc);
+    float d = b*b - c;
+    float t = -b - sqrt(abs(d));
+    float st = step(0.0, min(t,d));
+    return mix(-1.0, t, st);
   }
 
-  float fbm(vec2 p) {
-    float value = 0.0;
-    float amplitude = 0.5;
-    float frequency = 1.0;
-    for (int i = 0; i < 5; i++) {
-        value += amplitude * noise2d(p * frequency);
-        amplitude *= 0.5;
-        frequency *= 2.0;
-    }
-    return value;
+  vec3 iPlane(vec3 ro, vec3 rd, vec3 po, vec3 pd){
+    float d = dot(po - ro, pd) / dot(rd, pd);
+    return d * rd + ro;
   }
-  
-  float warpedFbm(vec2 p, float time) {
-    vec2 q = vec2(fbm(p), fbm(p + vec2(5.2, 1.3)));
-    vec2 r = vec2(fbm(p + 2.0 * q + vec2(1.7, 9.2) + 0.15 * time),
-                  fbm(p + 2.0 * q + vec2(8.3, 2.8) + 0.126 * time));
-    return fbm(p + 2.0 * r);
+
+  // Rotation function
+  vec3 r(vec3 v, vec2 r)
+  {
+    vec4 t = sin(vec4(r, r + 1.5707963268));
+    float g = dot(v.yz, t.yw);
+    return vec3(v.x * t.z - g * t.x,
+                v.y * t.w - v.z * t.y,
+                v.x * t.x + g * t.z);
   }
-  
+
   void main() {
-    // Mobile optimization: Use gl_FragCoord directly but consider lower precision effect
-    vec2 pixelUv = gl_FragCoord.xy;
-    vec2 uv = pixelUv / uResolution.xy;
+    // 1. Coordinates
+    vec2 uv = gl_FragCoord.xy / uResolution.xy - 0.5;
+    uv.y *= uResolution.y / uResolution.x;
     
-    // Correct Aspect Ratio
-    vec2 p = (uv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
+    vec3 dir = vec3(uv * ZOOM, 1.0);
     
-    float time = uTime * 0.15; // Speed up slightly for more kinetic feel
-    float scroll = uScroll;
+    // ACCELERATION: Speed up with Scroll
+    float time = uTime * SPEED + 0.25 + uScroll * 0.5;
 
-    // --- HYPERSPACE LATERAL DRIFT ---
-    float lateralNoise = noise(vec3(0.0, scroll * 0.8, time * 0.2)); 
-    p.x += lateralNoise * 1.5; 
-    p.y += scroll * 1.5;
+    // 2. Camera / Mouse Rotation
+    vec3 from = vec3(0.0, 0.0, -15.0);
+    
+    // Add scroll drift
+    from.z += uScroll * 5.0; 
+    
+    // Mouse interactivity + CONSTANT PASSIVE ROTATION
+    vec2 mouseRot = uMouse.xy / uResolution.xy;
+    
+    // Always add a slow spin (time based) to the rotation
+    // This makes it feel alive even when not interacting
+    float passiveSpin = time * 0.1; 
+    
+    if (mouseRot.x == 0.0 && mouseRot.y == 0.0) {
+        mouseRot = vec2(passiveSpin, 0.3);
+    } else {
+        mouseRot.x += passiveSpin;
+    }
+    
+    from = r(from, mouseRot);
+    dir = r(dir, mouseRot);
+    
+    vec3 bhCenter = BLACKHOLE_CENTER;
+    
+    // 3. Gravitational Lensing
+    vec3 nml = normalize(bhCenter - from);
+    vec3 pos = iPlane(from, dir, bhCenter, nml);
+    pos = bhCenter - pos;
+    float intensity = dot(pos, pos);
+    
+    // Lensing Calculation
+    intensity = 1.0 / intensity;
+    dir = mix(dir, pos * sqrt(intensity), BLACKHOLE_INTENSITY * intensity);
+    
+    // 4. Volumetric Rendering (Star Nest) with BENT ray
+    float s = 0.1;
+    float fade = 1.0;
+    vec3 v = vec3(0.0);
+    
+    for (int r = 0; r < VOLSTEPS; r++) {
+        vec3 p = from + s * dir * 0.5;
+        p = abs(vec3(TILE) - mod(p, vec3(TILE * 2.0))); 
+        float pa, a = pa = 0.0;
+        for (int i = 0; i < ITERATIONS; i++) { 
+            p = abs(p) / dot(p, p) - FORMUPARAM; 
+            a += abs(length(p) - pa); 
+            pa = length(p);
+        }
+        float dm = max(0.0, DARKMATTER - a * a * 0.001); 
+        a *= a * a; 
+        if (r > 6) fade *= 1.0 - dm; 
+        
+        v += fade;
+        v += vec3(s, s*s, s*s*s*s) * a * BRIGHTNESS * fade; 
+        fade *= DISTFADING; 
+        s += STEPSIZE;
+    }
+    
+    v = mix(vec3(length(v)), v, SATURATION); 
+    
+    // BLOOM: Boost brightness
+    v *= 2.5; 
+    
+    float distToSingularity = sqrt(1.0 / max(intensity, 0.0001));
+    float edge = smoothstep(BLACKHOLE_RADIUS, BLACKHOLE_RADIUS + 0.3, distToSingularity);
+    
+    vec3 col = v * 0.01 * edge;
+    
+    // CINEMATIC VIGNETTE (Fixed)
+    float dist = length(uv);
+    // Tighter fade: Starts at 0.1, fully black by 0.65 (Consumes corners)
+    float vig = 1.0 - smoothstep(0.1, 0.65, dist);
+    
+    col *= vig;
+    
+    // EXTRA CONTRAST (Deep Black Polish)
+    // Crush shadows aggressively to remove grey wash
+    col = pow(col, vec3(1.35)); 
 
-    vec3 finalColor = vec3(0.0);
-    
-    // --- PHASE 1: TWINKLING 3D NOISE STARS ---
-    vec3 voidColor = vec3(0.005, 0.005, 0.012);
-    
-    vec3 stars_direction = normalize(vec3(p, 1.0)); 
-    float stars_threshold = 8.0; 
-    float stars_exposure = 200.0; 
-    
-    float baseStar = pow(clamp(noise(stars_direction * 200.0), 0.0, 1.0), stars_threshold) * stars_exposure;
-    
-    // Twinkle Logic: High frequency flickering
-    float twinkle = noise(stars_direction * 150.0 + vec3(time * 5.0)); // Increased time scale
-    twinkle = mix(0.2, 1.8, twinkle); // Wider range (dimmer lows, brighter highs)
-    
-    float starVal = baseStar * twinkle;
-    
-    float starFade = 1.0 - smoothstep(0.0, 0.5, scroll);
-    finalColor = voidColor + vec3(starVal) * starFade;
-    
-    // --- PHASE 2: ETHEREAL NEBULA ---
-    float nebulaMask = smoothstep(0.1, 0.3, scroll) * (1.0 - smoothstep(0.7, 0.9, scroll));
-    
-    float n = warpedFbm(p * 1.5 - vec2(0.0, time * 0.2), time);
-    vec3 colA = vec3(0.0, 0.5, 0.6); 
-    vec3 colB = vec3(0.4, 0.0, 0.6);
-    vec3 neb = mix(colB, colA, n);
-    
-    vec3 nebulaLayer = neb * n * 0.6 + neb * smoothstep(0.4, 0.6, n) * 0.4;
-    finalColor += nebulaLayer * nebulaMask;
-    
-    // --- PHASE 3: EVENT HORIZON ---
-    float accMask = smoothstep(0.7, 0.9, scroll);
-    
-    vec2 bhP = p; 
-    float len = length(bhP);
-    float angle = atan(bhP.y, bhP.x);
-    
-    float spiral = warpedFbm(vec2(len * 8.0 - time * 10.0, angle * 4.0), time);
-    vec3 hot = vec3(1.0, 0.3, 0.05); 
-    
-    vec3 accretionLayer = hot * spiral * (0.25 / len);
-    finalColor = mix(finalColor, finalColor + accretionLayer, accMask);
-    
-    float voidEdge = smoothstep(0.2, 0.5, len); 
-    float voidInfluence = accMask; 
-    finalColor = mix(finalColor, finalColor * voidEdge, voidInfluence);
-
-    // --- POST PROCESSING ---
-    finalColor *= 1.1 - length(uv - 0.5); 
-    
-    float aber = length(uv - 0.5) * 0.005;
-    finalColor.r += aber;
-    finalColor.b -= aber;
-
-    float grain = hash2d(uv + time * 10.0) * 0.03;
-    finalColor += grain;
-    
-    gl_FragColor = vec4(finalColor, 1.0);
+    gl_FragColor = vec4(col, 1.0);    
   }
 `;
 
@@ -168,13 +169,22 @@ export function ShaderCanvas({ scrollProgress, onReady }: ShaderCanvasProps) {
   const frameIdRef = useRef<number>(0);
   const startTimeRef = useRef(Date.now());
   const locationsRef = useRef<any>({});
+  const mouseRef = useRef<[number, number]>([0,0]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+        const x = (e.clientX / window.innerWidth - 0.5) * 2.0;
+        const y = (e.clientY / window.innerHeight - 0.5) * 2.0;
+        mouseRef.current = [x, y];
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    // Mobile Loop Fix: Use webgl1 for broader compatibility if webgl2 fails, 
-    // but try high-performance.
     const gl = canvas.getContext('webgl', { 
         powerPreference: "high-performance",
         antialias: false,
@@ -216,14 +226,9 @@ export function ShaderCanvas({ scrollProgress, onReady }: ShaderCanvasProps) {
     locationsRef.current = {
         time: gl.getUniformLocation(p, 'uTime'),
         resolution: gl.getUniformLocation(p, 'uResolution'),
-        scroll: gl.getUniformLocation(p, 'uScroll')
+        scroll: gl.getUniformLocation(p, 'uScroll'),
+        mouse: gl.getUniformLocation(p, 'uMouse')
     };
-
-    // Warm-up
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.uniform1f(locationsRef.current.time, 0);
-    gl.uniform2f(locationsRef.current.resolution, canvas.width, canvas.height);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     if (onReady) onReady();
 
@@ -233,8 +238,8 @@ export function ShaderCanvas({ scrollProgress, onReady }: ShaderCanvasProps) {
   useEffect(() => {
     const handleResize = () => {
         if (canvasRef.current && glRef.current) {
-            // Cap pixel ratio at 1.5 to prevent overheating on high-res mobile/laptops
-            const dpr = Math.min(window.devicePixelRatio, 1.5);
+            // MAX RESOLUTION: Uncapped for retina sharpness
+            const dpr = window.devicePixelRatio || 1; 
             canvasRef.current.width = window.innerWidth * dpr;
             canvasRef.current.height = window.innerHeight * dpr;
             glRef.current.viewport(0, 0, canvasRef.current.width, canvasRef.current.height);
@@ -253,6 +258,8 @@ export function ShaderCanvas({ scrollProgress, onReady }: ShaderCanvasProps) {
         gl.uniform1f(locs.time, (Date.now() - startTimeRef.current) * 0.001);
         gl.uniform1f(locs.scroll, scrollProgress);
         if (canvasRef.current) gl.uniform2f(locs.resolution, canvasRef.current.width, canvasRef.current.height);
+        gl.uniform2f(locs.mouse, ...mouseRef.current);
+        
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         frameIdRef.current = requestAnimationFrame(render);
     };

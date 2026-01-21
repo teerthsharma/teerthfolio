@@ -104,18 +104,22 @@ export function ExperienceSection() {
                     opacity: 0, 
                     x: isEven ? -100 : 100, 
                     y: 50,
-                    rotateY: isEven ? 45 : -45,
-                    rotateX: 20
+                    rotateY: isEven ? 25 : -25, // Gravitational Tilt: Face inwards
+                    rotateX: 10, // Tilt back slightly (receding)
+                    scale: 0.9,
+                    z: -100
                   }}
                   whileInView={{ 
                     opacity: 1, 
                     x: 0, 
                     y: 0,
-                    rotateY: 0,
-                    rotateX: 0
+                    rotateY: isEven ? 5 : -5, // Maintain slight inward tilt
+                    rotateX: 0,
+                    scale: 1,
+                    z: 0
                   }}
                   viewport={{ once: true, margin: "-10%" }}
-                  transition={{ duration: 1, type: "spring", bounce: 0.3, delay: index * 0.2 }}
+                  transition={{ duration: 1.2, type: "spring", bounce: 0.2, delay: index * 0.1 }}
                 >
                   <motion.div 
                     animate={{ y: [0, -15, 0] }}

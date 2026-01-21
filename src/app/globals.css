@@ -125,9 +125,9 @@
 
 @layer components {
   .glass-card {
-    background: rgba(10, 10, 15, 0.4);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    background: rgba(5, 5, 8, 0.7); /* Darker for better text readability */
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-top: 1px solid rgba(255, 255, 255, 0.15); /* Top highlight */
     border-radius: var(--radius-lg);
@@ -182,4 +182,18 @@
   .animate-cursor {
     animation: blink 1s step-end infinite;
   }
+}
+
+@keyframes text-glow-pulse {
+  0%, 100% { text-shadow: 0 0 10px rgba(0, 255, 65, 0.2); opacity: 0.9; }
+  50% { text-shadow: 0 0 20px rgba(0, 255, 65, 0.6), 0 0 40px rgba(0, 255, 65, 0.2); opacity: 1; }
+}
+
+@keyframes card-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-text-glow {
+  animation: text-glow-pulse 4s ease-in-out infinite;
 }

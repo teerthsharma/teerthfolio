@@ -76,8 +76,18 @@ export function ProjectsSection() {
                         <motion.div
                             key={index}
                             className={`relative ${marginTop}`}
-                            initial={{ opacity: 0, y: 100, rotateX: 10 }}
-                            whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+                            initial={{ 
+                                opacity: 0, 
+                                y: 100, 
+                                rotateX: 10,
+                                rotateY: index % 3 === 0 ? 15 : index % 3 === 2 ? -15 : 0 // Tilt towards center
+                            }}
+                            whileInView={{ 
+                                opacity: 1, 
+                                y: 0, 
+                                rotateX: 0,
+                                rotateY: index % 3 === 0 ? 5 : index % 3 === 2 ? -5 : 0 // Maintain slight tilt
+                            }}
                             viewport={{ once: true, margin: "-50px" }}
                             transition={{ duration: 0.8, delay: index * 0.1 }}
                         >

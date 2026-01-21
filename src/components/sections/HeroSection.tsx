@@ -60,7 +60,7 @@ export function HeroSection({ onScrollClick }: HeroSectionProps) {
         </motion.div>
 
         {/* Main Title - Character Stagger */}
-        <h1 className="text-4xl sm:text-5xl md:text-8xl lg:text-9xl font-bold mb-6 tracking-tight relative z-20 font-display whitespace-nowrap">
+        <h1 className="text-4xl sm:text-5xl md:text-8xl lg:text-9xl font-bold mb-6 tracking-tight relative z-20 font-display whitespace-nowrap animate-text-glow">
           {name.split("").map((char, index) => (
             <motion.span
               key={index}
