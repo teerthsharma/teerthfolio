@@ -171,7 +171,7 @@ export function TerminalFooter() {
         >
           <p className="text-xs text-muted-foreground font-mono">
             <span className="text-terminal-green">©</span> {new Date().getFullYear()} Teerth Sharma.{' '}
-            <span className="text-muted-foreground/50">Built with passion and precision.</span>
+            <span className="text-muted-foreground/50">Built with passion and love by Seal Team🦭</span>
           </p>
         </motion.div>
       </div>
