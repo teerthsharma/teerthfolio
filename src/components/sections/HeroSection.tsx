@@ -119,25 +119,24 @@ export function HeroSection({ onScrollClick }: HeroSectionProps) {
               </div>
               
               <div className="space-y-2">
-                 <div className="flex">
+                 <div className="flex animate-wave" style={{ animationDelay: '0s' }}>
                     <span className="text-terminal-green mr-2">➜</span>
                     <span className="text-terminal-amber">~/mission-control</span>
                     <span className="text-white ml-2">$ ./init_sequence.sh</span>
                  </div>
-                 <div className="text-gray-400 pl-4">
-                    {`> Loading modules... [OK]`}<br/>
-                    {`> Optimizing kernels... [OK]`}<br/>
-                    {`> Establishing uplink... [READY]`}
+                 <div className="text-gray-400 pl-4 space-y-1">
+                    <div className="animate-wave" style={{ animationDelay: '0.2s' }}>{`> Loading modules... [OK]`}</div>
+                    <div className="animate-wave" style={{ animationDelay: '0.4s' }}>{`> Optimizing kernels... [OK]`}</div>
+                    <div className="animate-wave" style={{ animationDelay: '0.6s' }}>{`> Establishing uplink... [READY]`}</div>
                  </div>
-                 <div className="flex items-center mt-2">
+                 <div className="flex items-center mt-2 animate-wave" style={{ animationDelay: '0.8s' }}>
                     <span className="text-terminal-green mr-2">➜</span>
                     <span className="animate-pulse text-white">_</span>
                  </div>
               </div>
            </div>
            
-           {/* Glow Effect */}
-           <div className="absolute -inset-1 bg-gradient-to-r from-terminal-green/20 to-terminal-amber/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 rounded-xl" />
+           {/* Glow Removed as per request */}
         </motion.div>
         
         {/* Scroll Action */}

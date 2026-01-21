@@ -197,3 +197,16 @@
 .animate-text-glow {
   animation: text-glow-pulse 4s ease-in-out infinite;
 }
+
+@keyframes blackhole-wave {
+  0%, 100% { transform: translateY(0) skewX(0); }
+  25% { transform: translateY(-1px) skewX(1deg); }
+  50% { transform: translateY(0) skewX(0); }
+  75% { transform: translateY(1px) skewX(-1deg); }
+}
+
+.animate-wave {
+  display: inline-block;
+  animation: blackhole-wave 4s ease-in-out infinite;
+  transform-origin: center;
+}

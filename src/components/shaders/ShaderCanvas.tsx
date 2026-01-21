@@ -65,10 +65,17 @@ const fragmentShader = `
 
   void main() {
     // 1. Coordinates
-    vec2 uv = gl_FragCoord.xy / uResolution.xy - 0.5;
-    uv.y *= uResolution.y / uResolution.x;
+    vec2 uv_screen = gl_FragCoord.xy / uResolution.xy - 0.5; // For Vignette (0.5 to 0.5)
+    vec2 uv = uv_screen;
+    uv.y *= uResolution.y / uResolution.x; // For Physics (Corrected Aspect)
     
-    vec3 dir = vec3(uv * ZOOM, 1.0);
+    // Dynamic Zoom for Mobile (Portrait)
+    float mobileZoom = 1.0;
+    if (uResolution.y > uResolution.x) {
+        mobileZoom = 0.6; // Telephoto effect for portrait
+    }
+    
+    vec3 dir = vec3(uv * ZOOM * mobileZoom, 1.0);
     
     // ACCELERATION: Speed up with Scroll
     float time = uTime * SPEED + 0.25 + uScroll * 0.5;
@@ -83,7 +90,6 @@ const fragmentShader = `
     vec2 mouseRot = uMouse.xy / uResolution.xy;
     
     // Always add a slow spin (time based) to the rotation
-    // This makes it feel alive even when not interacting
     float passiveSpin = time * 0.1; 
     
     if (mouseRot.x == 0.0 && mouseRot.y == 0.0) {
@@ -141,15 +147,16 @@ const fragmentShader = `
     
     vec3 col = v * 0.01 * edge;
     
-    // CINEMATIC VIGNETTE (Fixed)
-    float dist = length(uv);
-    // Tighter fade: Starts at 0.1, fully black by 0.65 (Consumes corners)
-    float vig = 1.0 - smoothstep(0.1, 0.65, dist);
+    // CINEMATIC VIGNETTE (Fixed & Decoupled from Aspect Ratio)
+    // Use uv_screen (rectangular) instead of uv (physical)
+    float dist = length(uv_screen);
+    // 0.5 is edge, 0.707 is corner
+    // Fade starts at 0.35, black at 0.75
+    float vig = 1.0 - smoothstep(0.35, 0.75, dist);
     
     col *= vig;
     
     // EXTRA CONTRAST (Deep Black Polish)
-    // Crush shadows aggressively to remove grey wash
     col = pow(col, vec3(1.35)); 
 
     gl_FragColor = vec4(col, 1.0);    
