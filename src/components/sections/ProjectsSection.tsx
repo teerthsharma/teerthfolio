@@ -1,194 +1,140 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ExternalLink, Github, Waves, Database, FileText } from 'lucide-react';
-import Link from 'next/link';
+import { ExternalLink, Github, Database, Zap, BookOpen } from 'lucide-react';
 
-interface ProjectCardProps {
+interface Project {
   title: string;
   description: string;
   icon: React.ReactNode;
   visualElement?: React.ReactNode;
   links: Array<{ label: string; href: string; icon: 'external' | 'github' | 'research' }>;
-  delay?: number;
+  tech: string[];
 }
 
-function ProjectCard({ title, description, icon, visualElement, links, delay = 0 }: ProjectCardProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.6, delay }}
-      className="glass-card p-6 md:p-8 group relative overflow-hidden"
-    >
-      {/* Background glow on hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
-      {/* Content */}
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              {icon}
-            </div>
-            <h3 className="text-xl font-bold">{title}</h3>
-          </div>
-        </div>
-        
-        {/* Description */}
-        <p className="text-muted-foreground mb-6 leading-relaxed">
-          {description}
-        </p>
-        
-        {/* Visual element (if provided) */}
-        {visualElement && (
-          <div className="mb-6 rounded-lg overflow-hidden border border-border/50">
-            {visualElement}
-          </div>
-        )}
-        
-        {/* Links */}
-        <div className="flex flex-wrap gap-3">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 text-sm font-medium hover:bg-primary/20 hover:text-primary transition-colors"
-            >
-              {link.icon === 'external' && <ExternalLink className="w-4 h-4" />}
-              {link.icon === 'github' && <Github className="w-4 h-4" />}
-              {link.icon === 'research' && <FileText className="w-4 h-4" />}
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// Simple audio waveform visualization
-function AudioWaveform() {
-  return (
-    <div className="h-20 bg-black/50 flex items-center justify-center gap-1 p-4">
-      {Array.from({ length: 32 }).map((_, i) => (
-        <motion.div
-          key={i}
-          className="w-1 bg-primary rounded-full"
-          initial={{ height: 8 }}
-          animate={{ 
-            height: [8, Math.random() * 40 + 20, 8],
-          }}
-          transition={{
-            duration: 0.5 + Math.random() * 0.5,
-            repeat: Infinity,
-            repeatType: 'reverse',
-            delay: i * 0.05,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// Data pipeline visualization
-function DataPipeline() {
-  return (
-    <div className="h-20 bg-black/50 flex items-center justify-between p-4 overflow-hidden">
-      <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full bg-terminal-green animate-pulse" />
-        <span className="text-xs font-mono text-terminal-green">SRC</span>
-      </div>
-      
-      <div className="flex-1 mx-4 relative h-2 bg-secondary/30 rounded-full overflow-hidden">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-primary to-transparent"
-            initial={{ left: '-20%' }}
-            animate={{ left: '120%' }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              delay: i * 0.3,
-              ease: 'linear',
-            }}
-          />
-        ))}
-      </div>
-      
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-mono text-terminal-amber">DST</span>
-        <div className="w-3 h-3 rounded-full bg-terminal-amber animate-pulse" />
-      </div>
-    </div>
-  );
-}
+const projects: Project[] = [
+  {
+    title: 'AETHER-Link',
+    description: 'Developed an Adaptive Event-driven Threshold Hybrid Entangled Rendering system for high-performance computing.',
+    icon: <Zap className="w-10 h-10 text-terminal-amber" />,
+    tech: ['Rust', 'WebGPU', 'Triton', 'WASM'],
+    links: [
+        { label: 'ResearchGate', href: 'https://www.researchgate.net/publication/398493933_AETHER_-_Adaptive_Event-driven_Threshold_Hybrid_Entangled_Rendering', icon: 'research' },
+        { label: 'GitHub', href: 'https://github.com/teerthsharma', icon: 'github' }
+    ]
+  },
+  {
+    title: 'Void-Engine',
+    description: 'Built a sparse-attention driven neural engine optimizing latency by 40% using custom CUDA kernels.',
+    icon: <Database className="w-10 h-10 text-blue-500" />,
+    tech: ['C++', 'CUDA', 'Python', 'PyTorch'],
+    links: [
+        { label: 'GitHub', href: 'https://github.com/teerthsharma', icon: 'github' }
+    ]
+  },
+  { // Placeholder for 3rd project to complete the grid
+    title: 'Quantum-CLI',
+    description: 'A terminal-based interface for visualizing quantum bit states and superposition probabilities.',
+    icon: <BookOpen className="w-10 h-10 text-terminal-green" />,
+    tech: ['TypeScript', 'Node.js', 'Quantum.js'],
+    links: [
+        { label: 'GitHub', href: 'https://github.com/teerthsharma', icon: 'github' }
+    ]
+  }
+];
 
 export function ProjectsSection() {
   return (
-    <section className="section relative z-10 py-32">
-      <div className="max-w-5xl mx-auto px-6">
-        {/* Section header */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.6 }}
-          className="mb-16"
-        >
-          <h2 className="text-sm font-mono text-primary mb-4 tracking-wider uppercase">
-            // Projects
-          </h2>
-          <h3 className="text-3xl md:text-5xl font-bold mb-6">
-            Selected <span className="gradient-text">Constellations</span>
-          </h3>
-          <p className="text-muted-foreground max-w-2xl">
-            Projects orbiting the core themes of performance, scalability, and elegant solutions.
-          </p>
-        </motion.div>
-        
-        {/* Project cards */}
-        <div className="grid gap-8">
-          <ProjectCard
-            title="NeuralWhisper"
-            description="82M-parameter neural Text-to-Speech running 100% in-browser via WebGPU/WASM. Zero server dependencies, instant voice synthesis at the edge. A living sanctuary for browser-native AI."
-            icon={<Waves className="w-5 h-5" />}
-            visualElement={<AudioWaveform />}
-            links={[
-              { label: 'Live Demo', href: 'https://frontend-kappa-orpin-47.vercel.app/', icon: 'external' },
-              { label: 'GitHub', href: 'https://github.com/teerthsharma/neuralwhisper', icon: 'github' },
-            ]}
-            delay={0}
-          />
-          
-          <ProjectCard
-            title="AETHER-Link"
-            description="High-Performance I/O Prefetch Kernel for DirectStorage, WSL2. Optimized for high-frequency trading workloads with predictive prefetching and zero-copy transfers."
-            icon={<Database className="w-5 h-5" />}
-            visualElement={<DataPipeline />}
-            links={[
-               { label: 'ResearchGate (Paper)', href: 'https://www.researchgate.net/publication/398493933_AETHER_-_Adaptive_Event-driven_Threshold_Hybrid_Entangled_Rendering', icon: 'research' },
-               { label: 'GitHub', href: 'https://github.com/teerthsharma/aether-link', icon: 'github' },
-            ]}
-            delay={0.15}
-          />
-          
-          <ProjectCard
-            title="Research & TensorRT-LLM"
-            description="Sparse attention implementation (A.E.T.H.E.R. Algorithm) and custom CUDA kernel optimization for large language model inference. Published research on efficient transformer architectures."
-            icon={<FileText className="w-5 h-5" />}
-            links={[
-              { label: 'ResearchGate', href: 'https://www.researchgate.net/profile/Teerth-Sharma', icon: 'research' },
-            ]}
-            delay={0.3}
-          />
+    <section className="section relative z-10 py-32 perspective-1000">
+        <div className="max-w-7xl mx-auto px-6">
+            
+            {/* Header */}
+            <motion.div
+               initial={{ opacity: 0, y: 50 }}
+               whileInView={{ opacity: 1, y: 0 }}
+               viewport={{ once: true }}
+               transition={{ duration: 0.8 }}
+               className="mb-32 max-w-2xl"
+            >
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-1 bg-terminal-green" />
+                    <span className="font-mono text-terminal-green uppercase tracking-widest text-sm">Deployments</span>
+                </div>
+                <h2 className="text-4xl sm:text-5xl md:text-8xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50 leading-[0.9]">
+                    System <br/>
+                    <span className="text-terminal-amber">Architectures</span>
+                </h2>
+            </motion.div>
+
+            {/* 3D Staggered Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
+                {projects.map((project, index) => {
+                    // Stagger vertical placement for parallax feel
+                    const marginTop = index === 1 ? 'md:mt-24' : index === 2 ? 'md:mt-48' : '';
+                    
+                    return (
+                        <motion.div
+                            key={index}
+                            className={`relative ${marginTop}`}
+                            initial={{ opacity: 0, y: 100, rotateX: 10 }}
+                            whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+                            viewport={{ once: true, margin: "-50px" }}
+                            transition={{ duration: 0.8, delay: index * 0.1 }}
+                        >
+                            <motion.div
+                                animate={{ y: [0, -10, 0] }}
+                                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: index * 2 }}
+                                className="group h-full"
+                            >
+                                <div className="glass-card h-full p-8 flex flex-col justify-between hover:bg-white/5 transition-all duration-500 border border-white/5 hover:border-white/20 relative overflow-hidden">
+                                    
+                                    {/* Reveal Mask Effect on Hover */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-terminal-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                                    
+                                    <div>
+                                        <div className="mb-8 flex justify-between items-start">
+                                            <div className="p-4 rounded-xl bg-white/5 border border-white/10 group-hover:scale-110 transition-transform duration-500">
+                                                {project.icon}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {project.links.map((link, i) => (
+                                                    <a 
+                                                        key={i} 
+                                                        href={link.href} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                                                        title={link.label}
+                                                    >
+                                                        {link.icon === 'github' ? <Github className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <h3 className="text-3xl font-bold mb-4 group-hover:text-terminal-green transition-colors font-display">
+                                            {project.title}
+                                        </h3>
+                                        
+                                        <p className="text-muted-foreground leading-relaxed mb-8">
+                                            {project.description}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 pt-8 border-t border-white/5">
+                                        {project.tech.map((t) => (
+                                            <span key={t} className="text-xs font-mono text-white/40 px-2 py-1 bg-white/5 rounded border border-white/5">
+                                                {t}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    );
+                })}
+            </div>
         </div>
-      </div>
     </section>
   );
 }

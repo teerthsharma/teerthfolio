@@ -7,24 +7,48 @@ interface LoaderProps {
   isLoading: boolean;
 }
 
-const loadingTexts = [
+const steps = [
   "INITIALIZING KERNEL...",
-  "LOADING NEURAL TEXTURES...",
-  "CALIBRATING EVENT HORIZON...",
-  "ESTABLISHING UPLINK...",
-  "QUANTUM COHERENCE: 100%"
+  "DECRYPTING BIOMETRICS...",
+  "ALLOCATING NEURAL BUFFERS...",
+  "BYPASSING SECURITY PROTOCOLS...",
+  "ESTABLISHING UPLINK: SECURE"
 ];
 
-export function Loader({ isLoading }: LoaderProps) {
-  const [textIndex, setTextIndex] = useState(0);
+const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*";
 
+export function Loader({ isLoading }: LoaderProps) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [scrambleText, setScrambleText] = useState("TEERTH SHARMA");
+
+  // Scramble effect for the title
   useEffect(() => {
     if (!isLoading) return;
     
+    let iterations = 0;
     const interval = setInterval(() => {
-      setTextIndex((prev) => (prev < loadingTexts.length - 1 ? prev + 1 : prev));
-    }, 800);
+      setScrambleText(prev => 
+        prev.split("")
+          .map((char, index) => {
+            if (index < iterations) return "TEERTH SHARMA"[index];
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join("")
+      );
+      
+      if (iterations >= 13) clearInterval(interval);
+      iterations += 1/3; // Speed
+    }, 30);
+    
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
+  // Cycle through steps
+  useEffect(() => {
+    if (!isLoading) return;
+    const interval = setInterval(() => {
+      setCurrentStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
+    }, 600);
     return () => clearInterval(interval);
   }, [isLoading]);
 
@@ -33,58 +57,55 @@ export function Loader({ isLoading }: LoaderProps) {
       {isLoading && (
         <motion.div
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 1.5, ease: "easeInOut" } }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black font-mono"
+          exit={{ opacity: 0, scale: 1.1, filter: "blur(10px)" }}
+          transition={{ duration: 1.2, ease: "easeInOut" }}
+          className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden"
         >
-          {/* Central Logo / Glitch Text */}
-          <div className="relative mb-12">
+          {/* Background Matrix Rain / Hex Dump */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden text-[10px] font-mono text-terminal-green leading-3 break-all">
+            {Array.from({ length: 4000 }).map(() => Math.random() > 0.5 ? '1' : '0').join('')}
+          </div>
+          
+          {/* Scanline Overlay */}
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-terminal-green/5 to-transparent h-full w-full animate-scan" style={{ backgroundSize: '100% 3px' }} />
+
+          {/* Main Content */}
+          <div className="relative z-10 flex flex-col items-center">
+            
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="text-4xl md:text-6xl font-bold text-white tracking-tighter"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-5xl md:text-8xl font-black tracking-tighter text-white mb-2 mix-blend-difference"
+              style={{ fontFamily: 'var(--font-display)' }}
             >
-              TEERTH SHARMA
+              {scrambleText}
             </motion.div>
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 2, ease: "circOut" }}
-              className="h-1 bg-terminal-green mt-2"
+            
+            <motion.div 
+              className="h-1 bg-terminal-green w-full mb-12 shadow-[0_0_20px_#00FF41]"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.8, ease: "circOut" }}
             />
-          </div>
 
-          {/* System Status Lines */}
-          <div className="w-64 h-24 flex flex-col items-start justify-end overflow-hidden">
-             <motion.div
-               key={textIndex}
-               initial={{ opacity: 0, y: 10 }}
-               animate={{ opacity: 1, y: 0 }}
-               className="text-xs text-terminal-green/80"
-             >
-               {`> ${loadingTexts[textIndex]}`}
-             </motion.div>
-             {/* Previous lines visual clutter */}
-             {textIndex > 0 && (
-               <div className="text-xs text-terminal-green/40 opacity-50">
-                 {`> ${loadingTexts[textIndex - 1]} [OK]`}
-               </div>
-             )}
-          </div>
+            {/* Terminal Output */}
+            <div className="w-full max-w-md font-mono text-xs md:text-sm text-terminal-green/80 space-y-1">
+               {steps.map((step, idx) => (
+                 idx <= currentStep && (
+                   <motion.div key={idx} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+                     <span className="text-terminal-amber mr-2">[{idx === currentStep && idx !== steps.length-1 ? "BUSY" : "OK"}]</span>
+                     {step}
+                   </motion.div>
+                 )
+               ))}
+            </div>
 
-          {/* Progress Bar */}
-          <div className="w-64 h-1 bg-gray-900 mt-4 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-terminal-green shadow-[0_0_10px_#00FF41]"
-              initial={{ width: "0%" }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 4, ease: "easeInOut" }}
-            />
-          </div>
-
-          {/* Bottom Right detail */}
-          <div className="absolute bottom-8 right-8 text-[10px] text-gray-500">
-            SYSTEM_V2.0.4 // BOOT_SEQ
+            {/* Bottom Loader */}
+            <div className="absolute bottom-10 left-0 right-0 px-10 flex justify-between items-end font-mono text-[10px] text-gray-500">
+               <span>MEM: 64TB // QUBITS: 4096</span>
+               <span className="animate-pulse text-terminal-green">SYSTEM READY</span>
+            </div>
           </div>
         </motion.div>
       )}

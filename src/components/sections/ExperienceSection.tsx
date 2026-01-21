@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Briefcase, GraduationCap, PenTool, Server } from 'lucide-react';
+import { GraduationCap, PenTool, Server } from 'lucide-react';
 
 const experienceData = [
   {
@@ -13,6 +13,7 @@ const experienceData = [
     description: 'Leading technical strategy and infrastructure. Overseeing deployment of Linux-based systems and optimizing administrative workflows.',
     icon: Server,
     color: 'text-terminal-amber',
+    borderColor: 'border-terminal-amber',
     tech: ['Linux', 'System Admin', 'Strategic Planning']
   },
   {
@@ -24,6 +25,7 @@ const experienceData = [
     description: 'Focus Areas: LLM Fine-tuning, Business Analysis, High-Energy Physics applications in Computing.',
     icon: GraduationCap,
     color: 'text-terminal-green',
+    borderColor: 'border-terminal-green',
     tech: ['LLMs', 'Physics', 'CompSci']
   },
   {
@@ -35,81 +37,139 @@ const experienceData = [
     description: 'Published writer specializing in creative and web content, developing a strong foundation in storytelling and communication.',
     icon: PenTool,
     color: 'text-blue-400',
+    borderColor: 'border-blue-400',
     tech: ['Storytelling', 'Content Strategy']
   }
 ];
 
 export function ExperienceSection() {
   return (
-    <section className="section relative z-10 py-32">
-      <div className="max-w-4xl mx-auto px-6">
+    <section className="section relative z-10 py-32 perspective-1000">
+      <div className="max-w-5xl mx-auto px-6">
         
         {/* Header */}
         <motion.div
-           initial={{ opacity: 0, y: 30 }}
-           whileInView={{ opacity: 1, y: 0 }}
+           initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
+           whileInView={{ opacity: 1, scale: 1, rotateX: 0 }}
            viewport={{ once: true, margin: "-100px" }}
-           transition={{ duration: 0.6 }}
-           className="mb-16 pl-6 border-l-2 border-dashed border-terminal-green/30"
+           transition={{ duration: 0.8 }}
+           className="mb-24 text-center"
         >
-          <h2 className="text-sm font-mono text-primary mb-4 tracking-wider uppercase">
-            // Mission Log (Experience)
+          <h2 className="text-sm font-mono text-primary mb-4 tracking-[0.3em] uppercase opacity-80">
+            // Mission Log 
           </h2>
-          <h3 className="text-3xl md:text-5xl font-bold">
+          <h3 className="text-6xl md:text-8xl font-bold mb-4 tracking-tighter">
             Trajectory <span className="gradient-text">Timeline</span>
           </h3>
+          <div className="w-px h-24 bg-gradient-to-b from-primary to-transparent mx-auto opacity-50" />
         </motion.div>
 
-        {/* Timeline */}
-        <div className="relative border-l border-white/10 ml-6 md:ml-8 space-y-12">
-          {experienceData.map((item, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="relative pl-8 md:pl-12"
-            >
-              {/* Node on the line */}
-              <div className={`absolute -left-[5px] md:-left-[9px] top-0 w-3 h-3 md:w-5 md:h-5 rounded-full bg-black border-2 border-current ${item.color}`} />
-              
-              <div className="glass-card p-6 md:p-8 hover:bg-white/5 transition-colors group">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg bg-white/5 ${item.color}`}>
-                      <item.icon className="w-5 h-5 md:w-6 md:h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-lg md:text-xl font-bold group-hover:text-primary transition-colors">
-                        {item.role}
-                      </h4>
-                      <p className="text-muted-foreground font-mono text-sm">
-                        {item.company} // {item.location}
+        {/* Timeline Container */}
+        <div className="relative space-y-32">
+          
+          {/* Central Line */}
+          <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-white/5 md:-translate-x-1/2">
+            <motion.div 
+               className="h-[300px] w-full bg-gradient-to-b from-transparent via-terminal-green to-transparent opacity-50 blur-sm"
+               animate={{ top: ['-20%', '120%'] }}
+               transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
+               style={{ position: 'absolute' }}
+            />
+          </div>
+
+          {experienceData.map((item, index) => {
+            const isEven = index % 2 === 0;
+            return (
+              <div key={index} className={`relative flex flex-col md:flex-row gap-12 items-center ${isEven ? 'md:flex-row-reverse' : ''}`}>
+                
+                {/* Spacer (Empty side) */}
+                <div className="hidden md:block flex-1" />
+
+                {/* Central Node */}
+                <div className="absolute left-4 md:left-1/2 md:-translate-x-1/2 z-10">
+                   <motion.div 
+                     initial={{ scale: 0 }}
+                     whileInView={{ scale: 1 }}
+                     viewport={{ once: true }}
+                     className="w-4 h-4 rounded-full bg-black border border-white/50 flex items-center justify-center"
+                   >
+                     <div className={`w-2 h-2 rounded-full ${item.color.replace('text-', 'bg-')} animate-pulse`} />
+                   </motion.div>
+                </div>
+
+                {/* Content Card with 3D Entrance */}
+                <motion.div 
+                  className="flex-1 pl-12 md:pl-0 w-full"
+                  initial={{ 
+                    opacity: 0, 
+                    x: isEven ? -100 : 100, 
+                    y: 50,
+                    rotateY: isEven ? 45 : -45,
+                    rotateX: 20
+                  }}
+                  whileInView={{ 
+                    opacity: 1, 
+                    x: 0, 
+                    y: 0,
+                    rotateY: 0,
+                    rotateX: 0
+                  }}
+                  viewport={{ once: true, margin: "-10%" }}
+                  transition={{ duration: 1, type: "spring", bounce: 0.3, delay: index * 0.2 }}
+                >
+                  <motion.div 
+                    animate={{ y: [0, -15, 0] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: index * 1.2 }}
+                  >
+                    <div className={`glass-card p-8 md:p-10 relative overflow-hidden group hover:border-white/20 transition-all duration-500`}>
+                      
+                      {/* Tech decoration lines */}
+                      <div className="absolute top-0 right-0 p-4 opacity-20">
+                         <div className="w-16 h-1 bg-white/20 mb-1 ml-auto" />
+                         <div className="w-8 h-1 bg-white/20 ml-auto" />
+                      </div>
+
+                      <div className="flex flex-col gap-6 mb-6">
+                        <div className="flex items-center gap-4">
+                           <div className={`p-4 rounded-2xl bg-white/5 ${item.color} backdrop-blur-md`}>
+                             <item.icon className="w-8 h-8" />
+                           </div>
+                           <div>
+                              <div className="font-mono text-xs text-white/30 uppercase tracking-widest mb-1">
+                                {item.period}
+                              </div>
+                              <h4 className="text-2xl md:text-3xl font-bold leading-none group-hover:text-white transition-colors">
+                                {item.role}
+                              </h4>
+                           </div>
+                        </div>
+                        
+                        <div className="pl-2 border-l-2 border-white/10">
+                          <p className="text-base font-mono text-muted-foreground">
+                            {item.company} <br/> <span className="text-xs opacity-50">{item.location}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-gray-400 leading-relaxed mb-8 text-lg font-light">
+                        {item.description}
                       </p>
+
+                      <div className="flex flex-wrap gap-3">
+                        {item.tech.map((tech) => (
+                          <span key={tech} className="text-xs uppercase font-bold tracking-widest text-white/40 px-3 py-1 bg-white/5 rounded-full hover:bg-white/10 hover:text-white transition-colors cursor-default">
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-xs md:text-sm font-mono py-1 px-3 rounded-full bg-white/5 text-muted-foreground border border-white/10 whitespace-nowrap">
-                    {item.period}
-                  </div>
-                </div>
+                  </motion.div>
+                </motion.div>
 
-                <p className="text-sm md:text-base text-gray-300 leading-relaxed mb-4">
-                  {item.description}
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {item.tech.map((tech) => (
-                    <span key={tech} className="text-xs font-mono text-muted-foreground/80 px-2 py-1 rounded bg-black/30">
-                      #{tech}
-                    </span>
-                  ))}
-                </div>
               </div>
-            </motion.div>
-          ))}
+            );
+          })}
         </div>
-
       </div>
     </section>
   );

@@ -6,6 +6,7 @@ import { HeroSection } from '@/components/sections/HeroSection';
 import { AboutSection } from '@/components/sections/AboutSection';
 import { ExperienceSection } from '@/components/sections/ExperienceSection';
 import { ProjectsSection } from '@/components/sections/ProjectsSection';
+import { ResumeSection } from '@/components/sections/ResumeSection';
 import { TerminalFooter } from '@/components/sections/TerminalFooter';
 import { PerformanceHUD } from '@/components/hud/PerformanceHUD';
 import { Loader } from '@/components/ui/Loader';
@@ -19,7 +20,6 @@ const ShaderCanvas = dynamic(
 export default function Home() {
   const aboutRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [isShaderReady, setIsShaderReady] = useState(false);
   const [showContent, setShowContent] = useState(false);
   
   // Track scroll progress
@@ -41,15 +41,13 @@ export default function Home() {
   
   const handleShaderReady = () => {
     // Artificial constraint to ensure the loader stays for a "cinematic" amount of time
-    // and to let the warm-up frame render fully.
     setTimeout(() => {
-      setIsShaderReady(true);
-      setTimeout(() => setShowContent(true), 500);
-    }, 2000);
+      setShowContent(true);
+    }, 2500);
   };
 
   return (
-    <main className="relative min-h-screen">
+    <main className="relative min-h-screen overflow-x-hidden">
       {/* Cinematic Loader */}
       <Loader isLoading={!showContent} />
 
@@ -60,21 +58,19 @@ export default function Home() {
       <div 
         className={`relative z-10 transition-opacity duration-1000 ${showContent ? 'opacity-100' : 'opacity-0'}`}
       >
-        {/* Hero Section */}
+        {/* Sections */}
         <HeroSection onScrollClick={handleScrollToAbout} />
         
-        {/* About Section */}
         <div ref={aboutRef}>
           <AboutSection />
         </div>
 
-        {/* Experience Section */}
         <ExperienceSection />
         
-        {/* Projects Section */}
         <ProjectsSection />
         
-        {/* Terminal Footer */}
+        <ResumeSection />
+        
         <TerminalFooter />
       </div>
       

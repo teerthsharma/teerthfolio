@@ -7,46 +7,69 @@ interface ShaderCanvasProps {
   onReady?: () => void;
 }
 
-// Optimized multi-stage cosmic shader
+// Hyperspace Shader: Twinkling 3D Stars + Mobile Optimized Drift
 const fragmentShader = `
   precision highp float;
   
   uniform float uTime;
   uniform vec2 uResolution;
   uniform float uScroll;
-  uniform vec2 uMouse;
   
   #define PI 3.14159265359
-  #define PIXEL_SIZE 4.0
+  #define PIXEL_SIZE 1.0 
   
-  // Hash function for pseudo-random
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  // --- 3D NOISE ---
+  vec3 hash( vec3 p ) {
+    p = vec3( dot(p,vec3(127.1,311.7, 74.7)),
+              dot(p,vec3(269.5,183.3,246.1)),
+              dot(p,vec3(113.5,271.9,124.6)));
+
+    return -1.0 + 2.0*fract(sin(p)*43758.5453123);
   }
   
-  // Smooth noise
-  float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+  float noise( in vec3 p ) {
+    vec3 i = floor( p );
+    vec3 f = fract( p );
+    
+    vec3 u = f*f*(3.0-2.0*f);
+
+    return mix( mix( mix( dot( hash( i + vec3(0.0,0.0,0.0) ), f - vec3(0.0,0.0,0.0) ), 
+                          dot( hash( i + vec3(1.0,0.0,0.0) ), f - vec3(1.0,0.0,0.0) ), u.x),
+                     mix( dot( hash( i + vec3(0.0,1.0,0.0) ), f - vec3(0.0,1.0,0.0) ), 
+                          dot( hash( i + vec3(1.0,1.0,0.0) ), f - vec3(1.0,1.0,0.0) ), u.x), u.y),
+                mix( mix( dot( hash( i + vec3(0.0,0.0,1.0) ), f - vec3(0.0,0.0,1.0) ), 
+                          dot( hash( i + vec3(1.0,0.0,1.0) ), f - vec3(1.0,0.0,1.0) ), u.x),
+                     mix( dot( hash( i + vec3(0.0,1.0,1.0) ), f - vec3(0.0,1.0,1.0) ), 
+                          dot( hash( i + vec3(1.0,1.0,1.0) ), f - vec3(1.0,1.0,1.0) ), u.x), u.y), u.z );
   }
-  
-  // FBM with fewer octaves for performance
+
+  // --- 2D FBM ---
+  float hash2d(vec2 p) {
+      p = fract(p * vec2(123.34, 456.21));
+      p += dot(p, p + 45.32);
+      return fract(p.x * p.y);
+  }
+
+  float noise2d(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash2d(i), hash2d(i + vec2(1.0, 0.0)), f.x),
+                 mix(hash2d(i + vec2(0.0, 1.0)), hash2d(i + vec2(1.0, 1.0)), f.x), f.y);
+  }
+
   float fbm(vec2 p) {
     float value = 0.0;
     float amplitude = 0.5;
     float frequency = 1.0;
-    for (int i = 0; i < 4; i++) { // Reduced from 6 to 4 for performance
-      value += amplitude * noise(p * frequency);
-      amplitude *= 0.5;
-      frequency *= 2.0;
+    for (int i = 0; i < 5; i++) {
+        value += amplitude * noise2d(p * frequency);
+        amplitude *= 0.5;
+        frequency *= 2.0;
     }
     return value;
   }
   
-  // Domain warping
   float warpedFbm(vec2 p, float time) {
     vec2 q = vec2(fbm(p), fbm(p + vec2(5.2, 1.3)));
     vec2 r = vec2(fbm(p + 2.0 * q + vec2(1.7, 9.2) + 0.15 * time),
@@ -54,86 +77,79 @@ const fragmentShader = `
     return fbm(p + 2.0 * r);
   }
   
-  // Simple Star field
-  float stars(vec2 uv, float density, float twinkleSpeed) {
-    vec2 grid = floor(uv * density);
-    vec2 gridUv = fract(uv * density);
-    float starValue = hash(grid);
-    float star = 0.0;
-    if (starValue > 0.98) { // Fewer stars for cleanliness
-      vec2 center = vec2(0.5); 
-      float d = length(gridUv - center);
-      star = smoothstep(0.15, 0.05, d); // Softer stars
-      star *= 0.7 + 0.3 * sin(uTime * twinkleSpeed + starValue * 100.0);
-    }
-    return star;
-  }
-  
   void main() {
-    // Pixelation and UV setup
-    vec2 pixelUv = floor(gl_FragCoord.xy / PIXEL_SIZE) * PIXEL_SIZE;
+    // Mobile optimization: Use gl_FragCoord directly but consider lower precision effect
+    vec2 pixelUv = gl_FragCoord.xy;
     vec2 uv = pixelUv / uResolution.xy;
+    
+    // Correct Aspect Ratio
     vec2 p = (uv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
     
-    // Storytelling Phases based on scroll
-    // 0.0 - 0.2: Deep Space (Calm)
-    // 0.2 - 0.5: Nebula (Warmth)
-    // 0.5 - 0.8: Accretion (Energy)
-    // 0.8 - 1.0: Singularity (Void)
-    
-    float time = uTime * 0.2;
+    float time = uTime * 0.15; // Speed up slightly for more kinetic feel
     float scroll = uScroll;
-    
-    // --- STAGE 1: DEEP SPACE (Base Layer) ---
-    vec3 colDeepSpace = vec3(0.01, 0.01, 0.03);
-    float starLayer = stars(p + vec2(scroll * 0.1, 0.0), 30.0, 2.0);
-    colDeepSpace += vec3(0.8, 0.9, 1.0) * starLayer;
-    
-    // --- STAGE 2: NEBULA (Cloud Layer) ---
-    // Appears around 0.2, peaks around 0.4
-    float nebulaMask = smoothstep(0.1, 0.4, scroll) * (1.0 - smoothstep(0.6, 0.9, scroll));
-    vec3 colNebula = vec3(0.0);
-    if (nebulaMask > 0.01) {
-        float n = warpedFbm(p * 2.0 + vec2(0.0, -time * 0.5), time);
-        vec3 nebColor1 = vec3(0.5, 0.0, 0.2); // Purple/Red
-        vec3 nebColor2 = vec3(0.0, 0.2, 0.6); // Blue
-        colNebula = mix(nebColor2, nebColor1, n) * n * 2.0;
-    }
-    
-    // --- STAGE 3: ACCRETION (Energy Layer) ---
-    // Appears around 0.5, energetic streaks
-    float accretionMask = smoothstep(0.4, 0.7, scroll);
-    vec3 colAccretion = vec3(0.0);
-    if (accretionMask > 0.01) {
-        vec2 ap = p;
-        float angle = atan(ap.y, ap.x);
-        float dist = length(ap);
-        // Swirling effect
-        float swirl = warpedFbm(vec2(dist * 5.0 - time * 5.0, angle * 2.0), time);
-        vec3 hotColor = vec3(1.0, 0.6, 0.1); // Orange/Gold
-        colAccretion = hotColor * swirl * (1.0/dist) * 0.2;
-    }
 
-    // --- STAGE 4: EVENT HORIZON (Void Layer) ---
-    // Near 1.0, screen gets consumed
-    float voidMask = smoothstep(0.8, 1.0, scroll);
-    
-    // BLENDING
-    vec3 finalColor = colDeepSpace;
-    finalColor = mix(finalColor, finalColor + colNebula, nebulaMask); // Additive nebula
-    finalColor = mix(finalColor, finalColor + colAccretion, accretionMask); // Additive energy
-    
-    // Singularity consumes all light
-    if (voidMask > 0.0) {
-        float vignette = length(p);
-        float darkness = smoothstep(0.8 * (1.0 - voidMask), 1.5, vignette);
-        finalColor = mix(finalColor, vec3(0.0), voidMask * 0.95);
-        // Rim light at the end
-        finalColor += vec3(0.5) * smoothstep(0.95, 1.0, scroll) * hash(p * time); 
-    }
+    // --- HYPERSPACE LATERAL DRIFT ---
+    float lateralNoise = noise(vec3(0.0, scroll * 0.8, time * 0.2)); 
+    p.x += lateralNoise * 1.5; 
+    p.y += scroll * 1.5;
 
-    // Scanlines for retro feel
-    finalColor *= 0.9 + 0.1 * sin(uv.y * uResolution.y * 0.5);
+    vec3 finalColor = vec3(0.0);
+    
+    // --- PHASE 1: TWINKLING 3D NOISE STARS ---
+    vec3 voidColor = vec3(0.005, 0.005, 0.012);
+    
+    vec3 stars_direction = normalize(vec3(p, 1.0)); 
+    float stars_threshold = 8.0; 
+    float stars_exposure = 200.0; 
+    
+    float baseStar = pow(clamp(noise(stars_direction * 200.0), 0.0, 1.0), stars_threshold) * stars_exposure;
+    
+    // Twinkle Logic: High frequency flickering
+    float twinkle = noise(stars_direction * 150.0 + vec3(time * 5.0)); // Increased time scale
+    twinkle = mix(0.2, 1.8, twinkle); // Wider range (dimmer lows, brighter highs)
+    
+    float starVal = baseStar * twinkle;
+    
+    float starFade = 1.0 - smoothstep(0.0, 0.5, scroll);
+    finalColor = voidColor + vec3(starVal) * starFade;
+    
+    // --- PHASE 2: ETHEREAL NEBULA ---
+    float nebulaMask = smoothstep(0.1, 0.3, scroll) * (1.0 - smoothstep(0.7, 0.9, scroll));
+    
+    float n = warpedFbm(p * 1.5 - vec2(0.0, time * 0.2), time);
+    vec3 colA = vec3(0.0, 0.5, 0.6); 
+    vec3 colB = vec3(0.4, 0.0, 0.6);
+    vec3 neb = mix(colB, colA, n);
+    
+    vec3 nebulaLayer = neb * n * 0.6 + neb * smoothstep(0.4, 0.6, n) * 0.4;
+    finalColor += nebulaLayer * nebulaMask;
+    
+    // --- PHASE 3: EVENT HORIZON ---
+    float accMask = smoothstep(0.7, 0.9, scroll);
+    
+    vec2 bhP = p; 
+    float len = length(bhP);
+    float angle = atan(bhP.y, bhP.x);
+    
+    float spiral = warpedFbm(vec2(len * 8.0 - time * 10.0, angle * 4.0), time);
+    vec3 hot = vec3(1.0, 0.3, 0.05); 
+    
+    vec3 accretionLayer = hot * spiral * (0.25 / len);
+    finalColor = mix(finalColor, finalColor + accretionLayer, accMask);
+    
+    float voidEdge = smoothstep(0.2, 0.5, len); 
+    float voidInfluence = accMask; 
+    finalColor = mix(finalColor, finalColor * voidEdge, voidInfluence);
+
+    // --- POST PROCESSING ---
+    finalColor *= 1.1 - length(uv - 0.5); 
+    
+    float aber = length(uv - 0.5) * 0.005;
+    finalColor.r += aber;
+    finalColor.b -= aber;
+
+    float grain = hash2d(uv + time * 10.0) * 0.03;
+    finalColor += grain;
     
     gl_FragColor = vec4(finalColor, 1.0);
   }
@@ -149,142 +165,100 @@ const vertexShader = `
 export function ShaderCanvas({ scrollProgress, onReady }: ShaderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGLRenderingContext | null>(null);
-  const programRef = useRef<WebGLProgram | null>(null);
   const frameIdRef = useRef<number>(0);
   const startTimeRef = useRef(Date.now());
-  
-  // Cached Uniform Locations
-  const locationsRef = useRef<{
-    time: WebGLUniformLocation | null;
-    resolution: WebGLUniformLocation | null;
-    scroll: WebGLUniformLocation | null;
-    mouse: WebGLUniformLocation | null;
-  }>({ time: null, resolution: null, scroll: null, mouse: null });
+  const locationsRef = useRef<any>({});
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const gl = canvas.getContext('webgl', {
-      powerPreference: "high-performance",
-      antialias: false,
-      alpha: false,
+    
+    // Mobile Loop Fix: Use webgl1 for broader compatibility if webgl2 fails, 
+    // but try high-performance.
+    const gl = canvas.getContext('webgl', { 
+        powerPreference: "high-performance",
+        antialias: false,
+        alpha: false,
+        preserveDrawingBuffer: false 
     });
-
     if (!gl) return;
     glRef.current = gl;
 
-    // --- Shader Compilation ---
-    const createShader = (type: number, source: string) => {
-      const shader = gl.createShader(type)!;
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error(gl.getShaderInfoLog(shader));
-        return null;
-      }
-      return shader;
+    const createShader = (type: number, src: string) => {
+        const s = gl.createShader(type)!;
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+            console.error(gl.getShaderInfoLog(s));
+            return null;
+        }
+        return s;
     };
 
     const vs = createShader(gl.VERTEX_SHADER, vertexShader);
     const fs = createShader(gl.FRAGMENT_SHADER, fragmentShader);
     if (!vs || !fs) return;
 
-    const program = gl.createProgram()!;
-    gl.attachShader(program, vs);
-    gl.attachShader(program, fs);
-    gl.linkProgram(program);
-    
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error(gl.getProgramInfoLog(program));
-      return;
-    }
-    
-    gl.useProgram(program);
-    programRef.current = program;
+    const p = gl.createProgram()!;
+    gl.attachShader(p, vs);
+    gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    gl.useProgram(p);
 
-    // --- Buffers ---
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     
-    const posLoc = gl.getAttribLocation(program, 'position');
-    gl.enableVertexAttribArray(posLoc);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+    const pos = gl.getAttribLocation(p, 'position');
+    gl.enableVertexAttribArray(pos);
+    gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
 
-    // --- Uniform Caching ---
     locationsRef.current = {
-      time: gl.getUniformLocation(program, 'uTime'),
-      resolution: gl.getUniformLocation(program, 'uResolution'),
-      scroll: gl.getUniformLocation(program, 'uScroll'),
-      mouse: gl.getUniformLocation(program, 'uMouse'),
+        time: gl.getUniformLocation(p, 'uTime'),
+        resolution: gl.getUniformLocation(p, 'uResolution'),
+        scroll: gl.getUniformLocation(p, 'uScroll')
     };
 
-    // --- Warm-up Draw ---
-    // Force a draw call immediately so the pipeline is ready
+    // Warm-up
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.uniform1f(locationsRef.current.time, 0);
     gl.uniform2f(locationsRef.current.resolution, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-    // Signal ready
     if (onReady) onReady();
 
-    // Cleanup
-    return () => {
-      gl.deleteProgram(program);
-    };
-  }, []); // Run once on mount
+    return () => { gl.deleteProgram(p); };
+  }, []);
 
-  // Resize Handler
   useEffect(() => {
     const handleResize = () => {
-      if (canvasRef.current && glRef.current) {
-        // Lower resolution for better performance on high DPI
-        const dpr = Math.min(window.devicePixelRatio, 1.5); 
-        canvasRef.current.width = window.innerWidth * dpr;
-        canvasRef.current.height = window.innerHeight * dpr;
-        glRef.current.viewport(0, 0, canvasRef.current.width, canvasRef.current.height);
-      }
+        if (canvasRef.current && glRef.current) {
+            // Cap pixel ratio at 1.5 to prevent overheating on high-res mobile/laptops
+            const dpr = Math.min(window.devicePixelRatio, 1.5);
+            canvasRef.current.width = window.innerWidth * dpr;
+            canvasRef.current.height = window.innerHeight * dpr;
+            glRef.current.viewport(0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
     };
     window.addEventListener('resize', handleResize);
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Render Loop
   useEffect(() => {
     const gl = glRef.current;
     const locs = locationsRef.current;
-    
     const render = () => {
-      if (!gl) return;
-      const time = (Date.now() - startTimeRef.current) * 0.001;
-      
-      gl.uniform1f(locs.time, time);
-      // Resolution is handled in resize, but good to ensure match if needed, 
-      // though typically we don't need to re-upload if it hasn't changed. 
-      // For safety/simplicity we can skip uploading resolution every frame if we trust resize.
-      // But let's keep it safe.
-      if (canvasRef.current) {
-          gl.uniform2f(locs.resolution, canvasRef.current.width, canvasRef.current.height);
-      }
-      gl.uniform1f(locs.scroll, scrollProgress);
-      // Mouse uniform could be added if we tracked it, skipping for pure perf now or adding later
-      
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      frameIdRef.current = requestAnimationFrame(render);
+        if (!gl) return;
+        gl.uniform1f(locs.time, (Date.now() - startTimeRef.current) * 0.001);
+        gl.uniform1f(locs.scroll, scrollProgress);
+        if (canvasRef.current) gl.uniform2f(locs.resolution, canvasRef.current.width, canvasRef.current.height);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        frameIdRef.current = requestAnimationFrame(render);
     };
-
     frameIdRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(frameIdRef.current);
   }, [scrollProgress]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none"
-      style={{ width: '100vw', height: '100vh' }}
-    />
-  );
+  return <canvas ref={canvasRef} className="fixed inset-0 z-0 pointer-events-none" style={{width:'100vw', height:'100vh'}} />;
 }

@@ -122,21 +122,24 @@ export function TerminalFooter() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
                   onClick={() => handleLineClick(line)}
-                  className={`w-full text-left flex items-start md:items-center gap-2 py-2 px-2 -mx-2 rounded transition-colors group ${
+                  className={`w-full text-left flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 py-3 px-3 -mx-2 rounded transition-colors group ${
                     selectedOption === line.id 
                       ? 'bg-terminal-green/10' 
                       : 'hover:bg-terminal-green/5'
                   }`}
                 >
-                  <span className="text-terminal-green mt-1 md:mt-0">&gt;</span>
-                  <span className="text-terminal-amber font-bold">[{line.id}]</span>
-                  <span className="text-muted-foreground hidden md:inline">{line.label}:</span>
-                  <span className="text-gray-300 flex-1 truncate">
+                  <div className="flex items-center gap-2 min-w-fit">
+                    <span className="text-terminal-green">&gt;</span>
+                    <span className="text-terminal-amber font-bold">[{line.id}]</span>
+                    <span className="text-muted-foreground">{line.label}:</span>
+                  </div>
+                  
+                  <span className="text-gray-300 flex-1 break-all text-xs md:text-sm pl-6 md:pl-0">
                     {line.value}
                   </span>
                   
                   {/* Action indicator */}
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 md:static">
                     {copiedId === line.id ? (
                       <Check className="w-4 h-4 text-terminal-green" />
                     ) : (
