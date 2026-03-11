@@ -61,7 +61,7 @@ export function TerminalFooter() {
   
   return (
     <section className="section relative z-10 py-24 min-h-[60vh]">
-      <div className="max-w-3xl mx-auto px-6">
+      <div className="max-w-4xl mx-auto px-6">
         {/* Section header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -122,24 +122,28 @@ export function TerminalFooter() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
                   onClick={() => handleLineClick(line)}
-                  className={`w-full text-left flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-2 py-3 px-3 -mx-2 rounded transition-colors group ${
+                  className={`w-full text-left flex flex-row items-center gap-2 py-3 px-3 -mx-2 rounded transition-colors group relative ${
                     selectedOption === line.id 
                       ? 'bg-terminal-green/10' 
                       : 'hover:bg-terminal-green/5'
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-fit">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-terminal-green">&gt;</span>
-                    <span className="text-terminal-amber font-bold">[{line.id}]</span>
-                    <span className="text-muted-foreground">{line.label}:</span>
+                    <span className="text-terminal-amber font-bold hidden sm:inline">[{line.id}]</span>
+                    <span className="text-muted-foreground whitespace-nowrap">{line.label}:</span>
                   </div>
                   
-                  <span className="text-gray-300 flex-1 break-all text-xs md:text-sm pl-6 md:pl-0">
-                    {line.value}
-                  </span>
+                  <div className="flex-1 min-w-0 overflow-hidden" style={{ WebkitMaskImage: 'linear-gradient(to right, #000 85%, transparent)' }}>
+                    <div className={`text-gray-300 block whitespace-nowrap text-xs md:text-sm transition-transform duration-[4000ms] ease-in-out ${
+                      line.value.length > 25 ? 'group-hover:-translate-x-[25%]' : ''
+                    }`}>
+                      {line.value}
+                    </div>
+                  </div>
                   
                   {/* Action indicator */}
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 md:static">
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2">
                     {copiedId === line.id ? (
                       <Check className="w-4 h-4 text-terminal-green" />
                     ) : (

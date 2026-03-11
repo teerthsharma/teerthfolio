@@ -16,6 +16,30 @@ export function HeroSection({ onScrollClick }: HeroSectionProps) {
   const rotateX = useTransform(y, [-0.5, 0.5], [10, -10]);
   const rotateY = useTransform(x, [-0.5, 0.5], [-10, 10]);
 
+  const [terminalStep, setTerminalStep] = useState(0);
+  const [typedCommand, setTypedCommand] = useState('');
+  const commandText = "./init_sequence.sh";
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (terminalStep === 0) {
+      if (typedCommand.length < commandText.length) {
+        // Random typing delay between 100ms and 250ms for a more natural feel
+        const nextDelay = Math.random() * 150 + 100;
+        timeout = setTimeout(() => {
+          setTypedCommand(commandText.slice(0, typedCommand.length + 1));
+        }, nextDelay);
+      } else {
+        timeout = setTimeout(() => setTerminalStep(1), 800);
+      }
+    } else if (terminalStep > 0 && terminalStep < 4) {
+      timeout = setTimeout(() => {
+        setTerminalStep(prev => prev + 1);
+      }, 600);
+    }
+    return () => clearTimeout(timeout);
+  }, [terminalStep, typedCommand]);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const width = rect.width;
@@ -48,7 +72,7 @@ export function HeroSection({ onScrollClick }: HeroSectionProps) {
       >
         
         {/* Semantic Overhead Element */}
-        <motion.div
+        {/* <motion.div
            initial={{ opacity: 0, y: -20 }}
            animate={{ opacity: 1, y: 0 }}
            transition={{ duration: 0.8, delay: 0.1 }}
@@ -57,7 +81,7 @@ export function HeroSection({ onScrollClick }: HeroSectionProps) {
         >
            <div className="w-2 h-2 rounded-full bg-terminal-green animate-pulse" />
            <span className="text-xs font-mono text-terminal-green tracking-widest uppercase">System Online</span>
-        </motion.div>
+        </motion.div> */}
 
         {/* Main Title - Character Stagger */}
         <h1 className="text-4xl sm:text-5xl md:text-8xl lg:text-9xl font-bold mb-6 tracking-tight relative z-20 font-display whitespace-nowrap animate-text-glow">
@@ -118,21 +142,26 @@ export function HeroSection({ onScrollClick }: HeroSectionProps) {
                  <div className="w-3 h-3 rounded-full bg-green-500/50" />
               </div>
               
-              <div className="space-y-2">
-                 <div className="flex animate-wave" style={{ animationDelay: '0s' }}>
-                    <span className="text-terminal-green mr-2">➜</span>
-                    <span className="text-terminal-amber">~/mission-control</span>
-                    <span className="text-white ml-2">$ ./init_sequence.sh</span>
+              <div className="space-y-3 text-left">
+                 <div className="flex items-center flex-wrap">
+                    <span className="text-terminal-green mr-2 shrink-0">➜</span>
+                    <span className="text-terminal-amber mr-2 shrink-0">~/mission-control</span>
+                    <span className="text-white">$ {typedCommand}</span>
+                    {terminalStep === 0 && <span className="w-2 h-4 bg-white/80 animate-pulse ml-1 shrink-0 block" />}
                  </div>
-                 <div className="text-gray-400 pl-4 space-y-1">
-                    <div className="animate-wave" style={{ animationDelay: '0.2s' }}>{`> Loading modules... [OK]`}</div>
-                    <div className="animate-wave" style={{ animationDelay: '0.4s' }}>{`> Optimizing kernels... [OK]`}</div>
-                    <div className="animate-wave" style={{ animationDelay: '0.6s' }}>{`> Establishing uplink... [READY]`}</div>
+                 
+                 <div className="text-gray-400 pl-4 flex flex-col gap-2 font-mono">
+                    {terminalStep >= 1 && <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>{`> Loading modules... [OK]`}</motion.div>}
+                    {terminalStep >= 2 && <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>{`> Optimizing kernels... [OK]`}</motion.div>}
+                    {terminalStep >= 3 && <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>{`> Establishing uplink... [READY]`}</motion.div>}
                  </div>
-                 <div className="flex items-center mt-2 animate-wave" style={{ animationDelay: '0.8s' }}>
-                    <span className="text-terminal-green mr-2">➜</span>
-                    <span className="animate-pulse text-white">_</span>
-                 </div>
+                 
+                 {terminalStep >= 4 && (
+                   <div className="flex items-center mt-4 pt-2">
+                      <span className="text-terminal-green mr-2 shrink-0">➜</span>
+                      <span className="w-2 h-4 bg-white/80 animate-pulse shrink-0 block" />
+                   </div>
+                 )}
               </div>
            </div>
            
