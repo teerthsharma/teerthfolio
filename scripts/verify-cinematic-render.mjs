@@ -94,7 +94,14 @@ async function collectMetrics(page) {
     };
     const overlaps = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
 
-    let canvasSample = { nonBlankPixels: 0, error: "" };
+    let canvasSample = {
+      averageLuminance: 0,
+      brightPixels: 0,
+      darkPixels: 0,
+      nonBlankPixels: 0,
+      tonalRange: 0,
+      error: "",
+    };
     if (canvas) {
       try {
         const sampler = document.createElement("canvas");
@@ -103,13 +110,39 @@ async function collectMetrics(page) {
         const context = sampler.getContext("2d", { willReadFrequently: true });
         context.drawImage(canvas, 0, 0, sampler.width, sampler.height);
         const pixels = context.getImageData(0, 0, sampler.width, sampler.height).data;
+        let brightPixels = 0;
+        let darkPixels = 0;
+        let luminanceTotal = 0;
+        let maxLuminance = 0;
+        let minLuminance = 255;
         let nonBlankPixels = 0;
         for (let index = 0; index < pixels.length; index += 4) {
-          if (pixels[index] + pixels[index + 1] + pixels[index + 2] + pixels[index + 3] > 18) nonBlankPixels += 1;
+          const alpha = pixels[index + 3];
+          const luminance = pixels[index] * 0.2126 + pixels[index + 1] * 0.7152 + pixels[index + 2] * 0.0722;
+          if (pixels[index] + pixels[index + 1] + pixels[index + 2] + alpha > 18) nonBlankPixels += 1;
+          if (luminance > 215) brightPixels += 1;
+          if (luminance < 42) darkPixels += 1;
+          luminanceTotal += luminance;
+          maxLuminance = Math.max(maxLuminance, luminance);
+          minLuminance = Math.min(minLuminance, luminance);
         }
-        canvasSample = { nonBlankPixels, error: "" };
+        canvasSample = {
+          averageLuminance: Number((luminanceTotal / (pixels.length / 4)).toFixed(2)),
+          brightPixels,
+          darkPixels,
+          nonBlankPixels,
+          tonalRange: Number((maxLuminance - minLuminance).toFixed(2)),
+          error: "",
+        };
       } catch (error) {
-        canvasSample = { nonBlankPixels: 0, error: error?.message || String(error) };
+        canvasSample = {
+          averageLuminance: 0,
+          brightPixels: 0,
+          darkPixels: 0,
+          nonBlankPixels: 0,
+          tonalRange: 0,
+          error: error?.message || String(error),
+        };
       }
     }
 
@@ -188,6 +221,18 @@ function assertViewport(result) {
   }
   if (metrics.canvasSample.error) failures.push(`canvas sampling failed: ${metrics.canvasSample.error}`);
   if (metrics.canvasSample.nonBlankPixels < 100) failures.push(`canvas appears blank: ${metrics.canvasSample.nonBlankPixels} sampled pixels`);
+  if (metrics.canvasSample.averageLuminance > 150) {
+    failures.push(`canvas is overexposed: average luminance ${metrics.canvasSample.averageLuminance}`);
+  }
+  if (metrics.canvasSample.brightPixels > 460) {
+    failures.push(`canvas has too many blown highlights: ${metrics.canvasSample.brightPixels} sampled pixels`);
+  }
+  if (metrics.canvasSample.darkPixels < 80) {
+    failures.push(`canvas lacks cinematic dark mass: ${metrics.canvasSample.darkPixels} sampled pixels`);
+  }
+  if (metrics.canvasSample.tonalRange < 32) {
+    failures.push(`canvas lacks object contrast: tonal range ${metrics.canvasSample.tonalRange}`);
+  }
   if (metrics.renderEnabled !== "true") failures.push(`renderer not enabled: ${metrics.renderEnabled}`);
   if (metrics.rendererMode !== "webgl") failures.push(`renderer mode is ${metrics.rendererMode}`);
   if (metrics.sealAwake !== "true") failures.push(`seal not awake: ${metrics.sealAwake}`);
