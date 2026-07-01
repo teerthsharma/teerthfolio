@@ -10,7 +10,8 @@
     "check:render-budget": "node scripts/check-render-budget.mjs",
     "check:teerth": "node scripts/check-teerth.mjs",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "verify:render": "node scripts/verify-cinematic-render.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
