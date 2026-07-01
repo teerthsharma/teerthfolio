@@ -50,6 +50,10 @@ The site is built to stay Vercel-hostable while still feeling like an object-wor
 | `scripts/check-teerth.mjs` | Teerth content and contract checks |
 | `scripts/check-render-budget.mjs` | Render budget guardrails |
 
+## Admin Status
+
+`/admin` is intentionally disabled for v1. The old template admin, upload APIs, editable JSON store, and unrelated maker-scene assets were removed so the release stays focused on Teerth's source-backed observatory world. Public content is driven from repository data files and the live GitHub radar.
+
 ## Local Development
 
 ```bash
