@@ -18,6 +18,7 @@ const viewports = [
   { name: "ipad", width: 768, height: 1024, query: "qa-sdf=1&qa-low=1&qa=verify-ipad" },
   { name: "mobile", width: 375, height: 667, query: "qa-sdf=1&qa-low=1&qa=verify-mobile" },
 ];
+const safeGateViewport = { name: "safe-gate", width: 1440, height: 900, query: "safe=1&qa=verify-safe-gate" };
 
 function chromeCandidates() {
   const localAppData = process.env.LOCALAPPDATA;
@@ -136,6 +137,27 @@ async function collectMetrics(page) {
   });
 }
 
+async function collectSafeGateMetrics(page) {
+  return page.evaluate(() => {
+    const world = document.querySelector("#world");
+    const gate = document.querySelector(".sdf-seal-splash");
+    const gateButton = document.querySelector(".sdf-render-button");
+    const diagnostics = document.querySelector(".igloo-diagnostics");
+    const canvas = document.querySelector(".igloo-scene canvas");
+    const diagnosticText = diagnostics?.textContent || "";
+    return {
+      diagnosticsVisible: Boolean(diagnostics),
+      diagnosticText,
+      gateButtonText: gateButton?.textContent?.trim() || "",
+      gatePresent: Boolean(gate),
+      renderEnabled: world?.dataset.renderEnabled,
+      rendererMode: world?.dataset.rendererMode,
+      sealAwake: world?.dataset.sealAwake,
+      webglCanvasPresent: Boolean(canvas),
+    };
+  });
+}
+
 async function verifyMovement(page) {
   const axisText = async () => page.locator(".igloo-axis-meter strong").textContent();
   const before = await axisText();
@@ -183,6 +205,24 @@ function assertViewport(result) {
   return failures;
 }
 
+function assertSafeGate(result) {
+  const failures = [];
+  const { initial, probed } = result;
+  if (!initial.gatePresent) failures.push("safe gate did not render the splash gate");
+  if (!/start exploring/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
+  if (initial.renderEnabled !== "false") failures.push(`safe gate initially enabled renderer: ${initial.renderEnabled}`);
+  if (initial.rendererMode !== "safe") failures.push(`safe gate initial mode is ${initial.rendererMode}`);
+  if (initial.sealAwake !== "false") failures.push(`safe gate initially woke seal: ${initial.sealAwake}`);
+  if (initial.webglCanvasPresent) failures.push("safe gate mounted WebGL canvas before probe");
+  if (!initial.diagnosticsVisible || !/safe-boot/i.test(initial.diagnosticText)) {
+    failures.push("safe gate did not expose safe-boot diagnostics");
+  }
+  if (probed.renderEnabled !== "true") failures.push(`safe probe did not enable renderer: ${probed.renderEnabled}`);
+  if (probed.rendererMode !== "webgl") failures.push(`safe probe did not settle to webgl: ${probed.rendererMode}`);
+  if (probed.webglCanvasPresent !== true) failures.push("safe probe did not mount WebGL canvas");
+  return failures;
+}
+
 await mkdir(outDir, { recursive: true });
 let devServer = null;
 if (!(await canReach(baseUrl))) {
@@ -193,6 +233,34 @@ if (!(await canReach(baseUrl))) {
 const browser = await launchBrowser();
 const report = [];
 try {
+  {
+    const context = await browser.newContext({
+      deviceScaleFactor: 1,
+      viewport: { width: safeGateViewport.width, height: safeGateViewport.height },
+    });
+    const page = await context.newPage();
+    const logs = [];
+    page.on("console", (message) => {
+      if (["error", "warning"].includes(message.type())) logs.push({ type: message.type(), text: message.text() });
+    });
+    page.on("pageerror", (error) => logs.push({ type: "pageerror", text: error.message }));
+
+    await page.goto(`${baseUrl}/?${safeGateViewport.query}`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector('#world[data-renderer-mode="safe"]', { timeout: 12000 });
+    await page.waitForSelector(".sdf-render-button", { timeout: 12000 });
+    await page.waitForTimeout(160);
+    const initial = await collectSafeGateMetrics(page);
+    const safeScreenshot = path.join(outDir, `${safeGateViewport.name}.png`);
+    await page.screenshot({ path: safeScreenshot, fullPage: false });
+    await page.waitForSelector('#world[data-renderer-mode="webgl"]', { timeout: 25000 });
+    await page.waitForTimeout(1200);
+    const probed = await collectSafeGateMetrics(page);
+    const result = { name: safeGateViewport.name, screenshot: safeScreenshot, initial, probed, logs };
+    result.failures = assertSafeGate(result);
+    report.push(result);
+    await context.close();
+  }
+
   for (const viewport of viewports) {
     const context = await browser.newContext({
       deviceScaleFactor: 1,
