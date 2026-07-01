@@ -35,20 +35,20 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
     // The igloo at (0,0,0) is the centerpiece; keep it in frame when idle.
     const portrait = size.width < 900;
     const compact = size.width < 520;
-    const sealWeight = compact ? 0.18 : portrait ? 0.24 : 0.44;
-    const depthWeight = compact ? 0.28 : portrait ? 0.35 : 0.5;
+    const sealWeight = compact ? 0.14 : portrait ? 0.2 : 0.32;
+    const depthWeight = compact ? 0.24 : portrait ? 0.32 : 0.42;
     const focusX = renderEnabled && seal ? THREE.MathUtils.lerp(OBSERVATORY_HOME_X, seal.position.x, sealWeight) : OBSERVATORY_HOME_X;
     const focusZ = renderEnabled && seal ? THREE.MathUtils.lerp(0, seal.position.z, depthWeight) : depthZ * 0.12;
     target.set(focusX, 0.82, focusZ);
-    const baseDistance = quality === "low" ? 9.6 : quality === "medium" ? 8.3 : 7.7;
-    const distance = baseDistance + (compact ? 1.8 : portrait ? 1.1 : 0);
+    const baseDistance = quality === "low" ? 10.4 : quality === "medium" ? 9.2 : 8.6;
+    const distance = baseDistance + (compact ? 2.05 : portrait ? 1.35 : 0);
     desired.set(
-      target.x - 0.72 + Math.sin(t * 0.1) * 0.1,
-      target.y + distance * 0.31,
+      target.x - (compact ? 0.42 : 0.58) + Math.sin(t * 0.1) * 0.1,
+      target.y + distance * (portrait ? 0.29 : 0.3),
       target.z + distance * 0.86 + Math.cos(t * 0.09) * 0.14,
     );
-    camera.position.lerp(desired, 0.045);
-    camera.lookAt(target.x + 0.18, target.y + 0.02, target.z - 0.1);
+    camera.position.lerp(desired, 0.05);
+    camera.lookAt(target.x + (compact ? 0.08 : 0.14), target.y + 0.02, target.z - 0.1);
   });
 
   return null;

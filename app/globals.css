@@ -2361,20 +2361,24 @@ img {
     grid-row: 3;
     align-self: end;
     width: 100%;
-    max-height: 180px;
+    max-height: 172px;
     overflow: hidden;
-    padding: 12px;
-    border: 1px solid rgba(223, 253, 247, 0.14);
+    padding: 13px 14px;
+    border: 1px solid rgba(223, 253, 247, 0.18);
     border-radius: var(--radius);
-    background: rgba(2, 7, 9, 0.62);
+    background:
+      linear-gradient(135deg, rgba(95, 248, 231, 0.08), transparent 44%),
+      rgba(2, 7, 9, 0.76);
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(16px);
   }
 
   .igloo-live-strip {
-    top: 276px;
+    top: 268px;
     left: 12px;
     right: 12px;
     width: auto;
-    max-height: 72px;
+    max-height: 62px;
     gap: 2px;
     overflow: hidden;
     padding: 8px 0 8px 10px;
@@ -2390,6 +2394,10 @@ img {
     font-size: 0.5rem;
   }
 
+  .igloo-live-strip small {
+    display: none;
+  }
+
   .igloo-live-strip p {
     font-size: 0.64rem;
     -webkit-line-clamp: 1;
@@ -2400,13 +2408,18 @@ img {
   }
 
   .igloo-readout p {
+    display: -webkit-box;
+    overflow: hidden;
     font-size: 0.74rem;
+    line-height: 1.32;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 
   .igloo-artifact-list {
     left: 12px;
     right: 12px;
-    bottom: 252px;
+    bottom: 244px;
     justify-content: flex-start;
     flex-wrap: nowrap;
     max-width: none;
@@ -2424,7 +2437,7 @@ img {
   }
 
   .station-profile-rail {
-    min-height: 48px;
+    min-height: 46px;
     padding: 4px;
   }
 
@@ -2444,7 +2457,7 @@ img {
   }
 
   .igloo-axis-meter {
-    top: 242px;
+    top: 236px;
     bottom: auto;
     width: calc(100vw - 24px);
     font-size: 0.54rem;
