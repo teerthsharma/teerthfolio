@@ -1,0 +1,87 @@
+name: Vercel Deploy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+jobs:
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Vercel secrets
+        id: vercel-secrets
+        shell: bash
+        run: |
+          missing=()
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '::notice title=Vercel deploy skipped::Missing GitHub secrets: %s\n' "${missing[*]}"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install Vercel CLI
+        if: steps.vercel-secrets.outputs.ready == 'true'
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel preview environment
+        if: steps.vercel-secrets.outputs.ready == 'true' && github.ref != 'refs/heads/main'
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+
+      - name: Pull Vercel production environment
+        if: steps.vercel-secrets.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build preview artifact
+        if: steps.vercel-secrets.outputs.ready == 'true' && github.ref != 'refs/heads/main'
+        run: vercel build --token="$VERCEL_TOKEN"
+
+      - name: Build production artifact
+        if: steps.vercel-secrets.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy preview
+        if: steps.vercel-secrets.outputs.ready == 'true' && github.ref != 'refs/heads/main'
+        run: vercel deploy --prebuilt --token="$VERCEL_TOKEN"
+
+      - name: Deploy production
+        if: steps.vercel-secrets.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"

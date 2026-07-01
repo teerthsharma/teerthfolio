@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface LoaderProps {
   isLoading: boolean;
@@ -20,6 +20,10 @@ const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*";
 export function Loader({ isLoading }: LoaderProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [scrambleText, setScrambleText] = useState("TEERTH SHARMA");
+  const matrixDump = useMemo(
+    () => Array.from({ length: 4000 }, (_, index) => (((index * 1103515245 + 12345) >>> 8) & 1 ? '1' : '0')).join(''),
+    []
+  );
 
   // Scramble effect for the title
   useEffect(() => {
@@ -63,7 +67,7 @@ export function Loader({ isLoading }: LoaderProps) {
         >
           {/* Background Matrix Rain / Hex Dump */}
           <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden text-[10px] font-mono text-terminal-green leading-3 break-all">
-            {Array.from({ length: 4000 }).map(() => Math.random() > 0.5 ? '1' : '0').join('')}
+            {matrixDump}
           </div>
           
           {/* Scanline Overlay */}

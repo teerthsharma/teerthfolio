@@ -84,9 +84,13 @@ export function useLOD(): LODState {
     const [isAutoDetected, setIsAutoDetected] = useState(true);
 
     useEffect(() => {
-        const detectedTier = detectTier();
-        setTierState(detectedTier);
-        console.log(`[LOD] Auto-detected tier: ${detectedTier}`);
+        const frame = window.requestAnimationFrame(() => {
+            const detectedTier = detectTier();
+            setTierState(detectedTier);
+            console.log(`[LOD] Auto-detected tier: ${detectedTier}`);
+        });
+
+        return () => window.cancelAnimationFrame(frame);
     }, []);
 
     const setTier = (newTier: LODTier) => {

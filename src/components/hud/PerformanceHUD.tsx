@@ -17,7 +17,7 @@ export function PerformanceHUD({ visible = false }: PerformanceHUDProps) {
   const { tier, setTier, isAutoDetected } = useLOD();
   
   const frameTimesRef = useRef<number[]>([]);
-  const lastTimeRef = useRef(performance.now());
+  const lastTimeRef = useRef(0);
   
   // FPS calculation
   useEffect(() => {
@@ -40,6 +40,7 @@ export function PerformanceHUD({ visible = false }: PerformanceHUDProps) {
     };
     
     if (isOpen) {
+      lastTimeRef.current = performance.now();
       animationFrameId = requestAnimationFrame(measureFPS);
     }
     
@@ -92,7 +93,7 @@ export function PerformanceHUD({ visible = false }: PerformanceHUDProps) {
           className="fixed bottom-16 right-4 z-50 hud-panel min-w-[200px]"
         >
           <div className="text-terminal-amber text-xs mb-3 font-bold tracking-wider">
-            // PERFORMANCE HUD
+            {'// PERFORMANCE HUD'}
           </div>
           
           <div className="space-y-2 text-xs">

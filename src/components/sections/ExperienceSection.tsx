@@ -56,7 +56,7 @@ export function ExperienceSection() {
            className="mb-24 text-center"
         >
           <h2 className="text-sm font-mono text-primary mb-4 tracking-[0.3em] uppercase opacity-80">
-            // Mission Log 
+            {'// Mission Log'}
           </h2>
           <h3 className="text-6xl md:text-8xl font-bold mb-4 tracking-tighter">
             Trajectory <span className="gradient-text">Timeline</span>

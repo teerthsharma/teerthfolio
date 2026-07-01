@@ -7,6 +7,13 @@ interface ShaderCanvasProps {
   onReady?: () => void;
 }
 
+interface ShaderUniformLocations {
+  time: WebGLUniformLocation | null;
+  resolution: WebGLUniformLocation | null;
+  scroll: WebGLUniformLocation | null;
+  mouse: WebGLUniformLocation | null;
+}
+
 const fragmentShader = `
   precision highp float;
   
@@ -175,8 +182,18 @@ export function ShaderCanvas({ scrollProgress, onReady }: ShaderCanvasProps) {
   const glRef = useRef<WebGLRenderingContext | null>(null);
   const frameIdRef = useRef<number>(0);
   const startTimeRef = useRef(Date.now());
-  const locationsRef = useRef<any>({});
+  const locationsRef = useRef<ShaderUniformLocations>({
+    time: null,
+    resolution: null,
+    scroll: null,
+    mouse: null
+  });
   const mouseRef = useRef<[number, number]>([0,0]);
+  const onReadyRef = useRef(onReady);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -237,7 +254,7 @@ export function ShaderCanvas({ scrollProgress, onReady }: ShaderCanvasProps) {
         mouse: gl.getUniformLocation(p, 'uMouse')
     };
 
-    if (onReady) onReady();
+    onReadyRef.current?.();
 
     return () => { gl.deleteProgram(p); };
   }, []);

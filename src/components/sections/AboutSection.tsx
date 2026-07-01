@@ -52,7 +52,7 @@ export function AboutSection() {
            className="mb-16"
         >
           <h2 className="text-sm font-mono text-primary mb-4 tracking-wider uppercase">
-            // About
+            {'// About'}
           </h2>
           <h3 className="text-3xl md:text-5xl font-bold mb-6">
             Engineering at the Edge of <span className="gradient-text">Possibility</span>
@@ -106,7 +106,7 @@ export function AboutSection() {
            </h3>
            
            <div className="grid md:grid-cols-3 gap-8">
-             {skillSets.map((set, idx) => (
+             {skillSets.map((set) => (
                <div key={set.category}>
                  <div className="flex items-center gap-2 mb-4 text-terminal-green/80 font-mono text-sm uppercase tracking-wider">
                    <set.icon className="w-4 h-4" />

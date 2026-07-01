@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { ChevronDown, MapPin, Cpu, Terminal } from 'lucide-react';
+import { ChevronDown, MapPin, Cpu } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface HeroSectionProps {
@@ -9,7 +9,6 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ onScrollClick }: HeroSectionProps) {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const x = useMotionValue(0);
   const y = useMotionValue(0);
 

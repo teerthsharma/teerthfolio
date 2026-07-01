@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Copy, Check, ExternalLink, FileText } from 'lucide-react';
 
@@ -23,7 +23,7 @@ export function TerminalFooter() {
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   
-  const handleCopy = async (text: string, id: number) => {
+  const handleCopy = useCallback(async (text: string, id: number) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(id);
@@ -31,9 +31,9 @@ export function TerminalFooter() {
     } catch (err) {
       console.error('Failed to copy:', err);
     }
-  };
+  }, []);
   
-  const handleLineClick = (line: TerminalLine) => {
+  const handleLineClick = useCallback((line: TerminalLine) => {
     setSelectedOption(line.id);
     
     if (line.href) {
@@ -41,7 +41,7 @@ export function TerminalFooter() {
     } else if (line.copyable) {
       handleCopy(line.value, line.id);
     }
-  };
+  }, [handleCopy]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -57,7 +57,7 @@ export function TerminalFooter() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleLineClick]);
   
   return (
     <section className="section relative z-10 py-24 min-h-[60vh]">
@@ -71,7 +71,7 @@ export function TerminalFooter() {
           className="mb-8"
         >
           <h2 className="text-sm font-mono text-primary mb-4 tracking-wider uppercase">
-            // Contact & Signal
+            {'// Contact & Signal'}
           </h2>
           <h3 className="text-3xl md:text-4xl font-bold mb-4">
             Establish <span className="gradient-text">Connection</span>
