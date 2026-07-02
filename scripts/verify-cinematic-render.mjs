@@ -17,6 +17,7 @@ const viewports = [
   { name: "desktop", width: 1440, height: 900, query: "qa-sdf=1&qa=verify-desktop" },
   { name: "ipad", width: 768, height: 1024, query: "qa-sdf=1&qa-low=1&qa=verify-ipad" },
   { name: "mobile", width: 375, height: 667, query: "qa-sdf=1&qa-low=1&qa=verify-mobile" },
+  { name: "reduced-motion", width: 1440, height: 900, query: "qa-sdf=1&qa-low=1&qa=verify-reduced", reducedMotion: true },
 ];
 const safeGateViewports = [
   { name: "safe-gate", width: 1440, height: 900, query: "safe=1" },
@@ -240,6 +241,14 @@ async function collectMetrics(page) {
         topnav: topnavRect,
       },
       railButtonCount: document.querySelectorAll(".station-profile-rail .station-profile-chip").length,
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      rendererCanvas: canvas
+        ? {
+            reducedMotion: canvas.dataset.reducedMotion || "",
+            quality: canvas.dataset.quality || "",
+            renderer: canvas.dataset.renderer || "",
+          }
+        : null,
       renderEnabled: world?.dataset.renderEnabled,
       rendererMode: world?.dataset.rendererMode,
       sealAwake: world?.dataset.sealAwake,
@@ -526,6 +535,15 @@ function assertViewport(result) {
   if (name === "mobile" && !railTap.changed) {
     failures.push(`mobile station rail tap did not change active station: ${railTap.targetText}`);
   }
+  if (name === "reduced-motion") {
+    if (!metrics.reducedMotion) failures.push("reduced-motion viewport did not emulate reduced motion");
+    if (metrics.rendererCanvas?.reducedMotion !== "true") {
+      failures.push(`renderer canvas is not tagged reduced-motion: ${JSON.stringify(metrics.rendererCanvas)}`);
+    }
+    if (metrics.rendererCanvas?.quality !== "low") {
+      failures.push(`reduced-motion viewport did not force low renderer quality: ${JSON.stringify(metrics.rendererCanvas)}`);
+    }
+  }
   if (!/Seal's Topology Land/i.test(metrics.titleText)) failures.push(`unexpected title: ${metrics.titleText}`);
   if (/start exploring/i.test(metrics.contentText.brand)) {
     failures.push(`normal WebGL brand copy still contains gate-era text: ${metrics.contentText.brand}`);
@@ -672,6 +690,7 @@ try {
   for (const viewport of viewports) {
     const context = await browser.newContext({
       deviceScaleFactor: 1,
+      reducedMotion: viewport.reducedMotion ? "reduce" : "no-preference",
       viewport: { width: viewport.width, height: viewport.height },
     });
     const page = await context.newPage();

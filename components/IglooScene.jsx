@@ -360,6 +360,7 @@ export default function IglooScene({
   onTouchIgloo,
   onGpuEvent,
   quality = "high",
+  reducedMotion = false,
   renderEnabled = false,
   sealAwake = false,
 }) {
@@ -377,6 +378,7 @@ export default function IglooScene({
       gl.domElement.classList.add("igloo-scene-canvas");
       gl.domElement.dataset.renderer = "webgl";
       gl.domElement.dataset.quality = quality;
+      gl.domElement.dataset.reducedMotion = reducedMotion ? "true" : "false";
       onGpuEvent?.({
         detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
         message: `WebGL renderer ready at ${quality} quality.`,
@@ -384,7 +386,7 @@ export default function IglooScene({
         type: "webgl-created",
       });
     },
-    [onGpuEvent, quality],
+    [onGpuEvent, quality, reducedMotion],
   );
 
   return (
@@ -392,7 +394,7 @@ export default function IglooScene({
       className="igloo-scene"
       data-seal-awake={sealAwake ? "true" : "false"}
       dpr={dpr}
-      frameloop={renderEnabled ? "always" : "demand"}
+      frameloop={renderEnabled && !reducedMotion ? "always" : "demand"}
       camera={{ position: [0, 4.35, 14.2], fov: 47, near: 0.1, far: 94 }}
       gl={{
         antialias: false,
@@ -416,9 +418,9 @@ export default function IglooScene({
         <ForceCanvasResize />
         <CameraRig depthZ={depthZ} quality={quality} renderEnabled={renderEnabled} sealPosition={sealRef} />
         <IglooTouch onTouchIgloo={onTouchIgloo} />
-        {!debugFlags.noVeil && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}
+        {!reducedMotion && !debugFlags.noVeil && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}
         {!debugFlags.noTerrain && <IglooTerrain axisX={axisX} depthZ={depthZ} quality={quality} />}
-        {!debugFlags.noSnow && (
+        {!reducedMotion && !debugFlags.noSnow && (
           <SnowAtmosphere axisX={axisX} depthZ={depthZ} quality={quality} windSpeed={1 + Math.abs(axisVelocity) + Math.abs(depthVelocity)} />
         )}
         {!debugFlags.noSignals && <HorizontalParallaxSignalField activeArtifact={activeArtifact} axisX={axisX} quality={quality} />}

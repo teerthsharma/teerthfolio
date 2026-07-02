@@ -643,6 +643,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
             onGpuEvent={reportGpuEvent}
             onTouchIgloo={touchIgloo}
             quality={safeMode || reduced ? "low" : quality}
+            reducedMotion={reduced}
             renderEnabled={sdfRenderEnabled}
             sealAwake={sealAwake}
             debugFlags={sceneDebugFlags}

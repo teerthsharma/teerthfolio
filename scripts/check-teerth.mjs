@@ -110,7 +110,8 @@ for (const worldPrimitive of [
 
 for (const scenePrimitive of [
   "Canvas",
-  "frameloop={renderEnabled ? \"always\" : \"demand\"}",
+  "reducedMotion",
+  "frameloop={renderEnabled && !reducedMotion ? \"always\" : \"demand\"}",
   "failIfMajorPerformanceCaveat",
   "PolarObservatoryDome",
   "SealAvatar",
