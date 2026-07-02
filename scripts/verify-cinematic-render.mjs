@@ -223,6 +223,9 @@ async function collectMetrics(page) {
         readout: readout?.textContent?.trim() || "",
       },
       diagnosticsVisible: Boolean(diagnostics),
+      hudOverflow: {
+        readout: readout ? readout.scrollHeight > readout.clientHeight + 1 : false,
+      },
       hudBounds: {
         brand: brandRect,
         controls: controlsRect,
@@ -445,6 +448,9 @@ function assertViewport(result) {
   }
   if (name === "mobile" && metrics.hudBounds.readout?.height > 150) {
     failures.push(`mobile readout overpowers the cinematic world: ${JSON.stringify(metrics.hudBounds.readout)}`);
+  }
+  if (metrics.hudOverflow?.readout) {
+    failures.push(`station readout content is clipped: ${JSON.stringify(metrics.hudBounds.readout)}`);
   }
   if (metrics.renderEnabled !== "true") failures.push(`renderer not enabled: ${metrics.renderEnabled}`);
   if (metrics.rendererMode !== "webgl") failures.push(`renderer mode is ${metrics.rendererMode}`);

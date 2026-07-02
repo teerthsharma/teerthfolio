@@ -2450,6 +2450,7 @@ img {
   .igloo-readout h2 {
     font-size: clamp(1.18rem, 6.2vw, 1.76rem);
     line-height: 0.94;
+    margin: 6px 0 7px;
   }
 
   .igloo-readout p {
@@ -2471,6 +2472,10 @@ img {
   .igloo-readout small {
     font-size: 0.52rem;
     line-height: 1.2;
+  }
+
+  .igloo-readout .igloo-artifact-meta {
+    display: none;
   }
 
   .igloo-artifact-list {

@@ -57,7 +57,7 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
     camera.position.lerp(desired, 0.05);
     camera.lookAt(
       target.x + (compact ? 0.06 : portrait ? 0.1 : 0.02),
-      target.y + (compact ? 0.02 : portrait ? -0.22 : 0.02),
+      target.y + (compact ? 0.02 : portrait ? -0.82 : 0.02),
       target.z - 0.1,
     );
   });
