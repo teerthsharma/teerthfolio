@@ -11,11 +11,13 @@ export default function IglooHud({
   axisVelocity,
   artifacts,
   content,
+  highContrast,
   liveSummary,
   onSelectArtifact,
   quality,
   renderEnabled,
   sealAwake,
+  setHighContrast,
   setQuality,
 }) {
   const latest = liveSummary?.latest?.[0];
@@ -123,6 +125,14 @@ export default function IglooHud({
             {mode}
           </button>
         ))}
+        <button
+          aria-pressed={highContrast}
+          className="igloo-contrast-toggle"
+          onClick={() => setHighContrast?.((value) => !value)}
+          type="button"
+        >
+          contrast
+        </button>
       </div>
     </div>
   );

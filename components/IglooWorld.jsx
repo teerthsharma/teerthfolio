@@ -267,6 +267,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const initialSafeMode = Boolean(initialQuery.initialSafeMode);
   const initialLowQuality = Boolean(initialQuery.initialQaLow || initialSafeMode);
   const [quality, setQuality] = useState(initialLowQuality ? "low" : "medium");
+  const [highContrast, setHighContrast] = useState(false);
   const [activeArtifactId, setActiveArtifactId] = useState(IGLOO_ARTIFACTS[0].id);
   const [axisVelocity, setAxisVelocity] = useState(0);
   const [axisX, setAxisX] = useState(IGLOO_ARTIFACTS[0].position[0]);
@@ -621,6 +622,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       data-render-enabled={!effectiveSafeMode && sdfRenderEnabled ? "true" : "false"}
       data-renderer-mode={rendererMode}
       data-seal-awake={sealAwake ? "true" : "false"}
+      data-high-contrast={highContrast ? "true" : "false"}
       style={{ "--axis-progress": axisProgress, "--depth-progress": depthProgress }}
     >
       <div className="igloo-poster" aria-hidden="true" />
@@ -673,9 +675,11 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         liveSummary={liveSummary}
         onSelectArtifact={selectArtifact}
         quality={quality}
+        highContrast={highContrast}
         renderEnabled={!effectiveSafeMode && sdfRenderEnabled}
         sealAwake={sealAwake}
         setQuality={setQuality}
+        setHighContrast={setHighContrast}
       />
       <BlackHoleTransition
         active={blackHoleActive}

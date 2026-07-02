@@ -508,6 +508,27 @@ img {
   opacity: 1;
 }
 
+.igloo-world[data-high-contrast="true"] {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(76, 122, 133, 0.28), transparent 42%),
+    radial-gradient(ellipse at 50% 105%, rgba(134, 178, 188, 0.16), transparent 56%),
+    linear-gradient(180deg, #020607 0%, #091316 50%, #010203 100%);
+}
+
+.igloo-world[data-high-contrast="true"]::before {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.12), transparent 32%, rgba(0, 0, 0, 0.36) 100%),
+    repeating-linear-gradient(0deg, rgba(223, 253, 247, 0.026) 0 1px, transparent 1px 5px);
+}
+
+.igloo-world[data-high-contrast="true"]::after {
+  opacity: 0.1;
+}
+
+.igloo-world[data-high-contrast="true"] .igloo-atmosphere-canvas {
+  opacity: 0.22;
+}
+
 .igloo-poster,
 .igloo-fallback {
   position: absolute;
@@ -857,12 +878,39 @@ img {
   text-transform: uppercase;
 }
 
+.igloo-controls .igloo-contrast-toggle {
+  min-width: 82px;
+}
+
 .igloo-controls button[aria-pressed="true"],
 .igloo-controls button:hover,
 .igloo-controls button:focus-visible {
   color: var(--ice);
   border-color: rgba(95, 248, 231, 0.72);
   outline: 0;
+}
+
+.igloo-world[data-high-contrast="true"] .igloo-brand p,
+.igloo-world[data-high-contrast="true"] .igloo-readout p,
+.igloo-world[data-high-contrast="true"] .igloo-live-strip p,
+.igloo-world[data-high-contrast="true"] .igloo-manifesto p {
+  color: rgba(243, 255, 252, 0.82);
+}
+
+.igloo-world[data-high-contrast="true"] .igloo-readout,
+.igloo-world[data-high-contrast="true"] .igloo-live-strip,
+.igloo-world[data-high-contrast="true"] .station-profile-rail,
+.igloo-world[data-high-contrast="true"] .igloo-topnav,
+.igloo-world[data-high-contrast="true"] .igloo-controls button {
+  background-color: rgba(0, 3, 4, 0.82);
+  box-shadow:
+    0 0 42px rgba(0, 0, 0, 0.5),
+    inset 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.igloo-world[data-high-contrast="true"] .igloo-readout h2 {
+  color: #ffffff;
+  text-shadow: 0 0 22px rgba(95, 248, 231, 0.22), 0 2px 18px rgba(0, 0, 0, 0.9);
 }
 
 .igloo-artifact-list {

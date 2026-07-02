@@ -93,6 +93,11 @@ const checks = [
     pattern: /startExplorationRender/,
   },
   {
+    name: "world exposes a real high contrast render state",
+    file: `${files.world}\n${readFileSync(join(root, "components", "IglooHud.jsx"), "utf8")}\n${readFileSync(join(root, "app", "globals.css"), "utf8")}\n${readFileSync(join(root, "scripts", "verify-cinematic-render.mjs"), "utf8")}`,
+    pattern: /data-high-contrast[\s\S]*aria-pressed=\{highContrast\}[\s\S]*igloo-contrast-toggle[\s\S]*data-high-contrast="true"[\s\S]*verify-contrast/,
+  },
+  {
     name: "atmosphere loop is capped",
     file: files.world,
     pattern: /ATMOSPHERE_FRAME_MS/,

@@ -47,8 +47,8 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
     const homeFrameBias = sealHasDeparted ? 0 : compact ? 0.04 : portrait ? 0.08 : 0.12;
     const targetY = compact ? 0.78 : portrait ? 0.64 : 0.78;
     target.set(focusX + homeFrameBias, targetY, focusZ);
-    const baseDistance = quality === "low" ? 13.2 : quality === "medium" ? 11.35 : 10.65;
-    const distance = baseDistance + (compact ? 3.55 : portrait ? -2.2 : 0);
+    const baseDistance = quality === "low" ? 12.3 : quality === "medium" ? 10.9 : 10.25;
+    const distance = baseDistance + (compact ? 3.2 : portrait ? -2.35 : -0.2);
     desired.set(
       target.x - (compact ? 0.32 : portrait ? 0.44 : 0.18) + Math.sin(t * 0.1) * 0.08,
       target.y + distance * (portrait ? 0.245 : 0.285),

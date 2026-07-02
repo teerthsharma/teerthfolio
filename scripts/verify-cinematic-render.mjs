@@ -17,6 +17,7 @@ const viewports = [
   { name: "desktop", width: 1440, height: 900, query: "qa-sdf=1&qa=verify-desktop" },
   { name: "ipad", width: 768, height: 1024, query: "qa-sdf=1&qa-low=1&qa=verify-ipad" },
   { name: "mobile", width: 375, height: 667, query: "qa-sdf=1&qa-low=1&qa=verify-mobile" },
+  { name: "contrast", width: 1440, height: 900, query: "qa-sdf=1&qa-low=1&qa=verify-contrast", highContrast: true },
   { name: "reduced-motion", width: 1440, height: 900, query: "qa-sdf=1&qa-low=1&qa=verify-reduced", reducedMotion: true },
 ];
 const safeGateViewports = [
@@ -111,6 +112,7 @@ async function collectMetrics(page) {
     const readout = document.querySelector(".igloo-artifact-readout");
     const live = document.querySelector(".igloo-live-strip");
     const controls = document.querySelector(".igloo-controls");
+    const contrastToggle = document.querySelector(".igloo-contrast-toggle");
     const diagnostics = document.querySelector(".igloo-diagnostics");
     const brand = document.querySelector(".igloo-brand");
     const manifesto = document.querySelector(".igloo-manifesto");
@@ -224,6 +226,7 @@ async function collectMetrics(page) {
       contentText: {
         brand: brand?.textContent?.trim() || "",
         controlsHint: controlsHint?.textContent?.trim() || "",
+        controls: controls?.textContent?.trim() || "",
         latestEvidence: live?.textContent?.trim() || "",
         manifesto: manifesto?.textContent?.trim() || "",
         readout: readout?.textContent?.trim() || "",
@@ -242,6 +245,8 @@ async function collectMetrics(page) {
         topnav: topnavRect,
       },
       railButtonCount: document.querySelectorAll(".station-profile-rail .station-profile-chip").length,
+      highContrast: world?.dataset.highContrast,
+      contrastTogglePressed: contrastToggle?.getAttribute("aria-pressed") || "",
       reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
       rendererCanvas: canvas
         ? {
@@ -501,6 +506,9 @@ function assertViewport(result) {
   if (!metrics.visibleHud.readout) failures.push(`active station readout is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.readout)}`);
   if (!metrics.visibleHud.live) failures.push(`live evidence strip is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.live)}`);
   if (!metrics.visibleHud.controls) failures.push(`quality controls are not visibly in viewport: ${JSON.stringify(metrics.hudBounds.controls)}`);
+  if (!/contrast/i.test(metrics.contentText.controls)) {
+    failures.push(`quality controls lack contrast toggle: ${metrics.contentText.controls}`);
+  }
   if (["desktop", "ipad"].includes(name) && !metrics.visibleHud.topnav) {
     failures.push(`top navigation is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.topnav)}`);
   }
@@ -543,6 +551,12 @@ function assertViewport(result) {
     }
     if (metrics.rendererCanvas?.quality !== "low") {
       failures.push(`reduced-motion viewport did not force low renderer quality: ${JSON.stringify(metrics.rendererCanvas)}`);
+    }
+  }
+  if (name === "contrast") {
+    if (metrics.highContrast !== "true") failures.push(`contrast viewport did not enable high contrast: ${metrics.highContrast}`);
+    if (metrics.contrastTogglePressed !== "true") {
+      failures.push(`contrast toggle aria state is wrong: ${metrics.contrastTogglePressed}`);
     }
   }
   if (!/Seal's Topology Land/i.test(metrics.titleText)) failures.push(`unexpected title: ${metrics.titleText}`);
@@ -704,6 +718,11 @@ try {
     await page.goto(`${baseUrl}/?${viewport.query}`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector('#world[data-render-enabled="true"]', { timeout: 25000 });
     await page.waitForTimeout(viewport.name === "desktop" ? 2600 : 1800);
+    if (viewport.highContrast) {
+      await page.locator(".igloo-contrast-toggle").click();
+      await page.waitForSelector('#world[data-high-contrast="true"]', { timeout: 5000 });
+      await page.waitForTimeout(300);
+    }
 
     const metrics = await collectMetrics(page);
     const screenshot = path.join(outDir, `${viewport.name}.png`);
