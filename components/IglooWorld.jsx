@@ -25,7 +25,10 @@ const GPU_PROBE_TIMEOUT_MS = 7000;
 const MAX_DIAGNOSTIC_EVENTS = 8;
 const FATAL_RENDER_EVENT_TYPES = new Set(["webgl-context-lost", "webgl-create-failed", "canvas-error"]);
 const SAFE_RENDER_QUERY = "safe=1";
+const QA_RENDER_QUERY = "qa";
+const QA_AUTO_PROBE_RENDER_QUERY = "qa-auto-probe";
 const QA_LOW_RENDER_QUERY = "qa-low";
+const SAFE_QA_AUTO_PROBE_DELAY_MS = 900;
 const ATMOSPHERE_FRAME_MS = 1000 / 30;
 const IDLE_WORLD_FRAME_MS = 1000 / 20;
 const ACTIVE_WORLD_FRAME_MS = 1000 / 60;
@@ -278,6 +281,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const [gpuDiagnostics, setGpuDiagnostics] = useState([]);
   const [inputHint, setInputHint] = useState("");
   const [blackHoleActive, setBlackHoleActive] = useState(false);
+  const [qaAutoProbe, setQaAutoProbe] = useState(false);
   const axisVelocityRef = useRef(0);
   const depthVelocityRef = useRef(0);
   const renderEnabledRef = useRef(false);
@@ -352,6 +356,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       (flags, [queryKey, flag]) => ({ ...flags, [flag]: query.has(queryKey) }),
       {},
     );
+    const nextQaAutoProbe = query.has(QA_AUTO_PROBE_RENDER_QUERY) || query.has(QA_RENDER_QUERY);
+    setQaAutoProbe(nextQaAutoProbe);
     if (query.has(QA_LOW_RENDER_QUERY)) {
       setQuality("low");
     } else {
@@ -370,7 +376,9 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       reportGpuEvent({
         severity: "info",
         type: "safe-boot",
-        message: "Basic scene mounted; GPU probe waiting for Start exploring.",
+        message: nextQaAutoProbe
+          ? "Basic scene mounted; QA URL will auto-start a low-quality GPU probe."
+          : "Basic scene mounted; GPU probe waiting for Start exploring.",
       });
       return undefined;
     }
@@ -417,6 +425,20 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     }, GPU_PROBE_TIMEOUT_MS);
     return () => window.clearTimeout(timeout);
   }, [reportGpuEvent, safeMode, sdfRenderEnabled]);
+
+  useEffect(() => {
+    if (!safeMode || sdfRenderEnabled || !qaAutoProbe) return undefined;
+    const timeout = window.setTimeout(() => {
+      reportGpuEvent({
+        severity: "info",
+        type: "gpu-probe-qa-auto-start",
+        message: "QA safe URL auto-started the low-quality GPU probe.",
+      });
+      setQuality("low");
+      setSdfRenderEnabled(true);
+    }, SAFE_QA_AUTO_PROBE_DELAY_MS);
+    return () => window.clearTimeout(timeout);
+  }, [qaAutoProbe, reportGpuEvent, safeMode, sdfRenderEnabled]);
 
   useEffect(() => () => window.clearTimeout(inputHintTimeoutRef.current), []);
 

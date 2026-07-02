@@ -374,6 +374,9 @@ export default function IglooScene({
       window.location.search.includes("safe=1"));
   const onCanvasCreated = useCallback(
     ({ gl }) => {
+      gl.domElement.classList.add("igloo-scene-canvas");
+      gl.domElement.dataset.renderer = "webgl";
+      gl.domElement.dataset.quality = quality;
       onGpuEvent?.({
         detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
         message: `WebGL renderer ready at ${quality} quality.`,

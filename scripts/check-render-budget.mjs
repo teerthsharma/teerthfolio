@@ -18,9 +18,14 @@ const files = {
 
 const checks = [
   {
-    name: "safe mode waits for explicit user probe",
+    name: "plain safe mode waits for explicit user probe",
     file: files.world,
     pattern: /safe=1[\s\S]*wait for an explicit user probe[\s\S]*safe-boot[\s\S]*GPU probe waiting for Start exploring[\s\S]*gpu-probe-manual-start/,
+  },
+  {
+    name: "safe QA URLs auto-start a diagnostic GPU probe",
+    file: files.world,
+    pattern: /QA_AUTO_PROBE_RENDER_QUERY[\s\S]*SAFE_QA_AUTO_PROBE_DELAY_MS[\s\S]*gpu-probe-qa-auto-start[\s\S]*setSdfRenderEnabled\(true\)/,
   },
   {
     name: "safe query has a single render-mode source of truth",
@@ -50,7 +55,7 @@ const checks = [
   {
     name: "scene reports WebGL lifecycle and first rendered frame into diagnostics",
     file: files.scene,
-    pattern: /SceneDiagnostics[\s\S]*webglcontextlost[\s\S]*onGpuEvent[\s\S]*webgl-scene-ready[\s\S]*onCanvasCreated[\s\S]*webgl-created[\s\S]*onCreated=\{onCanvasCreated\}/,
+    pattern: /SceneDiagnostics[\s\S]*webglcontextlost[\s\S]*onGpuEvent[\s\S]*webgl-scene-ready[\s\S]*onCanvasCreated[\s\S]*igloo-scene-canvas[\s\S]*webgl-created[\s\S]*onCreated=\{onCanvasCreated\}/,
   },
   {
     name: "scene has visible asset suspense fallback",
