@@ -521,6 +521,9 @@ function assertViewport(result) {
   if (["desktop", "ipad"].includes(name) && metrics.canvasSample.brightObjectBounds?.left <= 0.001) {
     failures.push(`bright hero object is clipped on the left edge: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
   }
+  if (name === "ipad" && metrics.canvasSample.brightObjectBounds?.right >= 0.995) {
+    failures.push(`iPad hero object is clipped on the right edge: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
+  }
   if (name === "mobile" && metrics.canvasSample.brightObjectBounds?.right >= 0.995) {
     failures.push(`mobile hero object is clipped on the right edge: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
   }
