@@ -368,6 +368,16 @@ function assertViewport(result) {
   if (["desktop", "ipad"].includes(name) && metrics.canvasSample.brightObjectBounds?.left <= 0.001) {
     failures.push(`bright hero object is clipped on the left edge: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
   }
+  if (name === "mobile" && metrics.canvasSample.brightObjectBounds?.right >= 0.995) {
+    failures.push(`mobile hero object is clipped on the right edge: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
+  }
+  if (["desktop", "ipad"].includes(name)) {
+    const heroBounds = metrics.canvasSample.brightObjectBounds;
+    const heroWidth = heroBounds ? heroBounds.right - heroBounds.left : 0;
+    if (heroWidth < 0.25) {
+      failures.push(`bright hero object is under-scaled for cinematic object-world framing: ${JSON.stringify(heroBounds)}`);
+    }
+  }
   if (name === "ipad" && metrics.canvasSample.brightObjectBounds?.top > 0.45) {
     failures.push(`iPad hero object sits too low in the cinematic frame: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
   }

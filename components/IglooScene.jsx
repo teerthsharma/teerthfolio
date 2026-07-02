@@ -39,20 +39,20 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
     const sealHasDeparted = seal ? Math.abs(seal.position.x - OBSERVATORY_VISUAL_HOME_X) > 2.8 || Math.abs(seal.position.z) > 2.2 : false;
     const sealWeight = sealHasDeparted ? (compact ? 0.16 : portrait ? 0.24 : 0.36) : compact ? 0.08 : portrait ? 0.12 : 0.14;
     const depthWeight = sealHasDeparted ? (compact ? 0.26 : portrait ? 0.36 : 0.46) : compact ? 0.1 : portrait ? 0.16 : 0.2;
-    const idleObjectAnchor = compact ? 1.05 : portrait ? 1.35 : 1.75;
+    const idleObjectAnchor = compact ? 1.42 : portrait ? 1.42 : 1.92;
     const focusX = renderEnabled && seal
       ? THREE.MathUtils.lerp(sealHasDeparted ? OBSERVATORY_HOME_X : idleObjectAnchor, seal.position.x, sealWeight)
       : idleObjectAnchor;
     const focusZ = renderEnabled && seal ? THREE.MathUtils.lerp(0, seal.position.z, depthWeight) : depthZ * 0.12;
     const homeFrameBias = sealHasDeparted ? 0 : compact ? 0.04 : portrait ? 0.08 : 0.12;
-    const targetY = compact ? 0.78 : portrait ? 0.62 : 0.82;
+    const targetY = compact ? 0.78 : portrait ? 0.64 : 0.78;
     target.set(focusX + homeFrameBias, targetY, focusZ);
-    const baseDistance = quality === "low" ? 14.2 : quality === "medium" ? 12.8 : 11.9;
-    const distance = baseDistance + (compact ? 3.1 : portrait ? 0.15 : 0);
+    const baseDistance = quality === "low" ? 13.2 : quality === "medium" ? 11.35 : 10.65;
+    const distance = baseDistance + (compact ? 3.55 : portrait ? 0.05 : 0);
     desired.set(
       target.x - (compact ? 0.32 : portrait ? 0.44 : 0.18) + Math.sin(t * 0.1) * 0.08,
       target.y + distance * (portrait ? 0.245 : 0.285),
-      target.z + distance * (portrait ? 0.82 : 0.88) + Math.cos(t * 0.09) * 0.12,
+      target.z + distance * (portrait ? 0.8 : 0.84) + Math.cos(t * 0.09) * 0.12,
     );
     camera.position.lerp(desired, 0.05);
     camera.lookAt(target.x + (compact ? 0.06 : portrait ? 0.1 : 0.02), target.y + 0.02, target.z - 0.1);
@@ -386,7 +386,7 @@ export default function IglooScene({
       data-seal-awake={sealAwake ? "true" : "false"}
       dpr={dpr}
       frameloop={renderEnabled ? "always" : "demand"}
-      camera={{ position: [0, 4.35, 14.2], fov: 50, near: 0.1, far: 94 }}
+      camera={{ position: [0, 4.35, 14.2], fov: 47, near: 0.1, far: 94 }}
       gl={{
         antialias: false,
         alpha: true,
