@@ -23,9 +23,14 @@ const checks = [
     pattern: /safe=1[\s\S]*wait for an explicit user probe[\s\S]*safe-boot[\s\S]*GPU probe waiting for Start exploring[\s\S]*gpu-probe-manual-start/,
   },
   {
-    name: "safe QA URLs auto-start a diagnostic GPU probe",
+    name: "only explicit safe QA auto-probe URLs start a diagnostic GPU probe",
     file: files.world,
-    pattern: /QA_AUTO_PROBE_RENDER_QUERY[\s\S]*SAFE_QA_AUTO_PROBE_DELAY_MS[\s\S]*gpu-probe-qa-auto-start[\s\S]*setSdfRenderEnabled\(true\)/,
+    pattern: /QA_AUTO_PROBE_RENDER_QUERY[\s\S]*query\.has\(QA_AUTO_PROBE_RENDER_QUERY\)[\s\S]*gpu-probe-qa-auto-start[\s\S]*setSdfRenderEnabled\(true\)[\s\S]*SAFE_QA_AUTO_PROBE_DELAY_MS/,
+  },
+  {
+    name: "generic qa cachebusters do not auto-start safe WebGL",
+    file: `${files.world}\n${readFileSync(join(root, "scripts", "verify-cinematic-render.mjs"), "utf8")}`,
+    pattern: /const QA_AUTO_PROBE_RENDER_QUERY = "qa-auto-probe";(?![\s\S]*const QA_RENDER_QUERY)[\s\S]*safe=1&qa=cachebuster/,
   },
   {
     name: "safe query has a single render-mode source of truth",

@@ -21,6 +21,7 @@ const viewports = [
 ];
 const safeGateViewports = [
   { name: "safe-gate", width: 1440, height: 900, query: "safe=1" },
+  { name: "safe-gate-cachebuster", width: 1440, height: 900, query: "safe=1&qa=cachebuster" },
   { name: "safe-gate-ipad", width: 768, height: 1024, query: "safe=1" },
   { name: "safe-gate-mobile", width: 375, height: 667, query: "safe=1" },
 ];

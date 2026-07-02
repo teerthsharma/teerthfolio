@@ -25,7 +25,6 @@ const GPU_PROBE_TIMEOUT_MS = 7000;
 const MAX_DIAGNOSTIC_EVENTS = 8;
 const FATAL_RENDER_EVENT_TYPES = new Set(["webgl-context-lost", "webgl-create-failed", "canvas-error"]);
 const SAFE_RENDER_QUERY = "safe=1";
-const QA_RENDER_QUERY = "qa";
 const QA_AUTO_PROBE_RENDER_QUERY = "qa-auto-probe";
 const QA_LOW_RENDER_QUERY = "qa-low";
 const SAFE_QA_AUTO_PROBE_DELAY_MS = 900;
@@ -356,7 +355,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       (flags, [queryKey, flag]) => ({ ...flags, [flag]: query.has(queryKey) }),
       {},
     );
-    const nextQaAutoProbe = query.has(QA_AUTO_PROBE_RENDER_QUERY) || query.has(QA_RENDER_QUERY);
+    const nextQaAutoProbe = query.has(QA_AUTO_PROBE_RENDER_QUERY);
     setQaAutoProbe(nextQaAutoProbe);
     if (query.has(QA_LOW_RENDER_QUERY)) {
       setQuality("low");
