@@ -31,7 +31,10 @@ export default function IglooHud({
 
       <div className="igloo-manifesto">
         <span>////// Manifesto</span>
-        <p>{content.profile?.manifesto || "Systems that compile research into working artifacts."}</p>
+        <p>
+          {content.profile?.manifesto ||
+            "Topology is the operating system: kernels, ML fields, QPU proof, and upstream code compiled into one polar machine."}
+        </p>
       </div>
 
       <nav className="igloo-topnav" aria-label="Igloo world navigation">

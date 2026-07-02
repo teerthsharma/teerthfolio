@@ -267,7 +267,9 @@ expectNoPattern("app/globals.css", css, /\.antarctica-|\.css-seal-|\.world-node|
 for (const contentNeedle of [
   "Teerth Sharma",
   "A seal companion lives at the center of a snowy ice world",
-  "systems that compile research into working artifacts",
+  "Topology is the operating system",
+  "ML fields",
+  "QPU proof",
   "https://github.com/teerthsharma",
   "Seal OS",
 ]) {

@@ -101,6 +101,7 @@ async function collectMetrics(page) {
     const controls = document.querySelector(".igloo-controls");
     const diagnostics = document.querySelector(".igloo-diagnostics");
     const brand = document.querySelector(".igloo-brand");
+    const manifesto = document.querySelector(".igloo-manifesto");
     const controlsHint = document.querySelector(".igloo-controls-hint");
     const topnav = document.querySelector(".igloo-topnav");
 
@@ -211,6 +212,7 @@ async function collectMetrics(page) {
       contentText: {
         controlsHint: controlsHint?.textContent?.trim() || "",
         latestEvidence: live?.textContent?.trim() || "",
+        manifesto: manifesto?.textContent?.trim() || "",
         readout: readout?.textContent?.trim() || "",
       },
       diagnosticsVisible: Boolean(diagnostics),
@@ -339,6 +341,9 @@ function assertViewport(result) {
   }
   if (!/live upstream radar|snapshot radar/i.test(metrics.contentText.latestEvidence)) {
     failures.push(`first viewport lacks source evidence: ${metrics.contentText.latestEvidence}`);
+  }
+  if (!/topology|manifold|homology/i.test(metrics.contentText.manifesto) || !/ml|kernel|qpu|upstream/i.test(metrics.contentText.manifesto)) {
+    failures.push(`manifesto lacks Teerth-specific topology/ML systems language: ${metrics.contentText.manifesto}`);
   }
   if (!/observatory|s2|aether|field|qpu|upstream|archive/i.test(metrics.contentText.readout)) {
     failures.push(`active station readout lacks project station copy: ${metrics.contentText.readout}`);
