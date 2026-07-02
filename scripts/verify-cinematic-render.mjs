@@ -18,7 +18,11 @@ const viewports = [
   { name: "ipad", width: 768, height: 1024, query: "qa-sdf=1&qa-low=1&qa=verify-ipad" },
   { name: "mobile", width: 375, height: 667, query: "qa-sdf=1&qa-low=1&qa=verify-mobile" },
 ];
-const safeGateViewport = { name: "safe-gate", width: 1440, height: 900, query: "safe=1" };
+const safeGateViewports = [
+  { name: "safe-gate", width: 1440, height: 900, query: "safe=1" },
+  { name: "safe-gate-ipad", width: 768, height: 1024, query: "safe=1" },
+  { name: "safe-gate-mobile", width: 375, height: 667, query: "safe=1" },
+];
 const sectionViewports = [
   { hash: "projects", name: "projects-desktop", width: 1440, height: 900 },
   { hash: "archive", name: "archive-desktop", width: 1440, height: 900 },
@@ -268,6 +272,20 @@ async function collectSafeGateMetrics(page) {
     const canvas = Array.from(document.querySelectorAll("canvas")).find(
       (item) => !item.classList.contains("igloo-atmosphere-canvas"),
     );
+    const gateRect = gate?.getBoundingClientRect();
+    const buttonRect = gateButton?.getBoundingClientRect();
+    const diagnosticsRect = diagnostics?.getBoundingClientRect();
+    const rectPayload = (rect) =>
+      rect
+        ? {
+            bottom: rect.bottom,
+            height: rect.height,
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            width: rect.width,
+          }
+        : null;
     let canvasSample = {
       averageLuminance: 0,
       nonBlankPixels: 0,
@@ -306,8 +324,12 @@ async function collectSafeGateMetrics(page) {
     const diagnosticText = diagnostics?.textContent || "";
     return {
       canvasSample,
+      buttonBounds: rectPayload(buttonRect),
       diagnosticsVisible: Boolean(diagnostics),
+      diagnosticsBounds: rectPayload(diagnosticsRect),
       diagnosticText,
+      gateBounds: rectPayload(gateRect),
+      gateOverflow: gate ? gate.scrollHeight > gate.clientHeight + 1 || gate.scrollWidth > gate.clientWidth + 1 : false,
       gateButtonText: gateButton?.textContent?.trim() || "",
       gatePresent: Boolean(gate),
       renderEnabled: world?.dataset.renderEnabled,
@@ -514,7 +536,24 @@ function assertViewport(result) {
 function assertSafeGate(result) {
   const failures = [];
   const { idle, initial, probed } = result;
+  const overlaps = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+  const buttonVisible = (bounds) =>
+    Boolean(
+      bounds &&
+        bounds.right > 0 &&
+        bounds.left < result.viewport.width &&
+        bounds.bottom > 0 &&
+        bounds.top < result.viewport.height &&
+        Math.min(bounds.right, result.viewport.width) - Math.max(bounds.left, 0) >= 80 &&
+        Math.min(bounds.bottom, result.viewport.height) - Math.max(bounds.top, 0) >= 32,
+    );
+  if (initial.gateBounds && (initial.gateBounds.left < -1 || initial.gateBounds.right > result.viewport.width + 1)) {
+    failures.push(`safe gate escapes viewport: ${JSON.stringify(initial.gateBounds)}`);
+  }
+  if (initial.gateOverflow || idle.gateOverflow) failures.push("safe gate content overflows before GPU probe");
   if (!initial.gatePresent) failures.push("safe gate did not render the splash gate");
+  if (!buttonVisible(initial.buttonBounds)) failures.push(`safe gate button is not visible: ${JSON.stringify(initial.buttonBounds)}`);
+  if (overlaps(initial.buttonBounds, initial.diagnosticsBounds)) failures.push("safe gate diagnostics overlap the start button");
   if (!/start exploring/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
   if (initial.renderEnabled !== "false") failures.push(`safe gate initially enabled renderer: ${initial.renderEnabled}`);
   if (initial.rendererMode !== "safe") failures.push(`safe gate initial mode is ${initial.rendererMode}`);
@@ -527,6 +566,10 @@ function assertSafeGate(result) {
     failures.push(`safe gate auto-started before button click: ${JSON.stringify(idle)}`);
   }
   if (probed.renderEnabled !== "true") failures.push(`safe probe did not enable renderer: ${probed.renderEnabled}`);
+  if (probed.gateBounds && (probed.gateBounds.left < -1 || probed.gateBounds.right > result.viewport.width + 1)) {
+    failures.push(`safe probe gate escapes viewport: ${JSON.stringify(probed.gateBounds)}`);
+  }
+  if (probed.gateOverflow) failures.push("safe gate content overflows after GPU probe");
   if (probed.rendererMode !== "webgl") failures.push(`safe probe did not settle to webgl: ${probed.rendererMode}`);
   if (probed.sealAwake !== "true") failures.push(`safe probe did not wake the seal: ${probed.sealAwake}`);
   if (probed.webglCanvasPresent !== true) failures.push("safe probe did not mount WebGL canvas");
@@ -587,7 +630,7 @@ if (!(await canReach(baseUrl))) {
 const browser = await launchBrowser();
 const report = [];
 try {
-  {
+  for (const safeGateViewport of safeGateViewports) {
     const context = await browser.newContext({
       deviceScaleFactor: 1,
       viewport: { width: safeGateViewport.width, height: safeGateViewport.height },
@@ -612,7 +655,15 @@ try {
     await page.waitForSelector('#world[data-renderer-mode="webgl"]', { timeout: 25000 });
     await page.waitForTimeout(1200);
     const probed = await collectSafeGateMetrics(page);
-    const result = { name: safeGateViewport.name, screenshot: safeScreenshot, initial, idle, probed, logs };
+    const result = {
+      name: safeGateViewport.name,
+      screenshot: safeScreenshot,
+      initial,
+      idle,
+      probed,
+      logs,
+      viewport: { width: safeGateViewport.width, height: safeGateViewport.height },
+    };
     result.failures = assertSafeGate(result);
     report.push(result);
     await context.close();

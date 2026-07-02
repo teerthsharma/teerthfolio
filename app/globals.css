@@ -1108,6 +1108,7 @@ img {
     radial-gradient(ellipse at 34% 56%, rgba(95, 248, 231, 0.12), transparent 38%),
     linear-gradient(90deg, rgba(0, 2, 3, 0.94), rgba(2, 8, 10, 0.82) 48%, rgba(0, 1, 2, 0.96));
   backdrop-filter: blur(18px) saturate(1.1);
+  overflow: hidden;
   pointer-events: auto;
 }
 
@@ -2296,6 +2297,10 @@ img {
     margin-top: 18px;
   }
 
+  .igloo-diagnostics {
+    bottom: 134px;
+  }
+
   .archive-panel-wide {
     grid-row: auto;
   }
@@ -2348,7 +2353,9 @@ img {
   }
 
   .sdf-splash-art {
-    width: min(250px, 72vw);
+    width: min(230px, 64vw);
+    min-width: 0;
+    transform: translateY(-1vh);
   }
 
   .sdf-splash-copy h2 {
@@ -2370,8 +2377,12 @@ img {
   }
 
   .igloo-diagnostics {
-    bottom: 150px;
-    max-height: 82px;
+    left: 16px;
+    right: 16px;
+    bottom: 146px;
+    width: auto;
+    max-height: 74px;
+    overflow: hidden;
   }
 
   .igloo-world {
