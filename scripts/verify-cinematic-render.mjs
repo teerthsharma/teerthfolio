@@ -440,7 +440,7 @@ function assertViewport(result) {
       failures.push(`bright hero object is under-scaled for cinematic object-world framing: ${JSON.stringify(heroBounds)}`);
     }
   }
-  if (name === "ipad" && metrics.canvasSample.brightObjectBounds?.top > 0.45) {
+  if (name === "ipad" && metrics.canvasSample.brightObjectBounds?.bottom > 0.6) {
     failures.push(`iPad hero object sits too low in the cinematic frame: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
   }
   if (name === "mobile" && metrics.hudBounds.readout?.height > 150) {
@@ -458,6 +458,9 @@ function assertViewport(result) {
   if (!metrics.visibleHud.controls) failures.push(`quality controls are not visibly in viewport: ${JSON.stringify(metrics.hudBounds.controls)}`);
   if (["desktop", "ipad"].includes(name) && !metrics.visibleHud.topnav) {
     failures.push(`top navigation is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.topnav)}`);
+  }
+  if (name === "desktop" && metrics.hudBounds.topnav?.top > 120) {
+    failures.push(`desktop top navigation drifted out of the top command zone: ${JSON.stringify(metrics.hudBounds.topnav)}`);
   }
   if (name === "desktop" && !metrics.visibleHud.controlsHint) {
     failures.push(`desktop WASD hint is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.controlsHint)}`);

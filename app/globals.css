@@ -623,6 +623,9 @@ img {
 }
 
 .igloo-topnav {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
   justify-self: end;
   display: inline-flex;
   overflow: hidden;
@@ -868,7 +871,7 @@ img {
   left: 50%;
   bottom: clamp(54px, 7vh, 72px);
   display: flex;
-  max-width: min(720px, calc(100vw - 32px));
+  max-width: min(630px, calc(100vw - 32px));
   gap: 8px;
   overflow-x: auto;
   padding: 4px;

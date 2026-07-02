@@ -48,14 +48,18 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
     const targetY = compact ? 0.78 : portrait ? 0.64 : 0.78;
     target.set(focusX + homeFrameBias, targetY, focusZ);
     const baseDistance = quality === "low" ? 13.2 : quality === "medium" ? 11.35 : 10.65;
-    const distance = baseDistance + (compact ? 3.55 : portrait ? 0.05 : 0);
+    const distance = baseDistance + (compact ? 3.55 : portrait ? -2.2 : 0);
     desired.set(
       target.x - (compact ? 0.32 : portrait ? 0.44 : 0.18) + Math.sin(t * 0.1) * 0.08,
       target.y + distance * (portrait ? 0.245 : 0.285),
       target.z + distance * (portrait ? 0.8 : 0.84) + Math.cos(t * 0.09) * 0.12,
     );
     camera.position.lerp(desired, 0.05);
-    camera.lookAt(target.x + (compact ? 0.06 : portrait ? 0.1 : 0.02), target.y + 0.02, target.z - 0.1);
+    camera.lookAt(
+      target.x + (compact ? 0.06 : portrait ? 0.1 : 0.02),
+      target.y + (compact ? 0.02 : portrait ? -0.22 : 0.02),
+      target.z - 0.1,
+    );
   });
 
   return null;
