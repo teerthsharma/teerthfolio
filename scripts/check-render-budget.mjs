@@ -175,7 +175,7 @@ const checks = [
   {
     name: "seal remains a math-labeled avatar",
     file: files.seal,
-    pattern: /SEAL_AVATAR_FORMULA/,
+    pattern: /SEAL_AVATAR_FORMULA[\s\S]*SEAL_NORMAL_FIELD_PROFILE[\s\S]*SealNormalField/,
   },
   {
     name: "seal only mounts after explicit wake",

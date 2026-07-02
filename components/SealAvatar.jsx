@@ -8,6 +8,7 @@ import * as THREE from "three";
 export const SEAL_AVATAR_FORMULA = "F(p)=smin(ellipsoid_body,sphere_head,flipper_fields)";
 export const SEAL_COLLISION_BRIDGE = "continuous SDF mascot, discrete playground collision proxy";
 export const SEAL_GUIDE_STATES = ["parked", "piloting", "docking", "station-bearing"];
+export const SEAL_NORMAL_FIELD_PROFILE = "finite SDF surface-normal quiver marks";
 
 const SEAL_PBR = {
   map: "/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_albedo.png",
@@ -81,6 +82,16 @@ function SealBody({ accent, guideState, material }) {
       }),
     [],
   );
+  const normalFieldMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: accent,
+        transparent: true,
+        opacity: guideState === "piloting" ? 0.78 : 0.54,
+        depthWrite: false,
+      }),
+    [accent, guideState],
+  );
   const finMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
@@ -99,9 +110,10 @@ function SealBody({ accent, guideState, material }) {
       cheekMaterial.dispose();
       contourMaterial.dispose();
       finMaterial.dispose();
+      normalFieldMaterial.dispose();
       shadowLineMaterial.dispose();
     },
-    [cheekMaterial, contourMaterial, dark, finMaterial, shadowLineMaterial],
+    [cheekMaterial, contourMaterial, dark, finMaterial, normalFieldMaterial, shadowLineMaterial],
   );
 
   return (
@@ -118,6 +130,23 @@ function SealBody({ accent, guideState, material }) {
       <mesh material={contourMaterial} position={[0.22, 0.08, 0]} rotation={[Math.PI / 2, -0.12, 0.04]} scale={[0.48, 0.34, 0.2]}>
         <torusGeometry args={[1, 0.0045, 6, 80]} />
       </mesh>
+      <group name={`SealNormalField ${SEAL_NORMAL_FIELD_PROFILE}`}>
+        {[
+          [-0.48, 0.44, 0.1, -0.18],
+          [-0.18, 0.54, -0.08, 0.08],
+          [0.16, 0.52, 0.12, -0.05],
+          [0.48, 0.42, -0.1, 0.16],
+        ].map(([x, y, z, yaw], index) => (
+          <group key={`seal-normal-${index}`} position={[x, y, z]} rotation={[0.18, yaw, 0.08]}>
+            <mesh material={normalFieldMaterial} rotation={[0, 0, Math.PI / 2]} scale={[0.005, 0.22, 0.005]}>
+              <cylinderGeometry args={[1, 1, 1, 6]} />
+            </mesh>
+            <mesh material={normalFieldMaterial} position={[0.12, 0, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.035, 0.07, 0.035]}>
+              <coneGeometry args={[1, 1, 8]} />
+            </mesh>
+          </group>
+        ))}
+      </group>
       <mesh castShadow material={material} position={[0.78, 0.18, 0]} scale={[0.36, 0.35, 0.35]}>
         <sphereGeometry args={[1, 32, 24]} />
       </mesh>
