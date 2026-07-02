@@ -55,7 +55,7 @@ const checks = [
   {
     name: "splash gate renders a premium object poster",
     file: files.splash,
-    pattern: /SPLASH_GATE_PROFILE[\s\S]*sdf-splash-art[\s\S]*sdf-dome-tile/,
+    pattern: /SPLASH_GATE_PROFILE[\s\S]*sdf-splash-art[\s\S]*sdf-dome-tile[\s\S]*F\(p\)[\s\S]*grad F -&gt; impulse/,
   },
   {
     name: "splash copy is viewport bounded",

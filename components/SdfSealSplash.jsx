@@ -99,6 +99,16 @@ export default function SdfSealSplash({
           <em />
           <strong>field renderer idle</strong>
         </div>
+        <div className="sdf-seal-proof">
+          <span>composite sdf</span>
+          <strong>F(p) &lt;= 0</strong>
+          <p>Ellipsoid body, head sphere, and flipper fields blend into one navigable seal surface.</p>
+        </div>
+        <div className="sdf-collision-bridge">
+          <span>collision bridge</span>
+          <strong>grad F -&gt; impulse</strong>
+          <p>Continuous topology yields normals for discrete ice blocks, crates, and station contact.</p>
+        </div>
       </div>
 
       <div className="sdf-splash-console" aria-label="Renderer status">

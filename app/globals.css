@@ -1570,6 +1570,8 @@ img {
 
 .sdf-seal-proof,
 .sdf-collision-bridge {
+  position: absolute;
+  z-index: 5;
   width: 210px;
   padding: 8px 10px;
   color: rgba(223, 253, 247, 0.75);
@@ -1578,6 +1580,18 @@ img {
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(10px);
   pointer-events: none;
+}
+
+.sdf-seal-proof {
+  right: 2%;
+  top: 2%;
+  transform: rotate(-2deg);
+}
+
+.sdf-collision-bridge {
+  right: -4%;
+  bottom: 10%;
+  transform: rotate(2deg);
 }
 
 .sdf-seal-proof span,
@@ -2280,6 +2294,11 @@ img {
   .sdf-art-threshold strong {
     display: none;
   }
+
+  .sdf-seal-proof,
+  .sdf-collision-bridge {
+    display: none;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2311,14 +2330,18 @@ img {
   }
 
   .sdf-splash-console {
-    max-height: 112px;
-    overflow: hidden;
+    display: none;
   }
 
   .sdf-render-button {
     width: 100%;
     min-height: 52px;
     padding-left: 58px;
+  }
+
+  .igloo-diagnostics {
+    bottom: 150px;
+    max-height: 82px;
   }
 
   .igloo-world {
