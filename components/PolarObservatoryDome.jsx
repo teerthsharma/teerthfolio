@@ -916,7 +916,7 @@ export default function PolarObservatoryDome({
       ref={rootRef}
       name={`igloo-polar-dome PolarObservatoryDome ${SCIENCE_DOME_REFERENCE}`}
       position={[homeX, 0.04, 0]}
-      scale={[0.62, 0.72, 0.62]}
+      scale={[0.72, 0.8, 0.72]}
       userData={{ className: "igloo-polar-dome igloo-dome" }}
     >
       <IcePlinth accent={accent} />

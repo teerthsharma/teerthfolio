@@ -33,13 +33,16 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
     const seal = sealPosition.current;
-    // The igloo at (0,0,0) is the centerpiece; keep it in frame when idle.
+    // The observatory is offset from the logical axis; bias idle framing toward the physical object.
     const portrait = size.width < 900;
     const compact = size.width < 520;
     const sealHasDeparted = seal ? Math.abs(seal.position.x - OBSERVATORY_VISUAL_HOME_X) > 2.8 || Math.abs(seal.position.z) > 2.2 : false;
     const sealWeight = sealHasDeparted ? (compact ? 0.16 : portrait ? 0.24 : 0.36) : compact ? 0.08 : portrait ? 0.12 : 0.14;
     const depthWeight = sealHasDeparted ? (compact ? 0.26 : portrait ? 0.36 : 0.46) : compact ? 0.1 : portrait ? 0.16 : 0.2;
-    const focusX = renderEnabled && seal ? THREE.MathUtils.lerp(OBSERVATORY_HOME_X, seal.position.x, sealWeight) : OBSERVATORY_HOME_X;
+    const idleObjectAnchor = compact ? 0.35 : portrait ? 0.55 : 0.75;
+    const focusX = renderEnabled && seal
+      ? THREE.MathUtils.lerp(sealHasDeparted ? OBSERVATORY_HOME_X : idleObjectAnchor, seal.position.x, sealWeight)
+      : idleObjectAnchor;
     const focusZ = renderEnabled && seal ? THREE.MathUtils.lerp(0, seal.position.z, depthWeight) : depthZ * 0.12;
     const homeFrameBias = sealHasDeparted ? 0 : compact ? 0.04 : portrait ? 0.08 : 0.12;
     target.set(focusX + homeFrameBias, 0.82, focusZ);
