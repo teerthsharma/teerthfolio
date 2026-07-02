@@ -25,7 +25,7 @@ export default function IglooHud({
         <span>quilted polar plane / source-backed research stations</span>
         <strong>Seal's Topology Land</strong>
         <p>
-          Start exploring, then pilot the seal with WASD through Teerth's systems,
+          Start exploring, then pilot the seal with WASD through kernels,
           topology work, and upstream evidence.
         </p>
       </div>
@@ -57,6 +57,7 @@ export default function IglooHud({
           / {activeArtifact.handle}
         </span>
         <h2>{activeArtifact.label}</h2>
+        <p className="igloo-artifact-signal">{activeArtifact.signal}</p>
         <p>{activeArtifact.description}</p>
         <small className="igloo-artifact-meta">
           {activeArtifact.topology} / {activeArtifact.betti} / {activeArtifact.homology}

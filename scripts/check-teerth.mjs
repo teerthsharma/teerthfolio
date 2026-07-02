@@ -214,10 +214,12 @@ for (const hudPrimitive of [
   "igloo-manifesto",
   "igloo-controls-hint",
   "igloo-artifact-readout",
+  "igloo-artifact-signal",
   "station-profile-rail",
   "station-profile-chip",
   "onSelectArtifact",
   "artifact.handle",
+  "activeArtifact.signal",
   "artifact.betti",
   "igloo-live-strip",
   "latest.repo",
@@ -228,6 +230,7 @@ for (const hudPrimitive of [
   expectIncludes("components/IglooHud.jsx", iglooHud, hudPrimitive, `HUD must expose ${hudPrimitive}`);
 }
 expectNoPattern("components/IglooHud.jsx", iglooHud, /content\.profile\.name/, "first game page must not render Teerth's name as the hero title");
+expectNoPattern("components/IglooHud.jsx", iglooHud, /Teerth's systems/, "first game page hero copy should emphasize the seal world before the personal name");
 
 for (const artifactId of [
   "observatory-plaque",

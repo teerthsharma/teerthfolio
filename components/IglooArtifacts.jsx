@@ -14,7 +14,7 @@ export const IGLOO_ARTIFACTS = [
     stationProfile: { index: "CO_01", orbit: "entry", manifold: "S2 atlas" },
     signal: "75 repos / 25 systems / 11 topology ML",
     description:
-      "The entry marker for Seal's Topology Land: physics, topology, compilers, AI systems, and source-backed open work arranged as polar stations.",
+      "Entry station for the mined public corpus: physics, compilers, AI systems, and topology projects arranged as inspectable polar work.",
     position: [0, 0.34, 0.78],
     color: "#dffdf7",
     accent: "#8fb7c3",
@@ -31,7 +31,7 @@ export const IGLOO_ARTIFACTS = [
     stationProfile: { index: "CO_02", orbit: "kernel", manifold: "S2" },
     signal: "Seal OS, Epsilon-Hollow, ISO boot proof",
     description:
-      "A Rust microkernel chamber where OS state is treated as topology on S2 and boot discipline is proof-linked.",
+      "Rust microkernel work framed as S2 state topology: Epsilon-Hollow, boot proof, runtime discipline, and inspectable kernel edges.",
     position: [16, 0.7, -0.82],
     color: "#bdefff",
     accent: "#5ff8e7",
@@ -48,7 +48,7 @@ export const IGLOO_ARTIFACTS = [
     stationProfile: { index: "CO_03", orbit: "runtime", manifold: "nerve complex" },
     signal: "Aether-Lang, persistent homology, Lean kernel",
     description:
-      "A manifold runtime reactor for topology-aware ML, spatial neighborhoods, persistent homology, and verified kernels.",
+      "Language-runtime station for Aether-Lang: neighborhoods, manifold embeddings, persistent homology, and verified kernel structure.",
     position: [32, 0.62, -0.94],
     color: "#c8ffd4",
     accent: "#91ff9d",
@@ -65,7 +65,7 @@ export const IGLOO_ARTIFACTS = [
     stationProfile: { index: "CO_04", orbit: "physics", manifold: "field lattice" },
     signal: "Faraday, Hamilton, fixed-point gauge fields",
     description:
-      "Electromagnetic coupling and N-body gauge language rendered as amber coils inside an ice-glass field tank.",
+      "Field-physics station for Faraday and Hamilton: fixed-point EM coupling, gauge notation, and N-body topological fingerprints.",
     position: [48, 0.54, 0.24],
     color: "#ffd79b",
     accent: "#f4b45f",
@@ -82,7 +82,7 @@ export const IGLOO_ARTIFACTS = [
     stationProfile: { index: "CO_05", orbit: "verification", manifold: "bridge complex" },
     signal: "TopoBridge-Q, homology, IBM QPU evidence",
     description:
-      "A narrow pressure bridge where homology-backed quantum verification crosses into high-performance I/O.",
+      "Quantum verification station where TopoBridge-Q, homology paths, IBM QPU evidence, and high-performance I/O meet.",
     position: [64, 0.42, 1.05],
     color: "#ddd9ff",
     accent: "#a996ff",
@@ -99,7 +99,7 @@ export const IGLOO_ARTIFACTS = [
     stationProfile: { index: "CO_06", orbit: "upstream", manifold: "signal sheaf" },
     signal: "Triton, PyTorch, NeMo Relay",
     description:
-      "Public upstream signals become weather: sparse attention, topology-aware modules, and ACG cache reuse.",
+      "Upstream station for live external work: Triton sparse attention, PyTorch topology modules, and NeMo ACG cache reuse.",
     position: [80, 0.82, 0.36],
     color: "#f3fffb",
     accent: "#c8d5df",
@@ -116,7 +116,7 @@ export const IGLOO_ARTIFACTS = [
     stationProfile: { index: "CO_07", orbit: "archive", manifold: "barcode wall" },
     signal: "lambda-topo, topoflow, topoml, phi-mem",
     description:
-      "Persistent homology becomes the archive index for memory, visualization, SDKs, and phase-space experiments.",
+      "Archive station for topology engines: lambda-topo, topoflow, topoml, phi-mem, visualization, memory, and phase-space traces.",
     position: [96, 0.52, 0.86],
     color: "#dffdf7",
     accent: "#5ff8e7",
@@ -133,7 +133,7 @@ export const IGLOO_ARTIFACTS = [
     stationProfile: { index: "CO_08", orbit: "tooling", manifold: "assembly complex" },
     signal: "AVX-512, page tables, no_std kernels, SIMD homology",
     description:
-      "Low-level tools staged as a maintenance bay: vector code, page-table maps, bare-metal stencils, and topology assembly.",
+      "Tooling station for bare-metal work: AVX-512, page tables, no_std kernels, assembly stencils, and SIMD topology maps.",
     position: [112, 0.42, -0.72],
     color: "#e8f2f5",
     accent: "#8aa9ad",

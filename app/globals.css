@@ -754,6 +754,20 @@ img {
   line-height: 1.38;
 }
 
+.igloo-artifact-signal {
+  display: -webkit-box;
+  margin: -4px 0 8px;
+  overflow: hidden;
+  color: rgba(95, 248, 231, 0.82);
+  font-family: var(--font-pixel), Consolas, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  line-height: 1.28;
+  text-transform: uppercase;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .igloo-artifact-meta {
   display: block;
   margin-top: 12px;
@@ -2438,6 +2452,13 @@ img {
     line-height: 1.28;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+  }
+
+  .igloo-artifact-signal {
+    margin: -3px 0 6px;
+    font-size: 0.52rem;
+    line-height: 1.18;
+    -webkit-line-clamp: 1;
   }
 
   .igloo-readout small {

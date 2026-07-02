@@ -409,6 +409,9 @@ function assertViewport(result) {
   if (!/observatory|s2|aether|field|qpu|upstream|archive/i.test(metrics.contentText.readout)) {
     failures.push(`active station readout lacks project station copy: ${metrics.contentText.readout}`);
   }
+  if (!/75 repos|Seal OS|Aether-Lang|Faraday|Triton|PyTorch|topoflow|AVX-512/i.test(metrics.contentText.readout)) {
+    failures.push(`active station readout lacks source-backed station signal: ${metrics.contentText.readout}`);
+  }
   if (name === "desktop" && !/wasd/i.test(metrics.contentText.controlsHint)) {
     failures.push(`desktop controls hint does not mention WASD: ${metrics.contentText.controlsHint}`);
   }
