@@ -216,6 +216,7 @@ async function collectMetrics(page) {
       canvas: rectOf(canvas),
       canvasSample,
       contentText: {
+        brand: brand?.textContent?.trim() || "",
         controlsHint: controlsHint?.textContent?.trim() || "",
         latestEvidence: live?.textContent?.trim() || "",
         manifesto: manifesto?.textContent?.trim() || "",
@@ -488,6 +489,9 @@ function assertViewport(result) {
     failures.push(`mobile station rail tap did not change active station: ${railTap.targetText}`);
   }
   if (!/Seal's Topology Land/i.test(metrics.titleText)) failures.push(`unexpected title: ${metrics.titleText}`);
+  if (/start exploring/i.test(metrics.contentText.brand)) {
+    failures.push(`normal WebGL brand copy still contains gate-era text: ${metrics.contentText.brand}`);
+  }
   return failures;
 }
 

@@ -14,10 +14,13 @@ export default function IglooHud({
   liveSummary,
   onSelectArtifact,
   quality,
+  renderEnabled,
+  sealAwake,
   setQuality,
 }) {
   const latest = liveSummary?.latest?.[0];
   const movingLabel = axisVelocity > 0 ? "eastbound" : axisVelocity < 0 ? "westbound" : "docked";
+  const worldActive = renderEnabled && sealAwake;
 
   return (
     <div className="igloo-hud">
@@ -25,8 +28,9 @@ export default function IglooHud({
         <span>quilted polar plane / source-backed research stations</span>
         <strong>Seal's Topology Land</strong>
         <p>
-          Start exploring, then pilot the seal with WASD through kernels,
-          topology work, and upstream evidence.
+          {worldActive
+            ? "Pilot the seal with WASD through kernels, topology work, and upstream evidence."
+            : "Press Start exploring to allocate the field, then release the seal across the topology plane."}
         </p>
       </div>
 

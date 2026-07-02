@@ -651,6 +651,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         liveSummary={liveSummary}
         onSelectArtifact={selectArtifact}
         quality={quality}
+        renderEnabled={!effectiveSafeMode && sdfRenderEnabled}
+        sealAwake={sealAwake}
         setQuality={setQuality}
       />
       <BlackHoleTransition
