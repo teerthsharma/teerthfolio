@@ -45,13 +45,14 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
       : idleObjectAnchor;
     const focusZ = renderEnabled && seal ? THREE.MathUtils.lerp(0, seal.position.z, depthWeight) : depthZ * 0.12;
     const homeFrameBias = sealHasDeparted ? 0 : compact ? 0.04 : portrait ? 0.08 : 0.12;
-    target.set(focusX + homeFrameBias, 0.82, focusZ);
+    const targetY = compact ? 0.78 : portrait ? 0.62 : 0.82;
+    target.set(focusX + homeFrameBias, targetY, focusZ);
     const baseDistance = quality === "low" ? 14.2 : quality === "medium" ? 12.8 : 11.9;
-    const distance = baseDistance + (compact ? 3.1 : portrait ? 0.9 : 0);
+    const distance = baseDistance + (compact ? 3.1 : portrait ? 0.15 : 0);
     desired.set(
       target.x - (compact ? 0.32 : portrait ? 0.44 : 0.18) + Math.sin(t * 0.1) * 0.08,
-      target.y + distance * (portrait ? 0.27 : 0.285),
-      target.z + distance * 0.88 + Math.cos(t * 0.09) * 0.12,
+      target.y + distance * (portrait ? 0.245 : 0.285),
+      target.z + distance * (portrait ? 0.82 : 0.88) + Math.cos(t * 0.09) * 0.12,
     );
     camera.position.lerp(desired, 0.05);
     camera.lookAt(target.x + (compact ? 0.06 : portrait ? 0.1 : 0.02), target.y + 0.02, target.z - 0.1);

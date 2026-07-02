@@ -315,6 +315,9 @@ function assertViewport(result) {
   if (["desktop", "ipad"].includes(name) && metrics.canvasSample.brightObjectBounds?.left <= 0.001) {
     failures.push(`bright hero object is clipped on the left edge: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
   }
+  if (name === "ipad" && metrics.canvasSample.brightObjectBounds?.top > 0.45) {
+    failures.push(`iPad hero object sits too low in the cinematic frame: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
+  }
   if (metrics.renderEnabled !== "true") failures.push(`renderer not enabled: ${metrics.renderEnabled}`);
   if (metrics.rendererMode !== "webgl") failures.push(`renderer mode is ${metrics.rendererMode}`);
   if (metrics.sealAwake !== "true") failures.push(`seal not awake: ${metrics.sealAwake}`);
