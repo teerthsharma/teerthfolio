@@ -11,6 +11,7 @@ export const SEAL_GUIDE_STATES = ["parked", "piloting", "docking", "station-bear
 export const SEAL_NORMAL_FIELD_PROFILE = "finite SDF surface-normal quiver marks";
 export const SEAL_GUIDE_FACEPLATE_PROFILE = "station-bearing glass faceplate and topology pointer";
 export const SEAL_STATION_BEARING_PROFILE = "loop-aware guide ray points from seal toward the active project station";
+export const SEAL_GUIDE_BEACON_PROFILE = "active station beacon makes the seal read as a functional guide";
 
 const SEAL_WORLD_LOOP_LENGTH = 128;
 
@@ -324,6 +325,7 @@ const SealAvatar = forwardRef(function SealAvatar(
   const target = useMemo(() => new THREE.Vector3(), []);
   const bearingRef = useRef(null);
   const bearingRayRef = useRef(null);
+  const beaconRef = useRef(null);
   const guideFieldRef = useRef(null);
 
   useImperativeHandle(forwardedRef, () => root.current, []);
@@ -372,6 +374,12 @@ const SealAvatar = forwardRef(function SealAvatar(
       guideFieldRef.current.rotation.z = t * (guideState === "piloting" ? 0.42 : 0.18);
       guideFieldRef.current.scale.setScalar(1 + speed * 0.16);
     }
+    if (beaconRef.current) {
+      beaconRef.current.visible = guideState !== "parked";
+      beaconRef.current.position.y = 0.74 + Math.sin(t * 1.7) * 0.035 + speed * 0.04;
+      beaconRef.current.rotation.y = t * (guideState === "piloting" ? 0.85 : 0.34);
+      beaconRef.current.scale.setScalar(guideState === "station-bearing" ? 1.08 : 1 + speed * 0.18);
+    }
     if (bearingRef.current) {
       bearingRef.current.visible = guideState !== "parked";
       const stationX = activeArtifact
@@ -406,6 +414,20 @@ const SealAvatar = forwardRef(function SealAvatar(
     >
       <SealBody accent={accent} guideState={guideState} material={material} />
       <pointLight color={accent} distance={6} intensity={moving ? 3.4 : 2.35} position={[0, 0.45, 0]} />
+      <group ref={beaconRef} name={`seal-guide-beacon ${SEAL_GUIDE_BEACON_PROFILE} ${activeArtifact?.shortLabel || "station"}`} position={[0.58, 0.74, 0]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.18, 0.005, 6, 64]} />
+          <primitive object={bearingMaterial} attach="material" />
+        </mesh>
+        <mesh rotation={[0.9, 0.22, 0.18]}>
+          <torusGeometry args={[0.13, 0.004, 6, 56]} />
+          <primitive object={bearingMaterial} attach="material" />
+        </mesh>
+        <mesh position={[0, 0.006, 0]} scale={[0.035, 0.035, 0.035]}>
+          <sphereGeometry args={[1, 12, 8]} />
+          <primitive object={bearingMaterial} attach="material" />
+        </mesh>
+      </group>
       <group ref={guideFieldRef} name={`seal-guide-field ${SEAL_GUIDE_STATES.join("/")}`}>
         {[0.58, 0.78, 1.02].map((radius, index) => (
           <mesh key={`seal-field-ring-${radius}`} rotation={[Math.PI / 2, 0, index * 0.38]}>

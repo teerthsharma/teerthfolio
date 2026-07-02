@@ -193,6 +193,11 @@ const checks = [
     pattern: /SEAL_STATION_BEARING_PROFILE[\s\S]*SEAL_WORLD_LOOP_LENGTH[\s\S]*activeArtifact\.position\[0\][\s\S]*bearingAngle[\s\S]*bearingRayRef\.current\.scale\.y/,
   },
   {
+    name: "seal exposes an active station guide beacon",
+    file: files.seal,
+    pattern: /SEAL_GUIDE_BEACON_PROFILE[\s\S]*beaconRef[\s\S]*seal-guide-beacon[\s\S]*activeArtifact\?\.shortLabel/,
+  },
+  {
     name: "seal only mounts after explicit wake",
     file: files.scene,
     pattern: /renderEnabled && sealAwake && !debugFlags\.noSeal/,
