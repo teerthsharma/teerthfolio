@@ -24,6 +24,7 @@ const INPUT_HINT_DURATION = 1700;
 const DIAGNOSTIC_BOOT_DELAY_MS = 900;
 const GPU_PROBE_TIMEOUT_MS = 7000;
 const MAX_DIAGNOSTIC_EVENTS = 8;
+const FATAL_RENDER_EVENT_TYPES = new Set(["webgl-context-lost", "webgl-create-failed", "canvas-error"]);
 const SAFE_RENDER_QUERY = "safe=1";
 const QA_LOW_RENDER_QUERY = "qa-low";
 const ATMOSPHERE_FRAME_MS = 1000 / 30;
@@ -323,7 +324,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         return;
       }
 
-      if (diagnostic.severity === "error") {
+      if (diagnostic.severity === "error" && FATAL_RENDER_EVENT_TYPES.has(diagnostic.type)) {
         setSafeMode(true);
         setSdfRenderEnabled(false);
         setSealAwake(false);

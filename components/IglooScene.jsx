@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import ActiveTheoryVeil from "./ActiveTheoryVeil";
 import IglooArtifacts, { IGLOO_ARTIFACTS } from "./IglooArtifacts";
@@ -39,7 +39,7 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
     const sealHasDeparted = seal ? Math.abs(seal.position.x - OBSERVATORY_VISUAL_HOME_X) > 2.8 || Math.abs(seal.position.z) > 2.2 : false;
     const sealWeight = sealHasDeparted ? (compact ? 0.16 : portrait ? 0.24 : 0.36) : compact ? 0.08 : portrait ? 0.12 : 0.14;
     const depthWeight = sealHasDeparted ? (compact ? 0.26 : portrait ? 0.36 : 0.46) : compact ? 0.1 : portrait ? 0.16 : 0.2;
-    const idleObjectAnchor = compact ? 0.35 : portrait ? 0.55 : 0.75;
+    const idleObjectAnchor = compact ? 1.05 : portrait ? 1.35 : 1.75;
     const focusX = renderEnabled && seal
       ? THREE.MathUtils.lerp(sealHasDeparted ? OBSERVATORY_HOME_X : idleObjectAnchor, seal.position.x, sealWeight)
       : idleObjectAnchor;
@@ -96,9 +96,9 @@ function SceneDiagnostics({ onGpuEvent, quality }) {
     const context = gl.getContext();
     onGpuEvent?.({
       detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
-      message: `WebGL renderer ready at ${quality} quality.`,
+      message: `WebGL context listeners armed at ${quality} quality.`,
       severity: "info",
-      type: "webgl-created",
+      type: "webgl-listeners-ready",
     });
 
     const onContextLost = (event) => {
@@ -347,6 +347,17 @@ export default function IglooScene({
   const activeArtifact = artifacts.find((artifact) => artifact.id === activeArtifactId) || artifacts[0];
   const sealRef = useRef(null);
   const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [0.75, 1];
+  const onCanvasCreated = useCallback(
+    ({ gl }) => {
+      onGpuEvent?.({
+        detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
+        message: `WebGL renderer ready at ${quality} quality.`,
+        severity: "info",
+        type: "webgl-created",
+      });
+    },
+    [onGpuEvent, quality],
+  );
 
   return (
     <Canvas
@@ -356,6 +367,7 @@ export default function IglooScene({
       frameloop={renderEnabled ? "always" : "demand"}
       camera={{ position: [0, 4.35, 14.2], fov: 50, near: 0.1, far: 94 }}
       gl={{ antialias: false, alpha: true, failIfMajorPerformanceCaveat: false, powerPreference: "high-performance" }}
+      onCreated={onCanvasCreated}
     >
       <color attach="background" args={["#061014"]} />
       <fog attach="fog" args={["#071316", 10, 42]} />

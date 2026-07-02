@@ -25,6 +25,8 @@ const PBR_MAP_SIZE = 64;
 const SQUARE_BRICK_TEXTURE_SIZE = 96;
 const SQUARE_EDGE_TEXTURE_SIZE = 96;
 const SCIENCE_DOME_REFERENCE = "Antarctic geodesic science radome with observatory airlock";
+export const DOME_COLLISION_MODE = "intact by default; collapse only on deliberate seal impact";
+export const DOME_INTACT_SHELL_PROFILE = "continuous luminous ice shell under tiled PBR bricks";
 const DOME_TILE_COLUMNS_BY_ROW = [4, 6, 8, 10, 12, 14, 16];
 
 function domePoint(angle, theta, lift = 0) {
@@ -567,11 +569,11 @@ function IcePlinth({ accent }) {
       </mesh>
       <mesh position={[0, 0.07, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1.32, 0.82, 1]}>
         <torusGeometry args={[1.74, 0.018, 10, 160]} />
-        <meshBasicMaterial color={accent} transparent opacity={0.48} />
+        <meshBasicMaterial color={accent} transparent opacity={0.22} />
       </mesh>
       <mesh position={[0, 0.1, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1.22, 0.76, 1]}>
         <torusGeometry args={[1.25, 0.006, 8, 144]} />
-        <meshBasicMaterial color={BASE_COLOR} transparent opacity={0.24} />
+        <meshBasicMaterial color={BASE_COLOR} transparent opacity={0.1} />
       </mesh>
       {shards.map((shard) => (
         <mesh
@@ -676,6 +678,19 @@ function DomeIceShell({ accent, brickMaps, impact, quality }) {
 
   return (
     <group name="DomeIceShell">
+      <mesh position={[0, DOME_CENTER_Y, 0]} scale={[DOME_RADIUS.x, DOME_RADIUS.y, DOME_RADIUS.z]}>
+        <sphereGeometry args={[1, 56, 18, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+        <meshStandardMaterial
+          color="#c7dcde"
+          emissive={accent}
+          emissiveIntensity={0.045}
+          metalness={0.0}
+          opacity={0.38}
+          roughness={0.72}
+          side={THREE.DoubleSide}
+          transparent
+        />
+      </mesh>
       {model.rings.map((ring) => (
         <mesh
           key={ring.key}
@@ -901,7 +916,9 @@ export default function PolarObservatoryDome({
   const rootRef = useRef(null);
   const brickMaps = useDomeBrickTextureBundle();
   const accent = activeArtifact?.accent || "#5ff8e7";
-  const collisionImpact = Math.max(0, 1 - Math.abs((axisX ?? homeX) - homeX) / 0.82) * Math.min(1, Math.abs(axisVelocity) * 1.35);
+  const collisionImpact =
+    Math.max(0, 1 - Math.abs((axisX ?? homeX) - homeX) / 0.34) *
+    Math.min(1, Math.max(0, Math.abs(axisVelocity) - 0.72) * 2.1);
   const impact = Math.max(collisionImpact, impactPulse);
 
   useFrame(({ clock }) => {
@@ -916,7 +933,7 @@ export default function PolarObservatoryDome({
       ref={rootRef}
       name={`igloo-polar-dome PolarObservatoryDome ${SCIENCE_DOME_REFERENCE}`}
       position={[homeX, 0.04, 0]}
-      scale={[0.72, 0.8, 0.72]}
+      scale={[0.82, 0.88, 0.82]}
       userData={{ className: "igloo-polar-dome igloo-dome" }}
     >
       <IcePlinth accent={accent} />

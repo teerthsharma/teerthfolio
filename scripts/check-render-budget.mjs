@@ -38,9 +38,14 @@ const checks = [
     pattern: /DiagnosticPanel[\s\S]*GpuErrorBoundary[\s\S]*diagnosticEvents[\s\S]*safeExitHref[\s\S]*href=/,
   },
   {
+    name: "generic browser errors do not demote the WebGL renderer",
+    file: files.world,
+    pattern: /FATAL_RENDER_EVENT_TYPES[\s\S]*webgl-context-lost[\s\S]*severity === "error" && FATAL_RENDER_EVENT_TYPES\.has\(diagnostic\.type\)/,
+  },
+  {
     name: "scene reports WebGL lifecycle into diagnostics",
     file: files.scene,
-    pattern: /SceneDiagnostics[\s\S]*webgl-created[\s\S]*webglcontextlost[\s\S]*onGpuEvent/,
+    pattern: /SceneDiagnostics[\s\S]*webglcontextlost[\s\S]*onGpuEvent[\s\S]*onCanvasCreated[\s\S]*webgl-created[\s\S]*onCreated=\{onCanvasCreated\}/,
   },
   {
     name: "scene has visible asset suspense fallback",
@@ -105,12 +110,12 @@ const checks = [
   {
     name: "terrain material stays in dark Antarctic range",
     file: files.terrain,
-    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*"#5f787e"/,
+    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*"#43585d"/,
   },
   {
     name: "terrain surface stays clean and subordinate",
     file: files.terrain,
-    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to observatory[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.01, 0\.01\)/,
+    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to observatory[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.003, 0\.003\)/,
   },
   {
     name: "terrain uses recycled material tile label",
@@ -128,6 +133,11 @@ const checks = [
     pattern: /geometry\.dispose\(\)[\s\S]*material\.dispose\(\)/,
   },
   {
+    name: "ground fog stays dark and cannot bleach the scene",
+    file: files.snow,
+    pattern: /POLAR_GROUND_FOG_PROFILE[\s\S]*never bleaches[\s\S]*0\.028[\s\S]*color="#123135"/,
+  },
+  {
     name: "smashables only render during active movement",
     file: files.scene,
     pattern: /renderEnabled && moving && !debugFlags\.noSmashables/,
@@ -141,6 +151,16 @@ const checks = [
     name: "polar dome keeps bounded tile columns",
     file: files.dome,
     pattern: /DOME_TILE_COLUMNS_BY_ROW\s*=\s*\[4, 6, 8, 10, 12, 14, 16\]/,
+  },
+  {
+    name: "polar dome remains intact until deliberate impact",
+    file: files.dome,
+    pattern: /DOME_COLLISION_MODE[\s\S]*intact by default[\s\S]*Math\.abs\(axisVelocity\) - 0\.72/,
+  },
+  {
+    name: "polar dome fills tile gaps with a continuous premium shell",
+    file: files.dome,
+    pattern: /DOME_INTACT_SHELL_PROFILE[\s\S]*continuous luminous ice shell[\s\S]*sphereGeometry args=\{\[1, 56, 18[\s\S]*opacity=\{0\.38\}/,
   },
   {
     name: "polar dome shares texture bundle generation",

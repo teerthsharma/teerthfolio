@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 export const SNOW_ATMOSPHERE_MODE = "bounded falling snow and ground fog";
+export const POLAR_GROUND_FOG_PROFILE = "dark low-opacity ground fog that never bleaches the object world";
 
 function makeSnowGeometry(count) {
   const geometry = new THREE.BufferGeometry();
@@ -34,9 +35,9 @@ export default function SnowAtmosphere({ axisX = 0, depthZ = 0, quality = "mediu
         color: "#e9ffff",
         size: quality === "low" ? 0.026 : 0.018,
         transparent: true,
-        opacity: quality === "low" ? 0.32 : 0.42,
+        opacity: quality === "low" ? 0.18 : 0.24,
         depthWrite: false,
-        blending: THREE.AdditiveBlending,
+        blending: THREE.NormalBlending,
       }),
     [quality],
   );
@@ -69,16 +70,16 @@ export default function SnowAtmosphere({ axisX = 0, depthZ = 0, quality = "mediu
     if (fog.current) {
       fog.current.position.x = axisX;
       fog.current.position.z = depthZ - 2;
-      fog.current.material.opacity = 0.08 + Math.sin(clock.elapsedTime * 0.33) * 0.018;
+      fog.current.material.opacity = 0.028 + Math.sin(clock.elapsedTime * 0.33) * 0.006;
     }
   });
 
   return (
     <group name={`SnowAtmosphere ${SNOW_ATMOSPHERE_MODE}`}>
       <points ref={points} geometry={geometry} material={material} />
-      <mesh ref={fog} position={[axisX, -0.05, depthZ - 2]} rotation={[-Math.PI / 2, 0, 0]} scale={[34, 22, 1]}>
+      <mesh ref={fog} position={[axisX, -0.05, depthZ - 2]} rotation={[-Math.PI / 2, 0, 0]} scale={[30, 18, 1]}>
         <planeGeometry args={[1, 1, 1, 1]} />
-        <meshBasicMaterial color="#dffdf7" transparent opacity={0.08} depthWrite={false} />
+        <meshBasicMaterial color="#123135" transparent opacity={0.028} depthWrite={false} />
       </mesh>
     </group>
   );
