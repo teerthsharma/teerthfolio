@@ -203,6 +203,11 @@ const checks = [
     pattern: /SEAL_GUIDE_FACEPLATE_PROFILE[\s\S]*seal-guide-faceplate[\s\S]*seal-guide-pointer/,
   },
   {
+    name: "seal has a premium SDF silhouette rim",
+    file: files.seal,
+    pattern: /SEAL_PREMIUM_SILHOUETTE_PROFILE[\s\S]*inked SDF silhouette rim[\s\S]*rimMaterial[\s\S]*SealBody \$/ ,
+  },
+  {
     name: "seal bearing ray points at active station",
     file: files.seal,
     pattern: /SEAL_STATION_BEARING_PROFILE[\s\S]*SEAL_WORLD_LOOP_LENGTH[\s\S]*activeArtifact\.position\[0\][\s\S]*bearingAngle[\s\S]*bearingRayRef\.current\.scale\.y/,

@@ -12,6 +12,7 @@ export const SEAL_NORMAL_FIELD_PROFILE = "finite SDF surface-normal quiver marks
 export const SEAL_GUIDE_FACEPLATE_PROFILE = "station-bearing glass faceplate and topology pointer";
 export const SEAL_STATION_BEARING_PROFILE = "loop-aware guide ray points from seal toward the active project station";
 export const SEAL_GUIDE_BEACON_PROFILE = "active station beacon makes the seal read as a functional guide";
+export const SEAL_PREMIUM_SILHOUETTE_PROFILE = "inked SDF silhouette rim with belly contour and topology seam";
 
 const SEAL_WORLD_LOOP_LENGTH = 128;
 
@@ -82,8 +83,19 @@ function SealBody({ accent, guideState, material }) {
       new THREE.MeshBasicMaterial({
         color: "#071214",
         transparent: true,
-        opacity: 0.52,
+        opacity: 0.68,
         depthWrite: false,
+      }),
+    [],
+  );
+  const rimMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: "#020607",
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+        side: THREE.BackSide,
       }),
     [],
   );
@@ -143,21 +155,28 @@ function SealBody({ accent, guideState, material }) {
       faceplateMaterial.dispose();
       finMaterial.dispose();
       normalFieldMaterial.dispose();
+      rimMaterial.dispose();
       shadowLineMaterial.dispose();
     },
-    [cheekMaterial, contourMaterial, dark, faceplateLineMaterial, faceplateMaterial, finMaterial, normalFieldMaterial, shadowLineMaterial],
+    [cheekMaterial, contourMaterial, dark, faceplateLineMaterial, faceplateMaterial, finMaterial, normalFieldMaterial, rimMaterial, shadowLineMaterial],
   );
 
   return (
-    <group name={`SealBody ${SEAL_AVATAR_FORMULA}`} scale={[0.92, 0.92, 0.92]}>
+    <group name={`SealBody ${SEAL_AVATAR_FORMULA} ${SEAL_PREMIUM_SILHOUETTE_PROFILE}`} scale={[0.92, 0.92, 0.92]}>
+      <mesh material={rimMaterial} position={[-0.02, -0.012, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.438, 1.088, 0.438]}>
+        <capsuleGeometry args={[1, 1, 12, 24]} />
+      </mesh>
       <mesh castShadow material={material} rotation={[0, 0, Math.PI / 2]} scale={[0.42, 1.05, 0.42]}>
         <capsuleGeometry args={[1, 1, 12, 24]} />
       </mesh>
-      <mesh material={shadowLineMaterial} rotation={[Math.PI / 2, 0, 0]} scale={[0.72, 0.48, 0.22]}>
+      <mesh material={shadowLineMaterial} position={[0.01, -0.02, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[0.72, 0.5, 0.22]}>
         <torusGeometry args={[1, 0.01, 6, 84]} />
       </mesh>
       <mesh material={contourMaterial} position={[0.05, 0.02, 0]} rotation={[Math.PI / 2, 0.08, 0]} scale={[0.86, 0.5, 0.22]}>
         <torusGeometry args={[1, 0.006, 6, 96]} />
+      </mesh>
+      <mesh material={shadowLineMaterial} position={[0.42, 0.24, 0]} rotation={[Math.PI / 2, -0.12, 0.02]} scale={[0.26, 0.19, 0.11]}>
+        <torusGeometry args={[1, 0.006, 6, 64]} />
       </mesh>
       <mesh material={contourMaterial} position={[0.22, 0.08, 0]} rotation={[Math.PI / 2, -0.12, 0.04]} scale={[0.48, 0.34, 0.2]}>
         <torusGeometry args={[1, 0.0045, 6, 80]} />
@@ -212,6 +231,9 @@ function SealBody({ accent, guideState, material }) {
           </mesh>
         </group>
       ))}
+      <mesh material={rimMaterial} position={[0.795, 0.162, 0]} scale={[0.374, 0.364, 0.364]}>
+        <sphereGeometry args={[1, 32, 24]} />
+      </mesh>
       <mesh castShadow material={material} position={[0.78, 0.18, 0]} scale={[0.36, 0.35, 0.35]}>
         <sphereGeometry args={[1, 32, 24]} />
       </mesh>
@@ -242,10 +264,19 @@ function SealBody({ accent, guideState, material }) {
       <mesh material={contourMaterial} position={[0.942, 0.333, -0.138]} scale={[0.014, 0.014, 0.008]}>
         <sphereGeometry args={[1, 8, 6]} />
       </mesh>
+      <mesh material={rimMaterial} position={[-0.82, -0.052, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.168, 0.44, 0.138]}>
+        <coneGeometry args={[1, 1, 18]} />
+      </mesh>
       <mesh castShadow material={finMaterial} position={[-0.8, -0.04, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.16, 0.42, 0.13]}>
         <coneGeometry args={[1, 1, 18]} />
       </mesh>
+      <mesh material={rimMaterial} position={[0.052, -0.232, 0.395]} rotation={[0.5, -0.18, -0.42]} scale={[0.252, 0.083, 0.438]}>
+        <sphereGeometry args={[1, 18, 12]} />
+      </mesh>
       <mesh castShadow material={finMaterial} position={[0.06, -0.22, 0.38]} rotation={[0.5, -0.18, -0.42]} scale={[0.24, 0.075, 0.42]}>
+        <sphereGeometry args={[1, 18, 12]} />
+      </mesh>
+      <mesh material={rimMaterial} position={[0.052, -0.232, -0.395]} rotation={[-0.5, 0.18, -0.42]} scale={[0.252, 0.083, 0.438]}>
         <sphereGeometry args={[1, 18, 12]} />
       </mesh>
       <mesh castShadow material={finMaterial} position={[0.06, -0.22, -0.38]} rotation={[-0.5, 0.18, -0.42]} scale={[0.24, 0.075, 0.42]}>
