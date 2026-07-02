@@ -699,7 +699,7 @@ function assertSection(result) {
   if (hash === "archive") {
     if (!metrics.visible.archiveHead) failures.push(`archive heading is not visible: ${JSON.stringify(metrics.archiveHead)}`);
     if (!metrics.visible.archiveGrid) failures.push(`archive grid is not visible: ${JSON.stringify(metrics.archiveGrid)}`);
-    if (!metrics.visible.repoTape && !mobile) failures.push(`desktop repo tape is not visible: ${JSON.stringify(metrics.repoTape)}`);
+    if (!metrics.visible.repoTape) failures.push(`repo tape is not visible: ${JSON.stringify(metrics.repoTape)}`);
     if (!mobile && metrics.repoTapeOverflow?.vertical) failures.push("desktop repo tape is vertically clipped");
     if (!mobile && !metrics.repoTapeOverflow?.horizontal) failures.push("desktop repo tape is not a horizontal source rail");
     if (!/live-github|research-snapshot/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks source-mode label");

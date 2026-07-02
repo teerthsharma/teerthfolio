@@ -2798,12 +2798,15 @@ img {
   }
 
   .archive-grid {
-    max-height: calc(100svh - 280px);
+    max-height: min(244px, calc(100svh - 390px));
+    gap: 8px;
   }
 
   .repo-tape {
     flex-wrap: nowrap;
-    max-height: none;
+    max-height: 94px;
+    margin-top: 4px;
+    padding-bottom: 4px;
   }
 
   .project-list {
@@ -2833,7 +2836,9 @@ img {
   }
 
   .repo-tape a {
-    flex-basis: min(260px, 78vw);
+    flex-basis: min(220px, 68vw);
+    min-height: 78px;
+    padding: 10px;
   }
 
   .project-metrics {
