@@ -27,6 +27,7 @@ const SQUARE_EDGE_TEXTURE_SIZE = 96;
 const SCIENCE_DOME_REFERENCE = "Antarctic geodesic science radome with observatory airlock";
 export const DOME_COLLISION_MODE = "intact by default; collapse only on deliberate seal impact";
 export const DOME_INTACT_SHELL_PROFILE = "continuous luminous ice shell under tiled PBR bricks";
+export const DOME_TILE_GEOMETRY_PROFILE = "warped pillow ice brick tiles with tucked corners and varied frost UVs";
 const DOME_TILE_COLUMNS_BY_ROW = [4, 6, 8, 10, 12, 14, 16];
 
 function domePoint(angle, theta, lift = 0) {
@@ -348,8 +349,8 @@ function useDomeBrickTextureBundle() {
 
 function CurvedDomeTileGeometry({ panel }) {
   const geometry = useMemo(() => {
-    const uSegments = 3;
-    const vSegments = 2;
+    const uSegments = 5;
+    const vSegments = 4;
     const center = vectorFromArray(panel.position);
     const positions = [];
     const uvs = [];
@@ -361,8 +362,15 @@ function CurvedDomeTileGeometry({ panel }) {
       for (let u = 0; u <= uSegments; u += 1) {
         const uRatio = u / uSegments;
         const angle = panel.angle + (uRatio - 0.5) * panel.angleSpan;
-        const centerPuff = Math.sin(Math.PI * uRatio) * Math.sin(Math.PI * vRatio);
-        const point = domeSurfacePoint(angle, theta, panel.lift + centerPuff * panel.puff);
+        const edgeFalloff = Math.sin(Math.PI * uRatio) * Math.sin(Math.PI * vRatio);
+        const cornerDistance = Math.max(Math.abs(uRatio - 0.5), Math.abs(vRatio - 0.5)) * 2;
+        const cornerTuck = Math.max(0, cornerDistance - 0.62) ** 2;
+        const frostWarp =
+          Math.sin((uRatio + panel.seed) * Math.PI * 2.0) *
+          Math.cos((vRatio - panel.seed * 0.13) * Math.PI * 2.0) *
+          0.006;
+        const lift = panel.lift + edgeFalloff * panel.puff + frostWarp - cornerTuck * panel.puff * 0.42;
+        const point = domeSurfacePoint(angle, theta, lift);
         point.sub(center);
         positions.push(point.x, point.y, point.z);
         uvs.push(
@@ -659,8 +667,8 @@ function DomeIceShell({ accent, brickMaps, impact, quality }) {
           thetaSpan: thetaTileSpan,
           thickness: 0.16 + row * 0.01,
           tile: {
-            offset: [0, 0],
-            repeat: [1, 1],
+            offset: [((column * 17 + row * 5) % 37) / 37, ((row * 11 + column * 3) % 29) / 29],
+            repeat: [0.82 + (column % 3) * 0.045, 0.84 + (row % 3) * 0.04],
           },
           tint: (column + row) % 5 === 0 ? "#effffb" : "#c5d8dc",
         });

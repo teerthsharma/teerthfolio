@@ -1,8 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AntarcticSplashShader from "./AntarcticSplashShader";
 
-export const SPLASH_GATE_PROFILE = "premium object poster for the igloo render gate";
+export const SPLASH_GATE_PROFILE = "premium object poster for the igloo render gate with WebGL Antarctic shader";
+export const RENDER_PERMISSION_PROFILE = "Start exploring requests fullscreen, wake lock, and WebGL capability inside the user gesture";
+
+function probeWebglCapability() {
+  const canvas = document.createElement("canvas");
+  const gl =
+    canvas.getContext("webgl2", { antialias: false, failIfMajorPerformanceCaveat: false }) ||
+    canvas.getContext("webgl", { antialias: false, failIfMajorPerformanceCaveat: false });
+  if (!gl) return "webgl unavailable";
+  const renderer = gl.getParameter(gl.RENDERER) || "renderer hidden";
+  const version = gl.getParameter(gl.VERSION) || "webgl";
+  return `${version} / ${renderer}`;
+}
 
 export default function SdfSealSplash({
   activeArtifact,
@@ -11,6 +24,9 @@ export default function SdfSealSplash({
   safeMode = false,
 }) {
   const [charge, setCharge] = useState(0);
+  const [permissionRows, setPermissionRows] = useState([]);
+  const [permissionState, setPermissionState] = useState("idle");
+  const permissionLockRef = useRef(false);
   const stationName = activeArtifact?.label || "Observatory Plaque";
   const stationSignal = activeArtifact?.signal || "source-backed topology systems";
   const domeTiles = useMemo(() => {
@@ -60,8 +76,50 @@ export default function SdfSealSplash({
     return () => window.cancelAnimationFrame(raf);
   }, []);
 
+  const requestRenderAccess = useCallback(async () => {
+    if (permissionLockRef.current) return;
+    permissionLockRef.current = true;
+    setPermissionState("requesting");
+    const results = [];
+
+    try {
+      if (document.fullscreenElement) {
+        results.push("fullscreen already granted");
+      } else if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+        results.push("fullscreen granted");
+      } else {
+        results.push("fullscreen unavailable");
+      }
+    } catch (error) {
+      results.push(`fullscreen skipped: ${error?.name || "browser denied"}`);
+    }
+
+    try {
+      if ("wakeLock" in navigator && navigator.wakeLock?.request) {
+        window.__sealTopologyWakeLock = await navigator.wakeLock.request("screen");
+        results.push("screen wake lock granted");
+      } else {
+        results.push("wake lock unavailable");
+      }
+    } catch (error) {
+      results.push(`wake lock skipped: ${error?.name || "browser denied"}`);
+    }
+
+    try {
+      results.push(probeWebglCapability());
+    } catch (error) {
+      results.push(`webgl probe failed: ${error?.name || "unknown"}`);
+    }
+
+    setPermissionRows(results);
+    setPermissionState("ready");
+    onEnable?.();
+  }, [onEnable]);
+
   return (
     <div className="sdf-seal-splash" role="dialog" aria-label="SDF seal renderer gate" aria-modal="true">
+      <AntarcticSplashShader />
       <div className="sdf-splash-copy">
         <span>render gate / {stationName}</span>
         <h2>Seal's Topology Land</h2>
@@ -123,17 +181,23 @@ export default function SdfSealSplash({
             {event.message}
           </p>
         ))}
+        {permissionRows.map((row) => (
+          <p key={row}>
+            <span>{permissionState}</span>
+            {row}
+          </p>
+        ))}
         <strong>{stationSignal}</strong>
       </div>
 
       {safeMode ? (
-        <button className="sdf-render-button" type="button" onClick={onEnable}>
-          <span>Start exploring</span>
+        <button className="sdf-render-button" type="button" onClick={requestRenderAccess}>
+          <span>{permissionState === "requesting" ? "Requesting renderer access" : "Start exploring"}</span>
           <i style={{ transform: `scaleX(${Math.max(0.08, charge)})` }} />
         </button>
       ) : (
-        <button className="sdf-render-button" type="button" onClick={onEnable}>
-          <span>Start exploring</span>
+        <button className="sdf-render-button" type="button" onClick={requestRenderAccess}>
+          <span>{permissionState === "requesting" ? "Requesting renderer access" : "Start exploring"}</span>
           <i style={{ transform: `scaleX(${Math.max(0.08, charge)})` }} />
         </button>
       )}

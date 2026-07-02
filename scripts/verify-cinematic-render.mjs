@@ -290,8 +290,9 @@ async function collectSafeGateMetrics(page) {
     const gate = document.querySelector(".sdf-seal-splash");
     const gateButton = document.querySelector(".sdf-render-button");
     const diagnostics = document.querySelector(".igloo-diagnostics");
+    const splashShader = document.querySelector(".sdf-splash-shader-canvas");
     const canvas = Array.from(document.querySelectorAll("canvas")).find(
-      (item) => !item.classList.contains("igloo-atmosphere-canvas"),
+      (item) => !item.classList.contains("igloo-atmosphere-canvas") && !item.classList.contains("sdf-splash-shader-canvas"),
     );
     const gateRect = gate?.getBoundingClientRect();
     const buttonRect = gateButton?.getBoundingClientRect();
@@ -313,6 +314,41 @@ async function collectSafeGateMetrics(page) {
       tonalRange: 0,
       error: "",
     };
+    let splashShaderSample = {
+      averageLuminance: 0,
+      nonBlankPixels: 0,
+      tonalRange: 0,
+      error: "",
+    };
+    if (splashShader) {
+      try {
+        const sampler = document.createElement("canvas");
+        sampler.width = 32;
+        sampler.height = 32;
+        const context = sampler.getContext("2d", { willReadFrequently: true });
+        context.drawImage(splashShader, 0, 0, sampler.width, sampler.height);
+        const pixels = context.getImageData(0, 0, sampler.width, sampler.height).data;
+        let total = 0;
+        let max = 0;
+        let min = 255;
+        let nonBlank = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          const luminance = pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722;
+          total += luminance;
+          max = Math.max(max, luminance);
+          min = Math.min(min, luminance);
+          if (luminance > 2) nonBlank += 1;
+        }
+        splashShaderSample = {
+          averageLuminance: Number((total / (pixels.length / 4)).toFixed(2)),
+          nonBlankPixels: nonBlank,
+          tonalRange: Number((max - min).toFixed(2)),
+          error: "",
+        };
+      } catch (error) {
+        splashShaderSample.error = error?.message || String(error);
+      }
+    }
     if (canvas) {
       try {
         const sampler = document.createElement("canvas");
@@ -356,6 +392,8 @@ async function collectSafeGateMetrics(page) {
       renderEnabled: world?.dataset.renderEnabled,
       rendererMode: world?.dataset.rendererMode,
       sealAwake: world?.dataset.sealAwake,
+      splashShaderCanvasPresent: Boolean(splashShader),
+      splashShaderSample,
       webglCanvasPresent: Boolean(canvas),
     };
   });
@@ -594,6 +632,14 @@ function assertSafeGate(result) {
   }
   if (initial.gateOverflow || idle.gateOverflow) failures.push("safe gate content overflows before GPU probe");
   if (!initial.gatePresent) failures.push("safe gate did not render the splash gate");
+  if (!initial.splashShaderCanvasPresent) failures.push("safe gate did not mount the Antarctica shader canvas");
+  if (initial.splashShaderSample?.error) failures.push(`safe gate shader sampling failed: ${initial.splashShaderSample.error}`);
+  if ((initial.splashShaderSample?.nonBlankPixels || 0) < 100) {
+    failures.push(`safe gate Antarctica shader appears blank: ${JSON.stringify(initial.splashShaderSample)}`);
+  }
+  if ((initial.splashShaderSample?.tonalRange || 0) < 8) {
+    failures.push(`safe gate Antarctica shader lacks cinematic contrast: ${JSON.stringify(initial.splashShaderSample)}`);
+  }
   if (!buttonVisible(initial.buttonBounds)) failures.push(`safe gate button is not visible: ${JSON.stringify(initial.buttonBounds)}`);
   if (overlaps(initial.buttonBounds, initial.diagnosticsBounds)) failures.push("safe gate diagnostics overlap the start button");
   if (!/start exploring/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
@@ -601,7 +647,7 @@ function assertSafeGate(result) {
   if (initial.rendererMode !== "safe") failures.push(`safe gate initial mode is ${initial.rendererMode}`);
   if (initial.sealAwake !== "false") failures.push(`safe gate initially woke seal: ${initial.sealAwake}`);
   if (initial.webglCanvasPresent) failures.push("safe gate mounted WebGL canvas before probe");
-  if (!initial.diagnosticsVisible || !/safe-boot/i.test(initial.diagnosticText)) {
+  if (!idle.diagnosticsVisible || !/safe-boot/i.test(idle.diagnosticText)) {
     failures.push("safe gate did not expose safe-boot diagnostics");
   }
   if (idle.renderEnabled !== "false" || idle.rendererMode !== "safe" || idle.webglCanvasPresent) {

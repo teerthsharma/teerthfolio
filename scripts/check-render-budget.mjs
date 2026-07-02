@@ -14,6 +14,7 @@ const files = {
   terrain: readFileSync(join(root, "components", "IglooTerrain.jsx"), "utf8"),
   seal: readFileSync(join(root, "components", "SealAvatar.jsx"), "utf8"),
   snow: readFileSync(join(root, "components", "SnowAtmosphere.jsx"), "utf8"),
+  splashShader: readFileSync(join(root, "components", "AntarcticSplashShader.jsx"), "utf8"),
 };
 
 const checks = [
@@ -45,7 +46,7 @@ const checks = [
   {
     name: "safe gate can start a visible GPU diagnostic probe",
     file: `${files.world}\n${files.splash}`,
-    pattern: /DiagnosticPanel[\s\S]*GpuErrorBoundary[\s\S]*diagnosticEvents[\s\S]*type="button"[\s\S]*onClick=\{onEnable\}/,
+    pattern: /DiagnosticPanel[\s\S]*GpuErrorBoundary[\s\S]*diagnosticEvents[\s\S]*requestRenderAccess[\s\S]*requestFullscreen[\s\S]*wakeLock[\s\S]*probeWebglCapability[\s\S]*onClick=\{requestRenderAccess\}/,
   },
   {
     name: "safe probe keeps WebGL readback visible",
@@ -76,6 +77,11 @@ const checks = [
     name: "splash gate renders a premium object poster",
     file: files.splash,
     pattern: /SPLASH_GATE_PROFILE[\s\S]*sdf-splash-art[\s\S]*sdf-dome-tile[\s\S]*F\(p\)[\s\S]*grad F -&gt; impulse/,
+  },
+  {
+    name: "splash gate uses a bounded WebGL Antarctica shader separate from the heavy scene",
+    file: `${files.splash}\n${files.splashShader}\n${readFileSync(join(root, "scripts", "verify-cinematic-render.mjs"), "utf8")}`,
+    pattern: /AntarcticSplashShader[\s\S]*SPLASH_SHADER_PROFILE[\s\S]*sdf-splash-shader-canvas[\s\S]*classList\.contains\("sdf-splash-shader-canvas"\)/,
   },
   {
     name: "splash copy is viewport bounded",
@@ -186,6 +192,11 @@ const checks = [
     name: "polar dome fills tile gaps with a continuous premium shell",
     file: files.dome,
     pattern: /DOME_INTACT_SHELL_PROFILE[\s\S]*continuous luminous ice shell[\s\S]*sphereGeometry args=\{\[1, 56, 18[\s\S]*opacity=\{0\.38\}/,
+  },
+  {
+    name: "polar dome tiles use warped pillow geometry instead of flat rectangles",
+    file: files.dome,
+    pattern: /DOME_TILE_GEOMETRY_PROFILE[\s\S]*warped pillow ice brick[\s\S]*uSegments = 5[\s\S]*vSegments = 4[\s\S]*edgeFalloff[\s\S]*cornerTuck/,
   },
   {
     name: "polar dome shares texture bundle generation",
