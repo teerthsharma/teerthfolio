@@ -2486,15 +2486,19 @@ img {
   }
 
   .igloo-live-strip {
-    top: 268px;
+    top: 210px;
     left: 12px;
     right: 12px;
     width: auto;
-    max-height: 62px;
+    max-height: 50px;
     gap: 2px;
     overflow: hidden;
-    padding: 8px 0 8px 10px;
-    background: linear-gradient(90deg, rgba(2, 7, 9, 0.72), rgba(2, 7, 9, 0.12));
+    padding: 8px 10px;
+    border: 1px solid rgba(95, 248, 231, 0.18);
+    border-left-color: rgba(95, 248, 231, 0.52);
+    border-radius: var(--radius);
+    background: linear-gradient(90deg, rgba(2, 7, 9, 0.8), rgba(2, 7, 9, 0.42));
+    backdrop-filter: blur(12px);
   }
 
   .igloo-live-strip strong {
@@ -2511,8 +2515,7 @@ img {
   }
 
   .igloo-live-strip p {
-    font-size: 0.64rem;
-    -webkit-line-clamp: 1;
+    display: none;
   }
 
   .igloo-readout h2 {
@@ -2527,7 +2530,7 @@ img {
     font-size: 0.7rem;
     line-height: 1.28;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
   }
 
   .igloo-artifact-signal {
@@ -2549,7 +2552,7 @@ img {
   .igloo-artifact-list {
     left: 12px;
     right: 12px;
-    bottom: 220px;
+    bottom: 204px;
     justify-content: flex-start;
     flex-wrap: nowrap;
     max-width: none;
@@ -2587,10 +2590,7 @@ img {
   }
 
   .igloo-axis-meter {
-    top: 236px;
-    bottom: auto;
-    width: calc(100vw - 24px);
-    font-size: 0.54rem;
+    display: none;
   }
 
   .igloo-source {
