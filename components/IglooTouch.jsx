@@ -22,7 +22,9 @@ export default function IglooTouch({ onTouchIgloo }) {
         let node = hit.object;
         while (node) {
           const className = node.userData?.className;
-          if (className === "ice-block" || className === "igloo-dome") return true;
+          if (typeof className === "string" && /\b(ice-block|igloo-dome|igloo-polar-dome|curved-thick-dome-brick)\b/.test(className)) {
+            return true;
+          }
           node = node.parent;
         }
         return false;

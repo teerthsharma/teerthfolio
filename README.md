@@ -39,7 +39,7 @@ The site is built to stay Vercel-hostable while still feeling like an object-wor
 | `app/` | Next.js pages and global CSS |
 | `components/IglooWorld.jsx` | Top-level render gate, input model, safe mode, station state |
 | `components/IglooScene.jsx` | WebGL scene orchestration |
-| `components/IglooDome.jsx` | Antarctic observatory dome |
+| `components/PolarObservatoryDome.jsx` | PBR Antarctic science dome with bounded curved tile geometry |
 | `components/SealAvatar.jsx` | Seal guide mascot |
 | `components/IglooTerrain.jsx` | Repeating polar floor and terrain window |
 | `components/IglooArtifacts.jsx` | Project station objects |

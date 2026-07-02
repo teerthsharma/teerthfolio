@@ -5,14 +5,15 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import ActiveTheoryVeil from "./ActiveTheoryVeil";
 import IglooArtifacts, { IGLOO_ARTIFACTS } from "./IglooArtifacts";
-import IglooDome from "./IglooDome";
 import IglooTerrain from "./IglooTerrain";
 import IglooTouch from "./IglooTouch";
+import PolarObservatoryDome from "./PolarObservatoryDome";
 import SealAvatar from "./SealAvatar";
 import SnowAtmosphere from "./SnowAtmosphere";
 import TopologyConstellation from "./TopologyConstellation";
 
 export const OBSERVATORY_HOME_X = 0;
+export const OBSERVATORY_VISUAL_HOME_X = 1.85;
 export const WORLD_AXIS_LENGTH = 128;
 export const WORLD_AXIS_WIDTH = 18;
 export const TERRAIN_CHUNK_LENGTH = 26;
@@ -35,12 +36,12 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
     // The igloo at (0,0,0) is the centerpiece; keep it in frame when idle.
     const portrait = size.width < 900;
     const compact = size.width < 520;
-    const sealHasDeparted = seal ? Math.abs(seal.position.x - OBSERVATORY_HOME_X) > 2.8 || Math.abs(seal.position.z) > 2.2 : false;
+    const sealHasDeparted = seal ? Math.abs(seal.position.x - OBSERVATORY_VISUAL_HOME_X) > 2.8 || Math.abs(seal.position.z) > 2.2 : false;
     const sealWeight = sealHasDeparted ? (compact ? 0.16 : portrait ? 0.24 : 0.36) : compact ? 0.08 : portrait ? 0.12 : 0.14;
     const depthWeight = sealHasDeparted ? (compact ? 0.26 : portrait ? 0.36 : 0.46) : compact ? 0.1 : portrait ? 0.16 : 0.2;
     const focusX = renderEnabled && seal ? THREE.MathUtils.lerp(OBSERVATORY_HOME_X, seal.position.x, sealWeight) : OBSERVATORY_HOME_X;
     const focusZ = renderEnabled && seal ? THREE.MathUtils.lerp(0, seal.position.z, depthWeight) : depthZ * 0.12;
-    const homeFrameBias = sealHasDeparted ? 0 : compact ? -0.28 : portrait ? -0.42 : -0.92;
+    const homeFrameBias = sealHasDeparted ? 0 : compact ? 0.04 : portrait ? 0.08 : 0.12;
     target.set(focusX + homeFrameBias, 0.82, focusZ);
     const baseDistance = quality === "low" ? 13.1 : quality === "medium" ? 12.15 : 11.3;
     const distance = baseDistance + (compact ? 2.2 : portrait ? 1.55 : 0);
@@ -400,13 +401,20 @@ export default function IglooScene({
             axisX={axisX}
             depthVelocity={depthVelocity}
             depthZ={depthZ}
-            iglooPosition={[OBSERVATORY_HOME_X, 0, 0]}
+            iglooPosition={[OBSERVATORY_VISUAL_HOME_X, 0, 0]}
             moving={moving}
             onTouchIgloo={onTouchIgloo}
           />
         )}
         {!debugFlags.noDome && (
-          <IglooDome accent={activeArtifact?.accent} position={[OBSERVATORY_HOME_X, 0, 0]} pulse={iglooPulse} quality={quality} />
+          <PolarObservatoryDome
+            activeArtifact={activeArtifact}
+            axisVelocity={axisVelocity}
+            axisX={axisX}
+            homeX={OBSERVATORY_VISUAL_HOME_X}
+            impactPulse={iglooPulse}
+            quality={quality}
+          />
         )}
         {!debugFlags.noArtifacts && <IglooArtifacts activeArtifactId={activeArtifactId} artifacts={artifacts} axisX={axisX} />}
       </Suspense>

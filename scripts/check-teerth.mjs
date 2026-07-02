@@ -29,7 +29,7 @@ const iglooWorld = expectFile("components/IglooWorld.jsx");
 const iglooScene = expectFile("components/IglooScene.jsx");
 const iglooHud = expectFile("components/IglooHud.jsx");
 const iglooArtifacts = expectFile("components/IglooArtifacts.jsx");
-const iglooDome = expectFile("components/IglooDome.jsx");
+const polarObservatoryDome = expectFile("components/PolarObservatoryDome.jsx");
 const iglooTerrain = expectFile("components/IglooTerrain.jsx");
 const iglooTouch = expectFile("components/IglooTouch.jsx");
 const sealAvatar = expectFile("components/SealAvatar.jsx");
@@ -112,7 +112,7 @@ for (const scenePrimitive of [
   "Canvas",
   "frameloop={renderEnabled ? \"always\" : \"demand\"}",
   "failIfMajorPerformanceCaveat",
-  "IglooDome",
+  "PolarObservatoryDome",
   "SealAvatar",
   "IglooTerrain",
   "SnowAtmosphere",
@@ -124,6 +124,7 @@ for (const scenePrimitive of [
   "PolarSmashables",
   "WORLD_RENDER_WINDOW_NOTE",
   "OBSERVATORY_HOME_X",
+  "OBSERVATORY_VISUAL_HOME_X",
   "debugFlags",
   "!debugFlags.noDome",
   "!debugFlags.noSnow",
@@ -135,21 +136,21 @@ for (const scenePrimitive of [
 ]) {
   expectIncludes("components/IglooScene.jsx", iglooScene, scenePrimitive, `scene must expose ${scenePrimitive}`);
 }
-expectNoPattern("components/IglooScene.jsx", iglooScene, /PolarObservatoryDome|function ObservatoryDome|gridHelper/i, "scene must not mount the old observatory dome path");
+expectNoPattern("components/IglooScene.jsx", iglooScene, /function ObservatoryDome|gridHelper/i, "scene must not mount the rejected helper-grid dome path");
 
 for (const domePrimitive of [
-  "IGLOO_BLOCK_ROWS",
-  "IGLOO_BLOCKS_PER_ROW",
-  "IglooDome",
+  "DOME_PANEL_ROWS",
+  "DOME_TILE_COLUMNS_BY_ROW",
+  "PolarObservatoryDome",
+  "BLENDKIT_REFERENCE_ASSET_BASE_ID",
   "DataTexture",
-  "procedural ice blocks",
-  "glowing seam lattice",
-  "igloo-dome",
-  "ice-block",
-  "MeshPhysicalMaterial",
-  "useIglooAssets",
+  "Antarctic geodesic science radome",
+  "white-quilted-fabric",
+  "curved-thick-dome-brick",
+  "DomeBrickFaceMaterial",
+  "useDomeBrickTextureBundle",
 ]) {
-  expectIncludes("components/IglooDome.jsx", iglooDome, domePrimitive, `igloo must define ${domePrimitive}`);
+  expectIncludes("components/PolarObservatoryDome.jsx", polarObservatoryDome, domePrimitive, `polar observatory dome must define ${domePrimitive}`);
 }
 
 for (const terrainPrimitive of [

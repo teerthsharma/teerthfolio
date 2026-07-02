@@ -8,7 +8,7 @@ const files = {
   page: readFileSync(join(root, "app", "page.jsx"), "utf8"),
   portfolioPage: readFileSync(join(root, "components", "PortfolioPage.jsx"), "utf8"),
   scene: readFileSync(join(root, "components", "IglooScene.jsx"), "utf8"),
-  dome: readFileSync(join(root, "components", "IglooDome.jsx"), "utf8"),
+  dome: readFileSync(join(root, "components", "PolarObservatoryDome.jsx"), "utf8"),
   splash: readFileSync(join(root, "components", "SdfSealSplash.jsx"), "utf8"),
   nextConfig: readFileSync(join(root, "next.config.mjs"), "utf8"),
   terrain: readFileSync(join(root, "components", "IglooTerrain.jsx"), "utf8"),
@@ -128,14 +128,24 @@ const checks = [
     pattern: /renderEnabled && moving && !debugFlags\.noSmashables/,
   },
   {
-    name: "dome rows remain finite",
+    name: "polar dome rows remain finite",
     file: files.dome,
-    pattern: /IGLOO_BLOCK_ROWS\s*=\s*6/,
+    pattern: /DOME_PANEL_ROWS\s*=\s*7/,
   },
   {
-    name: "dome shares asset generation",
+    name: "polar dome keeps bounded tile columns",
     file: files.dome,
-    pattern: /useIglooAssets/,
+    pattern: /DOME_TILE_COLUMNS_BY_ROW\s*=\s*\[4, 6, 8, 10, 12, 14, 16\]/,
+  },
+  {
+    name: "polar dome shares texture bundle generation",
+    file: files.dome,
+    pattern: /useDomeBrickTextureBundle/,
+  },
+  {
+    name: "scene mounts the premium polar observatory dome",
+    file: files.scene,
+    pattern: /PolarObservatoryDome[\s\S]*OBSERVATORY_VISUAL_HOME_X/,
   },
   {
     name: "seal remains a math-labeled avatar",

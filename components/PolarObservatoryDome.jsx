@@ -512,7 +512,7 @@ function DomeTile({ accent, brickMaps, impact, panel }) {
   });
 
   return (
-    <group ref={ref} name="curved-thick-dome-brick">
+    <group ref={ref} name="curved-thick-dome-brick" userData={{ className: "curved-thick-dome-brick ice-block" }}>
       <mesh>
         <DomeBrickSideGeometry panel={panel} />
         <DomeBrickSideMaterial accent={accent} color={panel.sideTint} edgeMaps={brickMaps.edgeMaps} />
@@ -895,12 +895,14 @@ export default function PolarObservatoryDome({
   axisVelocity = 0,
   axisX,
   homeX,
+  impactPulse = 0,
   quality = "high",
 }) {
   const rootRef = useRef(null);
   const brickMaps = useDomeBrickTextureBundle();
   const accent = activeArtifact?.accent || "#5ff8e7";
-  const impact = Math.max(0, 1 - Math.abs((axisX ?? homeX) - homeX) / 0.82) * Math.min(1, Math.abs(axisVelocity) * 1.35);
+  const collisionImpact = Math.max(0, 1 - Math.abs((axisX ?? homeX) - homeX) / 0.82) * Math.min(1, Math.abs(axisVelocity) * 1.35);
+  const impact = Math.max(collisionImpact, impactPulse);
 
   useFrame(({ clock }) => {
     if (!rootRef.current) return;
@@ -914,7 +916,8 @@ export default function PolarObservatoryDome({
       ref={rootRef}
       name={`igloo-polar-dome PolarObservatoryDome ${SCIENCE_DOME_REFERENCE}`}
       position={[homeX, 0.04, 0]}
-      userData={{ className: "igloo-polar-dome" }}
+      scale={[0.62, 0.72, 0.62]}
+      userData={{ className: "igloo-polar-dome igloo-dome" }}
     >
       <IcePlinth accent={accent} />
       <DomeIceShell accent={accent} brickMaps={brickMaps} impact={impact} quality={quality} />
