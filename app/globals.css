@@ -2408,6 +2408,71 @@ img {
   }
 }
 
+@media (min-width: 721px) and (max-width: 1080px) and (max-height: 820px) {
+  .sdf-seal-splash {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr);
+    grid-template-rows: auto auto auto;
+    align-content: center;
+    align-items: center;
+    gap: 16px 34px;
+    padding: 32px;
+  }
+
+  .sdf-splash-copy {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+    max-width: min(540px, 100%);
+  }
+
+  .sdf-splash-copy h2 {
+    margin: 8px 0 10px;
+    font-size: clamp(3.2rem, 7.4vw, 4.9rem);
+  }
+
+  .sdf-splash-copy p {
+    max-width: 48ch;
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .sdf-splash-art {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
+    width: min(330px, 34vw);
+    transform: none;
+  }
+
+  .sdf-splash-console {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    max-height: 142px;
+    overflow: hidden;
+    gap: 5px;
+  }
+
+  .sdf-splash-console p {
+    font-size: 0.56rem;
+  }
+
+  .sdf-render-button {
+    grid-column: 1;
+    grid-row: 3;
+    min-height: 50px;
+  }
+
+  .igloo-diagnostics {
+    left: auto;
+    right: 32px;
+    bottom: 32px;
+    width: min(380px, 34vw);
+    max-height: 74px;
+    overflow: hidden;
+  }
+}
+
 @media (max-width: 720px) {
   .sdf-splash-art {
     width: min(300px, 76vw);
