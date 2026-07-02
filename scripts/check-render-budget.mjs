@@ -105,7 +105,12 @@ const checks = [
   {
     name: "terrain material stays in dark Antarctic range",
     file: files.terrain,
-    pattern: /color:\s*"#6f858a"/,
+    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*"#5f787e"/,
+  },
+  {
+    name: "terrain surface stays clean and subordinate",
+    file: files.terrain,
+    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to observatory[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.01, 0\.01\)/,
   },
   {
     name: "terrain uses recycled material tile label",

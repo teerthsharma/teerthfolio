@@ -7,6 +7,8 @@ import * as THREE from "three";
 export const TERRAIN_CHUNK_SIZE = 26;
 export const TERRAIN_CHUNK_COUNT = 7;
 export const TERRAIN_RENDER_NOTE = "recursive Antarctic floor material tile";
+export const CLEAN_POLAR_SURFACE_PROFILE = "clean low-contrast polar ice, texture subordinate to observatory";
+export const TERRAIN_MATERIAL_COLOR = "#5f787e";
 
 const SNOW_PBR = {
   map: "/assets/pbr/ground/cloudy-veined-quartz-light-bl/cloudy-veined-quartz-light_albedo.png",
@@ -30,7 +32,7 @@ function useTerrainMaps() {
     for (const texture of Object.values(maps)) {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(4.4, 3.2);
+      texture.repeat.set(7.2, 5.4);
       texture.anisotropy = 8;
       texture.needsUpdate = true;
     }
@@ -94,14 +96,13 @@ export default function IglooTerrain({ axisX = 0, depthZ = 0, quality = "medium"
   const material = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: "#6f858a",
-        emissive: "#071316",
-        emissiveIntensity: 0.05,
-        map: maps.map,
-        metalness: 0.02,
+        color: TERRAIN_MATERIAL_COLOR,
+        emissive: "#061114",
+        emissiveIntensity: 0.04,
+        metalness: 0.0,
         normalMap: maps.normalMap,
-        normalScale: new THREE.Vector2(0.035, 0.035),
-        roughness: 0.94,
+        normalScale: new THREE.Vector2(0.01, 0.01),
+        roughness: 0.96,
         roughnessMap: maps.roughnessMap,
       }),
     [maps],
