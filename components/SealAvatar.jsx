@@ -9,6 +9,7 @@ export const SEAL_AVATAR_FORMULA = "F(p)=smin(ellipsoid_body,sphere_head,flipper
 export const SEAL_COLLISION_BRIDGE = "continuous SDF mascot, discrete playground collision proxy";
 export const SEAL_GUIDE_STATES = ["parked", "piloting", "docking", "station-bearing"];
 export const SEAL_NORMAL_FIELD_PROFILE = "finite SDF surface-normal quiver marks";
+export const SEAL_GUIDE_FACEPLATE_PROFILE = "station-bearing glass faceplate and topology pointer";
 
 const SEAL_PBR = {
   map: "/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_albedo.png",
@@ -92,6 +93,31 @@ function SealBody({ accent, guideState, material }) {
       }),
     [accent, guideState],
   );
+  const faceplateMaterial = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color: "#071214",
+        emissive: accent,
+        emissiveIntensity: guideState === "station-bearing" ? 0.22 : 0.14,
+        metalness: 0.04,
+        roughness: 0.28,
+        clearcoat: 0.82,
+        clearcoatRoughness: 0.16,
+        transparent: true,
+        opacity: 0.76,
+      }),
+    [accent, guideState],
+  );
+  const faceplateLineMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: accent,
+        transparent: true,
+        opacity: guideState === "piloting" ? 0.84 : 0.58,
+        depthWrite: false,
+      }),
+    [accent, guideState],
+  );
   const finMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
@@ -109,11 +135,13 @@ function SealBody({ accent, guideState, material }) {
       dark.dispose();
       cheekMaterial.dispose();
       contourMaterial.dispose();
+      faceplateLineMaterial.dispose();
+      faceplateMaterial.dispose();
       finMaterial.dispose();
       normalFieldMaterial.dispose();
       shadowLineMaterial.dispose();
     },
-    [cheekMaterial, contourMaterial, dark, finMaterial, normalFieldMaterial, shadowLineMaterial],
+    [cheekMaterial, contourMaterial, dark, faceplateLineMaterial, faceplateMaterial, finMaterial, normalFieldMaterial, shadowLineMaterial],
   );
 
   return (
@@ -147,6 +175,39 @@ function SealBody({ accent, guideState, material }) {
           </group>
         ))}
       </group>
+      {[-1, 1].map((side) => (
+        <group
+          key={`seal-guide-faceplate-${side}`}
+          name={`seal-guide-faceplate ${SEAL_GUIDE_FACEPLATE_PROFILE}`}
+          position={[0.18, 0.43, side * 0.34]}
+          rotation={[side * 0.18, side * 0.18, 0.04]}
+        >
+          <mesh material={faceplateMaterial} scale={[0.28, 0.015, 0.14]}>
+            <boxGeometry args={[1, 1, 1]} />
+          </mesh>
+          <mesh material={faceplateLineMaterial} position={[-0.06, 0.011, side * 0.035]} scale={[0.16, 0.004, 0.006]}>
+            <boxGeometry args={[1, 1, 1]} />
+          </mesh>
+          <mesh material={faceplateLineMaterial} position={[0.07, 0.011, side * -0.028]} scale={[0.11, 0.004, 0.006]}>
+            <boxGeometry args={[1, 1, 1]} />
+          </mesh>
+          {[-0.1, 0.0, 0.1].map((x) => (
+            <mesh key={`seal-guide-node-${side}-${x}`} material={faceplateLineMaterial} position={[x, 0.014, side * -0.062]} scale={[0.014, 0.014, 0.014]}>
+              <sphereGeometry args={[1, 8, 6]} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+      {[-1, 1].map((side) => (
+        <group key={`seal-guide-pointer-${side}`} name="seal-guide-pointer" position={[0.62, 0.46, side * 0.28]} rotation={[side * -0.08, side * 0.24, -0.12]}>
+          <mesh material={faceplateLineMaterial} rotation={[0, 0, Math.PI / 2]} scale={[0.004, 0.32, 0.004]}>
+            <cylinderGeometry args={[1, 1, 1, 6]} />
+          </mesh>
+          <mesh material={faceplateLineMaterial} position={[0.18, 0, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.032, 0.08, 0.032]}>
+            <coneGeometry args={[1, 1, 8]} />
+          </mesh>
+        </group>
+      ))}
       <mesh castShadow material={material} position={[0.78, 0.18, 0]} scale={[0.36, 0.35, 0.35]}>
         <sphereGeometry args={[1, 32, 24]} />
       </mesh>

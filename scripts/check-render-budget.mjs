@@ -178,6 +178,11 @@ const checks = [
     pattern: /SEAL_AVATAR_FORMULA[\s\S]*SEAL_NORMAL_FIELD_PROFILE[\s\S]*SealNormalField/,
   },
   {
+    name: "seal carries a premium guide faceplate and pointer",
+    file: files.seal,
+    pattern: /SEAL_GUIDE_FACEPLATE_PROFILE[\s\S]*seal-guide-faceplate[\s\S]*seal-guide-pointer/,
+  },
+  {
     name: "seal only mounts after explicit wake",
     file: files.scene,
     pattern: /renderEnabled && sealAwake && !debugFlags\.noSeal/,
