@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:5173";
+const DEFAULT_BASE_URL = "http://127.0.0.1:5273";
 const baseUrl = process.env.VERIFY_RENDER_URL || DEFAULT_BASE_URL;
 const outDir = path.resolve("verification/screenshots-cinematic-render");
 const isWindows = process.platform === "win32";
@@ -41,13 +41,25 @@ async function canReach(url) {
   }
 }
 
+function devServerPort() {
+  try {
+    return new URL(baseUrl).port || "5273";
+  } catch {
+    return "5273";
+  }
+}
+
 function startDevServer() {
-  const nextBin = path.resolve("node_modules", ".bin", isWindows ? "next.cmd" : "next");
+  const nextBin = isWindows
+    ? path.resolve("node_modules", "next", "dist", "bin", "next")
+    : path.resolve("node_modules", ".bin", "next");
   if (!existsSync(nextBin)) {
     throw new Error(`Cannot find Next binary at ${nextBin}. Run npm install first.`);
   }
 
-  const child = spawn(nextBin, ["dev", "-H", "127.0.0.1", "-p", "5173"], {
+  const command = isWindows ? process.execPath : nextBin;
+  const args = isWindows ? [nextBin, "dev", "-H", "127.0.0.1", "-p", devServerPort()] : ["dev", "-H", "127.0.0.1", "-p", devServerPort()];
+  const child = spawn(command, args, {
     cwd: process.cwd(),
     detached: false,
     shell: false,
@@ -97,6 +109,7 @@ async function collectMetrics(page) {
     let canvasSample = {
       averageLuminance: 0,
       brightPixels: 0,
+      brightObjectBounds: null,
       darkPixels: 0,
       nonBlankPixels: 0,
       tonalRange: 0,
@@ -115,12 +128,25 @@ async function collectMetrics(page) {
         let luminanceTotal = 0;
         let maxLuminance = 0;
         let minLuminance = 255;
+        let brightMinX = sampler.width;
+        let brightMinY = sampler.height;
+        let brightMaxX = -1;
+        let brightMaxY = -1;
         let nonBlankPixels = 0;
         for (let index = 0; index < pixels.length; index += 4) {
+          const pixelIndex = index / 4;
+          const x = pixelIndex % sampler.width;
+          const y = Math.floor(pixelIndex / sampler.width);
           const alpha = pixels[index + 3];
           const luminance = pixels[index] * 0.2126 + pixels[index + 1] * 0.7152 + pixels[index + 2] * 0.0722;
           if (pixels[index] + pixels[index + 1] + pixels[index + 2] + alpha > 18) nonBlankPixels += 1;
           if (luminance > 215) brightPixels += 1;
+          if (luminance > 58) {
+            brightMinX = Math.min(brightMinX, x);
+            brightMinY = Math.min(brightMinY, y);
+            brightMaxX = Math.max(brightMaxX, x);
+            brightMaxY = Math.max(brightMaxY, y);
+          }
           if (luminance < 42) darkPixels += 1;
           luminanceTotal += luminance;
           maxLuminance = Math.max(maxLuminance, luminance);
@@ -129,6 +155,15 @@ async function collectMetrics(page) {
         canvasSample = {
           averageLuminance: Number((luminanceTotal / (pixels.length / 4)).toFixed(2)),
           brightPixels,
+          brightObjectBounds:
+            brightMaxX >= 0
+              ? {
+                  bottom: Number(((brightMaxY + 1) / sampler.height).toFixed(3)),
+                  left: Number((brightMinX / sampler.width).toFixed(3)),
+                  right: Number(((brightMaxX + 1) / sampler.width).toFixed(3)),
+                  top: Number((brightMinY / sampler.height).toFixed(3)),
+                }
+              : null,
           darkPixels,
           nonBlankPixels,
           tonalRange: Number((maxLuminance - minLuminance).toFixed(2)),
@@ -138,6 +173,7 @@ async function collectMetrics(page) {
         canvasSample = {
           averageLuminance: 0,
           brightPixels: 0,
+          brightObjectBounds: null,
           darkPixels: 0,
           nonBlankPixels: 0,
           tonalRange: 0,
@@ -232,6 +268,9 @@ function assertViewport(result) {
   }
   if (metrics.canvasSample.tonalRange < 32) {
     failures.push(`canvas lacks object contrast: tonal range ${metrics.canvasSample.tonalRange}`);
+  }
+  if (["desktop", "ipad"].includes(name) && metrics.canvasSample.brightObjectBounds?.left <= 0.001) {
+    failures.push(`bright hero object is clipped on the left edge: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
   }
   if (metrics.renderEnabled !== "true") failures.push(`renderer not enabled: ${metrics.renderEnabled}`);
   if (metrics.rendererMode !== "webgl") failures.push(`renderer mode is ${metrics.rendererMode}`);

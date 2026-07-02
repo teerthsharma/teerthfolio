@@ -86,7 +86,7 @@ npm run build
 ```
 
 `npm run build` runs the Teerth contract and render-budget checks before `next build`.
-`npm run verify:render` starts a local dev server when needed, captures desktop, iPad, and mobile screenshots, and checks the WebGL gate plus WASD-only seal movement.
+`npm run verify:render` starts an isolated local dev server on `127.0.0.1:5273` when needed, captures desktop, iPad, and mobile screenshots, and checks the WebGL gate plus WASD-only seal movement.
 
 ## Deployment
 

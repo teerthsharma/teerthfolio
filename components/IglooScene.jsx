@@ -13,7 +13,7 @@ import SnowAtmosphere from "./SnowAtmosphere";
 import TopologyConstellation from "./TopologyConstellation";
 
 export const OBSERVATORY_HOME_X = 0;
-export const OBSERVATORY_VISUAL_HOME_X = 1.85;
+export const OBSERVATORY_VISUAL_HOME_X = 2.65;
 export const WORLD_AXIS_LENGTH = 128;
 export const WORLD_AXIS_WIDTH = 18;
 export const TERRAIN_CHUNK_LENGTH = 26;
@@ -43,8 +43,8 @@ function CameraRig({ depthZ, quality, renderEnabled, sealPosition }) {
     const focusZ = renderEnabled && seal ? THREE.MathUtils.lerp(0, seal.position.z, depthWeight) : depthZ * 0.12;
     const homeFrameBias = sealHasDeparted ? 0 : compact ? 0.04 : portrait ? 0.08 : 0.12;
     target.set(focusX + homeFrameBias, 0.82, focusZ);
-    const baseDistance = quality === "low" ? 13.1 : quality === "medium" ? 12.15 : 11.3;
-    const distance = baseDistance + (compact ? 2.2 : portrait ? 1.55 : 0);
+    const baseDistance = quality === "low" ? 15.8 : quality === "medium" ? 14.6 : 13.55;
+    const distance = baseDistance + (compact ? 2.35 : portrait ? 1.7 : 0);
     desired.set(
       target.x - (compact ? 0.32 : portrait ? 0.44 : 0.18) + Math.sin(t * 0.1) * 0.08,
       target.y + distance * (portrait ? 0.29 : 0.285),
@@ -351,7 +351,7 @@ export default function IglooScene({
       data-seal-awake={sealAwake ? "true" : "false"}
       dpr={dpr}
       frameloop={renderEnabled ? "always" : "demand"}
-      camera={{ position: [0, 3.45, 11.4], fov: 49, near: 0.1, far: 94 }}
+      camera={{ position: [0, 4.35, 14.2], fov: 50, near: 0.1, far: 94 }}
       gl={{ antialias: false, alpha: true, failIfMajorPerformanceCaveat: false, powerPreference: "high-performance" }}
     >
       <color attach="background" args={["#061014"]} />
