@@ -350,6 +350,7 @@ async function collectSectionMetrics(page) {
     const projectDetail = rectOf(".project-detail");
     const archiveHead = rectOf(".archive-head");
     const archiveGrid = rectOf(".archive-grid");
+    const repoTapeNode = document.querySelector(".repo-tape");
     const repoTape = rectOf(".repo-tape");
 
     return {
@@ -360,6 +361,12 @@ async function collectSectionMetrics(page) {
       projectHead,
       projectList,
       repoTape,
+      repoTapeOverflow: repoTapeNode
+        ? {
+            horizontal: repoTapeNode.scrollWidth > repoTapeNode.clientWidth + 2,
+            vertical: repoTapeNode.scrollHeight > repoTapeNode.clientHeight + 2,
+          }
+        : null,
       visible: {
         archiveGrid: visible(archiveGrid, 160, 160),
         archiveHead: visible(archiveHead, 160, 80),
@@ -559,6 +566,8 @@ function assertSection(result) {
     if (!metrics.visible.archiveHead) failures.push(`archive heading is not visible: ${JSON.stringify(metrics.archiveHead)}`);
     if (!metrics.visible.archiveGrid) failures.push(`archive grid is not visible: ${JSON.stringify(metrics.archiveGrid)}`);
     if (!metrics.visible.repoTape && !mobile) failures.push(`desktop repo tape is not visible: ${JSON.stringify(metrics.repoTape)}`);
+    if (!mobile && metrics.repoTapeOverflow?.vertical) failures.push("desktop repo tape is vertically clipped");
+    if (!mobile && !metrics.repoTapeOverflow?.horizontal) failures.push("desktop repo tape is not a horizontal source rail");
     if (!/live-github|research-snapshot/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks source-mode label");
     if (!/triton-lang|PyTorch|NeMo/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks upstream evidence");
   }

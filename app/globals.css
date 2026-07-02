@@ -2058,14 +2058,23 @@ img {
 .repo-tape {
   grid-column: 1 / -1;
   grid-row: 2;
-  grid-template-columns: repeat(6, minmax(170px, 1fr));
-  max-height: 128px;
-  overflow: hidden auto;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(95, 248, 231, 0.48) rgba(223, 253, 247, 0.08);
 }
 
 .metric-tile,
 .repo-tape a {
   min-width: 0;
+}
+
+.repo-tape a {
+  flex: 0 0 min(230px, 28vw);
+  scroll-snap-align: start;
 }
 
 .project-metrics div,
@@ -2557,8 +2566,8 @@ img {
   }
 
   .repo-tape {
-    grid-template-columns: 1fr;
-    max-height: 170px;
+    flex-wrap: nowrap;
+    max-height: none;
   }
 
   .project-list {
@@ -2583,9 +2592,12 @@ img {
     overflow: hidden auto;
   }
 
-  .project-metrics,
-  .repo-tape {
+  .project-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .repo-tape a {
+    flex-basis: min(260px, 78vw);
   }
 
   .project-metrics {
