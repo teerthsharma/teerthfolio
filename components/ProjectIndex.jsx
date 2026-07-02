@@ -17,6 +17,15 @@ const languageLabel = (project) => {
   return "Research";
 };
 
+const sourceTraceLabel = (project) => {
+  const fileCount = project.evidenceFiles?.length || 0;
+  const commitCount = project.recentCommits?.length || 0;
+  if (fileCount && commitCount) return `${fileCount} files / ${commitCount} commits`;
+  if (fileCount) return `${fileCount} source files`;
+  if (commitCount) return `${commitCount} commit traces`;
+  return "source snapshot";
+};
+
 export default function ProjectIndex({ projects, stations }) {
   const [activeName, setActiveName] = useState("Epsilon-Hollow");
   const activeProject = useMemo(
@@ -35,8 +44,8 @@ export default function ProjectIndex({ projects, stations }) {
       <div className="project-index-head" data-reveal>
         <h2>Source proof, project by project.</h2>
         <p>
-          Select a station to inspect what it actually contains: purpose,
-          language mix, recent commits, source link, confidence, and last push.
+          Select a station to inspect its source trace: purpose, language mix,
+          recent commits, evidence files, repository link, and last push.
         </p>
       </div>
 
@@ -75,8 +84,8 @@ export default function ProjectIndex({ projects, stations }) {
                 <strong>{activeProject.siteRole || "Source evidence"}</strong>
               </div>
               <div>
-                <span>Evidence</span>
-                <strong>{activeProject.confidence || "snapshot"}</strong>
+                <span>Trace</span>
+                <strong>{sourceTraceLabel(activeProject)}</strong>
               </div>
             </div>
 

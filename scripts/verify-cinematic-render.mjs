@@ -548,6 +548,12 @@ function assertSection(result) {
     if (!/Epsilon-Hollow|Aether-Lang|faraday|hamliton/i.test(metrics.projectList.text)) {
       failures.push("project selector lacks flagship project names");
     }
+    if (!/source trace|evidence files|repository link|Trace/i.test(`${metrics.projectHead.text} ${metrics.projectDetail.text}`)) {
+      failures.push("project section lacks source-trace evidence language");
+    }
+    if (/confidence/i.test(`${metrics.projectHead.text} ${metrics.projectDetail.text}`)) {
+      failures.push("project section leaked generic confidence language");
+    }
   }
   if (hash === "archive") {
     if (!metrics.visible.archiveHead) failures.push(`archive heading is not visible: ${JSON.stringify(metrics.archiveHead)}`);
