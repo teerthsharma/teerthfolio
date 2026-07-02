@@ -10,6 +10,9 @@ export const SEAL_COLLISION_BRIDGE = "continuous SDF mascot, discrete playground
 export const SEAL_GUIDE_STATES = ["parked", "piloting", "docking", "station-bearing"];
 export const SEAL_NORMAL_FIELD_PROFILE = "finite SDF surface-normal quiver marks";
 export const SEAL_GUIDE_FACEPLATE_PROFILE = "station-bearing glass faceplate and topology pointer";
+export const SEAL_STATION_BEARING_PROFILE = "loop-aware guide ray points from seal toward the active project station";
+
+const SEAL_WORLD_LOOP_LENGTH = 128;
 
 const SEAL_PBR = {
   map: "/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_albedo.png",
@@ -320,6 +323,7 @@ const SealAvatar = forwardRef(function SealAvatar(
   );
   const target = useMemo(() => new THREE.Vector3(), []);
   const bearingRef = useRef(null);
+  const bearingRayRef = useRef(null);
   const guideFieldRef = useRef(null);
 
   useImperativeHandle(forwardedRef, () => root.current, []);
@@ -370,8 +374,20 @@ const SealAvatar = forwardRef(function SealAvatar(
     }
     if (bearingRef.current) {
       bearingRef.current.visible = guideState !== "parked";
-      bearingRef.current.rotation.y = -root.current.rotation.y;
+      const stationX = activeArtifact
+        ? activeArtifact.position[0] + Math.round((root.current.position.x - activeArtifact.position[0]) / SEAL_WORLD_LOOP_LENGTH) * SEAL_WORLD_LOOP_LENGTH
+        : root.current.position.x + 1;
+      const stationZ = activeArtifact ? activeArtifact.position[2] * 2.4 : root.current.position.z;
+      const dx = stationX - root.current.position.x;
+      const dz = stationZ - root.current.position.z;
+      const bearingAngle = Math.atan2(-dz, dx);
+      const bearingDistance = THREE.MathUtils.clamp(Math.hypot(dx, dz), 0.45, 3.2);
+      bearingRef.current.rotation.y = THREE.MathUtils.lerp(bearingRef.current.rotation.y, bearingAngle - root.current.rotation.y, 0.18);
       bearingRef.current.rotation.z = Math.sin(t * 0.7) * 0.08;
+      if (bearingRayRef.current) {
+        bearingRayRef.current.position.x = 0.22 + bearingDistance * 0.08;
+        bearingRayRef.current.scale.y = 0.28 + bearingDistance * 0.12;
+      }
     }
   });
 
@@ -402,12 +418,12 @@ const SealAvatar = forwardRef(function SealAvatar(
         <torusGeometry args={[0.72, 0.006, 6, 88]} />
         <primitive object={guideRingMaterial} attach="material" />
       </mesh>
-      <group ref={bearingRef} name={`seal-station-bearing ${activeArtifact?.shortLabel || "station"}`} position={[0.18, 0.34, 0]}>
+      <group ref={bearingRef} name={`seal-station-bearing ${SEAL_STATION_BEARING_PROFILE} ${activeArtifact?.shortLabel || "station"}`} position={[0.18, 0.34, 0]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.18, 0.2, 36]} />
           <primitive object={bearingMaterial} attach="material" />
         </mesh>
-        <mesh position={[0.38, 0, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.006, 0.36, 0.006]}>
+        <mesh ref={bearingRayRef} position={[0.38, 0, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.006, 0.36, 0.006]}>
           <cylinderGeometry args={[1, 1, 1, 6]} />
           <primitive object={bearingMaterial} attach="material" />
         </mesh>
