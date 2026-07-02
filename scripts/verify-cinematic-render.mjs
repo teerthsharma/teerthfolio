@@ -92,7 +92,9 @@ async function launchBrowser() {
 async function collectMetrics(page) {
   return page.evaluate(() => {
     const world = document.querySelector("#world");
-    const canvas = document.querySelector(".igloo-scene canvas, canvas");
+    const canvas = Array.from(document.querySelectorAll("canvas")).find(
+      (item) => !item.classList.contains("igloo-atmosphere-canvas"),
+    );
     const rail = document.querySelector(".station-profile-rail");
     const readout = document.querySelector(".igloo-artifact-readout");
     const live = document.querySelector(".igloo-live-strip");
@@ -154,7 +156,7 @@ async function collectMetrics(page) {
           const luminance = pixels[index] * 0.2126 + pixels[index + 1] * 0.7152 + pixels[index + 2] * 0.0722;
           if (pixels[index] + pixels[index + 1] + pixels[index + 2] + alpha > 18) nonBlankPixels += 1;
           if (luminance > 215) brightPixels += 1;
-          if (luminance > 58) {
+          if (luminance > 108) {
             brightMinX = Math.min(brightMinX, x);
             brightMinY = Math.min(brightMinY, y);
             brightMaxX = Math.max(brightMaxX, x);
@@ -251,7 +253,9 @@ async function collectSafeGateMetrics(page) {
     const gate = document.querySelector(".sdf-seal-splash");
     const gateButton = document.querySelector(".sdf-render-button");
     const diagnostics = document.querySelector(".igloo-diagnostics");
-    const canvas = document.querySelector(".igloo-scene canvas");
+    const canvas = Array.from(document.querySelectorAll("canvas")).find(
+      (item) => !item.classList.contains("igloo-atmosphere-canvas"),
+    );
     const diagnosticText = diagnostics?.textContent || "";
     return {
       diagnosticsVisible: Boolean(diagnostics),

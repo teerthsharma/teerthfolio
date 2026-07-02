@@ -90,6 +90,7 @@ function ForceCanvasResize() {
 
 function SceneDiagnostics({ onGpuEvent, quality }) {
   const { gl } = useThree();
+  const readyFrames = useRef(0);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -125,6 +126,19 @@ function SceneDiagnostics({ onGpuEvent, quality }) {
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
     };
   }, [gl, onGpuEvent, quality]);
+
+  useFrame(() => {
+    if (readyFrames.current >= 2) return;
+    readyFrames.current += 1;
+    if (readyFrames.current === 2) {
+      onGpuEvent?.({
+        detail: `canvas=${gl.domElement.width}x${gl.domElement.height} dpr=${gl.getPixelRatio().toFixed(2)}`,
+        message: `WebGL scene rendered a stable frame at ${quality} quality.`,
+        severity: "info",
+        type: "webgl-scene-ready",
+      });
+    }
+  });
 
   return null;
 }
@@ -347,6 +361,11 @@ export default function IglooScene({
   const activeArtifact = artifacts.find((artifact) => artifact.id === activeArtifactId) || artifacts[0];
   const sealRef = useRef(null);
   const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [0.75, 1];
+  const preserveDrawingBuffer =
+    typeof window !== "undefined" &&
+    (window.location.search.includes("qa=") ||
+      window.location.search.includes("qa-sdf") ||
+      window.location.search.includes("qa-low"));
   const onCanvasCreated = useCallback(
     ({ gl }) => {
       onGpuEvent?.({
@@ -366,7 +385,13 @@ export default function IglooScene({
       dpr={dpr}
       frameloop={renderEnabled ? "always" : "demand"}
       camera={{ position: [0, 4.35, 14.2], fov: 50, near: 0.1, far: 94 }}
-      gl={{ antialias: false, alpha: true, failIfMajorPerformanceCaveat: false, powerPreference: "high-performance" }}
+      gl={{
+        antialias: false,
+        alpha: true,
+        failIfMajorPerformanceCaveat: false,
+        powerPreference: "high-performance",
+        preserveDrawingBuffer,
+      }}
       onCreated={onCanvasCreated}
     >
       <color attach="background" args={["#061014"]} />

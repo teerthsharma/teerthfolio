@@ -318,7 +318,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       log("[seal-render]", diagnostic.type, diagnostic.message, diagnostic.detail || "");
       setGpuDiagnostics((events) => [diagnostic, ...events].slice(0, MAX_DIAGNOSTIC_EVENTS));
 
-      if (diagnostic.type === "webgl-created") {
+      if (diagnostic.type === "webgl-scene-ready") {
         setSafeMode(false);
         setSealAwake(true);
         return;

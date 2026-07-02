@@ -43,9 +43,9 @@ const checks = [
     pattern: /FATAL_RENDER_EVENT_TYPES[\s\S]*webgl-context-lost[\s\S]*severity === "error" && FATAL_RENDER_EVENT_TYPES\.has\(diagnostic\.type\)/,
   },
   {
-    name: "scene reports WebGL lifecycle into diagnostics",
+    name: "scene reports WebGL lifecycle and first rendered frame into diagnostics",
     file: files.scene,
-    pattern: /SceneDiagnostics[\s\S]*webglcontextlost[\s\S]*onGpuEvent[\s\S]*onCanvasCreated[\s\S]*webgl-created[\s\S]*onCreated=\{onCanvasCreated\}/,
+    pattern: /SceneDiagnostics[\s\S]*webglcontextlost[\s\S]*onGpuEvent[\s\S]*webgl-scene-ready[\s\S]*onCanvasCreated[\s\S]*webgl-created[\s\S]*onCreated=\{onCanvasCreated\}/,
   },
   {
     name: "scene has visible asset suspense fallback",
