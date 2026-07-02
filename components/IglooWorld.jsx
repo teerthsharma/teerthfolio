@@ -659,6 +659,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         artifacts={artifacts}
         content={content}
         liveSummary={liveSummary}
+        onSelectArtifact={selectArtifact}
         quality={quality}
         setQuality={setQuality}
       />

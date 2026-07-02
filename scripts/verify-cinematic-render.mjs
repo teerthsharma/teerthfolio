@@ -293,9 +293,24 @@ async function verifyMovement(page) {
   };
 }
 
+async function verifyRailTap(page) {
+  const readoutText = async () => page.locator(".igloo-artifact-readout").textContent();
+  const before = await readoutText();
+  const target = page.locator(".station-profile-rail .station-profile-chip").nth(2);
+  await target.click();
+  await page.waitForTimeout(450);
+  const after = await readoutText();
+  return {
+    after,
+    before,
+    changed: before !== after,
+    targetText: await target.textContent(),
+  };
+}
+
 function assertViewport(result) {
   const failures = [];
-  const { metrics, movement, name } = result;
+  const { metrics, movement, name, railTap } = result;
   if (!metrics.canvas) failures.push("missing WebGL canvas");
   if (metrics.canvas && (metrics.canvas.width < metrics.viewport.width * 0.96 || metrics.canvas.height < metrics.viewport.height * 0.96)) {
     failures.push("canvas does not cover viewport");
@@ -358,6 +373,9 @@ function assertViewport(result) {
     if (movement.arrowMoved) failures.push("arrow key moved seal axis");
     if (!movement.arrowHintVisible) failures.push("arrow key did not show WASD hint");
     if (!movement.dMoved) failures.push("D key did not move seal axis");
+  }
+  if (name === "mobile" && !railTap.changed) {
+    failures.push(`mobile station rail tap did not change active station: ${railTap.targetText}`);
   }
   if (!/Seal's Topology Land/i.test(metrics.titleText)) failures.push(`unexpected title: ${metrics.titleText}`);
   return failures;
@@ -436,11 +454,12 @@ try {
     await page.waitForSelector('#world[data-render-enabled="true"]', { timeout: 25000 });
     await page.waitForTimeout(viewport.name === "desktop" ? 2600 : 1800);
 
-    const movement = viewport.name === "desktop" ? await verifyMovement(page) : {};
     const metrics = await collectMetrics(page);
     const screenshot = path.join(outDir, `${viewport.name}.png`);
     await page.screenshot({ path: screenshot, fullPage: false });
-    const result = { name: viewport.name, screenshot, metrics, movement, logs };
+    const movement = viewport.name === "desktop" ? await verifyMovement(page) : {};
+    const railTap = viewport.name === "mobile" ? await verifyRailTap(page) : {};
+    const result = { name: viewport.name, screenshot, metrics, movement, railTap, logs };
     result.failures = assertViewport(result);
     report.push(result);
     await context.close();

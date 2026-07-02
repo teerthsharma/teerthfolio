@@ -12,6 +12,7 @@ export default function IglooHud({
   artifacts,
   content,
   liveSummary,
+  onSelectArtifact,
   quality,
   setQuality,
 }) {
@@ -75,17 +76,20 @@ export default function IglooHud({
 
       <div className="igloo-artifact-list station-profile-rail" aria-label="Artifact selector">
         {artifacts.map((artifact) => (
-          <div
+          <button
             aria-current={artifact.id === activeArtifact.id ? "true" : undefined}
+            aria-pressed={artifact.id === activeArtifact.id}
             className="igloo-artifact station-profile-chip"
             data-topology={artifact.topology}
             key={artifact.id}
+            onClick={() => onSelectArtifact?.(artifact.id)}
             style={{ "--station-accent": artifact.accent }}
+            type="button"
           >
             <span>{artifact.handle}</span>
             <strong>{artifact.shortLabel}</strong>
             <small>{artifact.betti}</small>
-          </div>
+          </button>
         ))}
       </div>
 

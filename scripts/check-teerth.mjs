@@ -216,6 +216,7 @@ for (const hudPrimitive of [
   "igloo-artifact-readout",
   "station-profile-rail",
   "station-profile-chip",
+  "onSelectArtifact",
   "artifact.handle",
   "artifact.betti",
   "igloo-live-strip",
