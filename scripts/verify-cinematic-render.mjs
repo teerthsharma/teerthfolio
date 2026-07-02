@@ -16,6 +16,7 @@ const devErrLog = path.join(outDir, "next-dev.err.log");
 const viewports = [
   { name: "desktop", width: 1440, height: 900, query: "qa-sdf=1&qa=verify-desktop" },
   { name: "ipad", width: 768, height: 1024, query: "qa-sdf=1&qa-low=1&qa=verify-ipad" },
+  { name: "ipad-landscape", width: 1024, height: 768, query: "qa-sdf=1&qa-low=1&qa=verify-ipad-landscape" },
   { name: "mobile", width: 375, height: 667, query: "qa-sdf=1&qa-low=1&qa=verify-mobile" },
   { name: "contrast", width: 1440, height: 900, query: "qa-sdf=1&qa-low=1&qa=verify-contrast", highContrast: true },
   { name: "reduced-motion", width: 1440, height: 900, query: "qa-sdf=1&qa-low=1&qa=verify-reduced", reducedMotion: true },
@@ -495,6 +496,9 @@ function assertViewport(result) {
   }
   if (metrics.hudOverflow?.readout) {
     failures.push(`station readout content is clipped: ${JSON.stringify(metrics.hudBounds.readout)}`);
+  }
+  if (metrics.hudBounds.rail && (metrics.hudBounds.rail.left < 0 || metrics.hudBounds.rail.right > metrics.viewport.width)) {
+    failures.push(`station rail is clipped by viewport: ${JSON.stringify(metrics.hudBounds.rail)}`);
   }
   if (metrics.renderEnabled !== "true") failures.push(`renderer not enabled: ${metrics.renderEnabled}`);
   if (metrics.rendererMode !== "webgl") failures.push(`renderer mode is ${metrics.rendererMode}`);

@@ -2354,6 +2354,51 @@ img {
   }
 }
 
+@media (min-width: 721px) and (max-width: 1080px) and (max-height: 820px) {
+  .igloo-live-strip {
+    top: clamp(226px, 31vh, 286px);
+    width: min(330px, 34vw);
+    max-height: 92px;
+    overflow: hidden;
+  }
+
+  .igloo-artifact-list {
+    left: auto;
+    right: 30px;
+    bottom: clamp(218px, 30vh, 244px);
+    max-width: min(590px, calc(100vw - 420px));
+    transform: none;
+  }
+
+  .igloo-readout {
+    align-self: end;
+    width: min(390px, 42vw);
+    max-height: 174px;
+    overflow: hidden;
+    padding: 11px 0 0 14px;
+  }
+
+  .igloo-readout h2 {
+    margin: 6px 0 8px;
+    font-size: clamp(1.28rem, 2.7vw, 1.85rem);
+  }
+
+  .igloo-readout p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .igloo-artifact-meta {
+    display: none;
+  }
+
+  .igloo-controls {
+    margin-top: 8px;
+  }
+}
+
 @media (max-width: 1080px) {
   .sdf-splash-art {
     grid-column: 1;
