@@ -318,6 +318,9 @@ function assertViewport(result) {
   if (name === "ipad" && metrics.canvasSample.brightObjectBounds?.top > 0.45) {
     failures.push(`iPad hero object sits too low in the cinematic frame: ${JSON.stringify(metrics.canvasSample.brightObjectBounds)}`);
   }
+  if (name === "mobile" && metrics.hudBounds.readout?.height > 150) {
+    failures.push(`mobile readout overpowers the cinematic world: ${JSON.stringify(metrics.hudBounds.readout)}`);
+  }
   if (metrics.renderEnabled !== "true") failures.push(`renderer not enabled: ${metrics.renderEnabled}`);
   if (metrics.rendererMode !== "webgl") failures.push(`renderer mode is ${metrics.rendererMode}`);
   if (metrics.sealAwake !== "true") failures.push(`seal not awake: ${metrics.sealAwake}`);

@@ -2384,9 +2384,9 @@ img {
     grid-row: 3;
     align-self: end;
     width: 100%;
-    max-height: 172px;
+    max-height: 146px;
     overflow: hidden;
-    padding: 13px 14px;
+    padding: 11px 13px;
     border: 1px solid rgba(223, 253, 247, 0.18);
     border-radius: var(--radius);
     background:
@@ -2427,22 +2427,28 @@ img {
   }
 
   .igloo-readout h2 {
-    font-size: clamp(1.3rem, 7vw, 2rem);
+    font-size: clamp(1.18rem, 6.2vw, 1.76rem);
+    line-height: 0.94;
   }
 
   .igloo-readout p {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 0.74rem;
-    line-height: 1.32;
+    font-size: 0.7rem;
+    line-height: 1.28;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
+  }
+
+  .igloo-readout small {
+    font-size: 0.52rem;
+    line-height: 1.2;
   }
 
   .igloo-artifact-list {
     left: 12px;
     right: 12px;
-    bottom: 244px;
+    bottom: 220px;
     justify-content: flex-start;
     flex-wrap: nowrap;
     max-width: none;
