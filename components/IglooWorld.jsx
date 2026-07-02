@@ -319,6 +319,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
 
       if (diagnostic.type === "webgl-created") {
         setSafeMode(false);
+        setSealAwake(true);
         return;
       }
 

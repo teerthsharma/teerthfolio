@@ -362,6 +362,7 @@ function assertSafeGate(result) {
   }
   if (probed.renderEnabled !== "true") failures.push(`safe probe did not enable renderer: ${probed.renderEnabled}`);
   if (probed.rendererMode !== "webgl") failures.push(`safe probe did not settle to webgl: ${probed.rendererMode}`);
+  if (probed.sealAwake !== "true") failures.push(`safe probe did not wake the seal: ${probed.sealAwake}`);
   if (probed.webglCanvasPresent !== true) failures.push("safe probe did not mount WebGL canvas");
   return failures;
 }
