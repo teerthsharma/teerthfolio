@@ -275,6 +275,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const [depthZ, setDepthZ] = useState(0);
   const [sdfRenderEnabled, setSdfRenderEnabled] = useState(false);
   const [safeMode, setSafeMode] = useState(initialSafeMode);
+  const [sceneReady, setSceneReady] = useState(false);
   const [sealAwake, setSealAwake] = useState(false);
   const [iglooPulse, setIglooPulse] = useState(0);
   const [sceneDebugFlags, setSceneDebugFlags] = useState(DEFAULT_SCENE_DEBUG_FLAGS);
@@ -300,7 +301,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const depthProgress =
     (depthZ - DEPTH_RANGE.min) / Math.max(0.1, DEPTH_RANGE.max - DEPTH_RANGE.min);
   const effectiveSafeMode = safeMode && !sdfRenderEnabled;
-  const rendererMode = safeMode ? (sdfRenderEnabled ? "probe" : "safe") : sdfRenderEnabled ? "webgl" : "gated";
+  const publicRenderEnabled = Boolean(sdfRenderEnabled && sceneReady && !effectiveSafeMode);
+  const rendererMode = effectiveSafeMode ? "safe" : sdfRenderEnabled ? (sceneReady ? "webgl" : "probe") : "gated";
 
   useAtmosphereCanvas(atmosphere, activeArtifact, safeMode || reduced ? "low" : quality, reduced);
 
@@ -322,12 +324,14 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       setGpuDiagnostics((events) => [diagnostic, ...events].slice(0, MAX_DIAGNOSTIC_EVENTS));
 
       if (diagnostic.type === "webgl-scene-ready") {
+        setSceneReady(true);
         setSafeMode(false);
         setSealAwake(true);
         return;
       }
 
       if (diagnostic.severity === "error" && FATAL_RENDER_EVENT_TYPES.has(diagnostic.type)) {
+        setSceneReady(false);
         setSafeMode(true);
         setSdfRenderEnabled(false);
         setSealAwake(false);
@@ -369,6 +373,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     }
     setSceneDebugFlags(nextSceneDebugFlags);
     setSafeMode(nextSafeMode);
+    setSceneReady(false);
     if (nextSafeMode) {
       setSdfRenderEnabled(false);
       setSealAwake(false);
@@ -383,6 +388,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       return undefined;
     }
     if (query.has("qa-sdf")) {
+      setSceneReady(false);
       setSdfRenderEnabled(true);
       setSealAwake(true);
     }
@@ -435,6 +441,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         message: "QA safe URL auto-started the low-quality GPU probe.",
       });
       setQuality("low");
+      setSceneReady(false);
       setSdfRenderEnabled(true);
     }, SAFE_QA_AUTO_PROBE_DELAY_MS);
     return () => window.clearTimeout(timeout);
@@ -451,14 +458,16 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         message: "User started the low-quality GPU probe from the safe gate.",
       });
     }
+    setSceneReady(false);
     setSdfRenderEnabled(true);
   }, [reportGpuEvent, safeMode]);
 
   const startExplorationRender = useCallback(() => {
     if (safeMode) setQuality("low");
+    if (!sdfRenderEnabled) setSceneReady(false);
     setSdfRenderEnabled(true);
     setSealAwake(true);
-  }, [safeMode]);
+  }, [safeMode, sdfRenderEnabled]);
 
   const touchIgloo = useCallback(() => {
     setIglooPulse(1);
@@ -619,7 +628,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       data-station-count={stations?.length || 0}
       id="world"
       ref={worldRef}
-      data-render-enabled={!effectiveSafeMode && sdfRenderEnabled ? "true" : "false"}
+      data-render-enabled={publicRenderEnabled ? "true" : "false"}
       data-renderer-mode={rendererMode}
       data-seal-awake={sealAwake ? "true" : "false"}
       data-high-contrast={highContrast ? "true" : "false"}
@@ -676,7 +685,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         onSelectArtifact={selectArtifact}
         quality={quality}
         highContrast={highContrast}
-        renderEnabled={!effectiveSafeMode && sdfRenderEnabled}
+        renderEnabled={publicRenderEnabled}
         sealAwake={sealAwake}
         setQuality={setQuality}
         setHighContrast={setHighContrast}

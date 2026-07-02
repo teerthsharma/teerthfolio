@@ -63,6 +63,11 @@ const checks = [
     pattern: /SceneDiagnostics[\s\S]*webglcontextlost[\s\S]*onGpuEvent[\s\S]*webgl-scene-ready[\s\S]*onCanvasCreated[\s\S]*igloo-scene-canvas[\s\S]*webgl-created[\s\S]*onCreated=\{onCanvasCreated\}/,
   },
   {
+    name: "public render-enabled state waits for the first rendered WebGL frame",
+    file: files.world,
+    pattern: /sceneReady[\s\S]*publicRenderEnabled[\s\S]*webgl-scene-ready[\s\S]*setSceneReady\(true\)[\s\S]*data-render-enabled=\{publicRenderEnabled/,
+  },
+  {
     name: "scene has visible asset suspense fallback",
     file: files.scene,
     pattern: /RendererFallback[\s\S]*asset-suspense[\s\S]*<Suspense fallback=\{<RendererFallback/,
