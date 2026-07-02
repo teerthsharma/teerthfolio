@@ -98,6 +98,9 @@ async function collectMetrics(page) {
     const live = document.querySelector(".igloo-live-strip");
     const controls = document.querySelector(".igloo-controls");
     const diagnostics = document.querySelector(".igloo-diagnostics");
+    const brand = document.querySelector(".igloo-brand");
+    const controlsHint = document.querySelector(".igloo-controls-hint");
+    const topnav = document.querySelector(".igloo-topnav");
 
     const rectOf = (node) => {
       if (!node) return null;
@@ -105,6 +108,16 @@ async function collectMetrics(page) {
       return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
     };
     const overlaps = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+    const visibleInViewport = (rect, minWidth = 20, minHeight = 12) =>
+      Boolean(
+        rect &&
+          rect.right > 0 &&
+          rect.bottom > 0 &&
+          rect.left < window.innerWidth &&
+          rect.top < window.innerHeight &&
+          Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0) >= minWidth &&
+          Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0) >= minHeight,
+      );
 
     let canvasSample = {
       averageLuminance: 0,
@@ -186,15 +199,41 @@ async function collectMetrics(page) {
     const readoutRect = rectOf(readout);
     const liveRect = rectOf(live);
     const controlsRect = rectOf(controls);
+    const brandRect = rectOf(brand);
+    const controlsHintRect = rectOf(controlsHint);
+    const topnavRect = rectOf(topnav);
 
     return {
       canvas: rectOf(canvas),
       canvasSample,
+      contentText: {
+        controlsHint: controlsHint?.textContent?.trim() || "",
+        latestEvidence: live?.textContent?.trim() || "",
+        readout: readout?.textContent?.trim() || "",
+      },
       diagnosticsVisible: Boolean(diagnostics),
+      hudBounds: {
+        brand: brandRect,
+        controls: controlsRect,
+        controlsHint: controlsHintRect,
+        live: liveRect,
+        rail: railRect,
+        readout: readoutRect,
+        topnav: topnavRect,
+      },
       railButtonCount: document.querySelectorAll(".station-profile-rail .station-profile-chip").length,
       renderEnabled: world?.dataset.renderEnabled,
       rendererMode: world?.dataset.rendererMode,
       sealAwake: world?.dataset.sealAwake,
+      visibleHud: {
+        brand: visibleInViewport(brandRect, 80, 36),
+        controls: visibleInViewport(controlsRect, 60, 24),
+        controlsHint: visibleInViewport(controlsHintRect, 80, 24),
+        live: visibleInViewport(liveRect, 120, 40),
+        rail: visibleInViewport(railRect, 180, 30),
+        readout: visibleInViewport(readoutRect, 160, 60),
+        topnav: visibleInViewport(topnavRect, 120, 34),
+      },
       overlaps: {
         railReadout: overlaps(railRect, readoutRect),
         railLive: overlaps(railRect, liveRect),
@@ -277,6 +316,26 @@ function assertViewport(result) {
   if (metrics.sealAwake !== "true") failures.push(`seal not awake: ${metrics.sealAwake}`);
   if (metrics.diagnosticsVisible) failures.push("diagnostics panel visible in normal render");
   if (metrics.railButtonCount < 8) failures.push(`station rail incomplete: ${metrics.railButtonCount}`);
+  if (!metrics.visibleHud.brand) failures.push(`brand block is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.brand)}`);
+  if (!metrics.visibleHud.rail) failures.push(`station rail is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.rail)}`);
+  if (!metrics.visibleHud.readout) failures.push(`active station readout is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.readout)}`);
+  if (!metrics.visibleHud.live) failures.push(`live evidence strip is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.live)}`);
+  if (!metrics.visibleHud.controls) failures.push(`quality controls are not visibly in viewport: ${JSON.stringify(metrics.hudBounds.controls)}`);
+  if (["desktop", "ipad"].includes(name) && !metrics.visibleHud.topnav) {
+    failures.push(`top navigation is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.topnav)}`);
+  }
+  if (name === "desktop" && !metrics.visibleHud.controlsHint) {
+    failures.push(`desktop WASD hint is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.controlsHint)}`);
+  }
+  if (!/live upstream radar|snapshot radar/i.test(metrics.contentText.latestEvidence)) {
+    failures.push(`first viewport lacks source evidence: ${metrics.contentText.latestEvidence}`);
+  }
+  if (!/observatory|s2|aether|field|qpu|upstream|archive/i.test(metrics.contentText.readout)) {
+    failures.push(`active station readout lacks project station copy: ${metrics.contentText.readout}`);
+  }
+  if (name === "desktop" && !/wasd/i.test(metrics.contentText.controlsHint)) {
+    failures.push(`desktop controls hint does not mention WASD: ${metrics.contentText.controlsHint}`);
+  }
   if (metrics.overlaps.railReadout || metrics.overlaps.railLive || metrics.overlaps.railControls) {
     failures.push(`HUD overlap detected: ${JSON.stringify(metrics.overlaps)}`);
   }

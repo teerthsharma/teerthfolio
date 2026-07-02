@@ -41,7 +41,7 @@ export default function IglooHud({
       </nav>
 
       <div className="igloo-controls-hint">
-        <span>{axisVelocity !== 0 ? "Exploring the ice world..." : "Use WASD to move the seal"}</span>
+        <span>{axisVelocity !== 0 ? "WASD pilot active" : "Use WASD to move the seal"}</span>
         <small>Mouse does not steer the seal</small>
       </div>
 
