@@ -1868,6 +1868,7 @@ img {
 .section-band {
   display: grid;
   align-content: start;
+  overflow: hidden;
   background:
     radial-gradient(ellipse at 72% 48%, rgba(95, 248, 231, 0.08), transparent 28%),
     linear-gradient(90deg, rgba(1, 4, 5, 0.98), rgba(5, 14, 17, 0.96));
@@ -2397,6 +2398,14 @@ img {
   .igloo-controls {
     margin-top: 8px;
   }
+
+  .archive-grid {
+    max-height: min(330px, calc(100svh - 430px));
+  }
+
+  .repo-tape {
+    margin-top: 12px;
+  }
 }
 
 @media (max-width: 1080px) {
@@ -2470,6 +2479,51 @@ img {
     width: min(380px, 34vw);
     max-height: 74px;
     overflow: hidden;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1080px) {
+  .project-index-grid {
+    grid-template-columns: minmax(240px, 0.72fr) minmax(360px, 1.28fr);
+    gap: 22px;
+    align-items: start;
+  }
+
+  .project-list {
+    max-height: min(560px, calc(100svh - 330px));
+    padding-right: 0;
+  }
+
+  .project-list button {
+    min-height: 88px;
+    padding: 12px;
+  }
+
+  .project-detail {
+    max-height: min(560px, calc(100svh - 330px));
+    overflow: hidden auto;
+  }
+
+  .project-detail h3 {
+    font-size: clamp(2rem, 5.8vw, 3.4rem);
+  }
+
+  .project-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .code-texture {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evidence-archive,
+  .repo-tape {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .repo-tape {
+    width: 100%;
   }
 }
 

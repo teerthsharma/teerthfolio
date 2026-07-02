@@ -31,6 +31,10 @@ const safeGateViewports = [
 const sectionViewports = [
   { hash: "projects", name: "projects-desktop", width: 1440, height: 900 },
   { hash: "archive", name: "archive-desktop", width: 1440, height: 900 },
+  { hash: "projects", name: "projects-ipad", width: 768, height: 1024 },
+  { hash: "archive", name: "archive-ipad", width: 768, height: 1024 },
+  { hash: "projects", name: "projects-ipad-landscape", width: 1024, height: 768 },
+  { hash: "archive", name: "archive-ipad-landscape", width: 1024, height: 768 },
   { hash: "projects", name: "projects-mobile", width: 375, height: 667 },
   { hash: "archive", name: "archive-mobile", width: 375, height: 667 },
 ];
@@ -652,7 +656,18 @@ function assertSection(result) {
     if (!/live-github|research-snapshot/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks source-mode label");
     if (!/triton-lang|PyTorch|NeMo/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks upstream evidence");
   }
-  if (!["projects-desktop", "archive-desktop", "projects-mobile", "archive-mobile"].includes(name)) {
+  if (
+    ![
+      "projects-desktop",
+      "archive-desktop",
+      "projects-ipad",
+      "archive-ipad",
+      "projects-ipad-landscape",
+      "archive-ipad-landscape",
+      "projects-mobile",
+      "archive-mobile",
+    ].includes(name)
+  ) {
     failures.push(`unexpected section verifier name: ${name}`);
   }
   return failures;
