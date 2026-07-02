@@ -288,7 +288,7 @@ function DomeBrickFaceMaterial({ accent, color = "#dcecea", sourceMaps, squareMa
       map={squareMaps.map}
       metalness={0.0}
       metalnessMap={sourceMaps.metalnessMap}
-      normalMap={sourceMaps.normalMap}
+      normalMap={squareMaps.normalMap}
       normalScale={normalScale}
       polygonOffset
       polygonOffsetFactor={-1}

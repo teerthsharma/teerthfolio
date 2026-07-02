@@ -8,7 +8,6 @@ export default function SdfSealSplash({
   activeArtifact,
   diagnosticEvents = [],
   onEnable,
-  safeExitHref = "/?qa-sdf=1&qa-low=1#world",
   safeMode = false,
 }) {
   const [charge, setCharge] = useState(0);
@@ -128,17 +127,10 @@ export default function SdfSealSplash({
       </div>
 
       {safeMode ? (
-        <a
-          className="sdf-render-button"
-          href={safeExitHref}
-          onClick={(event) => {
-            event.preventDefault();
-            onEnable();
-          }}
-        >
+        <button className="sdf-render-button" type="button" onClick={onEnable}>
           <span>Start exploring</span>
           <i style={{ transform: `scaleX(${Math.max(0.08, charge)})` }} />
-        </a>
+        </button>
       ) : (
         <button className="sdf-render-button" type="button" onClick={onEnable}>
           <span>Start exploring</span>

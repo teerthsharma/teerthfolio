@@ -35,7 +35,12 @@ const checks = [
   {
     name: "safe gate can start a visible GPU diagnostic probe",
     file: `${files.world}\n${files.splash}`,
-    pattern: /DiagnosticPanel[\s\S]*GpuErrorBoundary[\s\S]*diagnosticEvents[\s\S]*safeExitHref[\s\S]*href=/,
+    pattern: /DiagnosticPanel[\s\S]*GpuErrorBoundary[\s\S]*diagnosticEvents[\s\S]*type="button"[\s\S]*onClick=\{onEnable\}/,
+  },
+  {
+    name: "safe probe keeps WebGL readback visible",
+    file: files.scene,
+    pattern: /preserveDrawingBuffer[\s\S]*safe=1/,
   },
   {
     name: "generic browser errors do not demote the WebGL renderer",

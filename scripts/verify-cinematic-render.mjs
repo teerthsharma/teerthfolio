@@ -18,7 +18,7 @@ const viewports = [
   { name: "ipad", width: 768, height: 1024, query: "qa-sdf=1&qa-low=1&qa=verify-ipad" },
   { name: "mobile", width: 375, height: 667, query: "qa-sdf=1&qa-low=1&qa=verify-mobile" },
 ];
-const safeGateViewport = { name: "safe-gate", width: 1440, height: 900, query: "safe=1&qa=verify-safe-gate" };
+const safeGateViewport = { name: "safe-gate", width: 1440, height: 900, query: "safe=1" };
 
 function chromeCandidates() {
   const localAppData = process.env.LOCALAPPDATA;
@@ -258,8 +258,44 @@ async function collectSafeGateMetrics(page) {
     const canvas = Array.from(document.querySelectorAll("canvas")).find(
       (item) => !item.classList.contains("igloo-atmosphere-canvas"),
     );
+    let canvasSample = {
+      averageLuminance: 0,
+      nonBlankPixels: 0,
+      tonalRange: 0,
+      error: "",
+    };
+    if (canvas) {
+      try {
+        const sampler = document.createElement("canvas");
+        sampler.width = 32;
+        sampler.height = 32;
+        const context = sampler.getContext("2d", { willReadFrequently: true });
+        context.drawImage(canvas, 0, 0, sampler.width, sampler.height);
+        const pixels = context.getImageData(0, 0, sampler.width, sampler.height).data;
+        let total = 0;
+        let max = 0;
+        let min = 255;
+        let nonBlank = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          const luminance = pixels[i] * 0.2126 + pixels[i + 1] * 0.7152 + pixels[i + 2] * 0.0722;
+          total += luminance;
+          max = Math.max(max, luminance);
+          min = Math.min(min, luminance);
+          if (luminance > 2) nonBlank += 1;
+        }
+        canvasSample = {
+          averageLuminance: Number((total / (pixels.length / 4)).toFixed(2)),
+          nonBlankPixels: nonBlank,
+          tonalRange: Number((max - min).toFixed(2)),
+          error: "",
+        };
+      } catch (error) {
+        canvasSample.error = error?.message || String(error);
+      }
+    }
     const diagnosticText = diagnostics?.textContent || "";
     return {
+      canvasSample,
       diagnosticsVisible: Boolean(diagnostics),
       diagnosticText,
       gateButtonText: gateButton?.textContent?.trim() || "",
@@ -397,6 +433,13 @@ function assertSafeGate(result) {
   if (probed.rendererMode !== "webgl") failures.push(`safe probe did not settle to webgl: ${probed.rendererMode}`);
   if (probed.sealAwake !== "true") failures.push(`safe probe did not wake the seal: ${probed.sealAwake}`);
   if (probed.webglCanvasPresent !== true) failures.push("safe probe did not mount WebGL canvas");
+  if (probed.canvasSample?.error) failures.push(`safe probe canvas sampling failed: ${probed.canvasSample.error}`);
+  if ((probed.canvasSample?.nonBlankPixels || 0) < 100) {
+    failures.push(`safe probe canvas appears blank: ${JSON.stringify(probed.canvasSample)}`);
+  }
+  if ((probed.canvasSample?.tonalRange || 0) < 24) {
+    failures.push(`safe probe canvas lacks visible GL contrast: ${JSON.stringify(probed.canvasSample)}`);
+  }
   return failures;
 }
 
@@ -429,6 +472,7 @@ try {
     const initial = await collectSafeGateMetrics(page);
     const safeScreenshot = path.join(outDir, `${safeGateViewport.name}.png`);
     await page.screenshot({ path: safeScreenshot, fullPage: false });
+    await page.locator(".sdf-render-button").click();
     await page.waitForSelector('#world[data-renderer-mode="webgl"]', { timeout: 25000 });
     await page.waitForTimeout(1200);
     const probed = await collectSafeGateMetrics(page);

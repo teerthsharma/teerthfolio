@@ -366,7 +366,8 @@ export default function IglooScene({
     typeof window !== "undefined" &&
     (window.location.search.includes("qa=") ||
       window.location.search.includes("qa-sdf") ||
-      window.location.search.includes("qa-low"));
+      window.location.search.includes("qa-low") ||
+      window.location.search.includes("safe=1"));
   const onCanvasCreated = useCallback(
     ({ gl }) => {
       onGpuEvent?.({
