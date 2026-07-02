@@ -19,6 +19,12 @@ const viewports = [
   { name: "mobile", width: 375, height: 667, query: "qa-sdf=1&qa-low=1&qa=verify-mobile" },
 ];
 const safeGateViewport = { name: "safe-gate", width: 1440, height: 900, query: "safe=1" };
+const sectionViewports = [
+  { hash: "projects", name: "projects-desktop", width: 1440, height: 900 },
+  { hash: "archive", name: "archive-desktop", width: 1440, height: 900 },
+  { hash: "projects", name: "projects-mobile", width: 375, height: 667 },
+  { hash: "archive", name: "archive-mobile", width: 375, height: 667 },
+];
 
 function chromeCandidates() {
   const localAppData = process.env.LOCALAPPDATA;
@@ -308,6 +314,61 @@ async function collectSafeGateMetrics(page) {
   });
 }
 
+async function collectSectionMetrics(page) {
+  return page.evaluate(() => {
+    const rectOf = (selector) => {
+      const node = document.querySelector(selector);
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      return {
+        bottom: rect.bottom,
+        height: rect.height,
+        left: rect.left,
+        right: rect.right,
+        text: node.textContent?.trim() || "",
+        top: rect.top,
+        width: rect.width,
+      };
+    };
+    const visible = (rect, minWidth = 80, minHeight = 40) =>
+      Boolean(
+        rect &&
+          rect.right > 0 &&
+          rect.bottom > 0 &&
+          rect.left < window.innerWidth &&
+          rect.top < window.innerHeight &&
+          Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0) >= minWidth &&
+          Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0) >= minHeight,
+      );
+
+    const projectHead = rectOf(".project-index-head");
+    const projectList = rectOf(".project-list");
+    const projectDetail = rectOf(".project-detail");
+    const archiveHead = rectOf(".archive-head");
+    const archiveGrid = rectOf(".archive-grid");
+    const repoTape = rectOf(".repo-tape");
+
+    return {
+      archiveGrid,
+      archiveHead,
+      bodyScrollWidth: document.documentElement.scrollWidth,
+      projectDetail,
+      projectHead,
+      projectList,
+      repoTape,
+      visible: {
+        archiveGrid: visible(archiveGrid, 160, 160),
+        archiveHead: visible(archiveHead, 160, 80),
+        projectDetail: visible(projectDetail, 160, 120),
+        projectHead: visible(projectHead, 160, 80),
+        projectList: visible(projectList, 160, 60),
+        repoTape: visible(repoTape, 160, 80),
+      },
+      viewport: { height: window.innerHeight, width: window.innerWidth },
+    };
+  });
+}
+
 async function verifyMovement(page) {
   const axisText = async () => page.locator(".igloo-axis-meter strong").textContent();
   const before = await axisText();
@@ -432,7 +493,7 @@ function assertViewport(result) {
 
 function assertSafeGate(result) {
   const failures = [];
-  const { initial, probed } = result;
+  const { idle, initial, probed } = result;
   if (!initial.gatePresent) failures.push("safe gate did not render the splash gate");
   if (!/start exploring/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
   if (initial.renderEnabled !== "false") failures.push(`safe gate initially enabled renderer: ${initial.renderEnabled}`);
@@ -441,6 +502,9 @@ function assertSafeGate(result) {
   if (initial.webglCanvasPresent) failures.push("safe gate mounted WebGL canvas before probe");
   if (!initial.diagnosticsVisible || !/safe-boot/i.test(initial.diagnosticText)) {
     failures.push("safe gate did not expose safe-boot diagnostics");
+  }
+  if (idle.renderEnabled !== "false" || idle.rendererMode !== "safe" || idle.webglCanvasPresent) {
+    failures.push(`safe gate auto-started before button click: ${JSON.stringify(idle)}`);
   }
   if (probed.renderEnabled !== "true") failures.push(`safe probe did not enable renderer: ${probed.renderEnabled}`);
   if (probed.rendererMode !== "webgl") failures.push(`safe probe did not settle to webgl: ${probed.rendererMode}`);
@@ -452,6 +516,35 @@ function assertSafeGate(result) {
   }
   if ((probed.canvasSample?.tonalRange || 0) < 24) {
     failures.push(`safe probe canvas lacks visible GL contrast: ${JSON.stringify(probed.canvasSample)}`);
+  }
+  return failures;
+}
+
+function assertSection(result) {
+  const failures = [];
+  const { hash, metrics, name } = result;
+  const mobile = metrics.viewport.width < 600;
+  if (hash === "projects") {
+    if (!metrics.visible.projectHead) failures.push(`project heading is not visible: ${JSON.stringify(metrics.projectHead)}`);
+    if (!metrics.visible.projectList) failures.push(`project selector is not visible: ${JSON.stringify(metrics.projectList)}`);
+    if (!metrics.visible.projectDetail) failures.push(`project detail is not visible: ${JSON.stringify(metrics.projectDetail)}`);
+    if (mobile && metrics.projectList.height > 130) failures.push(`mobile project selector is too tall: ${metrics.projectList.height}`);
+    if (metrics.projectDetail.bottom > metrics.viewport.height - 8) {
+      failures.push(`project detail escapes first viewport: ${JSON.stringify(metrics.projectDetail)}`);
+    }
+    if (!/Epsilon-Hollow|Aether-Lang|faraday|hamliton/i.test(metrics.projectList.text)) {
+      failures.push("project selector lacks flagship project names");
+    }
+  }
+  if (hash === "archive") {
+    if (!metrics.visible.archiveHead) failures.push(`archive heading is not visible: ${JSON.stringify(metrics.archiveHead)}`);
+    if (!metrics.visible.archiveGrid) failures.push(`archive grid is not visible: ${JSON.stringify(metrics.archiveGrid)}`);
+    if (!metrics.visible.repoTape && !mobile) failures.push(`desktop repo tape is not visible: ${JSON.stringify(metrics.repoTape)}`);
+    if (!/live-github|research-snapshot/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks source-mode label");
+    if (!/triton-lang|PyTorch|NeMo/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks upstream evidence");
+  }
+  if (!["projects-desktop", "archive-desktop", "projects-mobile", "archive-mobile"].includes(name)) {
+    failures.push(`unexpected section verifier name: ${name}`);
   }
   return failures;
 }
@@ -483,13 +576,15 @@ try {
     await page.waitForSelector(".sdf-render-button", { timeout: 12000 });
     await page.waitForTimeout(160);
     const initial = await collectSafeGateMetrics(page);
+    await page.waitForTimeout(1300);
+    const idle = await collectSafeGateMetrics(page);
     const safeScreenshot = path.join(outDir, `${safeGateViewport.name}.png`);
     await page.screenshot({ path: safeScreenshot, fullPage: false });
     await page.locator(".sdf-render-button").click();
     await page.waitForSelector('#world[data-renderer-mode="webgl"]', { timeout: 25000 });
     await page.waitForTimeout(1200);
     const probed = await collectSafeGateMetrics(page);
-    const result = { name: safeGateViewport.name, screenshot: safeScreenshot, initial, probed, logs };
+    const result = { name: safeGateViewport.name, screenshot: safeScreenshot, initial, idle, probed, logs };
     result.failures = assertSafeGate(result);
     report.push(result);
     await context.close();
@@ -518,6 +613,35 @@ try {
     const railTap = viewport.name === "mobile" ? await verifyRailTap(page) : {};
     const result = { name: viewport.name, screenshot, metrics, movement, railTap, logs };
     result.failures = assertViewport(result);
+    report.push(result);
+    await context.close();
+  }
+
+  for (const sectionViewport of sectionViewports) {
+    const context = await browser.newContext({
+      deviceScaleFactor: 1,
+      viewport: { width: sectionViewport.width, height: sectionViewport.height },
+    });
+    const page = await context.newPage();
+    const logs = [];
+    page.on("console", (message) => {
+      if (["error", "warning"].includes(message.type())) logs.push({ type: message.type(), text: message.text() });
+    });
+    page.on("pageerror", (error) => logs.push({ type: "pageerror", text: error.message }));
+
+    await page.goto(`${baseUrl}/?qa-low=1#${sectionViewport.hash}`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1600);
+    const metrics = await collectSectionMetrics(page);
+    const screenshot = path.join(outDir, `${sectionViewport.name}.png`);
+    await page.screenshot({ path: screenshot, fullPage: false });
+    const result = {
+      hash: sectionViewport.hash,
+      name: sectionViewport.name,
+      screenshot,
+      metrics,
+      logs,
+    };
+    result.failures = assertSection(result);
     report.push(result);
     await context.close();
   }

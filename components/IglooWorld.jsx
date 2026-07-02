@@ -21,7 +21,6 @@ const ARROW_KEYS = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright"]);
 const WASD_KEYS = new Set(["w", "a", "s", "d"]);
 const INPUT_HINT_COPY = "Use WASD to pilot the seal";
 const INPUT_HINT_DURATION = 1700;
-const DIAGNOSTIC_BOOT_DELAY_MS = 900;
 const GPU_PROBE_TIMEOUT_MS = 7000;
 const MAX_DIAGNOSTIC_EVENTS = 8;
 const FATAL_RENDER_EVENT_TYPES = new Set(["webgl-context-lost", "webgl-create-failed", "canvas-error"]);
@@ -346,9 +345,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   }, []);
 
   useEffect(() => {
-    let bootTimer = 0;
     const query = new URLSearchParams(window.location.search);
-    // safe=1 is the incident path: boot cheap first, then run a low-quality GPU probe with visible diagnostics.
+    // safe=1 is the incident path: boot cheap first and wait for an explicit user probe.
     const nextSafeMode = isSafeRenderQuery(window.location.search);
     const nextSceneDebugFlags = SCENE_DEBUG_FLAG_QUERIES.reduce(
       (flags, [queryKey, flag]) => ({ ...flags, [flag]: query.has(queryKey) }),
@@ -372,17 +370,9 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       reportGpuEvent({
         severity: "info",
         type: "safe-boot",
-        message: "Basic scene mounted; low-quality GPU probe scheduled.",
+        message: "Basic scene mounted; GPU probe waiting for Start exploring.",
       });
-      bootTimer = window.setTimeout(() => {
-        reportGpuEvent({
-          severity: "info",
-          type: "gpu-probe-start",
-          message: "Mounting full renderer in low quality from safe mode.",
-        });
-        setSdfRenderEnabled(true);
-      }, DIAGNOSTIC_BOOT_DELAY_MS);
-      return () => window.clearTimeout(bootTimer);
+      return undefined;
     }
     if (query.has("qa-sdf")) {
       setSdfRenderEnabled(true);

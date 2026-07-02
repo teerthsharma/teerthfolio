@@ -18,9 +18,9 @@ const files = {
 
 const checks = [
   {
-    name: "safe mode boots before probing WebGL",
+    name: "safe mode waits for explicit user probe",
     file: files.world,
-    pattern: /DIAGNOSTIC_BOOT_DELAY_MS[\s\S]*safe=1[\s\S]*gpu-probe-start|safe=1[\s\S]*DIAGNOSTIC_BOOT_DELAY_MS[\s\S]*gpu-probe-start/,
+    pattern: /safe=1[\s\S]*wait for an explicit user probe[\s\S]*safe-boot[\s\S]*GPU probe waiting for Start exploring[\s\S]*gpu-probe-manual-start/,
   },
   {
     name: "safe query has a single render-mode source of truth",

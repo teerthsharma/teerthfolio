@@ -1888,6 +1888,10 @@ img {
   padding-right: 4px;
 }
 
+.project-index-grid {
+  align-items: start;
+}
+
 .radar-copy h2,
 .project-index-head h2,
 .archive-head h2 {
@@ -2550,12 +2554,40 @@ img {
   }
 
   .project-list {
-    max-height: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(168px, 72vw);
+    grid-template-columns: none;
+    max-height: 106px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 0 6px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .project-list button {
+    align-content: start;
+    min-height: 94px;
+    scroll-snap-align: start;
+  }
+
+  .project-detail {
+    max-height: clamp(230px, calc(100svh - 408px), 375px);
+    overflow: hidden auto;
   }
 
   .project-metrics,
   .repo-tape {
     grid-template-columns: 1fr;
+  }
+
+  .project-metrics {
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .code-texture,
+  .commit-strip {
+    margin-top: 12px;
   }
 
   .black-hole-panel {

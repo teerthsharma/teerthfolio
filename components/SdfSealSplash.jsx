@@ -41,7 +41,7 @@ export default function SdfSealSplash({
       safeMode ? "safe boot mounted" : "Dome PBR shell staged",
       "Composite SDF mascot parked",
       "topology profile rail idle",
-      safeMode ? "GPU probe scheduled" : "WebGL renderer waiting",
+      safeMode ? "GPU probe waiting for Start exploring" : "WebGL renderer waiting",
     ],
     [safeMode],
   );
