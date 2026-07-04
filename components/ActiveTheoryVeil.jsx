@@ -35,16 +35,16 @@ const fragmentShader = `
     vec2 uv = vUv * 2.0 - 1.0;
     uv.x *= 1.65;
     float r = length(uv);
-    float fog = smoothstep(1.45, 0.12, r);
-    float scan = sin((vUv.y + iTime * 0.035) * 360.0) * 0.014;
+    float fog = smoothstep(1.32, 0.08, r);
+    float scan = sin((vUv.y + iTime * 0.035) * 360.0) * 0.006;
     float pressure = noise(uv * 4.0 + vec2(iTime * 0.035, -iTime * 0.02));
     float ring = smoothstep(0.012, 0.0, abs(r - 0.58 - sin(iTime * 0.13) * 0.03));
-    vec3 base = vec3(0.02, 0.04, 0.05);
+    vec3 base = vec3(0.08, 0.17, 0.22);
     vec3 color = base;
-    color += iAccent * (fog * 0.06 + ring * 0.08);
-    color += vec3(0.9, 0.97, 1.0) * pow(max(0.0, 1.0 - r), 4.0) * 0.08;
-    color += vec3(scan + pressure * 0.02);
-    float alpha = clamp(0.1 + fog * 0.12 + ring * 0.1, 0.0, 0.28);
+    color += iAccent * (fog * 0.05 + ring * 0.07);
+    color += vec3(0.9, 0.97, 1.0) * pow(max(0.0, 1.0 - r), 4.0) * 0.06;
+    color += vec3(scan + pressure * 0.009);
+    float alpha = clamp(fog * 0.12 + ring * 0.08, 0.0, 0.2);
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -73,7 +73,7 @@ function PressureDust({ quality }) {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial color="#dffdf7" size={0.018} transparent opacity={0.42} depthWrite={false} />
+      <pointsMaterial color="#f6fffb" size={0.016} transparent opacity={0.32} depthWrite={false} />
     </points>
   );
 }

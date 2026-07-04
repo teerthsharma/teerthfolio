@@ -6,8 +6,9 @@ The site is built to stay Vercel-hostable while still feeling like an object-wor
 
 ## Direction
 
-- Igloo/Active Theory style: cinematic object-world, dark shader atmosphere, PBR material language, minimal interface.
-- Bruno Simon style: WASD exploration through a world instead of page-only scrolling.
+- Igloo/Active Theory style: cinematic object-world, uplifted polar shader atmosphere, PBR material language, minimal interface.
+- Abeto Messenger style: the first viewport loads as an in-place fullscreen WebGL world stream instead of a document-scroll reveal.
+- Bruno Simon style: WASD exploration through a world instead of page-only scrolling, with a horizontal evidence index still reachable as fallback.
 - Junni style: mascot as guide, not decoration.
 - Wodniack/Rogier/Gregory style: dense technical archive and sparse project indexing.
 
@@ -19,7 +20,7 @@ This repository is the operating plan for a private, high-ambition portfolio: on
 
 The first screen must communicate a controlled render system:
 
-- A dark Antarctic shader gate loads immediately.
+- A lightweight Antarctic shader gate loads immediately.
 - `Start exploring` is the user gesture that requests browser rendering privileges where available, probes WebGL, and only then mounts the heavy world.
 - The dome is the central physical object: a polar science station, not a decorative icon.
 - The seal is the guide and input body: it moves with WASD, docks at project stations, and makes topology visible through motion.
@@ -54,6 +55,7 @@ The key rule: public UI may only claim the world is active after the first rende
 - **Bound the world logically, not visually.** The world can feel infinite, but only a finite render window exists near the current axis position.
 - **Separate intent from render state.** User input requests motion; scene readiness confirms rendering; diagnostics record failures.
 - **One user gesture owns browser access.** `Start exploring` is responsible for fullscreen, wake lock, WebGL probing, and renderer activation. No automatic heavy permission-like behavior should happen on page load.
+- **Best-of-two navigation.** The world loads in-place like Abeto: the document does not advance the hero while the renderer compiles. Bruno-style exploration owns station travel, while the horizontal Work/Archive axis remains a readable evidence fallback.
 - **Render quality is a control loop.** Low, medium, and high quality change DPR, object counts, snow, terrain chunks, and shader pressure.
 - **No unbounded per-frame allocation.** Materials, geometries, textures, and shader programs must be shared, memoized, or disposed.
 - **Every expensive subsystem needs a QA kill switch.** Debug query flags must be able to disable dome, veil, terrain, signals, smashables, snow, topology, seal, and artifacts independently.
@@ -74,11 +76,12 @@ The key rule: public UI may only claim the world is active after the first rende
 
 ### Interaction Model
 
-- The page scroll axis is horizontal.
+- The page scroll axis is horizontal for evidence sections, not for the primary world loader.
 - WASD moves the seal and wakes the world.
 - Arrow keys do not move the seal; they teach the user to use WASD.
 - Mouse does not steer the seal.
 - Station taps are allowed as navigation shortcuts, especially on mobile.
+- During `probe`, the open-world loading bridge must sit over the first viewport and settle away after the first WebGL frame has visibly landed.
 - The seal and dome spawn separately so the dome remains a destination and the seal remains a guide.
 - Collision and smashable elements may exist, but only inside active movement and bounded object counts.
 

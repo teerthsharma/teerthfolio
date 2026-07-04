@@ -31,6 +31,14 @@ const SAFE_QA_AUTO_PROBE_DELAY_MS = 900;
 const ATMOSPHERE_FRAME_MS = 1000 / 30;
 const IDLE_WORLD_FRAME_MS = 1000 / 20;
 const ACTIVE_WORLD_FRAME_MS = 1000 / 60;
+export const ABETO_REFERENCE_MOTION_PROFILE =
+  "Abeto Messenger reference: hidden document scroll, fullscreen WebGL stage, damped axis/depth targets, station focus transitions";
+export const OPEN_WORLD_LOADING_PROFILE =
+  "best-of-two loading: Abeto fullscreen in-place world stream plus Bruno horizontal evidence index fallback";
+const AXIS_DAMPING_RATE = 10.5;
+const DEPTH_DAMPING_RATE = 12;
+const STATION_FOCUS_DAMPING_RATE = 7.5;
+const OPEN_WORLD_LOADING_SETTLE_MS = 1800;
 const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-no-dome", "noDome"],
   ["qa-no-veil", "noVeil"],
@@ -48,6 +56,11 @@ const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function smoothDamp(current, target, rate, dt) {
+  const alpha = 1 - Math.exp(-rate * Math.max(0, dt));
+  return current + (target - current) * alpha;
 }
 
 function wrapAxis(value, min, length) {
@@ -99,6 +112,30 @@ function DiagnosticPanel({ events, rendererMode }) {
           </li>
         ))}
       </ol>
+    </div>
+  );
+}
+
+function OpenWorldLoadingBridge({ active, activeArtifact, axisProgress, rendererMode }) {
+  const loading = active || rendererMode === "probe";
+  const percent = String(Math.round(axisProgress * 100)).padStart(2, "0");
+
+  return (
+    <div
+      aria-hidden={loading ? "false" : "true"}
+      aria-live="polite"
+      className="open-world-loading-bridge"
+      data-active={loading ? "true" : "false"}
+      role="status"
+    >
+      <span>open world stream</span>
+      <strong>{activeArtifact.shortLabel} / axis {percent}%</strong>
+      <ol>
+        <li>field renderer</li>
+        <li>station loop</li>
+        <li>evidence index</li>
+      </ol>
+      <i />
     </div>
   );
 }
@@ -193,15 +230,15 @@ function useAtmosphereCanvas(canvasRef, activeArtifact, quality, reduced) {
       const t = reduced ? 0 : time * 0.001;
       const accent = activeArtifact?.accent || "#5ff8e7";
       const gradient = context.createLinearGradient(0, 0, w, h);
-      gradient.addColorStop(0, "#010304");
-      gradient.addColorStop(0.44, "#071216");
-      gradient.addColorStop(1, "#000102");
+      gradient.addColorStop(0, "#081f2f");
+      gradient.addColorStop(0.44, "#0e3142");
+      gradient.addColorStop(1, "#102035");
       context.fillStyle = gradient;
       context.fillRect(0, 0, w, h);
 
       const glow = context.createRadialGradient(w * 0.52, h * 0.52, 0, w * 0.52, h * 0.52, Math.min(w, h) * 0.56);
-      glow.addColorStop(0, `${accent}2b`);
-      glow.addColorStop(0.42, "rgba(70, 95, 105, 0.12)");
+      glow.addColorStop(0, `${accent}16`);
+      glow.addColorStop(0.42, "rgba(125, 220, 239, 0.12)");
       glow.addColorStop(1, "rgba(0, 0, 0, 0)");
       context.fillStyle = glow;
       context.fillRect(0, 0, w, h);
@@ -209,7 +246,7 @@ function useAtmosphereCanvas(canvasRef, activeArtifact, quality, reduced) {
       context.save();
       context.translate(w * 0.5, h * 0.65);
       context.rotate(-0.04);
-      context.strokeStyle = "rgba(223, 253, 247, 0.09)";
+      context.strokeStyle = "rgba(223, 253, 247, 0.055)";
       context.lineWidth = Math.max(1, w / 1600);
       for (let i = 0; i < 24; i += 1) {
         context.beginPath();
@@ -220,20 +257,20 @@ function useAtmosphereCanvas(canvasRef, activeArtifact, quality, reduced) {
 
       context.save();
       context.globalCompositeOperation = "screen";
-      context.strokeStyle = "rgba(223, 253, 247, 0.06)";
+      context.strokeStyle = "rgba(223, 253, 247, 0.035)";
       for (let y = 0; y < h; y += Math.max(4, h / 150)) {
         context.beginPath();
         context.moveTo(0, y + Math.sin(t + y * 0.02) * 2);
         context.lineTo(w, y + Math.cos(t + y * 0.015) * 2);
         context.stroke();
       }
-      context.fillStyle = "rgba(223, 253, 247, 0.18)";
+      context.fillStyle = "rgba(143, 183, 195, 0.12)";
       const particles = quality === "low" ? 40 : quality === "medium" ? 76 : 118;
       for (let i = 0; i < particles; i += 1) {
         const x = (Math.sin(i * 91.7 + t * 0.23) * 0.5 + 0.5) * w;
         const y = (Math.cos(i * 41.3 + t * 0.19) * 0.5 + 0.5) * h;
         const r = ((i % 5) + 1) * 0.38;
-        context.globalAlpha = 0.12 + (i % 4) * 0.04;
+        context.globalAlpha = 0.07 + (i % 4) * 0.025;
         context.beginPath();
         context.arc(x, y, r, 0, Math.PI * 2);
         context.fill();
@@ -259,8 +296,11 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const reduced = useReducedMotion();
   const atmosphere = useRef(null);
   const axisRef = useRef(IGLOO_ARTIFACTS[0].position[0]);
+  const axisTargetRef = useRef(IGLOO_ARTIFACTS[0].position[0]);
   const depthRef = useRef(0);
+  const depthTargetRef = useRef(0);
   const inputHintTimeoutRef = useRef(0);
+  const loadBridgeTimeoutRef = useRef(0);
   const pressedKeysRef = useRef(new Set());
   const worldRef = useRef(null);
   const blackHoleDismissedRef = useRef(false);
@@ -279,8 +319,21 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const [sealAwake, setSealAwake] = useState(false);
   const [iglooPulse, setIglooPulse] = useState(0);
   const [sceneDebugFlags, setSceneDebugFlags] = useState(DEFAULT_SCENE_DEBUG_FLAGS);
-  const [gpuDiagnostics, setGpuDiagnostics] = useState([]);
+  const [gpuDiagnostics, setGpuDiagnostics] = useState(() =>
+    initialSafeMode
+      ? [
+          {
+            detail: undefined,
+            id: "initial-safe-boot",
+            message: "Basic scene mounted; GPU probe waiting for Start exploring.",
+            severity: "info",
+            type: "safe-boot",
+          },
+        ]
+      : [],
+  );
   const [inputHint, setInputHint] = useState("");
+  const [worldLoadBridgeActive, setWorldLoadBridgeActive] = useState(false);
   const [blackHoleActive, setBlackHoleActive] = useState(false);
   const [qaAutoProbe, setQaAutoProbe] = useState(false);
   const axisVelocityRef = useRef(0);
@@ -321,12 +374,21 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       };
       const log = diagnostic.severity === "error" ? console.error : diagnostic.severity === "warn" ? console.warn : console.info;
       log("[seal-render]", diagnostic.type, diagnostic.message, diagnostic.detail || "");
-      setGpuDiagnostics((events) => [diagnostic, ...events].slice(0, MAX_DIAGNOSTIC_EVENTS));
+      setGpuDiagnostics((events) => {
+        const latest = events[0];
+        if (latest?.type === diagnostic.type && latest?.message === diagnostic.message) return events;
+        return [diagnostic, ...events].slice(0, MAX_DIAGNOSTIC_EVENTS);
+      });
 
       if (diagnostic.type === "webgl-scene-ready") {
         setSceneReady(true);
         setSafeMode(false);
         setSealAwake(true);
+        window.clearTimeout(loadBridgeTimeoutRef.current);
+        loadBridgeTimeoutRef.current = window.setTimeout(
+          () => setWorldLoadBridgeActive(false),
+          OPEN_WORLD_LOADING_SETTLE_MS,
+        );
         return;
       }
 
@@ -448,6 +510,12 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   }, [qaAutoProbe, reportGpuEvent, safeMode, sdfRenderEnabled]);
 
   useEffect(() => () => window.clearTimeout(inputHintTimeoutRef.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(loadBridgeTimeoutRef.current);
+    },
+    [],
+  );
 
   const enableRenderer = useCallback(() => {
     if (safeMode) {
@@ -458,6 +526,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         message: "User started the low-quality GPU probe from the safe gate.",
       });
     }
+    setWorldLoadBridgeActive(true);
     setSceneReady(false);
     setSdfRenderEnabled(true);
   }, [reportGpuEvent, safeMode]);
@@ -465,6 +534,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const startExplorationRender = useCallback(() => {
     if (safeMode) setQuality("low");
     if (!sdfRenderEnabled) setSceneReady(false);
+    setWorldLoadBridgeActive(true);
     setSdfRenderEnabled(true);
     setSealAwake(true);
   }, [safeMode, sdfRenderEnabled]);
@@ -492,21 +562,29 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     }
   }, [activeArtifactId, sdfRenderEnabled]);
 
-  const setAxisPosition = useCallback(
-    (nextAxisX) => {
+  const setAxisTarget = useCallback(
+    (nextAxisX, { immediate = false, selectNearest = true } = {}) => {
       const next = nextAxisX;
-      const nearest = nearestArtifact(artifacts, next, axisRange.length);
-      axisRef.current = next;
-      setAxisX(next);
-      setActiveArtifactId(nearest.id);
+      axisTargetRef.current = next;
+      if (immediate) {
+        axisRef.current = next;
+        setAxisX(next);
+      }
+      if (selectNearest) {
+        const nearest = nearestArtifact(artifacts, next, axisRange.length);
+        setActiveArtifactId(nearest.id);
+      }
     },
     [artifacts, axisRange],
   );
 
-  const setDepthPosition = useCallback((nextDepthZ) => {
+  const setDepthTarget = useCallback((nextDepthZ, { immediate = false } = {}) => {
     const next = clamp(nextDepthZ, DEPTH_RANGE.min, DEPTH_RANGE.max);
-    depthRef.current = next;
-    setDepthZ(next);
+    depthTargetRef.current = next;
+    if (immediate) {
+      depthRef.current = next;
+      setDepthZ(next);
+    }
   }, []);
 
   const selectArtifact = useCallback(
@@ -516,8 +594,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       const nearestCycle = Math.round((axisRef.current - artifact.position[0]) / axisRange.length);
       const nextAxisX = artifact.position[0] + nearestCycle * axisRange.length;
       setActiveArtifactId(artifact.id);
-      axisRef.current = nextAxisX;
-      setAxisX(nextAxisX);
+      axisTargetRef.current = nextAxisX;
+      depthTargetRef.current = clamp(artifact.position[2] * 0.55, DEPTH_RANGE.min, DEPTH_RANGE.max);
     },
     [artifacts, axisRange.length],
   );
@@ -560,28 +638,46 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         if (DEPTH_KEYS.backward.has(key)) depthDirection += 1;
       }
 
-      if (direction && isWorldVisible(worldRef.current)) {
+      const visible = isWorldVisible(worldRef.current);
+
+      if (direction && visible) {
         const normalized = Math.sign(direction);
-        setAxisPosition(axisRef.current + normalized * AXIS_HOLD_SPEED * dt);
-        setAxisVelocityState(normalized);
-      } else {
-        setAxisVelocityState(0);
+        setAxisTarget(axisTargetRef.current + normalized * AXIS_HOLD_SPEED * dt, { selectNearest: true });
       }
 
-      if (depthDirection && isWorldVisible(worldRef.current)) {
+      if (depthDirection && visible) {
         const normalizedDepth = Math.sign(depthDirection);
-        setDepthPosition(depthRef.current + normalizedDepth * DEPTH_HOLD_SPEED * dt);
-        setDepthVelocityState(normalizedDepth);
-      } else {
-        setDepthVelocityState(0);
+        setDepthTarget(depthTargetRef.current + normalizedDepth * DEPTH_HOLD_SPEED * dt);
       }
+
+      const axisBefore = axisRef.current;
+      const depthBefore = depthRef.current;
+      const axisRate = direction ? AXIS_DAMPING_RATE : STATION_FOCUS_DAMPING_RATE;
+      const nextAxis = smoothDamp(axisRef.current, axisTargetRef.current, axisRate, dt);
+      const nextDepth = smoothDamp(depthRef.current, depthTargetRef.current, DEPTH_DAMPING_RATE, dt);
+      const axisDelta = nextAxis - axisBefore;
+      const depthDelta = nextDepth - depthBefore;
+
+      if (Math.abs(axisDelta) > 0.0005) {
+        axisRef.current = nextAxis;
+        setAxisX(nextAxis);
+      }
+      if (Math.abs(depthDelta) > 0.0005) {
+        depthRef.current = nextDepth;
+        setDepthZ(nextDepth);
+      }
+
+      const axisMotion = dt > 0 ? clamp(axisDelta / Math.max(0.0001, AXIS_HOLD_SPEED * dt), -1, 1) : 0;
+      const depthMotion = dt > 0 ? clamp(depthDelta / Math.max(0.0001, DEPTH_HOLD_SPEED * dt), -1, 1) : 0;
+      setAxisVelocityState(Math.abs(axisMotion) > 0.025 ? Number(axisMotion.toFixed(2)) : 0);
+      setDepthVelocityState(Math.abs(depthMotion) > 0.025 ? Number(depthMotion.toFixed(2)) : 0);
 
       raf = window.requestAnimationFrame(tick);
     };
 
     raf = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(raf);
-  }, [setAxisPosition, setAxisVelocityState, setDepthPosition, setDepthVelocityState]);
+  }, [setAxisTarget, setAxisVelocityState, setDepthTarget, setDepthVelocityState]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -632,6 +728,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       data-renderer-mode={rendererMode}
       data-seal-awake={sealAwake ? "true" : "false"}
       data-high-contrast={highContrast ? "true" : "false"}
+      data-loading-model="abeto-fullscreen-world bruno-horizontal-index"
+      data-scroll-model="webgl-infinite-axis horizontal-evidence-axis"
       style={{ "--axis-progress": axisProgress, "--depth-progress": depthProgress }}
     >
       <div className="igloo-poster" aria-hidden="true" />
@@ -651,6 +749,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
             iglooPulse={iglooPulse}
             moving={Math.abs(axisVelocity) + Math.abs(depthVelocity) > 0}
             onGpuEvent={reportGpuEvent}
+            onSelectArtifact={selectArtifact}
             onTouchIgloo={touchIgloo}
             quality={safeMode || reduced ? "low" : quality}
             reducedMotion={reduced}
@@ -696,6 +795,12 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
           blackHoleDismissedRef.current = true;
           setBlackHoleActive(false);
         }}
+      />
+      <OpenWorldLoadingBridge
+        active={worldLoadBridgeActive && !effectiveSafeMode}
+        activeArtifact={activeArtifact}
+        axisProgress={axisProgress}
+        rendererMode={rendererMode}
       />
     </section>
   );

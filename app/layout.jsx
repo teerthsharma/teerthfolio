@@ -1,20 +1,19 @@
-import { Archivo_Black, Doto, Space_Grotesk } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const archivo = Archivo_Black({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-display",
-  display: "swap",
-});
-
-const space = Space_Grotesk({
+const geistSans = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
 
-const doto = Doto({
+const geistDisplay = Geist({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-pixel",
   display: "swap",
@@ -36,7 +35,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${space.variable} ${doto.variable}`}
+      className={`${geistSans.variable} ${geistDisplay.variable} ${geistMono.variable}`}
     >
       <body>{children}</body>
     </html>

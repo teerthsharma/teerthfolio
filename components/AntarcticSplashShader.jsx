@@ -4,6 +4,38 @@ import { useEffect, useRef } from "react";
 
 export const SPLASH_SHADER_PROFILE = "bounded WebGL Antarctica shader gate with blackhole-grade ray atmosphere";
 
+const INITIAL_SHADER_PRIMER = `
+(() => {
+  const script = document.currentScript;
+  const canvas = script && script.previousElementSibling;
+  if (!canvas || canvas.__sdfPrimed) return;
+  const gl = canvas.getContext("webgl", {
+    alpha: false,
+    antialias: false,
+    powerPreference: "high-performance",
+    preserveDrawingBuffer: true,
+  });
+  if (!gl) return;
+  const width = canvas.width || 300;
+  const height = canvas.height || 150;
+  gl.viewport(0, 0, width, height);
+  gl.clearColor(0.004, 0.018, 0.022, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.SCISSOR_TEST);
+  const bands = 14;
+  for (let index = 0; index < bands; index += 1) {
+    const weight = index / Math.max(1, bands - 1);
+    const y = Math.floor((height * index) / bands);
+    const nextY = Math.ceil((height * (index + 1)) / bands);
+    gl.scissor(0, y, width, Math.max(1, nextY - y));
+    gl.clearColor(0.006 + weight * 0.026, 0.02 + weight * 0.085, 0.024 + weight * 0.09, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+  gl.disable(gl.SCISSOR_TEST);
+  canvas.__sdfPrimed = true;
+})();
+`;
+
 const VERTEX_SHADER = `
   attribute vec2 position;
   void main() {
@@ -152,22 +184,29 @@ export default function AntarcticSplashShader() {
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 1.15);
-      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      const width = rect.width || window.innerWidth || 1;
+      const height = rect.height || window.innerHeight || 1;
+      canvas.width = Math.max(1, Math.floor(width * dpr));
+      canvas.height = Math.max(1, Math.floor(height * dpr));
       gl.viewport(0, 0, canvas.width, canvas.height);
+    };
+
+    const drawFrame = (now) => {
+      gl.uniform1f(time, (now - startedAt) * 0.001);
+      gl.uniform2f(resolution, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
 
     const render = (now) => {
       if (now - lastFrame >= 1000 / 30) {
         lastFrame = now;
-        gl.uniform1f(time, (now - startedAt) * 0.001);
-        gl.uniform2f(resolution, canvas.width, canvas.height);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        drawFrame(now);
       }
       raf = window.requestAnimationFrame(render);
     };
 
     resize();
+    drawFrame(performance.now());
     window.addEventListener("resize", resize);
     raf = window.requestAnimationFrame(render);
 
@@ -182,11 +221,14 @@ export default function AntarcticSplashShader() {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className="sdf-splash-shader-canvas"
-      data-profile={SPLASH_SHADER_PROFILE}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className="sdf-splash-shader-canvas"
+        data-profile={SPLASH_SHADER_PROFILE}
+      />
+      <script dangerouslySetInnerHTML={{ __html: INITIAL_SHADER_PRIMER }} />
+    </>
   );
 }

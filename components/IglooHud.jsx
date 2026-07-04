@@ -31,8 +31,8 @@ export default function IglooHud({
         <strong>Seal's Topology Land</strong>
         <p>
           {worldActive
-            ? "Pilot the seal with WASD through kernels, topology work, and upstream evidence."
-            : "Press Start exploring to allocate the field, then release the seal across the topology plane."}
+            ? "Drive the seal with WASD between glowing station docks; tap a dock to open source evidence."
+            : "Press Start exploring, then drive the seal between station docks across the topology plane."}
         </p>
       </div>
 
@@ -52,7 +52,7 @@ export default function IglooHud({
 
       <div className="igloo-controls-hint">
         <span>{axisVelocity !== 0 ? "WASD pilot active" : "Use WASD to move the seal"}</span>
-        <small>Mouse does not steer the seal</small>
+        <small>Dock at glowing stations</small>
       </div>
 
       <aside className="igloo-readout igloo-artifact-readout" aria-live="polite">

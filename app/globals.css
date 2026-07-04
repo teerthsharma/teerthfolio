@@ -1,20 +1,20 @@
 :root {
-  --abyss: #020506;
-  --ocean: #061417;
-  --ocean-2: #0b2227;
-  --ice: #dffdf7;
-  --ice-dim: #8aa9ad;
-  --signal: #5ff8e7;
-  --field: #91ff9d;
-  --amber: #f4b45f;
-  --violet: #a996ff;
+  --abyss: #071923;
+  --ocean: #0d2a38;
+  --ocean-2: #164458;
+  --ice: #f4fffb;
+  --ice-dim: #afd4dc;
+  --signal: #6ee7ff;
+  --field: #7dffcf;
+  --amber: #ffc857;
+  --violet: #c9a7ff;
   --steel: #c8d5df;
   --danger: #ff6b7a;
-  --ink: #020506;
-  --panel: rgba(4, 14, 17, 0.72);
-  --panel-strong: rgba(8, 24, 29, 0.9);
-  --line: rgba(223, 253, 247, 0.18);
-  --line-strong: rgba(223, 253, 247, 0.38);
+  --ink: #06131b;
+  --panel: rgba(7, 25, 35, 0.54);
+  --panel-strong: rgba(8, 30, 42, 0.78);
+  --line: rgba(223, 253, 247, 0.14);
+  --line-strong: rgba(223, 253, 247, 0.28);
   --page-pad: clamp(16px, 4vw, 56px);
   --radius: 8px;
   --font-display-fallback: Impact, Haettenschweiler, "Arial Black", sans-serif;
@@ -43,8 +43,8 @@ body {
   min-width: 320px;
   color: var(--ice);
   background:
-    linear-gradient(115deg, rgba(95, 248, 231, 0.08), transparent 18%, rgba(169, 150, 255, 0.08) 68%, transparent),
-    linear-gradient(180deg, var(--abyss) 0%, var(--ocean) 46%, #03090b 100%);
+    linear-gradient(115deg, rgba(110, 231, 255, 0.14), transparent 18%, rgba(201, 167, 255, 0.12) 68%, rgba(255, 200, 87, 0.08)),
+    linear-gradient(180deg, var(--abyss) 0%, var(--ocean) 46%, #102035 100%);
   font-family: var(--font-sans), Arial, sans-serif;
   letter-spacing: 0;
   overflow-x: visible;
@@ -70,8 +70,8 @@ body::after {
   z-index: -1;
   inset: 0;
   background:
-    repeating-linear-gradient(100deg, transparent 0 18px, rgba(95, 248, 231, 0.026) 18px 19px, transparent 19px 42px),
-    linear-gradient(180deg, transparent 0%, rgba(2, 5, 6, 0.78) 100%);
+    repeating-linear-gradient(100deg, transparent 0 18px, rgba(110, 231, 255, 0.038) 18px 19px, transparent 19px 42px),
+    linear-gradient(180deg, transparent 0%, rgba(12, 38, 52, 0.48) 100%);
   pointer-events: none;
 }
 
@@ -437,9 +437,9 @@ img {
   overflow: hidden;
   color: var(--ice);
   background:
-    radial-gradient(ellipse at 50% 48%, rgba(120, 165, 178, 0.44), transparent 46%),
-    radial-gradient(ellipse at 50% 105%, rgba(200, 230, 240, 0.28), transparent 60%),
-    linear-gradient(180deg, #1a2a2e 0%, #263b40 44%, #1a2528 100%);
+    radial-gradient(ellipse at 52% 54%, rgba(178, 214, 220, 0.2), transparent 33%),
+    radial-gradient(ellipse at 50% 102%, rgba(87, 126, 135, 0.18), transparent 58%),
+    linear-gradient(180deg, #020607 0%, #081316 44%, #020506 100%);
   isolation: isolate;
   scroll-snap-align: start;
   scroll-snap-stop: always;
@@ -456,17 +456,17 @@ img {
 .igloo-world::before {
   z-index: 2;
   background:
-    linear-gradient(180deg, rgba(1, 4, 5, 0.03), transparent 36%, rgba(1, 4, 5, 0.22) 100%),
-    repeating-linear-gradient(0deg, rgba(223, 253, 247, 0.018) 0 1px, transparent 1px 5px);
-  mix-blend-mode: screen;
+    linear-gradient(180deg, rgba(1, 4, 5, 0.2), transparent 34%, rgba(1, 4, 5, 0.44) 100%),
+    radial-gradient(ellipse at 50% 58%, transparent 0 34%, rgba(0, 0, 0, 0.22) 78%);
+  mix-blend-mode: normal;
 }
 
 .igloo-world::after {
   z-index: 3;
   background:
-    radial-gradient(ellipse at 50% 50%, transparent 0 52%, rgba(0, 0, 0, 0.1) 84%),
-    linear-gradient(90deg, transparent, rgba(223, 253, 247, 0.065), transparent);
-  opacity: 0.18;
+    radial-gradient(ellipse at 50% 52%, transparent 0 48%, rgba(0, 0, 0, 0.42) 86%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.22), transparent 28%, transparent 72%, rgba(0, 0, 0, 0.24));
+  opacity: 0.46;
 }
 
 .igloo-scene {
@@ -483,7 +483,7 @@ img {
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.35;
+  opacity: 0.14;
   pointer-events: none;
 }
 
@@ -505,7 +505,7 @@ img {
 }
 
 .igloo-world[data-moving="true"] .igloo-atmosphere-canvas {
-  opacity: 1;
+  opacity: 0.32;
 }
 
 .igloo-world[data-high-contrast="true"] {
@@ -536,9 +536,9 @@ img {
   inset: 0;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 52% 48%, rgba(187, 218, 226, 0.22), transparent 24%),
-    radial-gradient(ellipse at 50% 74%, rgba(95, 248, 231, 0.14), transparent 26%),
-    linear-gradient(180deg, #050b0e 0%, #0f171c 46%, #010304 100%);
+    radial-gradient(ellipse at 52% 50%, rgba(187, 218, 226, 0.13), transparent 25%),
+    radial-gradient(ellipse at 50% 74%, rgba(95, 248, 231, 0.08), transparent 26%),
+    linear-gradient(180deg, #010304 0%, #071113 46%, #010304 100%);
 }
 
 .igloo-poster::before,
@@ -583,10 +583,10 @@ img {
   z-index: 8;
   inset: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(240px, 0.58fr) minmax(240px, 0.58fr);
   grid-template-rows: auto 1fr auto;
-  gap: 18px;
-  padding: clamp(18px, 3vw, 52px);
+  gap: 12px;
+  padding: clamp(16px, 2.45vw, 34px);
   pointer-events: none;
 }
 
@@ -603,43 +603,43 @@ img {
 .igloo-brand {
   align-self: start;
   display: grid;
-  gap: 7px;
-  width: min(300px, 78vw);
+  gap: 6px;
+  width: min(246px, 70vw);
   color: rgba(223, 253, 247, 0.88);
-  font-family: var(--font-pixel), Consolas, monospace;
-  text-transform: uppercase;
+  text-shadow: 0 18px 44px rgba(0, 0, 0, 0.64);
 }
 
 .igloo-brand strong {
   color: var(--ice);
-  font-family: var(--font-display), var(--font-display-fallback);
-  font-size: clamp(1.15rem, 2.25vw, 2.2rem);
-  line-height: 0.94;
+  font-family: var(--font-display), var(--font-sans), Arial, sans-serif;
+  font-size: clamp(1.04rem, 1.46vw, 1.46rem);
+  font-weight: 760;
+  line-height: 1.02;
   letter-spacing: 0;
+  text-transform: uppercase;
+  text-wrap: balance;
 }
 
 .igloo-brand span {
   position: relative;
   display: inline-block;
   width: fit-content;
-  color: var(--signal);
-  background: linear-gradient(90deg, var(--signal), var(--ice), var(--violet));
-  background-size: 220% 100%;
-  background-clip: text;
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  text-shadow: 0 0 18px rgba(95, 248, 231, 0.2);
-  -webkit-text-fill-color: transparent;
-  animation: signal-text-scan 5.6s linear infinite;
+  color: rgba(143, 183, 195, 0.82);
+  font-family: var(--font-pixel), Consolas, monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .igloo-brand p {
-  max-width: 30ch;
+  display: none;
+  max-width: 27ch;
   margin: 0;
-  color: rgba(223, 253, 247, 0.62);
+  color: rgba(223, 253, 247, 0.68);
   font-family: var(--font-sans), Arial, sans-serif;
-  font-size: 0.78rem;
-  line-height: 1.38;
+  font-size: 0.66rem;
+  line-height: 1.42;
   text-transform: none;
 }
 
@@ -650,24 +650,24 @@ img {
   justify-self: end;
   display: inline-flex;
   overflow: hidden;
-  min-height: 46px;
-  border: 1px solid rgba(223, 253, 247, 0.32);
-  border-radius: 999px;
-  background: rgba(2, 7, 9, 0.54);
-  box-shadow: 0 0 46px rgba(95, 248, 231, 0.08), inset 0 1px rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(18px);
+  min-height: 34px;
+  border: 1px solid rgba(223, 253, 247, 0.13);
+  border-radius: 5px;
+  background: rgba(2, 7, 9, 0.18);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(9px);
 }
 
 .igloo-topnav a,
 .igloo-topnav button {
-  min-width: 92px;
-  padding: 0 18px;
-  color: rgba(223, 253, 247, 0.76);
+  min-width: 64px;
+  padding: 0 10px;
+  color: rgba(223, 253, 247, 0.58);
   background: transparent;
-  border-left: 1px solid rgba(223, 253, 247, 0.16);
+  border-left: 1px solid rgba(223, 253, 247, 0.1);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.5rem;
+  font-weight: 650;
   text-transform: uppercase;
 }
 
@@ -681,17 +681,134 @@ img {
 .igloo-topnav button:hover,
 .igloo-topnav button:focus-visible {
   color: var(--ice);
-  background: rgba(223, 253, 247, 0.08);
+  background: rgba(223, 253, 247, 0.045);
   outline: 0;
+}
+
+.open-world-loading-bridge {
+  position: absolute;
+  z-index: 22;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: min(310px, calc(100vw - 36px));
+  gap: 8px;
+  padding: 13px 15px 14px;
+  border: 1px solid rgba(244, 255, 251, 0.34);
+  border-radius: 6px;
+  color: rgba(244, 255, 251, 0.94);
+  background:
+    linear-gradient(180deg, rgba(9, 29, 40, 0.92), rgba(4, 14, 20, 0.86)),
+    rgba(7, 25, 35, 0.92);
+  box-shadow:
+    0 24px 86px rgba(2, 8, 12, 0.54),
+    0 0 0 1px rgba(110, 231, 255, 0.08),
+    inset 0 1px rgba(255, 255, 255, 0.08);
+  isolation: isolate;
+  opacity: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 220ms ease, transform 220ms ease, visibility 220ms ease;
+  backdrop-filter: blur(12px);
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.66);
+  visibility: visible;
+}
+
+.open-world-loading-bridge[data-active="false"] {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% + 8px));
+  visibility: hidden;
+}
+
+.open-world-loading-bridge span,
+.open-world-loading-bridge li {
+  font-family: var(--font-pixel), Consolas, monospace;
+  font-size: 0.5rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.open-world-loading-bridge span {
+  color: rgba(110, 231, 255, 0.9);
+}
+
+.open-world-loading-bridge strong {
+  color: var(--ice);
+  font-family: var(--font-display), var(--font-sans), Arial, sans-serif;
+  font-size: 0.96rem;
+  font-weight: 760;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.open-world-loading-bridge ol {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.open-world-loading-bridge li {
+  overflow: hidden;
+  padding-top: 7px;
+  border-top: 1px solid rgba(244, 255, 251, 0.22);
+  color: rgba(244, 255, 251, 0.7);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.open-world-loading-bridge i {
+  position: relative;
+  height: 2px;
+  overflow: hidden;
+  background: rgba(244, 255, 251, 0.2);
+}
+
+.open-world-loading-bridge i::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--signal), var(--violet), var(--amber));
+  transform-origin: left center;
+  animation: open-world-load-sweep 1400ms cubic-bezier(0.3, 0, 0.1, 1) infinite;
+}
+
+@keyframes open-world-load-sweep {
+  0% {
+    transform: translateX(-78%) scaleX(0.22);
+  }
+  52% {
+    transform: translateX(0%) scaleX(0.92);
+  }
+  100% {
+    transform: translateX(82%) scaleX(0.28);
+  }
+}
+
+@media (max-width: 640px) {
+  .open-world-loading-bridge {
+    top: 48%;
+    width: min(286px, calc(100vw - 28px));
+    padding: 11px 12px 12px;
+  }
+
+  .open-world-loading-bridge ol {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 
 .igloo-manifesto {
   grid-column: 2;
   grid-row: 1;
   justify-self: end;
-  width: min(290px, 30vw);
-  margin-top: 62px;
-  color: rgba(223, 253, 247, 0.78);
+  width: min(232px, 24vw);
+  margin-top: 48px;
+  display: none;
+  color: rgba(223, 253, 247, 0.42);
   text-align: right;
   text-shadow: 0 0 24px rgba(0, 0, 0, 0.72);
 }
@@ -707,14 +824,14 @@ img {
 .igloo-manifesto span {
   display: block;
   margin-bottom: 8px;
-  color: rgba(95, 248, 231, 0.78);
-  font-size: 0.62rem;
+  color: rgba(95, 248, 231, 0.58);
+  font-size: 0.52rem;
 }
 
 .igloo-manifesto p {
   margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.36;
+  font-size: 0.66rem;
+  line-height: 1.4;
 }
 
 .igloo-controls-hint {
@@ -722,31 +839,32 @@ img {
   grid-row: 2;
   align-self: center;
   justify-self: start;
-  width: min(300px, 30vw);
-  color: rgba(223, 253, 247, 0.72);
+  width: min(190px, 19vw);
+  color: rgba(223, 253, 247, 0.28);
   text-shadow: 0 0 24px rgba(0, 0, 0, 0.72);
 }
 
 .igloo-controls-hint span {
   display: block;
-  color: rgba(223, 253, 247, 0.82);
-  font-size: 0.66rem;
+  color: rgba(223, 253, 247, 0.56);
+  font-size: 0.5rem;
 }
 
 .igloo-controls-hint small {
   display: block;
   margin-top: 6px;
-  color: rgba(95, 248, 231, 0.62);
-  font-size: 0.54rem;
+  color: rgba(95, 248, 231, 0.36);
+  font-size: 0.5rem;
 }
 
 .igloo-readout {
   grid-column: 2;
   grid-row: 2;
   align-self: end;
-  width: min(350px, 31vw);
-  padding: 12px 0 0 16px;
-  border-left: 1px solid rgba(223, 253, 247, 0.24);
+  width: min(268px, 24vw);
+  padding: 9px 0 0 12px;
+  border-left: 1px solid rgba(223, 253, 247, 0.1);
+  margin-bottom: 28px;
   text-align: right;
   text-shadow: 0 0 24px rgba(0, 0, 0, 0.72);
 }
@@ -755,26 +873,28 @@ img {
 .igloo-source,
 .igloo-controls,
 .igloo-artifact-meta {
-  color: rgba(95, 248, 231, 0.72);
+  color: rgba(95, 248, 231, 0.6);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.64rem;
-  letter-spacing: 0.12em;
+  font-size: 0.5rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .igloo-readout h2 {
-  margin: 8px 0 10px;
+  margin: 7px 0 9px;
   color: rgba(243, 255, 252, 0.96);
-  font-family: var(--font-display), var(--font-display-fallback);
-  font-size: clamp(1.2rem, 2.25vw, 2.2rem);
-  line-height: 0.94;
+  font-family: var(--font-display), var(--font-sans), Arial, sans-serif;
+  font-size: clamp(1rem, 1.32vw, 1.34rem);
+  font-weight: 760;
+  line-height: 1.02;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
 .igloo-readout p {
   margin: 0;
-  color: rgba(223, 253, 247, 0.68);
-  font-size: 0.78rem;
+  color: rgba(223, 253, 247, 0.66);
+  font-size: 0.64rem;
   line-height: 1.38;
 }
 
@@ -782,10 +902,10 @@ img {
   display: -webkit-box;
   margin: -4px 0 8px;
   overflow: hidden;
-  color: rgba(95, 248, 231, 0.82);
+  color: rgba(95, 248, 231, 0.66);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
   line-height: 1.28;
   text-transform: uppercase;
   -webkit-box-orient: vertical;
@@ -793,7 +913,7 @@ img {
 }
 
 .igloo-artifact-meta {
-  display: block;
+  display: none;
   margin-top: 12px;
   color: rgba(223, 253, 247, 0.46);
   line-height: 1.45;
@@ -803,31 +923,31 @@ img {
   position: absolute;
   z-index: 8;
   left: clamp(18px, 3vw, 52px);
-  bottom: clamp(128px, 15vh, 164px);
+  bottom: clamp(112px, 13vh, 148px);
   display: grid;
-  width: min(390px, 30vw);
+  width: min(270px, 22vw);
   gap: 5px;
-  padding: 12px 0 12px 16px;
-  color: rgba(223, 253, 247, 0.72);
-  border-left: 1px solid rgba(95, 248, 231, 0.42);
-  background: linear-gradient(90deg, rgba(2, 7, 9, 0.78), rgba(2, 7, 9, 0.24) 72%, transparent);
+  padding: 8px 0 8px 12px;
+  color: rgba(223, 253, 247, 0.52);
+  border-left: 1px solid rgba(95, 248, 231, 0.2);
+  background: linear-gradient(90deg, rgba(2, 7, 9, 0.38), rgba(2, 7, 9, 0.1) 72%, transparent);
   text-shadow: 0 0 24px rgba(0, 0, 0, 0.72);
   pointer-events: auto;
 }
 
 .igloo-live-strip span,
 .igloo-live-strip small {
-  color: rgba(95, 248, 231, 0.72);
+  color: rgba(95, 248, 231, 0.5);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
+  font-size: 0.46rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .igloo-live-strip strong {
   color: rgba(243, 255, 252, 0.95);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.74rem;
+  font-size: 0.58rem;
   text-transform: uppercase;
 }
 
@@ -835,9 +955,9 @@ img {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  color: rgba(223, 253, 247, 0.62);
-  font-size: 0.78rem;
-  line-height: 1.35;
+  color: rgba(223, 253, 247, 0.58);
+  font-size: 0.62rem;
+  line-height: 1.34;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -846,7 +966,7 @@ img {
   grid-column: 1;
   grid-row: 3;
   align-self: end;
-  display: grid;
+  display: none;
   gap: 4px;
   max-width: 340px;
   color: rgba(223, 253, 247, 0.58);
@@ -863,30 +983,31 @@ img {
   justify-self: end;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .igloo-controls button {
-  min-height: 34px;
-  padding: 0 12px;
-  color: rgba(223, 253, 247, 0.7);
-  background: rgba(2, 7, 9, 0.62);
-  border: 1px solid rgba(223, 253, 247, 0.16);
-  border-radius: 999px;
+  min-height: 26px;
+  padding: 0 8px;
+  color: rgba(223, 253, 247, 0.5);
+  background: rgba(2, 7, 9, 0.32);
+  border: 1px solid rgba(223, 253, 247, 0.1);
+  border-radius: 5px;
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.62rem;
+  font-size: 0.48rem;
   text-transform: uppercase;
 }
 
 .igloo-controls .igloo-contrast-toggle {
-  min-width: 82px;
+  min-width: 68px;
 }
 
 .igloo-controls button[aria-pressed="true"],
 .igloo-controls button:hover,
 .igloo-controls button:focus-visible {
   color: var(--ice);
-  border-color: rgba(95, 248, 231, 0.72);
+  border-color: rgba(95, 248, 231, 0.48);
+  background: rgba(95, 248, 231, 0.08);
   outline: 0;
 }
 
@@ -917,12 +1038,12 @@ img {
   position: absolute;
   z-index: 7;
   left: 50%;
-  bottom: clamp(54px, 7vh, 72px);
+  bottom: clamp(34px, 4.8vh, 48px);
   display: flex;
-  max-width: min(630px, calc(100vw - 32px));
-  gap: 8px;
+  max-width: min(500px, calc(100vw - 32px));
+  gap: 4px;
   overflow-x: auto;
-  padding: 4px;
+  padding: 2px;
   transform: translateX(-50%);
   pointer-events: auto;
   scrollbar-width: none;
@@ -932,15 +1053,15 @@ img {
   position: absolute;
   z-index: 7;
   left: 50%;
-  bottom: clamp(22px, 3vh, 34px);
+  bottom: clamp(18px, 2.4vh, 28px);
   display: grid;
-  width: min(460px, calc(100vw - 32px));
+  width: min(390px, calc(100vw - 32px));
   grid-template-columns: auto minmax(120px, 1fr) auto;
   align-items: center;
   gap: 10px;
-  color: rgba(223, 253, 247, 0.58);
+  color: rgba(223, 253, 247, 0.36);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.62rem;
+  font-size: 0.46rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   transform: translateX(-50%);
@@ -948,17 +1069,17 @@ img {
 }
 
 .igloo-axis-meter div {
-  height: 2px;
+  height: 1px;
   overflow: hidden;
-  background: rgba(223, 253, 247, 0.16);
+  background: rgba(223, 253, 247, 0.12);
 }
 
 .igloo-axis-meter i {
   display: block;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, rgba(143, 183, 195, 0.3), var(--signal), rgba(169, 150, 255, 0.8));
-  box-shadow: 0 0 22px rgba(95, 248, 231, 0.4);
+  background: linear-gradient(90deg, rgba(143, 183, 195, 0.24), rgba(95, 248, 231, 0.78), rgba(169, 150, 255, 0.58));
+  box-shadow: 0 0 12px rgba(95, 248, 231, 0.28);
   transform-origin: left center;
 }
 
@@ -973,14 +1094,14 @@ img {
 
 .igloo-artifact {
   flex: 0 0 auto;
-  min-height: 36px;
-  padding: 0 11px;
-  color: rgba(223, 253, 247, 0.64);
-  background: rgba(2, 7, 9, 0.36);
-  border: 1px solid rgba(223, 253, 247, 0.14);
-  border-radius: 999px;
+  min-height: 28px;
+  padding: 0 8px;
+  color: rgba(223, 253, 247, 0.48);
+  background: rgba(2, 7, 9, 0.18);
+  border: 1px solid rgba(223, 253, 247, 0.08);
+  border-radius: 5px;
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.56rem;
+  font-size: 0.48rem;
   text-transform: uppercase;
 }
 
@@ -1019,34 +1140,34 @@ img {
 
 .station-profile-rail {
   align-items: center;
-  min-height: 62px;
-  gap: 0;
-  padding: 6px;
-  border: 1px solid rgba(223, 253, 247, 0.24);
-  border-radius: 999px;
+  min-height: 40px;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(223, 253, 247, 0.1);
+  border-radius: 6px;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045), transparent 24%, rgba(255, 255, 255, 0.04)),
-    rgba(1, 6, 8, 0.58);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025), transparent 24%, rgba(255, 255, 255, 0.025)),
+    rgba(1, 6, 8, 0.28);
   box-shadow:
-    0 0 54px rgba(95, 248, 231, 0.08),
-    inset 0 1px rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px) saturate(1.08);
+    0 16px 48px rgba(0, 0, 0, 0.3),
+    inset 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px) saturate(1.02);
 }
 
 .station-profile-chip {
   --station-accent: var(--signal);
   position: relative;
   display: grid;
-  min-width: 96px;
-  min-height: 48px;
+  min-width: 66px;
+  min-height: 34px;
   align-content: center;
   gap: 2px;
-  padding: 6px 13px;
+  padding: 4px 8px;
   text-align: center;
   background: transparent;
   border-color: transparent;
-  border-radius: 999px;
-  opacity: 0.52;
+  border-radius: 5px;
+  opacity: 0.48;
   transition:
     min-width 180ms ease,
     opacity 180ms ease,
@@ -1059,7 +1180,7 @@ img {
 .station-profile-chip::after {
   content: "";
   position: absolute;
-  inset: 7px;
+  inset: 6px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease;
@@ -1080,15 +1201,15 @@ img {
 .station-profile-chip small {
   color: rgba(223, 253, 247, 0.44);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.48rem;
+  font-size: 0.38rem;
   line-height: 1.1;
   white-space: nowrap;
 }
 
 .station-profile-chip strong {
-  color: rgba(243, 255, 252, 0.84);
+  color: rgba(243, 255, 252, 0.78);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.58rem;
+  font-size: 0.45rem;
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
@@ -1101,12 +1222,12 @@ img {
 }
 
 .station-profile-chip[aria-pressed="true"] {
-  min-width: 142px;
+  min-width: 90px;
   color: var(--ice);
-  border-color: rgba(223, 253, 247, 0.2);
+  border-color: rgba(223, 253, 247, 0.14);
   background:
-    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--station-accent), transparent 78%), transparent 70%),
-    rgba(223, 253, 247, 0.055);
+    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--station-accent), transparent 84%), transparent 70%),
+    rgba(223, 253, 247, 0.04);
   opacity: 1;
 }
 
@@ -1166,7 +1287,7 @@ img {
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.96;
+  opacity: 0.14;
   pointer-events: none;
 }
 
@@ -1291,8 +1412,8 @@ img {
   position: relative;
   z-index: 1;
   align-self: end;
-  width: min(680px, 100%);
-  max-width: 680px;
+  width: min(560px, 100%);
+  max-width: 560px;
 }
 
 .sdf-splash-copy span,
@@ -1316,8 +1437,8 @@ img {
   margin: 12px 0 14px;
   color: rgba(243, 255, 252, 0.98);
   font-family: var(--font-display), var(--font-display-fallback);
-  font-size: clamp(2.4rem, 8vw, 7.2rem);
-  line-height: 0.84;
+  font-size: clamp(2.1rem, 5.8vw, 5.35rem);
+  line-height: 0.9;
   text-transform: uppercase;
 }
 
@@ -1325,8 +1446,8 @@ img {
   max-width: min(58ch, 100%);
   margin: 0;
   color: rgba(223, 253, 247, 0.7);
-  font-size: clamp(0.86rem, 1.1vw, 1.05rem);
-  line-height: 1.55;
+  font-size: clamp(0.8rem, 0.96vw, 0.95rem);
+  line-height: 1.48;
   overflow-wrap: break-word;
   text-wrap: pretty;
 }
@@ -2360,7 +2481,7 @@ img {
   }
 
   .igloo-diagnostics {
-    bottom: 134px;
+    bottom: 158px;
   }
 
   .archive-panel-wide {
@@ -2449,7 +2570,7 @@ img {
 
   .sdf-splash-copy h2 {
     margin: 8px 0 10px;
-    font-size: clamp(3.2rem, 7.4vw, 4.9rem);
+    font-size: clamp(2.65rem, 6.2vw, 4.1rem);
   }
 
   .sdf-splash-copy p {
@@ -2584,11 +2705,11 @@ img {
   }
 
   .sdf-splash-copy h2 {
-    font-size: clamp(2.1rem, 13vw, 3.6rem);
+    font-size: clamp(1.8rem, 10vw, 2.9rem);
   }
 
   .sdf-splash-copy p {
-    font-size: 0.8rem;
+    font-size: 0.74rem;
   }
 
   .sdf-splash-console {
@@ -2604,9 +2725,9 @@ img {
   .igloo-diagnostics {
     left: 16px;
     right: 16px;
-    bottom: 146px;
+    bottom: 202px;
     width: auto;
-    max-height: 74px;
+    max-height: 62px;
     overflow: hidden;
   }
 
@@ -2616,75 +2737,83 @@ img {
   }
 
   .igloo-hud {
-    padding: 12px;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    gap: 0;
+    padding: max(10px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
   }
 
   .igloo-brand {
-    width: 100%;
+    width: min(188px, calc(100vw - 126px));
   }
 
   .igloo-brand strong {
-    font-size: clamp(1.45rem, 7.2vw, 2.2rem);
+    font-size: clamp(0.98rem, 4.3vw, 1.28rem);
+    line-height: 1.04;
   }
 
   .igloo-brand p {
-    max-width: 34ch;
-    font-size: 0.76rem;
+    display: none;
   }
 
   .igloo-topnav {
-    grid-row: 2;
-    width: 100%;
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    right: 12px;
+    width: min(112px, 32vw);
+    min-height: 28px;
+    border-radius: 5px;
   }
 
   .igloo-topnav a,
   .igloo-topnav button {
     flex: 1;
     min-width: 0;
-    padding: 0 8px;
-    font-size: 0.62rem;
+    padding: 0 4px;
+    font-size: 0.42rem;
   }
 
   .igloo-readout {
-    grid-row: 3;
-    align-self: end;
-    width: 100%;
-    max-height: 146px;
+    position: absolute;
+    left: 12px;
+    bottom: calc(env(safe-area-inset-bottom) + 46px);
+    width: min(286px, calc(100vw - 24px));
+    max-height: 104px;
     overflow: hidden;
-    padding: 11px 13px;
-    border: 1px solid rgba(223, 253, 247, 0.18);
-    border-radius: var(--radius);
-    background:
-      linear-gradient(135deg, rgba(95, 248, 231, 0.08), transparent 44%),
-      rgba(2, 7, 9, 0.76);
-    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.34);
-    backdrop-filter: blur(16px);
+    padding: 7px 10px 8px;
+    border: 0;
+    border-left: 1px solid rgba(223, 253, 247, 0.16);
+    border-radius: 0;
+    background: linear-gradient(90deg, rgba(2, 7, 9, 0.44), rgba(2, 7, 9, 0.1) 76%, transparent);
+    box-shadow: none;
+    backdrop-filter: none;
+    text-align: left;
+    margin-bottom: 0;
   }
 
   .igloo-live-strip {
-    top: 210px;
+    top: 108px;
     left: 12px;
-    right: 12px;
-    width: auto;
-    max-height: 50px;
-    gap: 2px;
+    right: auto;
+    width: min(176px, 48vw);
+    min-height: 40px;
+    max-height: 42px;
+    gap: 1px;
     overflow: hidden;
-    padding: 8px 10px;
-    border: 1px solid rgba(95, 248, 231, 0.18);
-    border-left-color: rgba(95, 248, 231, 0.52);
-    border-radius: var(--radius);
-    background: linear-gradient(90deg, rgba(2, 7, 9, 0.8), rgba(2, 7, 9, 0.42));
-    backdrop-filter: blur(12px);
+    padding: 5px 0 5px 9px;
+    border: 0;
+    border-left: 1px solid rgba(95, 248, 231, 0.24);
+    border-radius: 0;
+    background: linear-gradient(90deg, rgba(2, 7, 9, 0.34), transparent);
+    backdrop-filter: none;
   }
 
   .igloo-live-strip strong {
-    font-size: 0.62rem;
+    font-size: 0.54rem;
   }
 
   .igloo-live-strip span,
   .igloo-live-strip small {
-    font-size: 0.5rem;
+    font-size: 0.42rem;
   }
 
   .igloo-live-strip small {
@@ -2696,23 +2825,23 @@ img {
   }
 
   .igloo-readout h2 {
-    font-size: clamp(1.18rem, 6.2vw, 1.76rem);
-    line-height: 0.94;
-    margin: 6px 0 7px;
+    font-size: clamp(0.88rem, 4vw, 1.08rem);
+    line-height: 1.02;
+    margin: 5px 0 6px;
   }
 
   .igloo-readout p {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 0.7rem;
-    line-height: 1.28;
+    font-size: 0.58rem;
+    line-height: 1.2;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 1;
   }
 
   .igloo-artifact-signal {
-    margin: -3px 0 6px;
-    font-size: 0.52rem;
+    margin: -3px 0 5px;
+    font-size: 0.46rem;
     line-height: 1.18;
     -webkit-line-clamp: 1;
   }
@@ -2727,38 +2856,38 @@ img {
   }
 
   .igloo-artifact-list {
-    left: 12px;
-    right: 12px;
-    bottom: 204px;
+    left: 50%;
+    right: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 144px);
     justify-content: flex-start;
     flex-wrap: nowrap;
-    max-width: none;
+    max-width: min(324px, calc(100vw - 24px));
     max-height: none;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 4px 0;
-    transform: none;
+    padding: 3px;
+    transform: translateX(-50%);
   }
 
   .igloo-artifact {
-    min-height: 32px;
-    padding: 0 9px;
-    font-size: 0.5rem;
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 0.46rem;
   }
 
   .station-profile-rail {
-    min-height: 46px;
-    padding: 4px;
+    min-height: 36px;
+    padding: 2px;
   }
 
   .station-profile-chip {
-    min-width: 72px;
-    min-height: 38px;
-    padding: 5px 9px;
+    min-width: 64px;
+    min-height: 32px;
+    padding: 4px 8px;
   }
 
   .station-profile-chip[aria-pressed="true"] {
-    min-width: 104px;
+    min-width: 78px;
   }
 
   .station-profile-chip span,
@@ -2775,8 +2904,21 @@ img {
   }
 
   .igloo-controls {
-    grid-row: 4;
-    justify-self: start;
+    position: absolute;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom) + 9px);
+    justify-self: auto;
+  }
+
+  .igloo-controls button {
+    min-width: 36px;
+    min-height: 28px;
+    padding: 0 7px;
+    font-size: 0.42rem;
+  }
+
+  .igloo-controls .igloo-contrast-toggle {
+    min-width: 56px;
   }
 
   .section-band {
