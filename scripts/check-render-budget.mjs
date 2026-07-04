@@ -8,6 +8,7 @@ const files = {
   page: readFileSync(join(root, "app", "page.jsx"), "utf8"),
   portfolioPage: readFileSync(join(root, "components", "PortfolioPage.jsx"), "utf8"),
   scene: readFileSync(join(root, "components", "IglooScene.jsx"), "utf8"),
+  artifacts: readFileSync(join(root, "components", "IglooArtifacts.jsx"), "utf8"),
   dome: readFileSync(join(root, "components", "PolarObservatoryDome.jsx"), "utf8"),
   splash: readFileSync(join(root, "components", "SdfSealSplash.jsx"), "utf8"),
   nextConfig: readFileSync(join(root, "next.config.mjs"), "utf8"),
@@ -15,6 +16,7 @@ const files = {
   seal: readFileSync(join(root, "components", "SealAvatar.jsx"), "utf8"),
   snow: readFileSync(join(root, "components", "SnowAtmosphere.jsx"), "utf8"),
   splashShader: readFileSync(join(root, "components", "AntarcticSplashShader.jsx"), "utf8"),
+  post: readFileSync(join(root, "components", "RetroCinematicPostProcess.jsx"), "utf8"),
 };
 
 const checks = [
@@ -139,14 +141,14 @@ const checks = [
     pattern: /activeChunkCount\s*=\s*quality === "low" \? 3 : quality === "medium" \? 5 : TERRAIN_CHUNK_COUNT/,
   },
   {
-    name: "terrain material stays in dark Antarctic range",
+    name: "terrain material stays in uplifting polar range",
     file: files.terrain,
-    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*"#43585d"/,
+    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*"#d7f4f2"/,
   },
   {
     name: "terrain surface stays clean and subordinate",
     file: files.terrain,
-    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to observatory[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.003, 0\.003\)/,
+    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to stations[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.003, 0\.003\)/,
   },
   {
     name: "terrain uses recycled material tile label",
@@ -164,9 +166,9 @@ const checks = [
     pattern: /geometry\.dispose\(\)[\s\S]*material\.dispose\(\)/,
   },
   {
-    name: "ground fog stays dark and cannot bleach the scene",
+    name: "ground fog stays uplifting and translucent",
     file: files.snow,
-    pattern: /POLAR_GROUND_FOG_PROFILE[\s\S]*never bleaches[\s\S]*0\.028[\s\S]*color="#123135"/,
+    pattern: /POLAR_GROUND_FOG_PROFILE[\s\S]*uplifting translucent[\s\S]*0\.034[\s\S]*color="#bdefff"/,
   },
   {
     name: "smashables only render during active movement",
@@ -176,12 +178,12 @@ const checks = [
   {
     name: "polar dome rows remain finite",
     file: files.dome,
-    pattern: /DOME_PANEL_ROWS\s*=\s*7/,
+    pattern: /DOME_PANEL_ROWS\s*=\s*8/,
   },
   {
     name: "polar dome keeps bounded tile columns",
     file: files.dome,
-    pattern: /DOME_TILE_COLUMNS_BY_ROW\s*=\s*\[4, 6, 8, 10, 12, 14, 16\]/,
+    pattern: /DOME_TILE_COLUMNS_BY_ROW\s*=\s*\[6, 8, 10, 12, 14, 16, 18, 20\]/,
   },
   {
     name: "polar dome remains intact until deliberate impact",
@@ -196,7 +198,12 @@ const checks = [
   {
     name: "polar dome tiles use warped pillow geometry instead of flat rectangles",
     file: files.dome,
-    pattern: /DOME_TILE_GEOMETRY_PROFILE[\s\S]*warped pillow ice brick[\s\S]*uSegments = 5[\s\S]*vSegments = 4[\s\S]*edgeFalloff[\s\S]*cornerTuck/,
+    pattern: /DOME_TILE_GEOMETRY_PROFILE[\s\S]*procedural crystal-growth ice brick[\s\S]*uSegments = 7[\s\S]*vSegments = 5[\s\S]*edgeFalloff[\s\S]*cornerTuck[\s\S]*crystalFacet/,
+  },
+  {
+    name: "polar dome faces use a browser-native crystal ice shader",
+    file: files.dome,
+    pattern: /DOME_CRYSTAL_GROWTH_PROFILE[\s\S]*DOME_BRICK_SHADER_PROFILE[\s\S]*onBeforeCompile[\s\S]*domeIceHash[\s\S]*customProgramCacheKey/,
   },
   {
     name: "polar dome shares texture bundle generation",
@@ -239,9 +246,34 @@ const checks = [
     pattern: /renderEnabled && sealAwake && !debugFlags\.noSeal/,
   },
   {
-    name: "scene has an explicit dark PBR light budget",
+    name: "scene has an explicit uplifted polar PBR light budget",
     file: files.scene,
-    pattern: /SCENE_LIGHT_BUDGET\s*=\s*"dark-pbr-igloo"/,
+    pattern: /SCENE_LIGHT_BUDGET\s*=\s*"uplifted-polar-pbr"/,
+  },
+  {
+    name: "scene has a single bounded global retro post shader pass",
+    file: `${files.scene}\n${files.post}`,
+    pattern: /RetroCinematicPostProcess[\s\S]*GLOBAL_RETRO_POST_PROFILE[\s\S]*toon quantization[\s\S]*chromatic AA[\s\S]*depth pixel fog[\s\S]*gaussian edge ink[\s\S]*scanline fisheye vignette[\s\S]*DepthTexture[\s\S]*useFrame/,
+  },
+  {
+    name: "non-igloo stations expose active playable object behaviors",
+    file: files.artifacts,
+    pattern: /STATION_INTERACTION_PROFILE[\s\S]*s2-kernel-core interactive gyroscope[\s\S]*manifold-reactor phase beads[\s\S]*field-chamber-coils charge gates[\s\S]*qpu-ice-bridge qubit stepping stones[\s\S]*upstream-radio-mast live signal sweep[\s\S]*StationInteractionRig/,
+  },
+  {
+    name: "featured stations use uplifting colors and elevated grid pedestals",
+    file: files.artifacts,
+    pattern: /UPLIFTING_STATION_COLOR_PROFILE[\s\S]*S2 blue[\s\S]*Aether violet[\s\S]*Field amber[\s\S]*QPU mint[\s\S]*Upstream coral-green[\s\S]*STATION_GRID_ELEVATION_PROFILE[\s\S]*FEATURED_STATION_IDS[\s\S]*floating-grid-pedestal[\s\S]*subjectLift/,
+  },
+  {
+    name: "world adopts Abeto-style damped fullscreen motion architecture",
+    file: `${files.world}\n${files.scene}`,
+    pattern: /ABETO_REFERENCE_MOTION_PROFILE[\s\S]*hidden document scroll[\s\S]*damped axis\/depth targets[\s\S]*station focus transitions[\s\S]*axisTargetRef[\s\S]*depthTargetRef[\s\S]*smoothDamp[\s\S]*CAMERA_DAMPING_PROFILE[\s\S]*Math\.exp\(-delta/,
+  },
+  {
+    name: "world loading combines Abeto fullscreen stream with Bruno evidence axis",
+    file: `${files.world}\n${files.splash}\n${readFileSync(join(root, "app", "globals.css"), "utf8")}`,
+    pattern: /OPEN_WORLD_LOADING_PROFILE[\s\S]*Abeto fullscreen in-place world stream plus Bruno horizontal evidence index fallback[\s\S]*OpenWorldLoadingBridge[\s\S]*data-loading-model="abeto-fullscreen-world bruno-horizontal-index"[\s\S]*data-scroll-model="webgl-infinite-axis horizontal-evidence-axis"[\s\S]*OPEN_WORLD_GATE_PROFILE[\s\S]*fullscreen world stream first, horizontal evidence index remains reachable[\s\S]*open-world-loading-bridge/,
   },
 ];
 

@@ -15,6 +15,7 @@ export const SEAL_GUIDE_BEACON_PROFILE = "active station beacon makes the seal r
 export const SEAL_PREMIUM_SILHOUETTE_PROFILE = "inked SDF silhouette rim with belly contour and topology seam";
 
 const SEAL_WORLD_LOOP_LENGTH = 128;
+const SEAL_GUIDE_OFFSET = { x: 0.18, z: 1.96 };
 
 const SEAL_PBR = {
   map: "/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_albedo.png",
@@ -39,17 +40,17 @@ function useSealMaterial(accent) {
   return useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: "#ffffff",
+        color: "#9fb0ad",
         emissive: accent,
-        emissiveIntensity: 0.18,
+        emissiveIntensity: 0.055,
         map: maps.map,
         metalness: 0.02,
         normalMap: maps.normalMap,
         normalScale: new THREE.Vector2(0.055, 0.055),
-        roughness: 0.38,
+        roughness: 0.54,
         roughnessMap: maps.roughnessMap,
-        clearcoat: 0.68,
-        clearcoatRoughness: 0.2,
+        clearcoat: 0.34,
+        clearcoatRoughness: 0.36,
       }),
     [accent, maps],
   );
@@ -60,11 +61,11 @@ function SealBody({ accent, guideState, material }) {
   const cheekMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: "#eefdfa",
+        color: "#aebfbb",
         emissive: accent,
-        emissiveIntensity: 0.08,
-        roughness: 0.32,
-        clearcoat: 0.52,
+        emissiveIntensity: 0.035,
+        roughness: 0.42,
+        clearcoat: 0.38,
       }),
     [accent],
   );
@@ -93,7 +94,7 @@ function SealBody({ accent, guideState, material }) {
       new THREE.MeshBasicMaterial({
         color: "#020607",
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.62,
         depthWrite: false,
         side: THREE.BackSide,
       }),
@@ -137,11 +138,11 @@ function SealBody({ accent, guideState, material }) {
   const finMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: "#cfdfdd",
+        color: "#53686b",
         emissive: accent,
-        emissiveIntensity: 0.02,
-        roughness: 0.58,
-        clearcoat: 0.38,
+        emissiveIntensity: 0.0,
+        roughness: 0.68,
+        clearcoat: 0.24,
       }),
     [accent],
   );
@@ -162,31 +163,44 @@ function SealBody({ accent, guideState, material }) {
   );
 
   return (
-    <group name={`SealBody ${SEAL_AVATAR_FORMULA} ${SEAL_PREMIUM_SILHOUETTE_PROFILE}`} scale={[0.92, 0.92, 0.92]}>
-      <mesh material={rimMaterial} position={[-0.02, -0.012, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.438, 1.088, 0.438]}>
-        <capsuleGeometry args={[1, 1, 12, 24]} />
+    <group name={`SealBody ${SEAL_AVATAR_FORMULA} ${SEAL_PREMIUM_SILHOUETTE_PROFILE}`} scale={[0.88, 0.88, 0.88]}>
+      <mesh position={[-0.12, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[0.9, 0.38, 1]}>
+        <circleGeometry args={[1, 64]} />
+        <meshBasicMaterial color="#010304" transparent opacity={0.22} depthWrite={false} />
       </mesh>
-      <mesh castShadow material={material} rotation={[0, 0, Math.PI / 2]} scale={[0.42, 1.05, 0.42]}>
-        <capsuleGeometry args={[1, 1, 12, 24]} />
+      <mesh material={rimMaterial} position={[-0.12, -0.018, 0]} scale={[1.02, 0.37, 0.46]}>
+        <sphereGeometry args={[1, 34, 20]} />
       </mesh>
-      <mesh material={shadowLineMaterial} position={[0.01, -0.02, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[0.72, 0.5, 0.22]}>
+      <mesh castShadow receiveShadow material={material} position={[-0.11, 0, 0]} scale={[0.96, 0.34, 0.42]}>
+        <sphereGeometry args={[1, 34, 20]} />
+      </mesh>
+      <mesh material={shadowLineMaterial} position={[-0.08, -0.07, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[0.72, 0.5, 0.2]}>
         <torusGeometry args={[1, 0.01, 6, 84]} />
       </mesh>
-      <mesh material={contourMaterial} position={[0.05, 0.02, 0]} rotation={[Math.PI / 2, 0.08, 0]} scale={[0.86, 0.5, 0.22]}>
+      <mesh material={contourMaterial} position={[-0.08, 0.02, 0]} rotation={[Math.PI / 2, 0.08, 0]} scale={[0.74, 0.47, 0.18]}>
         <torusGeometry args={[1, 0.006, 6, 96]} />
       </mesh>
-      <mesh material={shadowLineMaterial} position={[0.42, 0.24, 0]} rotation={[Math.PI / 2, -0.12, 0.02]} scale={[0.26, 0.19, 0.11]}>
+      <mesh material={shadowLineMaterial} position={[0.18, 0.31, 0]} rotation={[Math.PI / 2, -0.1, 0.02]} scale={[0.24, 0.16, 0.08]}>
         <torusGeometry args={[1, 0.006, 6, 64]} />
       </mesh>
-      <mesh material={contourMaterial} position={[0.22, 0.08, 0]} rotation={[Math.PI / 2, -0.12, 0.04]} scale={[0.48, 0.34, 0.2]}>
+      <mesh material={contourMaterial} position={[0.08, 0.12, 0]} rotation={[Math.PI / 2, -0.12, 0.04]} scale={[0.42, 0.3, 0.16]}>
         <torusGeometry args={[1, 0.0045, 6, 80]} />
       </mesh>
+      {[
+        [-0.46, 0.33, 0, 0.2, 0.012, 0.07],
+        [-0.18, 0.38, 0, 0.24, 0.012, 0.082],
+        [0.1, 0.35, 0, 0.18, 0.012, 0.064],
+      ].map(([x, y, z, sx, sy, sz], index) => (
+        <mesh key={`seal-dorsal-instrument-${index}`} material={shadowLineMaterial} position={[x, y, z]} rotation={[0, 0, -0.05]} scale={[sx, sy, sz]}>
+          <boxGeometry args={[1, 1, 1]} />
+        </mesh>
+      ))}
       <group name={`SealNormalField ${SEAL_NORMAL_FIELD_PROFILE}`}>
         {[
-          [-0.48, 0.44, 0.1, -0.18],
-          [-0.18, 0.54, -0.08, 0.08],
-          [0.16, 0.52, 0.12, -0.05],
-          [0.48, 0.42, -0.1, 0.16],
+          [-0.48, 0.36, 0.1, -0.18],
+          [-0.22, 0.44, -0.08, 0.08],
+          [0.04, 0.42, 0.12, -0.05],
+          [0.3, 0.34, -0.1, 0.16],
         ].map(([x, y, z, yaw], index) => (
           <group key={`seal-normal-${index}`} position={[x, y, z]} rotation={[0.18, yaw, 0.08]}>
             <mesh material={normalFieldMaterial} rotation={[0, 0, Math.PI / 2]} scale={[0.005, 0.22, 0.005]}>
@@ -202,7 +216,7 @@ function SealBody({ accent, guideState, material }) {
         <group
           key={`seal-guide-faceplate-${side}`}
           name={`seal-guide-faceplate ${SEAL_GUIDE_FACEPLATE_PROFILE}`}
-          position={[0.18, 0.43, side * 0.34]}
+          position={[0.02, 0.34, side * 0.34]}
           rotation={[side * 0.18, side * 0.18, 0.04]}
         >
           <mesh material={faceplateMaterial} scale={[0.28, 0.015, 0.14]}>
@@ -222,7 +236,7 @@ function SealBody({ accent, guideState, material }) {
         </group>
       ))}
       {[-1, 1].map((side) => (
-        <group key={`seal-guide-pointer-${side}`} name="seal-guide-pointer" position={[0.62, 0.46, side * 0.28]} rotation={[side * -0.08, side * 0.24, -0.12]}>
+        <group key={`seal-guide-pointer-${side}`} name="seal-guide-pointer" position={[0.52, 0.42, side * 0.3]} rotation={[side * -0.08, side * 0.24, -0.12]}>
           <mesh material={faceplateLineMaterial} rotation={[0, 0, Math.PI / 2]} scale={[0.004, 0.32, 0.004]}>
             <cylinderGeometry args={[1, 1, 1, 6]} />
           </mesh>
@@ -231,70 +245,76 @@ function SealBody({ accent, guideState, material }) {
           </mesh>
         </group>
       ))}
-      <mesh material={rimMaterial} position={[0.795, 0.162, 0]} scale={[0.374, 0.364, 0.364]}>
+      <mesh material={rimMaterial} position={[0.69, 0.155, 0]} scale={[0.35, 0.34, 0.34]}>
         <sphereGeometry args={[1, 32, 24]} />
       </mesh>
-      <mesh castShadow material={material} position={[0.78, 0.18, 0]} scale={[0.36, 0.35, 0.35]}>
+      <mesh castShadow material={material} position={[0.68, 0.17, 0]} scale={[0.335, 0.325, 0.325]}>
         <sphereGeometry args={[1, 32, 24]} />
       </mesh>
-      <mesh material={cheekMaterial} position={[0.99, 0.17, 0.13]} scale={[0.12, 0.052, 0.08]}>
+      <mesh material={cheekMaterial} position={[0.87, 0.16, 0.12]} scale={[0.105, 0.048, 0.07]}>
         <sphereGeometry args={[1, 16, 10]} />
       </mesh>
-      <mesh material={cheekMaterial} position={[0.99, 0.17, -0.13]} scale={[0.12, 0.052, 0.08]}>
+      <mesh material={cheekMaterial} position={[0.87, 0.16, -0.12]} scale={[0.105, 0.048, 0.07]}>
         <sphereGeometry args={[1, 16, 10]} />
       </mesh>
-      <mesh material={shadowLineMaterial} position={[0.88, 0.37, 0]} scale={[0.15, 0.028, 0.18]}>
+      <mesh material={shadowLineMaterial} position={[0.78, 0.34, 0]} scale={[0.13, 0.024, 0.16]}>
         <sphereGeometry args={[1, 18, 10]} />
       </mesh>
-      <mesh castShadow material={finMaterial} position={[1.04, 0.15, 0]} scale={[0.14, 0.1, 0.11]}>
+      <mesh material={shadowLineMaterial} position={[0.82, 0.245, 0.19]} rotation={[0.18, 0.1, -0.1]} scale={[0.145, 0.018, 0.062]}>
+        <boxGeometry args={[1, 1, 1]} />
+      </mesh>
+      <mesh material={shadowLineMaterial} position={[0.82, 0.245, -0.19]} rotation={[-0.18, -0.1, -0.1]} scale={[0.145, 0.018, 0.062]}>
+        <boxGeometry args={[1, 1, 1]} />
+      </mesh>
+      <mesh castShadow receiveShadow material={finMaterial} position={[0.92, 0.145, 0]} scale={[0.12, 0.086, 0.096]}>
         <sphereGeometry args={[1, 16, 12]} />
       </mesh>
-      <mesh material={dark} position={[1.15, 0.2, 0]} scale={[0.052, 0.036, 0.036]}>
+      <mesh material={dark} position={[1.0, 0.19, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.032, 0.042, 0.032]}>
+        <capsuleGeometry args={[1, 0.18, 6, 12]} />
+      </mesh>
+      <mesh material={dark} position={[0.83, 0.298, 0.145]} scale={[0.052, 0.042, 0.026]}>
         <sphereGeometry args={[1, 12, 8]} />
       </mesh>
-      <mesh material={dark} position={[0.92, 0.31, 0.13]} scale={[0.046, 0.046, 0.026]}>
+      <mesh material={dark} position={[0.83, 0.298, -0.145]} scale={[0.052, 0.042, 0.026]}>
         <sphereGeometry args={[1, 12, 8]} />
       </mesh>
-      <mesh material={dark} position={[0.92, 0.31, -0.13]} scale={[0.046, 0.046, 0.026]}>
-        <sphereGeometry args={[1, 12, 8]} />
-      </mesh>
-      <mesh material={contourMaterial} position={[0.942, 0.333, 0.138]} scale={[0.014, 0.014, 0.008]}>
+      <mesh material={contourMaterial} position={[0.85, 0.322, 0.154]} scale={[0.014, 0.012, 0.007]}>
         <sphereGeometry args={[1, 8, 6]} />
       </mesh>
-      <mesh material={contourMaterial} position={[0.942, 0.333, -0.138]} scale={[0.014, 0.014, 0.008]}>
+      <mesh material={contourMaterial} position={[0.85, 0.322, -0.154]} scale={[0.014, 0.012, 0.007]}>
         <sphereGeometry args={[1, 8, 6]} />
       </mesh>
-      <mesh material={rimMaterial} position={[-0.82, -0.052, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.168, 0.44, 0.138]}>
+      <mesh material={rimMaterial} position={[-0.72, -0.052, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.152, 0.36, 0.122]}>
         <coneGeometry args={[1, 1, 18]} />
       </mesh>
-      <mesh castShadow material={finMaterial} position={[-0.8, -0.04, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.16, 0.42, 0.13]}>
+      <mesh castShadow receiveShadow material={finMaterial} position={[-0.7, -0.04, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.144, 0.34, 0.114]}>
         <coneGeometry args={[1, 1, 18]} />
       </mesh>
-      <mesh material={rimMaterial} position={[0.052, -0.232, 0.395]} rotation={[0.5, -0.18, -0.42]} scale={[0.252, 0.083, 0.438]}>
+      <mesh material={rimMaterial} position={[0.0, -0.214, 0.34]} rotation={[0.5, -0.18, -0.42]} scale={[0.216, 0.072, 0.35]}>
         <sphereGeometry args={[1, 18, 12]} />
       </mesh>
-      <mesh castShadow material={finMaterial} position={[0.06, -0.22, 0.38]} rotation={[0.5, -0.18, -0.42]} scale={[0.24, 0.075, 0.42]}>
+      <mesh castShadow receiveShadow material={finMaterial} position={[0.008, -0.204, 0.326]} rotation={[0.5, -0.18, -0.42]} scale={[0.204, 0.064, 0.334]}>
         <sphereGeometry args={[1, 18, 12]} />
       </mesh>
-      <mesh material={rimMaterial} position={[0.052, -0.232, -0.395]} rotation={[-0.5, 0.18, -0.42]} scale={[0.252, 0.083, 0.438]}>
+      <mesh material={rimMaterial} position={[0.0, -0.214, -0.34]} rotation={[-0.5, 0.18, -0.42]} scale={[0.216, 0.072, 0.35]}>
         <sphereGeometry args={[1, 18, 12]} />
       </mesh>
-      <mesh castShadow material={finMaterial} position={[0.06, -0.22, -0.38]} rotation={[-0.5, 0.18, -0.42]} scale={[0.24, 0.075, 0.42]}>
+      <mesh castShadow receiveShadow material={finMaterial} position={[0.008, -0.204, -0.326]} rotation={[-0.5, 0.18, -0.42]} scale={[0.204, 0.064, 0.334]}>
         <sphereGeometry args={[1, 18, 12]} />
       </mesh>
-      <mesh material={dark} position={[1.04, 0.15, 0.11]} rotation={[0, 0, Math.PI / 2]} scale={[0.004, 0.2, 0.004]}>
+      <mesh material={dark} position={[0.92, 0.145, 0.1]} rotation={[0, 0, Math.PI / 2]} scale={[0.0035, 0.17, 0.0035]}>
         <cylinderGeometry args={[1, 1, 1, 6]} />
       </mesh>
-      <mesh material={dark} position={[1.04, 0.15, -0.11]} rotation={[0, 0, Math.PI / 2]} scale={[0.004, 0.2, 0.004]}>
+      <mesh material={dark} position={[0.92, 0.145, -0.1]} rotation={[0, 0, Math.PI / 2]} scale={[0.0035, 0.17, 0.0035]}>
         <cylinderGeometry args={[1, 1, 1, 6]} />
       </mesh>
       {[0.17, 0.25, 0.33].map((z, index) => (
         <mesh
           key={`right-whisker-${z}`}
           material={dark}
-          position={[1.13, 0.13 - index * 0.028, z]}
+          position={[1.0, 0.122 - index * 0.025, z * 0.86]}
           rotation={[0.08, 0.24, Math.PI / 2 + index * 0.08]}
-          scale={[0.003, 0.18 - index * 0.025, 0.003]}
+          scale={[0.003, 0.15 - index * 0.02, 0.003]}
         >
           <cylinderGeometry args={[1, 1, 1, 6]} />
         </mesh>
@@ -303,9 +323,9 @@ function SealBody({ accent, guideState, material }) {
         <mesh
           key={`left-whisker-${z}`}
           material={dark}
-          position={[1.13, 0.13 - index * 0.028, -z]}
+          position={[1.0, 0.122 - index * 0.025, -z * 0.86]}
           rotation={[-0.08, -0.24, Math.PI / 2 - index * 0.08]}
-          scale={[0.003, 0.18 - index * 0.025, 0.003]}
+          scale={[0.003, 0.15 - index * 0.02, 0.003]}
         >
           <cylinderGeometry args={[1, 1, 1, 6]} />
         </mesh>
@@ -336,7 +356,7 @@ const SealAvatar = forwardRef(function SealAvatar(
       new THREE.MeshBasicMaterial({
         color: accent,
         transparent: true,
-        opacity: 0.34,
+        opacity: 0.1,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }),
@@ -347,7 +367,7 @@ const SealAvatar = forwardRef(function SealAvatar(
       new THREE.MeshBasicMaterial({
         color: activeArtifact?.accent || accent,
         transparent: true,
-        opacity: 0.42,
+        opacity: 0.36,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
       }),
@@ -375,7 +395,7 @@ const SealAvatar = forwardRef(function SealAvatar(
     const t = clock.elapsedTime;
     const speed = Math.min(1, Math.hypot(axisVelocity, depthVelocity));
     const targetY = 0.45 + Math.sin(axisX * 0.13) * 0.08 + Math.cos(depthZ * 0.21) * 0.05;
-    target.set(axisX + 1.72, targetY, depthZ + 1.12);
+    target.set(axisX + SEAL_GUIDE_OFFSET.x, targetY, depthZ + SEAL_GUIDE_OFFSET.z);
 
     root.current.position.lerp(target, moving ? 0.14 : 0.08);
     if (!moving) {
@@ -390,7 +410,7 @@ const SealAvatar = forwardRef(function SealAvatar(
       0.1,
     );
     root.current.rotation.x = THREE.MathUtils.lerp(root.current.rotation.x, depthVelocity * 0.18 + speed * 0.04, 0.1);
-    root.current.scale.setScalar(0.92 + Math.sin(t * 1.8) * 0.01 + speed * 0.018);
+    root.current.scale.setScalar(0.72 + Math.sin(t * 1.8) * 0.006 + speed * 0.024);
 
     const distanceToIgloo = Math.hypot(root.current.position.x - iglooPosition[0], root.current.position.z - iglooPosition[2]);
     const guideState =
@@ -424,14 +444,14 @@ const SealAvatar = forwardRef(function SealAvatar(
       bearingRef.current.rotation.y = THREE.MathUtils.lerp(bearingRef.current.rotation.y, bearingAngle - root.current.rotation.y, 0.18);
       bearingRef.current.rotation.z = Math.sin(t * 0.7) * 0.08;
       if (bearingRayRef.current) {
-        bearingRayRef.current.position.x = 0.22 + bearingDistance * 0.08;
-        bearingRayRef.current.scale.y = 0.28 + bearingDistance * 0.12;
+        bearingRayRef.current.position.x = 0.25 + bearingDistance * 0.1;
+        bearingRayRef.current.scale.y = 0.36 + bearingDistance * 0.16;
       }
     }
   });
 
   const speed = Math.min(1, Math.hypot(axisVelocity, depthVelocity));
-  const initialDistanceToIgloo = Math.hypot(axisX + 1.72 - iglooPosition[0], depthZ + 1.12 - iglooPosition[2]);
+  const initialDistanceToIgloo = Math.hypot(axisX + SEAL_GUIDE_OFFSET.x - iglooPosition[0], depthZ + SEAL_GUIDE_OFFSET.z - iglooPosition[2]);
   const guideState =
     initialDistanceToIgloo < 2.9 && speed > 0.18 ? "docking" : speed > 0.04 ? "piloting" : activeArtifact ? "station-bearing" : "parked";
 
@@ -439,12 +459,12 @@ const SealAvatar = forwardRef(function SealAvatar(
     <group
       ref={root}
       name={`SealAvatar ${SEAL_COLLISION_BRIDGE}`}
-      position={[axisX + 1.72, 0.45, depthZ + 1.12]}
+      position={[axisX + SEAL_GUIDE_OFFSET.x, 0.45, depthZ + SEAL_GUIDE_OFFSET.z]}
       renderOrder={9}
       userData={{ className: "seal-avatar", guideState }}
     >
       <SealBody accent={accent} guideState={guideState} material={material} />
-      <pointLight color={accent} distance={6} intensity={moving ? 3.4 : 2.35} position={[0, 0.45, 0]} />
+      <pointLight color={accent} distance={3.8} intensity={moving ? 1.35 : 0.55} position={[0, 0.45, 0]} />
       <group ref={beaconRef} name={`seal-guide-beacon ${SEAL_GUIDE_BEACON_PROFILE} ${activeArtifact?.shortLabel || "station"}`} position={[0.58, 0.74, 0]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.18, 0.005, 6, 64]} />

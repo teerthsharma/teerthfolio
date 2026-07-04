@@ -5,6 +5,7 @@ import AntarcticSplashShader from "./AntarcticSplashShader";
 
 export const SPLASH_GATE_PROFILE = "premium object poster for the igloo render gate with WebGL Antarctic shader";
 export const RENDER_PERMISSION_PROFILE = "Start exploring requests fullscreen, wake lock, and WebGL capability inside the user gesture";
+export const OPEN_WORLD_GATE_PROFILE = "best-of-two gate: fullscreen world stream first, horizontal evidence index remains reachable";
 
 function probeWebglCapability() {
   const canvas = document.createElement("canvas");
@@ -54,14 +55,14 @@ export default function SdfSealSplash({
   }, []);
   const rows = useMemo(
     () => [
-      safeMode ? "safe boot mounted" : "Dome PBR shell staged",
-      "Composite SDF mascot parked",
-      "topology profile rail idle",
+      safeMode ? "safe boot mounted" : "fullscreen field staged",
+      "Composite SDF station loop armed",
+      "horizontal evidence index reserved",
       safeMode ? "GPU probe waiting for Start exploring" : "WebGL renderer waiting",
     ],
     [safeMode],
   );
-  const visibleDiagnostics = diagnosticEvents.slice(0, 3);
+  const visibleDiagnostics = diagnosticEvents.filter((event) => event.type !== "safe-boot").slice(0, 3);
 
   useEffect(() => {
     let raf = 0;
@@ -124,8 +125,8 @@ export default function SdfSealSplash({
         <span>render gate / {stationName}</span>
         <h2>Seal's Topology Land</h2>
         <p>
-          The ice home base is staged without the heavy renderer. Start exploring to allocate the
-          field, then press WASD to release the seal across the horizontal topology plane.
+          The ice home base opens as a fullscreen field stream. Start exploring to allocate the
+          world, then dock the seal at stations while the evidence index stays reachable.
         </p>
       </div>
 

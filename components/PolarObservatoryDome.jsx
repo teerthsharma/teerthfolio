@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 export const DOME_RIB_COUNT = 32;
-export const DOME_PANEL_ROWS = 7;
+export const DOME_PANEL_ROWS = 8;
 export const BLENDKIT_REFERENCE_ASSET_BASE_ID = "d8b9892d-0f4b-493f-8f69-e072d3353b24";
 export const WHITE_QUILTED_FABRIC_PBR = {
   map: "/assets/pbr/igloo/white-quilted-fabric-bl/white-quilted-fabric_albedo.png",
@@ -27,8 +27,10 @@ const SQUARE_EDGE_TEXTURE_SIZE = 96;
 const SCIENCE_DOME_REFERENCE = "Antarctic geodesic science radome with observatory airlock";
 export const DOME_COLLISION_MODE = "intact by default; collapse only on deliberate seal impact";
 export const DOME_INTACT_SHELL_PROFILE = "continuous luminous ice shell under tiled PBR bricks";
-export const DOME_TILE_GEOMETRY_PROFILE = "warped pillow ice brick tiles with tucked corners and varied frost UVs";
-const DOME_TILE_COLUMNS_BY_ROW = [4, 6, 8, 10, 12, 14, 16];
+export const DOME_TILE_GEOMETRY_PROFILE = "procedural crystal-growth ice brick tiles with tucked corners, facet chips, and varied frost UVs";
+export const DOME_CRYSTAL_GROWTH_PROFILE = "browser-native procedural crystal-growth ice blocks; no igloo.inc geometry, texture, or shader assets";
+export const DOME_BRICK_SHADER_PROFILE = "shader-injected frost veins, edge scatter, and cold chromatic ice response";
+const DOME_TILE_COLUMNS_BY_ROW = [6, 8, 10, 12, 14, 16, 18, 20];
 
 function domePoint(angle, theta, lift = 0) {
   const sinTheta = Math.sin(theta);
@@ -274,18 +276,85 @@ function ProceduralFrostMaterial({
   );
 }
 
-function DomeBrickFaceMaterial({ accent, color = "#dcecea", sourceMaps, squareMaps }) {
+function DomeBrickFaceMaterial({ accent, color = "#e8f7f4", sourceMaps, squareMaps }) {
   const normalScale = useMemo(() => new THREE.Vector2(0.08, 0.12), []);
+  const customProgramCacheKey = useMemo(() => () => DOME_BRICK_SHADER_PROFILE, []);
+  const onBeforeCompile = useMemo(
+    () => (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          "#include <common>",
+          `#include <common>
+varying vec2 vDomeIceUv;
+varying vec3 vDomeIceNormal;`,
+        )
+        .replace(
+          "#include <uv_vertex>",
+          `#include <uv_vertex>
+vDomeIceUv = uv;`,
+        )
+        .replace(
+          "#include <beginnormal_vertex>",
+          `#include <beginnormal_vertex>
+vDomeIceNormal = objectNormal;`,
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          "#include <common>",
+          `#include <common>
+varying vec2 vDomeIceUv;
+varying vec3 vDomeIceNormal;
+float domeIceHash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float domeIceNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = domeIceHash(i);
+  float b = domeIceHash(i + vec2(1.0, 0.0));
+  float c = domeIceHash(i + vec2(0.0, 1.0));
+  float d = domeIceHash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}`,
+        )
+        .replace(
+          "#include <map_fragment>",
+          `#include <map_fragment>
+float domeEdge = min(min(vDomeIceUv.x, 1.0 - vDomeIceUv.x), min(vDomeIceUv.y, 1.0 - vDomeIceUv.y));
+float domeRimScatter = 1.0 - smoothstep(0.0, 0.24, domeEdge);
+float domeGrowth = domeIceNoise(vDomeIceUv * vec2(6.5, 5.2));
+float domeVeinA = abs(fract(vDomeIceUv.x * 5.6 + vDomeIceUv.y * 2.1 + domeGrowth * 0.42) - 0.5);
+float domeVeinB = abs(fract(vDomeIceUv.y * 6.2 - vDomeIceUv.x * 1.7 + domeGrowth * 0.38) - 0.5);
+float domeVeins = (1.0 - smoothstep(0.018, 0.052, min(domeVeinA, domeVeinB))) * 0.72;
+float domeFacet = smoothstep(0.34, 0.92, domeGrowth);
+diffuseColor.rgb *= mix(vec3(0.72, 0.86, 0.88), vec3(1.2, 1.28, 1.22), domeFacet * 0.36);
+diffuseColor.rgb += vec3(0.11, 0.21, 0.22) * domeVeins;
+diffuseColor.rgb += vec3(0.16, 0.27, 0.28) * domeRimScatter;
+diffuseColor.r += domeRimScatter * 0.025;
+diffuseColor.b += domeVeins * 0.045;`,
+        )
+        .replace(
+          "#include <emissivemap_fragment>",
+          `#include <emissivemap_fragment>
+totalEmissiveRadiance += vec3(0.018, 0.06, 0.066) * (domeVeins + domeRimScatter * 0.84);`,
+        );
+    },
+    [],
+  );
 
   return (
     <meshStandardMaterial
       aoMap={sourceMaps.aoMap}
       color={color}
+      customProgramCacheKey={customProgramCacheKey}
       depthWrite
       displacementMap={sourceMaps.displacementMap}
       displacementScale={0.004}
       emissive={accent}
-      emissiveIntensity={0.012}
+      emissiveIntensity={0.01}
       map={squareMaps.map}
       metalness={0.0}
       metalnessMap={sourceMaps.metalnessMap}
@@ -294,14 +363,15 @@ function DomeBrickFaceMaterial({ accent, color = "#dcecea", sourceMaps, squareMa
       polygonOffset
       polygonOffsetFactor={-1}
       polygonOffsetUnits={-1}
-      roughness={0.78}
+      onBeforeCompile={onBeforeCompile}
+      roughness={0.72}
       roughnessMap={squareMaps.roughnessMap}
       side={THREE.DoubleSide}
     />
   );
 }
 
-function DomeBrickSideMaterial({ accent, color = "#8fa4ad", edgeMaps }) {
+function DomeBrickSideMaterial({ accent, color = "#728a92", edgeMaps }) {
   const normalScale = useMemo(() => new THREE.Vector2(0.18, 0.18), []);
 
   return (
@@ -309,12 +379,12 @@ function DomeBrickSideMaterial({ accent, color = "#8fa4ad", edgeMaps }) {
       color={color}
       depthWrite
       emissive={accent}
-      emissiveIntensity={0.01}
+      emissiveIntensity={0.004}
       map={edgeMaps.map}
       metalness={0.0}
       normalMap={edgeMaps.normalMap}
       normalScale={normalScale}
-      roughness={0.86}
+      roughness={0.9}
       roughnessMap={edgeMaps.roughnessMap}
     />
   );
@@ -349,8 +419,8 @@ function useDomeBrickTextureBundle() {
 
 function CurvedDomeTileGeometry({ panel }) {
   const geometry = useMemo(() => {
-    const uSegments = 5;
-    const vSegments = 4;
+    const uSegments = 7;
+    const vSegments = 5;
     const center = vectorFromArray(panel.position);
     const positions = [];
     const uvs = [];
@@ -369,7 +439,15 @@ function CurvedDomeTileGeometry({ panel }) {
           Math.sin((uRatio + panel.seed) * Math.PI * 2.0) *
           Math.cos((vRatio - panel.seed * 0.13) * Math.PI * 2.0) *
           0.006;
-        const lift = panel.lift + edgeFalloff * panel.puff + frostWarp - cornerTuck * panel.puff * 0.42;
+        const crystalFacet =
+          Math.sin((uRatio * 6.0 + panel.seed * 0.7) * Math.PI) *
+          Math.sin((vRatio * 5.0 - panel.seed * 0.31) * Math.PI) *
+          0.007;
+        const edgeChip =
+          Math.max(0, Math.sin((uRatio + panel.seed) * 22.0) * Math.cos((vRatio - panel.seed) * 17.0)) *
+          (1 - edgeFalloff) *
+          0.012;
+        const lift = panel.lift + edgeFalloff * panel.puff + frostWarp + crystalFacet - cornerTuck * panel.puff * 0.5 - edgeChip;
         const point = domeSurfacePoint(angle, theta, lift);
         point.sub(center);
         positions.push(point.x, point.y, point.z);
@@ -523,11 +601,11 @@ function DomeTile({ accent, brickMaps, impact, panel }) {
 
   return (
     <group ref={ref} name="curved-thick-dome-brick" userData={{ className: "curved-thick-dome-brick ice-block" }}>
-      <mesh>
+      <mesh castShadow receiveShadow>
         <DomeBrickSideGeometry panel={panel} />
         <DomeBrickSideMaterial accent={accent} color={panel.sideTint} edgeMaps={brickMaps.edgeMaps} />
       </mesh>
-      <mesh>
+      <mesh castShadow receiveShadow>
         <CurvedDomeTileGeometry panel={panel} />
         <DomeBrickFaceMaterial
           accent={accent}
@@ -563,28 +641,33 @@ function IcePlinth({ accent }) {
 
   return (
     <group name="PolarDomeIcePlinth">
-      <mesh position={[0, -0.02, 0]} scale={[2.84, 0.12, 1.72]}>
+      <mesh position={[0.05, -0.055, 0.04]} scale={[2.82, 0.012, 1.58]}>
+        <cylinderGeometry args={[1, 1, 1, 96]} />
+        <meshBasicMaterial color="#010304" transparent opacity={0.58} />
+      </mesh>
+      <mesh castShadow receiveShadow position={[0, -0.02, 0]} scale={[2.54, 0.1, 1.5]}>
         <cylinderGeometry args={[1, 1, 1, 96]} />
         <meshStandardMaterial
-          color="#b8ccd4"
+          color="#586f76"
           emissive={SHADOW_COLOR}
-          emissiveIntensity={0.3}
+          emissiveIntensity={0.08}
           metalness={0.08}
           roughness={0.82}
           transparent
-          opacity={0.9}
+          opacity={0.66}
         />
       </mesh>
       <mesh position={[0, 0.07, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1.32, 0.82, 1]}>
         <torusGeometry args={[1.74, 0.018, 10, 160]} />
-        <meshBasicMaterial color={accent} transparent opacity={0.22} />
+        <meshBasicMaterial color={accent} transparent opacity={0.09} />
       </mesh>
       <mesh position={[0, 0.1, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1.22, 0.76, 1]}>
         <torusGeometry args={[1.25, 0.006, 8, 144]} />
-        <meshBasicMaterial color={BASE_COLOR} transparent opacity={0.1} />
+        <meshBasicMaterial color={BASE_COLOR} transparent opacity={0.045} />
       </mesh>
       {shards.map((shard) => (
         <mesh
+          castShadow
           key={shard.key}
           position={shard.position}
           rotation={shard.rotation}
@@ -592,12 +675,12 @@ function IcePlinth({ accent }) {
         >
           <coneGeometry args={[1, 1, 5]} />
           <meshStandardMaterial
-            color={shard.key.endsWith("0") ? BASE_COLOR : "#8da5ad"}
+            color={shard.key.endsWith("0") ? "#adc0c3" : "#6f858b"}
             emissive={accent}
-            emissiveIntensity={0.08}
+            emissiveIntensity={0.015}
             roughness={0.74}
             transparent
-          opacity={0.84}
+            opacity={0.42}
           />
         </mesh>
       ))}
@@ -618,7 +701,7 @@ function DomeIceShell({ accent, brickMaps, impact, quality }) {
       const theta = thetaTop + (thetaSpan / DOME_PANEL_ROWS) * row;
       rings.push({
         key: `frost-ring-${row}`,
-        opacity: 0.06 + row * 0.014,
+        opacity: 0.025 + row * 0.006,
         position: [0, DOME_CENTER_Y + Math.cos(theta) * DOME_RADIUS.y, 0],
         radius: Math.sin(theta),
       });
@@ -632,7 +715,7 @@ function DomeIceShell({ accent, brickMaps, impact, quality }) {
         ribs.push({
           end: domePoint(angle, thetaB, 0.012),
           key: `dome-rib-${rib}-${row}`,
-          opacity: rib % 4 === 0 ? 0.32 : 0.075,
+          opacity: rib % 4 === 0 ? 0.18 : 0.04,
           radius: rib % 4 === 0 ? 0.008 : 0.0035,
           start: domePoint(angle, thetaA, 0.012),
         });
@@ -641,14 +724,13 @@ function DomeIceShell({ accent, brickMaps, impact, quality }) {
 
     for (let row = 0; row < DOME_PANEL_ROWS; row += 1) {
       const columns = DOME_TILE_COLUMNS_BY_ROW[row] || DOME_TILE_COLUMNS_BY_ROW.at(-1);
-      const rowBand = thetaSpan / (DOME_PANEL_ROWS + 0.18);
+      const rowBand = thetaSpan / (DOME_PANEL_ROWS + 0.22);
       const theta = thetaTop + rowBand * (row + 0.82);
       const columnStep = (Math.PI * 2) / columns;
-      const angleSpan = columnStep * (row < 2 ? 0.72 : 0.66);
-      const thetaTileSpan = rowBand * (row < 2 ? 0.6 : 0.64);
+      const angleSpan = columnStep * (row < 2 ? 0.78 : row > 5 ? 0.64 : 0.7);
+      const thetaTileSpan = rowBand * (row < 2 ? 0.66 : row > 5 ? 0.7 : 0.68);
       const stagger = row % 2 === 0 ? 0.5 : 0;
       for (let column = 0; column < columns; column += 1) {
-        if ((column + row * 2) % 13 === 0 && row > 4) continue;
         const angle = (column + stagger) * columnStep;
         const rib = Math.round((angle / (Math.PI * 2)) * DOME_RIB_COUNT);
         panels.push({
@@ -656,21 +738,28 @@ function DomeIceShell({ accent, brickMaps, impact, quality }) {
           angle,
           angleSpan,
           key: `frost-panel-${row}-${column}`,
-          lift: 0.052,
-          position: domeSurfacePoint(angle, theta, 0.052).toArray(),
-          puff: 0.012 + row * 0.002,
+          lift: 0.058 + ((column + row) % 3) * 0.003,
+          position: domeSurfacePoint(angle, theta, 0.058).toArray(),
+          puff: 0.018 + row * 0.0022,
           rib,
           row,
           seed: row * 1.91 + column * 0.37,
-          sideTint: (column + row) % 5 === 0 ? "#708890" : "#5c747c",
+          sideTint: row > 5 ? ((column + row) % 5 === 0 ? "#617980" : "#465d64") : (column + row) % 5 === 0 ? "#728a92" : "#566e76",
           theta,
           thetaSpan: thetaTileSpan,
-          thickness: 0.16 + row * 0.01,
+          thickness: 0.18 + row * 0.012,
           tile: {
             offset: [((column * 17 + row * 5) % 37) / 37, ((row * 11 + column * 3) % 29) / 29],
             repeat: [0.82 + (column % 3) * 0.045, 0.84 + (row % 3) * 0.04],
           },
-          tint: (column + row) % 5 === 0 ? "#effffb" : "#c5d8dc",
+          tint:
+            row < 2
+              ? ((column + row) % 5 === 0 ? "#eef7f3" : "#c8dad8")
+              : row > 5
+                ? ((column + row) % 5 === 0 ? "#c4d9de" : "#91adb6")
+                : (column + row) % 5 === 0
+                  ? "#e0eeee"
+                  : "#b7cdd2",
         });
       }
     }
@@ -686,15 +775,15 @@ function DomeIceShell({ accent, brickMaps, impact, quality }) {
 
   return (
     <group name="DomeIceShell">
-      <mesh position={[0, DOME_CENTER_Y, 0]} scale={[DOME_RADIUS.x, DOME_RADIUS.y, DOME_RADIUS.z]}>
+      <mesh castShadow receiveShadow position={[0, DOME_CENTER_Y, 0]} scale={[DOME_RADIUS.x, DOME_RADIUS.y, DOME_RADIUS.z]}>
         <sphereGeometry args={[1, 56, 18, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
         <meshStandardMaterial
-          color="#c7dcde"
+          color="#a9c1c6"
           emissive={accent}
-          emissiveIntensity={0.045}
+          emissiveIntensity={0.026}
           metalness={0.0}
           opacity={0.38}
-          roughness={0.72}
+          roughness={0.84}
           side={THREE.DoubleSide}
           transparent
         />
@@ -707,7 +796,7 @@ function DomeIceShell({ accent, brickMaps, impact, quality }) {
           scale={[DOME_RADIUS.x * ring.radius, DOME_RADIUS.z * ring.radius, 1]}
         >
           <torusGeometry args={[1, 0.008, 8, 132]} />
-          <meshBasicMaterial color={BASE_COLOR} transparent opacity={ring.opacity + 0.08} />
+          <meshBasicMaterial color={BASE_COLOR} transparent opacity={ring.opacity + 0.018} />
         </mesh>
       ))}
 
@@ -805,19 +894,19 @@ function ScienceAirlockTunnel({ accent, brickMaps, impact }) {
 
   return (
     <group name="ScienceAirlockTunnel antarctic science dome airlock" rotation={[0, -0.12, 0]}>
-      <mesh ref={tunnel} position={[1.34, 0.16, 1.18]}>
+      <mesh castShadow receiveShadow ref={tunnel} position={[1.34, 0.16, 1.18]}>
         <AirlockTunnelGeometry />
         <DomeBrickFaceMaterial
           accent={accent}
-          color="#b8ccd4"
+          color="#9fb6bd"
           opacity={0.96}
           sourceMaps={brickMaps.sourceMaps}
           squareMaps={brickMaps.squareMaps}
         />
       </mesh>
-      <mesh position={[1.34, 0.18, 1.58]} scale={[0.74, 0.06, 0.18]}>
+      <mesh castShadow receiveShadow position={[1.34, 0.18, 1.58]} scale={[0.74, 0.06, 0.18]}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#6d8088" roughness={0.86} metalness={0.03} transparent opacity={0.86} />
+        <meshStandardMaterial color="#566a71" roughness={0.9} metalness={0.02} transparent opacity={0.82} />
       </mesh>
       <mesh position={[1.34, 0.31, 1.56]} scale={[0.34, 0.24, 0.025]}>
         <boxGeometry args={[1, 1, 1]} />
@@ -825,9 +914,9 @@ function ScienceAirlockTunnel({ accent, brickMaps, impact }) {
       </mesh>
       <mesh position={[1.34, 0.32, 1.54]} rotation={[Math.PI / 2, 0, 0]} scale={[0.42, 0.36, 1]}>
         <torusGeometry args={[1, 0.015, 8, 72, Math.PI]} />
-        <meshBasicMaterial color={BASE_COLOR} transparent opacity={0.46} />
+        <meshBasicMaterial color={BASE_COLOR} transparent opacity={0.32} />
       </mesh>
-      <pointLight color={BASE_COLOR} distance={2.8} intensity={0.52 + impact * 1.1} position={[1.34, 0.54, 1.14]} />
+      <pointLight color={BASE_COLOR} distance={2.4} intensity={0.28 + impact * 0.8} position={[1.34, 0.54, 1.14]} />
     </group>
   );
 }
@@ -841,7 +930,7 @@ function TopologySeamNetwork({ accent, quality }) {
       values.push({
         end: domePoint(angle + 0.34 + (index % 3) * 0.04, theta + 0.18, 0.035),
         key: `topology-seam-${index}`,
-        opacity: index % 4 === 0 ? 0.38 : 0.14,
+        opacity: index % 4 === 0 ? 0.26 : 0.08,
         start: domePoint(angle, theta, 0.04),
       });
     }
@@ -864,11 +953,11 @@ function TopologySeamNetwork({ accent, quality }) {
       ))}
       <mesh position={[0, 0.64, 0]} rotation={[1.15, 0.22, 0.64]} scale={[1.18, 0.58, 1]}>
         <torusGeometry args={[1.04, 0.006, 8, 144]} />
-        <meshBasicMaterial color="#dffdf7" transparent opacity={0.18} />
+        <meshBasicMaterial color="#dffdf7" transparent opacity={0.11} />
       </mesh>
       <mesh position={[0, 0.55, 0]} rotation={[1.84, -0.4, 0.18]} scale={[1.0, 0.5, 1]}>
         <torusGeometry args={[1.22, 0.005, 8, 144]} />
-        <meshBasicMaterial color={accent} transparent opacity={0.16} />
+        <meshBasicMaterial color={accent} transparent opacity={0.1} />
       </mesh>
     </group>
   );
@@ -890,20 +979,20 @@ function S2CoreAssembly({ accent }) {
         <meshStandardMaterial
           color={BASE_COLOR}
           emissive={accent}
-          emissiveIntensity={0.56}
+          emissiveIntensity={0.3}
           metalness={0.14}
           roughness={0.22}
           transparent
-          opacity={0.58}
+          opacity={0.34}
         />
       </mesh>
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.66, 0.006, 8, 96]} />
-        <meshBasicMaterial color={accent} transparent opacity={0.34} />
+        <meshBasicMaterial color={accent} transparent opacity={0.18} />
       </mesh>
       <mesh rotation={[0.85, 0.24, 0.4]}>
         <torusGeometry args={[0.78, 0.005, 8, 96]} />
-        <meshBasicMaterial color="#a996ff" transparent opacity={0.24} />
+        <meshBasicMaterial color="#a996ff" transparent opacity={0.12} />
       </mesh>
       <mesh scale={[0.18, 0.18, 0.18]}>
         <sphereGeometry args={[1, 24, 16]} />
@@ -941,7 +1030,7 @@ export default function PolarObservatoryDome({
       ref={rootRef}
       name={`igloo-polar-dome PolarObservatoryDome ${SCIENCE_DOME_REFERENCE}`}
       position={[homeX, 0.04, 0]}
-      scale={[0.82, 0.88, 0.82]}
+      scale={[0.86, 0.9, 0.86]}
       userData={{ className: "igloo-polar-dome igloo-dome" }}
     >
       <IcePlinth accent={accent} />
@@ -951,14 +1040,14 @@ export default function PolarObservatoryDome({
       <S2CoreAssembly accent={accent} />
       <mesh position={[0, 1.5, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[0.86, 0.54, 1]}>
         <torusGeometry args={[0.72, 0.008, 8, 120]} />
-        <meshBasicMaterial color={BASE_COLOR} transparent opacity={0.24} />
+        <meshBasicMaterial color={BASE_COLOR} transparent opacity={0.14} />
       </mesh>
-      <pointLight color={accent} distance={5.8} intensity={0.82} position={[0, 0.76, 0.4]} />
+      <pointLight color={accent} distance={5.2} intensity={0.38} position={[0, 0.76, 0.4]} />
       <spotLight
         angle={0.42}
         color={BASE_COLOR}
         distance={7}
-        intensity={quality === "low" ? 0.74 : 1.05}
+        intensity={quality === "low" ? 0.68 : 0.92}
         penumbra={0.82}
         position={[-1.4, 2.25, 1.2]}
       />
