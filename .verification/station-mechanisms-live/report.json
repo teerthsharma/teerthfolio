@@ -1,0 +1,296 @@
+{
+  "contactSheetPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\mechanism-world-contact-sheet.png",
+  "hudContactSheetPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\mechanism-hud-contact-sheet.png",
+  "report": [
+    {
+      "family": "northeast",
+      "id": "s2-kernel-core",
+      "label": "S2 Kernel Core",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\s2-kernel-core-hud.png",
+      "logs": [
+        {
+          "text": "[.WebGL-0x2a6c0486aa00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x2a6c0486aa00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x2a6c0486aa00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x2a6c0486aa00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+          "type": "warning"
+        }
+      ],
+      "metrics": {
+        "averageLuminance": 158.28997503472283,
+        "blackPixelRatio": 0.00034722222222222224,
+        "diagnostics": "",
+        "dockedStation": "s2-kernel-core",
+        "edgeEnergy": 8.146418866596237,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 210.0314,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "northeast",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "s2-kernel-core",
+          "textureBudget": "0"
+        },
+        "readoutStation": "s2-kernel-core",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\s2-kernel-core-world.png"
+    },
+    {
+      "family": "northeast",
+      "id": "manifold-reactor",
+      "label": "Manifold Reactor",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\manifold-reactor-hud.png",
+      "logs": [],
+      "metrics": {
+        "averageLuminance": 152.95645187499989,
+        "blackPixelRatio": 0.00034722222222222224,
+        "diagnostics": "",
+        "dockedStation": "manifold-reactor",
+        "edgeEnergy": 7.524872756071857,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 214.8516,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "northeast",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "manifold-reactor",
+          "textureBudget": "0"
+        },
+        "readoutStation": "manifold-reactor",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\manifold-reactor-world.png"
+    },
+    {
+      "family": "northeast",
+      "id": "field-chamber-coils",
+      "label": "Field Chamber Coils",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\field-chamber-coils-hud.png",
+      "logs": [],
+      "metrics": {
+        "averageLuminance": 169.27295125000072,
+        "blackPixelRatio": 0.00017361111111111112,
+        "diagnostics": "",
+        "dockedStation": "field-chamber-coils",
+        "edgeEnergy": 7.782453590285196,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 214.1478,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "northeast",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "field-chamber-coils",
+          "textureBudget": "0"
+        },
+        "readoutStation": "field-chamber-coils",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\field-chamber-coils-world.png"
+    },
+    {
+      "family": "northeast",
+      "id": "qpu-ice-bridge",
+      "label": "QPU Ice Bridge",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\qpu-ice-bridge-hud.png",
+      "logs": [],
+      "metrics": {
+        "averageLuminance": 171.33284302083425,
+        "blackPixelRatio": 0.00034722222222222224,
+        "diagnostics": "",
+        "dockedStation": "qpu-ice-bridge",
+        "edgeEnergy": 6.085440760295724,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 209.17179999999996,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "northeast",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "qpu-ice-bridge",
+          "textureBudget": "0"
+        },
+        "readoutStation": "qpu-ice-bridge",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\qpu-ice-bridge-world.png"
+    },
+    {
+      "family": "southwest",
+      "id": "upstream-radio-mast",
+      "label": "Upstream Radio Mast",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\upstream-radio-mast-hud.png",
+      "logs": [],
+      "metrics": {
+        "averageLuminance": 149.0343306597219,
+        "blackPixelRatio": 0,
+        "diagnostics": "",
+        "dockedStation": "upstream-radio-mast",
+        "edgeEnergy": 5.544649560014127,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 181.76819999999998,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "southwest",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "upstream-radio-mast",
+          "textureBudget": "0"
+        },
+        "readoutStation": "upstream-radio-mast",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\upstream-radio-mast-world.png"
+    },
+    {
+      "family": "southwest",
+      "id": "topology-archive-wall",
+      "label": "Topology Archive Wall",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\topology-archive-wall-hud.png",
+      "logs": [],
+      "metrics": {
+        "averageLuminance": 155.27953590277806,
+        "blackPixelRatio": 0.00017361111111111112,
+        "diagnostics": "",
+        "dockedStation": "topology-archive-wall",
+        "edgeEnergy": 6.197953713481109,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 215.219,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "southwest",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "topology-archive-wall",
+          "textureBudget": "0"
+        },
+        "readoutStation": "topology-archive-wall",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\topology-archive-wall-world.png"
+    },
+    {
+      "family": "southwest",
+      "id": "assembly-tool-locker",
+      "label": "Assembly Tool Locker",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\assembly-tool-locker-hud.png",
+      "logs": [],
+      "metrics": {
+        "averageLuminance": 156.06916350694496,
+        "blackPixelRatio": 0.00034722222222222224,
+        "diagnostics": "",
+        "dockedStation": "assembly-tool-locker",
+        "edgeEnergy": 6.665035902851098,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 217.99999999999997,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "southwest",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "assembly-tool-locker",
+          "textureBudget": "0"
+        },
+        "readoutStation": "assembly-tool-locker",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-live\\assembly-tool-locker-world.png"
+    }
+  ]
+}

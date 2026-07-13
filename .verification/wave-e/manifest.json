@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 2,
+  "spec": "docs/superpowers/specs/2026-07-12-wave-e-verification-spec.md",
+  "status": "draft-not-frozen",
+  "serverPolicy": "off-until-post-wave-f-execution",
+  "generatedAt": "2026-07-12T00:00:00+05:30",
+  "goal": "award-grade bright anime-soft polar object world with canonical traversal, authored high-poly-looking monuments, semantic particles, production safety, and evidence fallback",
+  "sourceState": {
+    "branch": "codex/open-world-loading-navigation",
+    "worktree": "dirty-shared-rescue",
+    "specHash": null,
+    "productionSha": null
+  },
+  "waves": {
+    "b": "source-complete-unverified",
+    "c": "source-complete-unverified",
+    "d": "active-unverified",
+    "e": "draft-audit-active",
+    "f": "compatibility-audit-active-unverified"
+  },
+  "freezeDependencies": {
+    "task11WaveC": {
+      "status": "source-report-present-runtime-unverified",
+      "evidence": ".superpowers/sdd/task-11-report.md"
+    },
+    "task12WaveD": {
+      "status": "pending-report",
+      "evidence": null
+    },
+    "task14WaveF": {
+      "status": "pending-report",
+      "evidence": null
+    },
+    "familyTelemetry": {
+      "status": "source-contract-present-runtime-unverified",
+      "evidence": "scripts/check-polar-station-mechanism-layer.mjs"
+    },
+    "performanceDriver": {
+      "status": "pending-command-and-evidence",
+      "evidence": null
+    },
+    "rawPostSwitch": {
+      "status": "pending-command-and-evidence",
+      "evidence": null
+    }
+  },
+  "requirements": {
+    "F-01": { "status": "pending", "evidence": [] },
+    "F-02": { "status": "pending", "evidence": [] },
+    "F-03": { "status": "pending", "evidence": [] },
+    "F-04": { "status": "pending", "evidence": [] },
+    "F-05": { "status": "pending", "evidence": [] },
+    "F-06": { "status": "pending", "evidence": [] },
+    "F-07": { "status": "pending", "evidence": [] },
+    "F-08": { "status": "pending", "evidence": [] },
+    "F-09": { "status": "pending", "evidence": [] },
+    "F-10": { "status": "pending", "evidence": [] },
+    "F-11": { "status": "pending", "evidence": [] },
+    "F-12": { "status": "pending", "evidence": [] },
+    "F-13": { "status": "pending", "evidence": [] },
+    "F-14": { "status": "pending", "evidence": [] },
+    "F-15": { "status": "pending", "evidence": [] },
+    "F-16": { "status": "pending", "evidence": [] },
+    "F-17": { "status": "pending", "evidence": [] },
+    "F-18": { "status": "pending", "evidence": [] },
+    "F-19": { "status": "pending", "evidence": [] },
+    "F-20": { "status": "pending", "evidence": [] },
+    "F-21": { "status": "pending", "evidence": [] },
+    "F-22": { "status": "pending", "evidence": [] },
+    "F-23": { "status": "pending", "evidence": [] },
+    "F-24": { "status": "pending", "evidence": [] },
+    "F-25": { "status": "pending", "evidence": [] },
+    "F-26": { "status": "pending", "evidence": [] },
+    "F-27": { "status": "pending", "evidence": [] },
+    "F-28": { "status": "pending", "evidence": [] },
+    "F-29": { "status": "pending", "evidence": [] },
+    "F-30": { "status": "pending", "evidence": [] }
+  },
+  "thresholds": {
+    "localWorld": {
+      "routeLeadMaxM": 7.5,
+      "stationPromisesMax": 2,
+      "topologyNodesMax": 2,
+      "topologyEdgesMax": 1,
+      "legacyVisibleSubjectsUnderMechanismLayer": 0
+    },
+    "sealMotion": {
+      "cruiseSpeedMinMps": 3,
+      "cruiseSpeedMaxMps": 4,
+      "ordinaryFrameStepMaxM": 0.12,
+      "teleportFrameStepMaxM": 0.45,
+      "settleOvershootWindowMaxS": 1.2
+    },
+    "guideHint": {
+      "idleIntervalS": 15,
+      "visibleDurationS": 3.8,
+      "requiresArrivedAndIdle": true,
+      "clearsOnMovementPortalOrOffscreen": true,
+      "coarsePointerUsesTapCopy": true,
+      "reducedMotionAnimation": false
+    },
+    "pixels": {
+      "localAccentFrameWashMaxRatio": 0.35,
+      "clippedSnowPixelMaxRatio": 0.01,
+      "unintendedNearBlackPixelMaxRatio": 0.005
+    },
+    "performance": {
+      "low": { "particlesMax": 96, "settledP95MsMax": 20, "travelP95MsMax": 25, "drawsMax": 72 },
+      "medium": { "particlesMax": 224, "settledP95MsMax": 25, "travelP95MsMax": 33, "drawsMax": 104 },
+      "high": { "particlesMax": 448, "settledP95MsMax": 33, "travelP95MsMax": 40, "drawsMax": 144 },
+      "soakMinutes": 10,
+      "postWarmupGrowthMaxRatio": 0.1
+    },
+    "mechanismFamilies": {
+      "northeast": {
+        "low": { "draws": 4, "programs": 2, "textures": 0 },
+        "medium": { "draws": 12, "programs": 3, "textures": 0 },
+        "high": { "draws": 12, "programs": 3, "textures": 0 }
+      },
+      "southwest": {
+        "low": { "draws": 4, "programs": 1, "textures": 0 },
+        "medium": { "draws": 9, "programs": 3, "textures": 0 },
+        "high": { "draws": 9, "programs": 3, "textures": 0 }
+      }
+    }
+  },
+  "requiredStations": [
+    "observatory-plaque",
+    "s2-kernel-core",
+    "manifold-reactor",
+    "field-chamber-coils",
+    "qpu-ice-bridge",
+    "upstream-radio-mast",
+    "topology-archive-wall",
+    "assembly-tool-locker"
+  ],
+  "stationVisualAudit": {
+    "observatory-plaque": { "status": "pending-independent-capture", "sourceOwner": "PolarObservatoryDome" },
+    "s2-kernel-core": { "status": "pending-independent-capture", "sourceOwner": "PolarStationMechanismLayer" },
+    "manifold-reactor": { "status": "pending-independent-capture", "sourceOwner": "PolarStationMechanismLayer" },
+    "field-chamber-coils": { "status": "pending-independent-capture", "sourceOwner": "PolarStationMechanismLayer" },
+    "qpu-ice-bridge": { "status": "pending-independent-capture", "sourceOwner": "PolarStationMechanismLayer" },
+    "upstream-radio-mast": { "status": "pending-independent-capture", "sourceOwner": "PolarStationMechanismLayer" },
+    "topology-archive-wall": { "status": "pending-independent-capture", "sourceOwner": "PolarStationMechanismLayer" },
+    "assembly-tool-locker": { "status": "pending-independent-capture", "sourceOwner": "PolarStationMechanismLayer" }
+  },
+  "commandPlan": {
+    "static": [
+      "node scripts/check-teerth.mjs",
+      "node scripts/check-render-budget.mjs",
+      "node scripts/check-polar-gate.mjs",
+      "node scripts/check-polar-rescue.mjs",
+      "node scripts/check-hud-accessibility.mjs",
+      "node scripts/check-station-world-schema.mjs",
+      "node scripts/check-station-world-integration.mjs",
+      "node scripts/check-polar-traversal.mjs",
+      "node scripts/check-polar-camera-composition.mjs",
+      "node scripts/check-world-cadence.mjs",
+      "node scripts/check-seal-manifold.mjs",
+      "node scripts/check-polar-travel-debris.mjs",
+      "node scripts/check-polar-biome-world.mjs",
+      "node scripts/check-polar-station-mechanisms-ne.mjs",
+      "node scripts/check-polar-station-mechanisms-sw.mjs",
+      "node scripts/check-polar-station-mechanism-layer.mjs",
+      "node scripts/check-station-shader-family.mjs",
+      "node scripts/check-polar-dome-lattice.mjs",
+      "node scripts/check-dome-crystal-material.mjs",
+      "node scripts/check-dome-performance.mjs",
+      "node scripts/check-gpu-lifecycle.mjs",
+      "node scripts/check-polar-semantic-particles.mjs",
+      "node scripts/check-igloo-reference-effects.mjs",
+      "node scripts/verify-github-live-fallback.mjs",
+      "npm run lint",
+      "npm run build"
+    ],
+    "browser": [
+      "node scripts/verify-cinematic-render.mjs",
+      "node scripts/verify-hud-accessibility.mjs",
+      "node scripts/verify-polar-biome-shader-compile.mjs",
+      "node scripts/verify-polar-biome-visuals.mjs",
+      "node scripts/check-polar-color-continuity.mjs",
+      "VERIFY_QUALITY=low VERIFY_OUTPUT_DIR=wave-e/mechanisms-low node scripts/verify-polar-station-mechanisms.mjs",
+      "VERIFY_QUALITY=medium VERIFY_OUTPUT_DIR=wave-e/mechanisms-medium node scripts/verify-polar-station-mechanisms.mjs",
+      "VERIFY_QUALITY=high VERIFY_OUTPUT_DIR=wave-e/mechanisms-high node scripts/verify-polar-station-mechanisms.mjs",
+      "node scripts/verify-polar-travel-debris.mjs",
+      "node scripts/verify-dome-crystal-live.mjs",
+      "node scripts/probe-dome-draw-calls.mjs",
+      "node scripts/verify-portal-gpu-suspension.mjs",
+      "node scripts/verify-polar-semantic-particles.mjs"
+    ],
+    "pendingFreezeInsertion": [
+      "raw/post deterministic A/B capture command",
+      "ten-minute navigation/resource/offscreen soak command"
+    ]
+  },
+  "expectedArtifacts": {
+    "staticLogs": ".verification/wave-e/logs/static/",
+    "buildLogs": ".verification/wave-e/logs/build/",
+    "runtimeLogs": ".verification/wave-e/logs/runtime/",
+    "gateCaptures": ".verification/wave-e/gate/",
+    "stationCaptures": ".verification/wave-e/stations/",
+    "mechanismLow": ".verification/wave-e/mechanisms-low/",
+    "mechanismMedium": ".verification/wave-e/mechanisms-medium/",
+    "mechanismHigh": ".verification/wave-e/mechanisms-high/",
+    "motionTraces": ".verification/wave-e/motion/",
+    "performanceTraces": ".verification/wave-e/performance/",
+    "accessibilityTraces": ".verification/wave-e/accessibility/",
+    "liveDataTraces": ".verification/wave-e/live-data/",
+    "reviewVerdicts": ".verification/wave-e/reviews/"
+  },
+  "evidence": {
+    "staticContracts": [],
+    "buildLogs": [],
+    "runtimeLogs": [],
+    "captures": [],
+    "motionTraces": [],
+    "performanceTraces": [],
+    "accessibilityTraces": [],
+    "liveDataTraces": [],
+    "reviewVerdicts": [],
+    "debuggerVerdict": null
+  },
+  "publication": {
+    "allowed": false,
+    "reason": "Waves D-F and post-production proof are incomplete",
+    "commit": null,
+    "remoteBranch": null,
+    "checksUrl": null
+  }
+}

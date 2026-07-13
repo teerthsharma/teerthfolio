@@ -1,11 +1,17 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { POST_PROCESS_BUDGET } from "../lib/polar-art-direction";
+import { motionWarpFromVelocity } from "../lib/polar-world-cadence";
 
-export const GLOBAL_RETRO_POST_PROFILE =
-  "global post stack: toon quantization, chromatic AA, depth pixel fog, gaussian edge ink, scanline fisheye vignette";
+export const GLOBAL_ANIME_POST_PROFILE =
+  "anime-soft depth pixel fog: camera-motion fisheye, linear depth, bounded luma/depth edge confidence, chromatic edge AA, toon quantization, stable dither, indigo ink, static scanline, wide vignette, tiered paper contrast grade";
+export const GLOBAL_RETRO_POST_PROFILE = GLOBAL_ANIME_POST_PROFILE;
+export const POINTER_VISUAL_EFFECTS = "none";
+
+const qualityBudget = POST_PROCESS_BUDGET;
 
 const VERTEX_SHADER = `
 varying vec2 vUv;
@@ -23,102 +29,152 @@ uniform vec2 uResolution;
 uniform float uCameraNear;
 uniform float uCameraFar;
 uniform float uTime;
-uniform float uIntensity;
 uniform float uPixelSize;
+uniform float uFisheyeStrength;
+uniform float uMotionFisheye;
+uniform vec2 uMotionVector;
 uniform float uChromaticStrength;
+uniform float uInkStrength;
+uniform float uScanlineStrength;
+uniform float uQuantizeStrength;
+uniform float uGradeBase;
+uniform float uGradeCurve;
 
 varying vec2 vUv;
 
-float retroLuminance(vec3 color) {
+float animeLuminance(vec3 color) {
   return dot(color, vec3(0.2126, 0.7152, 0.0722));
 }
 
-float hash12(vec2 p) {
-  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-  p3 += dot(p3, p3.yzx + 33.33);
-  return fract((p3.x + p3.y) * p3.z);
+float interleavedGradientNoise(vec2 pixel, float seed) {
+  vec2 seededPixel = pixel + vec2(seed * 0.754877666, seed * 0.569840296);
+  return fract(52.9829189 * fract(dot(seededPixel, vec2(0.06711056, 0.00583715))));
 }
 
-float retroPerspectiveDepthToViewZ(float invClipZ, float near, float far) {
+float perspectiveDepthToViewZ(float invClipZ, float near, float far) {
   return (near * far) / ((far - near) * invClipZ - far);
 }
 
-float retroViewZToOrthographicDepth(float viewZ, float near, float far) {
+float viewZToOrthographicDepth(float viewZ, float near, float far) {
   return (viewZ + near) / (near - far);
 }
 
 float readLinearDepth(vec2 uv) {
   float fragCoordZ = texture2D(tDepth, clamp(uv, 0.001, 0.999)).x;
-  float viewZ = retroPerspectiveDepthToViewZ(fragCoordZ, uCameraNear, uCameraFar);
-  return clamp(retroViewZToOrthographicDepth(viewZ, uCameraNear, uCameraFar), 0.0, 1.0);
+  float viewZ = perspectiveDepthToViewZ(fragCoordZ, uCameraNear, uCameraFar);
+  return clamp(viewZToOrthographicDepth(viewZ, uCameraNear, uCameraFar), 0.0, 1.0);
 }
 
 vec2 fisheyeUv(vec2 uv) {
-  vec2 p = uv * 2.0 - 1.0;
-  float r2 = dot(p, p);
-  p *= 1.0 + 0.012 * r2;
-  return p * 0.5 + 0.5;
+  vec2 centered = uv * 2.0 - 1.0;
+  centered *= 1.0 + (uFisheyeStrength + uMotionFisheye) * dot(centered, centered);
+  return centered * 0.5 + 0.5 + uMotionVector;
 }
 
-float gaussianEdge(vec2 uv, vec2 texel) {
-  float c = retroLuminance(texture2D(tDiffuse, uv).rgb);
-  float blur = 0.0;
-  blur += retroLuminance(texture2D(tDiffuse, uv + texel * vec2(-1.0, -1.0)).rgb) * 0.0625;
-  blur += retroLuminance(texture2D(tDiffuse, uv + texel * vec2( 0.0, -1.0)).rgb) * 0.125;
-  blur += retroLuminance(texture2D(tDiffuse, uv + texel * vec2( 1.0, -1.0)).rgb) * 0.0625;
-  blur += retroLuminance(texture2D(tDiffuse, uv + texel * vec2(-1.0,  0.0)).rgb) * 0.125;
-  blur += c * 0.25;
-  blur += retroLuminance(texture2D(tDiffuse, uv + texel * vec2( 1.0,  0.0)).rgb) * 0.125;
-  blur += retroLuminance(texture2D(tDiffuse, uv + texel * vec2(-1.0,  1.0)).rgb) * 0.0625;
-  blur += retroLuminance(texture2D(tDiffuse, uv + texel * vec2( 0.0,  1.0)).rgb) * 0.125;
-  blur += retroLuminance(texture2D(tDiffuse, uv + texel * vec2( 1.0,  1.0)).rgb) * 0.0625;
-  return smoothstep(0.026, 0.12, abs(c - blur) * 2.45);
+float lumaEdgeConfidence(vec2 uv, vec2 texel) {
+  float center = animeLuminance(texture2D(tDiffuse, uv).rgb);
+  float left = animeLuminance(texture2D(tDiffuse, clamp(uv - vec2(texel.x, 0.0), 0.001, 0.999)).rgb);
+  float right = animeLuminance(texture2D(tDiffuse, clamp(uv + vec2(texel.x, 0.0), 0.001, 0.999)).rgb);
+  float down = animeLuminance(texture2D(tDiffuse, clamp(uv - vec2(0.0, texel.y), 0.001, 0.999)).rgb);
+  float up = animeLuminance(texture2D(tDiffuse, clamp(uv + vec2(0.0, texel.y), 0.001, 0.999)).rgb);
+  float contrast = max(abs(right - left), abs(up - down));
+  return smoothstep(0.018, 0.11, max(contrast, abs(center - (left + right + down + up) * 0.25)));
 }
 
-vec3 toonQuantize(vec3 color, float dither) {
-  float luma = max(0.001, retroLuminance(color));
-  float band = floor(luma * 6.0 + dither * 0.38) / 6.0;
-  vec3 banded = color * mix(1.0, band / luma, 0.24 * uIntensity);
-  vec3 quantized = floor(banded * 28.0 + dither * 0.48) / 28.0;
-  return mix(color, quantized, 0.38 * uIntensity);
+float depthEdgeConfidence(vec2 uv, vec2 texel) {
+  float center = readLinearDepth(uv);
+  float edge = 0.0;
+  edge = max(edge, abs(center - readLinearDepth(uv + vec2(texel.x, 0.0))));
+  edge = max(edge, abs(center - readLinearDepth(uv - vec2(texel.x, 0.0))));
+  edge = max(edge, abs(center - readLinearDepth(uv + vec2(0.0, texel.y))));
+  edge = max(edge, abs(center - readLinearDepth(uv - vec2(0.0, texel.y))));
+  return smoothstep(0.0015, 0.018, edge);
+}
+
+float gaussianEdgeConfidence(vec2 uv, vec2 texel) {
+  // Five-tap Gaussian approximation keeps the hand-drawn edge response
+  // stable while avoiding a second post-processing pass.
+  float center = animeLuminance(texture2D(tDiffuse, uv).rgb);
+  float cross = 0.0;
+  cross += animeLuminance(texture2D(tDiffuse, uv + vec2(texel.x, 0.0)).rgb);
+  cross += animeLuminance(texture2D(tDiffuse, uv - vec2(texel.x, 0.0)).rgb);
+  cross += animeLuminance(texture2D(tDiffuse, uv + vec2(0.0, texel.y)).rgb);
+  cross += animeLuminance(texture2D(tDiffuse, uv - vec2(0.0, texel.y)).rgb);
+  return smoothstep(0.012, 0.09, abs(center - cross * 0.25));
+}
+
+vec3 chromaticEdgeAA(vec2 uv, vec2 texel, float edgeConfidence, float outerScreenMask) {
+  vec2 fromCenter = uv - 0.5;
+  vec2 radial = fromCenter / max(length(fromCenter), 0.0001);
+  vec2 chromaOffset = radial * texel * uChromaticStrength * edgeConfidence * outerScreenMask;
+  vec3 center = texture2D(tDiffuse, uv).rgb;
+  vec3 chromatic = vec3(
+    texture2D(tDiffuse, clamp(uv + chromaOffset, 0.001, 0.999)).r,
+    center.g,
+    texture2D(tDiffuse, clamp(uv - chromaOffset, 0.001, 0.999)).b
+  );
+  vec3 neighborAverage = (
+    texture2D(tDiffuse, clamp(uv + vec2(texel.x, 0.0), 0.001, 0.999)).rgb +
+    texture2D(tDiffuse, clamp(uv - vec2(texel.x, 0.0), 0.001, 0.999)).rgb +
+    texture2D(tDiffuse, clamp(uv + vec2(0.0, texel.y), 0.001, 0.999)).rgb +
+    texture2D(tDiffuse, clamp(uv - vec2(0.0, texel.y), 0.001, 0.999)).rgb
+  ) * 0.25;
+  float neighborAABlend = min(edgeConfidence * 0.18, 0.18);
+  return mix(chromatic, neighborAverage, neighborAABlend);
+}
+
+vec3 toonQuantize(vec3 color) {
+  float luma = max(animeLuminance(color), 0.001);
+  float luminanceBand = floor(clamp(luma, 0.0, 0.9999) * 10.0) / 10.0;
+  vec3 banded = clamp(color * (luminanceBand / luma), 0.0, 1.0);
+  vec3 channelQuantized = floor(banded * 24.0 + 0.5) / 24.0;
+  return mix(color, channelQuantized, uQuantizeStrength);
 }
 
 void main() {
   vec2 texel = 1.0 / max(uResolution, vec2(1.0));
-  vec2 uv = fisheyeUv(vUv);
-  vec2 clampedUv = clamp(uv, 0.001, 0.999);
-  float depth = readLinearDepth(clampedUv);
-  float farMask = smoothstep(0.38, 0.96, depth);
-  float pixelStep = mix(1.0, uPixelSize, farMask * 0.28 * uIntensity);
-  vec2 pixelUv = (floor(clampedUv * uResolution / pixelStep) + 0.5) * pixelStep / uResolution;
-  vec2 sampleUv = mix(clampedUv, pixelUv, farMask * 0.32 * uIntensity);
 
-  float edge = gaussianEdge(sampleUv, texel);
-  vec2 fromCenter = sampleUv - 0.5;
-  vec2 chromaOffset = normalize(fromCenter + vec2(0.0001)) * texel * (0.54 + farMask * 0.82 + edge * 0.58) * uChromaticStrength;
-  vec3 color;
-  color.r = texture2D(tDiffuse, clamp(sampleUv + chromaOffset, 0.001, 0.999)).r;
-  color.g = texture2D(tDiffuse, sampleUv).g;
-  color.b = texture2D(tDiffuse, clamp(sampleUv - chromaOffset, 0.001, 0.999)).b;
+  // 1. Bounded camera-motion fisheye precedes scene sampling; pointer input never changes pixels.
+  vec2 warpedUv = fisheyeUv(vUv);
+  vec2 clampedUv = clamp(warpedUv, 0.001, 0.999);
 
-  float dither = hash12(gl_FragCoord.xy + floor(uTime * 12.0)) - 0.5;
-  color = toonQuantize(color + dither * 0.0045 * uIntensity, dither);
+  // 2-3. Linear depth drives a subtle, capped pixel-fog sample shift after 54% depth.
+  float linearDepth = readLinearDepth(clampedUv);
+  float depthFogMask = smoothstep(0.54, 0.96, linearDepth);
+  float pixelSize = max(1.0, uPixelSize);
+  vec2 pixelUv = (floor(clampedUv * uResolution / pixelSize) + 0.5) * pixelSize / uResolution;
+  vec2 sampleUv = mix(clampedUv, clamp(pixelUv, 0.001, 0.999), depthFogMask * 0.10);
 
-  vec3 coldFog = vec3(0.62, 0.9, 0.96);
-  color = mix(color, coldFog, farMask * 0.055 * uIntensity);
+  // 4. Four cardinal luma taps and four depth taps share one bounded line-confidence field.
+  float lumaEdge = lumaEdgeConfidence(sampleUv, texel);
+  float depthEdge = depthEdgeConfidence(sampleUv, texel);
+  float gaussianEdge = gaussianEdgeConfidence(sampleUv, texel);
+  float edgeConfidence = clamp(max(max(lumaEdge, gaussianEdge), depthEdge * 1.15), 0.0, 1.0);
 
-  vec3 ink = vec3(0.018, 0.03, 0.055);
-  color = mix(color, ink, edge * 0.16 * uIntensity);
+  // 5. RGB offsets only exist on confident outer-screen edges; neighbor AA is capped at 18%.
+  vec2 normalizedScreen = vUv * 2.0 - 1.0;
+  float outerScreenMask = smoothstep(0.18, 1.12, dot(normalizedScreen, normalizedScreen));
+  vec3 color = chromaticEdgeAA(sampleUv, texel, edgeConfidence, outerScreenMask);
+  color = mix(color, vec3(0.7216, 0.8863, 0.8745), depthFogMask * 0.08);
 
-  float scan = 0.5 + 0.5 * sin(gl_FragCoord.y * 3.14159265);
-  color *= 1.0 - scan * 0.017 * uIntensity;
+  // 6-7. Ten luminance bands, 24 channel levels, then stable 0.0025 dither.
+  color = toonQuantize(color);
+  float temporalSeed = floor(uTime * 6.0);
+  float dither = interleavedGradientNoise(gl_FragCoord.xy, temporalSeed) - 0.5;
+  color += vec3(dither * 0.0025);
 
-  vec2 p = vUv * 2.0 - 1.0;
-  float vignette = smoothstep(0.44, 1.34, dot(p, p));
-  color *= 1.0 - vignette * 0.055 * uIntensity;
-  color += vec3(0.035, 0.075, 0.09) * (1.0 - vignette) * 0.1 * uIntensity;
+  // 8-10. Indigo ink, static scanlines, and an 8% maximum wide vignette finish the pass.
+  vec3 animeInk = vec3(0.2, 0.2510, 0.4314);
+  color = mix(color, animeInk, edgeConfidence * uInkStrength);
+  float scanline = 0.5 + 0.5 * sin(gl_FragCoord.y * 3.14159265);
+  color *= 1.0 - scanline * uScanlineStrength;
+  float vignette = smoothstep(0.50, 1.45, dot(normalizedScreen, normalizedScreen));
+  color = mix(color, animeInk, vignette * 0.08);
 
-  gl_FragColor = vec4(color, 1.0);
+  // 11. A tiered paper-grade curve restores ink structure; medium/high retain brighter snow.
+  color *= (uGradeBase + uGradeCurve * color);
+
+  gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
 `;
 
@@ -136,8 +192,15 @@ function makeRenderTarget(width = 1, height = 1) {
   return target;
 }
 
-export default function RetroCinematicPostProcess({ quality = "medium", reducedMotion = false }) {
+export default function RetroCinematicPostProcess({
+  motionPoseRef,
+  quality = "high",
+  reducedMotion = false,
+}) {
   const { camera, gl, scene, size } = useThree();
+  const motionFisheyeCurrent = useRef(0);
+  const motionShiftCurrent = useMemo(() => new THREE.Vector2(), []);
+  const motionShiftTarget = useMemo(() => new THREE.Vector2(), []);
   const target = useMemo(() => makeRenderTarget(), []);
   const postCamera = useMemo(() => new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), []);
   const postScene = useMemo(() => new THREE.Scene(), []);
@@ -152,10 +215,17 @@ export default function RetroCinematicPostProcess({ quality = "medium", reducedM
           tDepth: { value: target.depthTexture },
           uCameraFar: { value: 100 },
           uCameraNear: { value: 0.1 },
-          uChromaticStrength: { value: 1.0 },
-          uIntensity: { value: 1.0 },
-          uPixelSize: { value: 2.0 },
+          uChromaticStrength: { value: qualityBudget.high.chroma },
+          uFisheyeStrength: { value: qualityBudget.high.fisheye },
+          uMotionFisheye: { value: 0 },
+          uMotionVector: { value: new THREE.Vector2() },
+          uInkStrength: { value: qualityBudget.high.ink },
+          uGradeBase: { value: qualityBudget.high.gradeBase },
+          uGradeCurve: { value: qualityBudget.high.gradeCurve },
+          uPixelSize: { value: qualityBudget.high.pixel },
+          uQuantizeStrength: { value: qualityBudget.high.quantize },
           uResolution: { value: new THREE.Vector2(1, 1) },
+          uScanlineStrength: { value: qualityBudget.high.scanline },
           uTime: { value: 0 },
         },
         vertexShader: VERTEX_SHADER,
@@ -174,30 +244,44 @@ export default function RetroCinematicPostProcess({ quality = "medium", reducedM
   }, [material, postScene]);
 
   useEffect(() => {
-    const renderScale = quality === "low" ? 0.72 : quality === "medium" ? 0.86 : 1;
-    const dpr = Math.min(gl.getPixelRatio(), quality === "low" ? 0.8 : quality === "medium" ? 0.92 : 1);
-    const width = Math.max(1, Math.floor(size.width * dpr * renderScale));
-    const height = Math.max(1, Math.floor(size.height * dpr * renderScale));
+    const budget = qualityBudget[quality] || qualityBudget.high;
+    const dpr = Math.min(gl.getPixelRatio(), 1);
+    const width = Math.max(1, Math.floor(size.width * dpr * budget.scale));
+    const height = Math.max(1, Math.floor(size.height * dpr * budget.scale));
     target.setSize(width, height);
     material.uniforms.uResolution.value.set(width, height);
-    material.uniforms.uIntensity.value = quality === "low" ? 0.48 : quality === "medium" ? 0.6 : 0.7;
-    material.uniforms.uPixelSize.value = quality === "low" ? 1.85 : quality === "medium" ? 1.58 : 1.34;
-    material.uniforms.uChromaticStrength.value = quality === "low" ? 0.42 : quality === "medium" ? 0.55 : 0.68;
+    material.uniforms.uFisheyeStrength.value = budget.fisheye;
+    material.uniforms.uChromaticStrength.value = budget.chroma;
+    material.uniforms.uInkStrength.value = budget.ink;
+    material.uniforms.uGradeBase.value = budget.gradeBase;
+    material.uniforms.uGradeCurve.value = budget.gradeCurve;
+    material.uniforms.uScanlineStrength.value = budget.scanline;
+    material.uniforms.uPixelSize.value = budget.pixel;
+    material.uniforms.uQuantizeStrength.value = budget.quantize;
   }, [gl, material, quality, size.height, size.width, target]);
 
-  useEffect(
-    () => () => {
-      target.dispose();
-      material.dispose();
-    },
-    [material, target],
-  );
+  useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => target.dispose(), [target]);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     material.uniforms.uTime.value = reducedMotion ? 0 : clock.elapsedTime;
     material.uniforms.uCameraNear.value = camera.near;
     material.uniforms.uCameraFar.value = camera.far;
-
+    const motionPose = motionPoseRef?.current;
+    const motionWarp = motionWarpFromVelocity(motionPose?.vx, motionPose?.vz, {
+      quality,
+      reducedMotion,
+    });
+    motionShiftTarget.set(motionWarp.x, motionWarp.y);
+    const motionDamping = reducedMotion ? 1 : 1 - Math.exp(-Math.min(delta, 0.05) * 8.5);
+    motionShiftCurrent.lerp(motionShiftTarget, motionDamping);
+    motionFisheyeCurrent.current = THREE.MathUtils.lerp(
+      motionFisheyeCurrent.current,
+      motionWarp.fisheye,
+      motionDamping,
+    );
+    material.uniforms.uMotionVector.value.copy(motionShiftCurrent);
+    material.uniforms.uMotionFisheye.value = motionFisheyeCurrent.current;
     const previousAutoClear = gl.autoClear;
     gl.autoClear = true;
     gl.setRenderTarget(target);

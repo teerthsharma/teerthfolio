@@ -173,6 +173,14 @@
       "pushedAt": "2026-06-30T21:41:04Z",
       "domain": "Operating Systems / Runtime",
       "siteRole": "Flagship Seal OS deep-dive",
+      "repositorySnapshot": {
+        "capturedAt": "2026-07-12T07:45:00.000Z",
+        "directoryCount": 256,
+        "rustFileCount": 397,
+        "sourceMode": "github-tree-snapshot",
+        "trackedFileCount": 1013,
+        "treeTruncated": false
+      },
       "confidence": "high",
       "purpose": "Epsilon-Hollow: Microkernel OS research in Rust — by Teerth Sharma. (Operating Systems / Runtime).",
       "evidenceFiles": [

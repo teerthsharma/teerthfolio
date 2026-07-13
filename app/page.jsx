@@ -5,7 +5,10 @@ import {
   getTeerthContent,
   getWorldStations,
 } from "../lib/teerth-data";
-import { fetchLiveGitHubSummary } from "../lib/github-live";
+import {
+  fetchLiveGitHubSummary,
+  fetchRepositoryMetrics,
+} from "../lib/github-live";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +25,17 @@ export default async function Home({ searchParams }) {
   const stations = getWorldStations();
   const projects = getFlagshipProjects();
   const domainRows = getDomainRows();
-  const liveSummary = await fetchLiveGitHubSummary();
+  const epsilonProject = projects.find((project) => project.name === "Epsilon-Hollow");
+  const [liveSummary, epsilonMetrics] = await Promise.all([
+    fetchLiveGitHubSummary({ fallbackEvents: content.upstream }),
+    fetchRepositoryMetrics({
+      fallbackSnapshot: epsilonProject?.repositorySnapshot,
+      fullName: epsilonProject?.fullName,
+    }),
+  ]);
+  const repositoryMetrics = epsilonMetrics
+    ? { [epsilonProject.name]: epsilonMetrics }
+    : {};
   const initialWorldQuery = {
     initialSafeMode:
       hasSearchParam(resolvedSearchParams, "safe", "1") ||
@@ -37,6 +50,7 @@ export default async function Home({ searchParams }) {
       initialWorldQuery={initialWorldQuery}
       liveSummary={liveSummary}
       projects={projects}
+      repositoryMetrics={repositoryMetrics}
       stations={stations}
     />
   );

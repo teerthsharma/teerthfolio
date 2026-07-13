@@ -1,0 +1,109 @@
+{
+  "captures": [
+    {
+      "accentHueDegrees": 188.1974504815695,
+      "accentHueDistance": 8.19745048156949,
+      "averageLuminance": 173.47421712500025,
+      "averageSaturation": 0.18187713067547384,
+      "expectedAccentHue": 180,
+      "id": "observatory-plaque",
+      "imagePath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\biome-live\\observatory-plaque-world.png",
+      "localAccentRatio": 0.01025,
+      "snowAnchorRatio": 0.916625
+    },
+    {
+      "accentHueDegrees": 222.2603842701403,
+      "accentHueDistance": 17.260384270140293,
+      "averageLuminance": 154.46975921249805,
+      "averageSaturation": 0.19219262173610374,
+      "expectedAccentHue": 205,
+      "id": "s2-kernel-core",
+      "imagePath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\biome-live\\s2-kernel-core-world.png",
+      "localAccentRatio": 0.1091875,
+      "snowAnchorRatio": 0.8669375
+    },
+    {
+      "accentHueDegrees": 251.81197670595634,
+      "accentHueDistance": 5.18802329404366,
+      "averageLuminance": 152.49977317499992,
+      "averageSaturation": 0.1817635775539791,
+      "expectedAccentHue": 257,
+      "id": "manifold-reactor",
+      "imagePath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\biome-live\\manifold-reactor-world.png",
+      "localAccentRatio": 0.061625,
+      "snowAnchorRatio": 0.8381875
+    },
+    {
+      "accentHueDegrees": 37.446272383469875,
+      "accentHueDistance": 7.553727616530125,
+      "averageLuminance": 168.546694750001,
+      "averageSaturation": 0.18461123569598253,
+      "expectedAccentHue": 45,
+      "id": "field-chamber-coils",
+      "imagePath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\biome-live\\field-chamber-coils-world.png",
+      "localAccentRatio": 0.0991875,
+      "snowAnchorRatio": 0.83975
+    },
+    {
+      "accentHueDegrees": 179.37863868265026,
+      "accentHueDistance": 19.378638682650262,
+      "averageLuminance": 180.31654801250042,
+      "averageSaturation": 0.17883301562328327,
+      "expectedAccentHue": 160,
+      "id": "qpu-ice-bridge",
+      "imagePath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\biome-live\\qpu-ice-bridge-world.png",
+      "localAccentRatio": 0.080375,
+      "snowAnchorRatio": 0.895125
+    },
+    {
+      "accentHueDegrees": 5.8828456640994204,
+      "accentHueDistance": 1.1171543359005796,
+      "averageLuminance": 146.51235407500135,
+      "averageSaturation": 0.18564556980115576,
+      "expectedAccentHue": 7,
+      "id": "upstream-radio-mast",
+      "imagePath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\biome-live\\upstream-radio-mast-world.png",
+      "localAccentRatio": 0.17225,
+      "snowAnchorRatio": 0.725125
+    },
+    {
+      "accentHueDegrees": 328.2162351802499,
+      "accentHueDistance": 1.783764819750104,
+      "averageLuminance": 163.93533313750072,
+      "averageSaturation": 0.11239291949658081,
+      "expectedAccentHue": 330,
+      "id": "topology-archive-wall",
+      "imagePath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\biome-live\\topology-archive-wall-world.png",
+      "localAccentRatio": 0.0478125,
+      "snowAnchorRatio": 0.9309375
+    },
+    {
+      "accentHueDegrees": 216.28628682789812,
+      "accentHueDistance": 8.713713172101876,
+      "averageLuminance": 152.9264328000002,
+      "averageSaturation": 0.13676481701617244,
+      "expectedAccentHue": 225,
+      "id": "assembly-tool-locker",
+      "imagePath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\biome-live\\assembly-tool-locker-world.png",
+      "localAccentRatio": 0.0185,
+      "snowAnchorRatio": 0.9105
+    }
+  ],
+  "contract": {
+    "averageSaturation": [
+      0.18,
+      0.38
+    ],
+    "localAccentRatioMin": 0.01,
+    "snowAnchor": {
+      "luminanceMin": 100,
+      "ratioMin": 0.35,
+      "saturationMax": 0.28
+    }
+  },
+  "failures": [
+    "qpu-ice-bridge average saturation 0.179 is outside 0.18-0.38",
+    "topology-archive-wall average saturation 0.112 is outside 0.18-0.38",
+    "assembly-tool-locker average saturation 0.137 is outside 0.18-0.38"
+  ]
+}

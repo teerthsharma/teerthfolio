@@ -1,16 +1,20 @@
 # Seal's Topology Land
 
-Teerth Sharma's portfolio is a WebGL-first polar research world: a dark Antarctic observatory, a WASD-piloted seal mascot, topology stations, live GitHub radar, and source-backed project evidence.
+Teerth Sharma's portfolio is a WebGL-first polar research world: a bright anime-soft Antarctic observatory, a WASD-piloted functional seal guide, topology stations, live GitHub radar, and source-backed project evidence.
 
 The site is built to stay Vercel-hostable while still feeling like an object-world rather than a normal resume page. The first screen gates the heavy renderer, then the user can enter the world and move through stations for Seal OS, Aether-Lang, fixed-point field physics, QPU verification, upstream work, topology archives, and systems tooling.
 
 ## Direction
 
-- Igloo/Active Theory style: cinematic object-world, uplifted polar shader atmosphere, PBR material language, minimal interface.
-- Abeto Messenger style: the first viewport loads as an in-place fullscreen WebGL world stream instead of a document-scroll reveal.
-- Bruno Simon style: WASD exploration through a world instead of page-only scrolling, with a horizontal evidence index still reachable as fallback.
-- Junni style: mascot as guide, not decoration.
+The shipped contract is a bright anime-soft polar field, an Abeto-style fullscreen stream, a Junni-style functional guide, Bruno-style spatial navigation, a depth-aware ink/quantization finish, and unchanged safe/evidence fallbacks.
+
+- Abeto Messenger style: broad ivory, teal, and cyan field masses delivered as an in-place fullscreen WebGL world stream.
+- Bruno Simon style: WASD and station-tap exploration through physical space, with the horizontal evidence index still directly reachable.
+- Junni style: the seal is a five-state functional guide, not decoration.
+- Anime-soft finish: one depth-aware fullscreen pass provides bounded pixel fog, edge AA, quantization, indigo ink, dither, and a restrained vignette.
 - Wodniack/Rogier/Gregory style: dense technical archive and sparse project indexing.
+
+The observatory dome studies Igloo Inc.'s material and construction language. Its block topology, shaders, interaction, and assets are original to this repository; no Igloo Inc. production asset is copied. The bounded semantic particle system adapts transferable mathematical ideas from Cortiz's `cortiz2894/hologram-particles` study with user-supplied author permission and explicit credit; WebGPU/TSL source and GLB assets are not copied into the production WebGL renderer. The compatibility record lives in `docs/research/2026-07-12-hologram-particles-webgl-port.md`.
 
 ## Grand System Plan
 
@@ -31,11 +35,11 @@ The first screen must communicate a controlled render system:
 The visual system has four layers:
 
 1. **Object-world:** one memorable polar object per view. On the first screen this is the dome; in the world it is the dome plus the seal; in the archive it is the black-hole/topology wall.
-2. **Cinematic shader atmosphere:** dark, low-noise, scanline-free enough to stay premium, with shader motion used as depth rather than decoration.
+2. **Anime-soft polar atmosphere:** bright, low-noise ivory and teal masses finished by bounded depth pixel fog, edge ink, quantization, and a maximum eight-percent vignette.
 3. **Research instrumentation:** sparse labels, station rails, source radar, and proof snippets. Text should read like field instrumentation, not marketing copy.
 4. **Evidence index:** projects, commits, repos, and upstream work must remain inspectable even if WebGL is unavailable or low-quality mode is selected.
 
-The palette stays cold and technical: black water, deep teal, icy white, muted cyan, and occasional violet for topology/QPU accents. Bright cyan is a signal color, not the whole brand.
+The world palette stays bright and technical: polar ivory, glacier white, Abeto teal, dawn cyan, and indigo anime ink. Saturated magenta, violet, yellow, mint, and coral remain station-scale evidence accents rather than full-screen washes.
 
 ### Render System Architecture
 
@@ -109,6 +113,7 @@ Before any major visual claim is accepted:
 ```bash
 npm run check:teerth
 npm run check:render-budget
+npm run check:polar-rescue
 npm run verify:render
 npm run lint
 npm run build
@@ -147,7 +152,7 @@ The render verifier must cover:
 - `W`, `A`, `S`, `D` are the only seal movement controls.
 - Arrow keys do not move the seal; they show a WASD hint.
 - Mouse input does not steer the seal.
-- The station rail is a passive readout. The active station follows the seal's axis position.
+- The station rail remains directly clickable and keyboard accessible; station taps drive the same movement and docking targets as WASD.
 - Graphics quality can be switched between low, medium, and high.
 - `?safe=1` boots the shader-backed safe gate first, then waits for Start exploring before probing the GPU renderer and printing diagnostics.
 - `?qa-sdf=1` forces the render gate open for verification.
@@ -160,7 +165,7 @@ The render verifier must cover:
 - Drei
 - Howler
 - Local JSON research corpus and live GitHub fallback logic
-- PBR texture assets under `public/assets/pbr`
+- Procedural geometry, shader-space material structure, and bounded instanced buffers; the dome, seal, and semantic particles require no downloaded textures or GLBs
 
 ## Important Paths
 
@@ -169,14 +174,16 @@ The render verifier must cover:
 | `app/` | Next.js pages and global CSS |
 | `components/IglooWorld.jsx` | Top-level render gate, input model, safe mode, station state |
 | `components/IglooScene.jsx` | WebGL scene orchestration |
-| `components/PolarObservatoryDome.jsx` | PBR Antarctic science dome with bounded curved tile geometry |
-| `components/SealAvatar.jsx` | Seal guide mascot |
+| `components/PolarObservatoryDome.jsx` | Lattice-driven instanced crystal-brick observatory with weighted interaction |
+| `components/TopologicalSealMascot.jsx` | Procedural topology seal guide with five states, breathing, glumph travel wave, eyes, and semantic halo |
+| `components/PolarSemanticParticles.jsx` | One-draw bounded semantic particle/hologram field for all eight stations |
 | `components/IglooTerrain.jsx` | Repeating polar floor and terrain window |
 | `components/IglooArtifacts.jsx` | Project station objects |
 | `data/teerth-content.json` | Profile, live copy, station copy, links |
 | `data/project-intelligence.json` | Mined Teerth GitHub corpus |
 | `lib/github-live.js` | Live GitHub summary with snapshot fallback |
-| `public/assets/pbr/` | Ground, dome, and seal material textures |
+| `lib/polar-dome-lattice.js` | Deterministic rings, cells, frames, doorway exclusion, collision, and interaction weights |
+| `lib/polar-semantic-particles.js` | Station particle language, quality budgets, and shared WebGL shader math |
 | `scripts/check-teerth.mjs` | Teerth content and contract checks |
 | `scripts/check-render-budget.mjs` | Render budget guardrails |
 
@@ -211,11 +218,12 @@ http://127.0.0.1:5173/?qa-low=1&qa-sdf=1
 npm run lint
 npm run check:teerth
 npm run check:render-budget
+npm run check:polar-rescue
 npm run verify:render
 npm run build
 ```
 
-`npm run build` runs the Teerth contract and render-budget checks before `next build`.
+`npm run build` runs the Teerth contract, render-budget, and polar-rescue checks before `next build`.
 `npm run verify:render` starts an isolated local dev server on `127.0.0.1:5273` when needed, captures desktop, iPad, and mobile screenshots, and checks the WebGL gate plus WASD-only seal movement.
 
 ## Deployment
@@ -234,7 +242,7 @@ If those secrets are missing, CI can still pass while deploy is skipped.
 
 ## Asset Notes
 
-The PBR textures in `public/assets/pbr` are committed because the dome, floor, and seal material language depends on them. Generated build folders, logs, local uploads, and verification screenshots are ignored.
+The hero dome, topology seal, and semantic particle language are generated from authored geometry and shader math. Donor-study GLBs and the `donotcommit/` research checkout must never be staged. Any legacy PBR files under `public/assets/pbr` remain optional for non-hero surfaces; production must not depend on unlicensed or ignored local assets. Generated build folders, logs, local uploads, and verification screenshots are ignored.
 
 ## Performance Rules
 

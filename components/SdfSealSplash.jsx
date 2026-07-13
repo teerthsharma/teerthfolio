@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import AntarcticSplashShader from "./AntarcticSplashShader";
 
-export const SPLASH_GATE_PROFILE = "premium object poster for the igloo render gate with WebGL Antarctic shader";
+export const SPLASH_GATE_PROFILE = "black stellar threshold with four phase-negating aurora wave families and one devil-lettuce action";
 export const RENDER_PERMISSION_PROFILE = "Start exploring requests fullscreen, wake lock, and WebGL capability inside the user gesture";
+export const SPLASH_SUPPORT_PROFILE = "Composite SDF. Opening gate is a pure shader threshold with no mascot layer; the seal enters only after renderer hand-off";
 export const OPEN_WORLD_GATE_PROFILE = "best-of-two gate: fullscreen world stream first, horizontal evidence index remains reachable";
 
 function probeWebglCapability() {
@@ -13,70 +14,47 @@ function probeWebglCapability() {
     canvas.getContext("webgl2", { antialias: false, failIfMajorPerformanceCaveat: false }) ||
     canvas.getContext("webgl", { antialias: false, failIfMajorPerformanceCaveat: false });
   if (!gl) return "webgl unavailable";
-  const renderer = gl.getParameter(gl.RENDERER) || "renderer hidden";
-  const version = gl.getParameter(gl.VERSION) || "webgl";
-  return `${version} / ${renderer}`;
+  try {
+    const renderer = gl.getParameter(gl.RENDERER) || "renderer hidden";
+    const version = gl.getParameter(gl.VERSION) || "webgl";
+    return `${version} / ${renderer}`;
+  } finally {
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    canvas.width = 0;
+    canvas.height = 0;
+  }
 }
 
 export default function SdfSealSplash({
+  active = true,
   activeArtifact,
   diagnosticEvents = [],
+  guideState = "idle",
   onEnable,
   safeMode = false,
 }) {
-  const [charge, setCharge] = useState(0);
-  const [permissionRows, setPermissionRows] = useState([]);
   const [permissionState, setPermissionState] = useState("idle");
+  const [permissionRows, setPermissionRows] = useState([]);
   const permissionLockRef = useRef(false);
-  const stationName = activeArtifact?.label || "Observatory Plaque";
-  const stationSignal = activeArtifact?.signal || "source-backed topology systems";
-  const domeTiles = useMemo(() => {
-    const rows = [
-      { count: 4, y: 20, width: 8 },
-      { count: 6, y: 33, width: 9 },
-      { count: 7, y: 47, width: 10 },
-      { count: 8, y: 61, width: 10 },
-      { count: 7, y: 74, width: 11 },
-    ];
-
-    return rows.flatMap((row, rowIndex) =>
-      Array.from({ length: row.count }, (_, col) => {
-        const spread = row.count === 1 ? 0 : 58 / (row.count - 1);
-        const rowOffset = rowIndex % 2 === 0 ? 0 : spread * 0.34;
-        return {
-          key: `${rowIndex}-${col}`,
-          x: 21 + col * spread + rowOffset * 0.22,
-          y: row.y,
-          width: row.width,
-          rotate: -5 + ((col + rowIndex) % 5) * 2.5,
-        };
-      }),
-    );
-  }, []);
-  const rows = useMemo(
-    () => [
-      safeMode ? "safe boot mounted" : "fullscreen field staged",
-      "Composite SDF station loop armed",
-      "horizontal evidence index reserved",
-      safeMode ? "GPU probe waiting for Start exploring" : "WebGL renderer waiting",
-    ],
-    [safeMode],
-  );
+  const stationName = activeArtifact?.label || "Polar topology station";
+  const stationSignal =
+    activeArtifact?.signal ||
+    "Aether-Lang, QPU kernels, Triton, and source-backed topology systems";
   const visibleDiagnostics = diagnosticEvents.filter((event) => event.type !== "safe-boot").slice(0, 3);
-
-  useEffect(() => {
-    let raf = 0;
-    const startedAt = performance.now();
-
-    const tick = (now) => {
-      setCharge(Math.min(1, (now - startedAt) / 1400));
-      raf = window.requestAnimationFrame(tick);
-    };
-
-    raf = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(raf);
-  }, []);
-
+  const statusMessage =
+    permissionState === "requesting"
+      ? "Requesting fullscreen, wake lock, and renderer access."
+      : permissionState === "ready"
+        ? "Access resolved. Opening the topology route."
+        : safeMode
+          ? "Safe route ready. Renderer access begins only on your command."
+          : "Polar route ready. Renderer access begins only on your command.";
+  const actionLabel =
+    permissionState === "requesting"
+      ? "Requesting renderer access"
+      : permissionState === "ready"
+        ? "Route open"
+        : "START THE ADVENTURE INTO SEAL'S TOPOLOGICAL LAND";
   const requestRenderAccess = useCallback(async () => {
     if (permissionLockRef.current) return;
     permissionLockRef.current = true;
@@ -118,90 +96,68 @@ export default function SdfSealSplash({
     onEnable?.();
   }, [onEnable]);
 
+  if (!active) return undefined;
+
   return (
-    <div className="sdf-seal-splash" role="dialog" aria-label="SDF seal renderer gate" aria-modal="true">
-      <AntarcticSplashShader />
-      <div className="sdf-splash-copy">
-        <span>render gate / {stationName}</span>
-        <h2>Seal's Topology Land</h2>
-        <p>
-          The ice home base opens as a fullscreen field stream. Start exploring to allocate the
-          world, then dock the seal at stations while the evidence index stays reachable.
-        </p>
+    <div
+      className="sdf-seal-splash"
+      data-guide-state={guideState}
+      data-permission-state={permissionState}
+      data-safe-mode={safeMode ? "true" : "false"}
+      role="dialog"
+      aria-label="Enter Seal's Topology Land"
+      aria-modal="true"
+    >
+      <AntarcticSplashShader active={active} />
+
+      <header className="sdf-splash-copy">
+        <span>{stationName} / dawn departure</span>
+        <h2>Seal&apos;s Topology Land</h2>
+        <p>Follow the seal through a six-axis topology gate into source-backed systems, kernels, and research.</p>
+      </header>
+
+      <div
+        className="sdf-splash-status"
+        id="sdf-renderer-status"
+        role="status"
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        <span>{safeMode ? "Safe departure" : "Departure status"}</span>
+        <strong>{statusMessage}</strong>
+        <small>{stationSignal}</small>
+        {(visibleDiagnostics.length > 0 || permissionRows.length > 0) && (
+          <ul>
+            {visibleDiagnostics.map((event) => (
+              <li data-severity={event.severity} key={event.id}>
+                <b>{event.type}</b>
+                {event.message}
+              </li>
+            ))}
+            {permissionRows.map((row) => (
+              <li key={row}>
+                <b>{permissionState}</b>
+                {row}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      <div className="sdf-splash-art" aria-hidden="true">
-        <em className="sdf-art-orbit sdf-art-orbit-a" />
-        <em className="sdf-art-orbit sdf-art-orbit-b" />
-        <em className="sdf-art-orbit sdf-art-orbit-c" />
-        <div className="sdf-art-dome">
-          <em className="sdf-dome-shell" />
-          {domeTiles.map((tile) => (
-            <b
-              className="sdf-dome-tile"
-              key={tile.key}
-              style={{
-                "--tile-x": `${tile.x}%`,
-                "--tile-y": `${tile.y}%`,
-                "--tile-w": `${tile.width}%`,
-                "--tile-rot": `${tile.rotate}deg`,
-              }}
-            />
-          ))}
-          <em className="sdf-dome-meridian sdf-dome-meridian-a" />
-          <em className="sdf-dome-meridian sdf-dome-meridian-b" />
-          <em className="sdf-dome-meridian sdf-dome-meridian-c" />
-        </div>
-        <div className="sdf-art-threshold">
-          <em />
-          <em />
-          <strong>field renderer idle</strong>
-        </div>
-        <div className="sdf-seal-proof">
-          <span>composite sdf</span>
-          <strong>F(p) &lt;= 0</strong>
-          <p>Ellipsoid body, head sphere, and flipper fields blend into one navigable seal surface.</p>
-        </div>
-        <div className="sdf-collision-bridge">
-          <span>collision bridge</span>
-          <strong>grad F -&gt; impulse</strong>
-          <p>Continuous topology yields normals for discrete ice blocks, crates, and station contact.</p>
-        </div>
-      </div>
-
-      <div className="sdf-splash-console" aria-label="Renderer status">
-        {rows.map((row, index) => (
-          <p key={row}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            {row}
-          </p>
-        ))}
-        {visibleDiagnostics.map((event) => (
-          <p data-severity={event.severity} key={event.id}>
-            <span>{event.type}</span>
-            {event.message}
-          </p>
-        ))}
-        {permissionRows.map((row) => (
-          <p key={row}>
-            <span>{permissionState}</span>
-            {row}
-          </p>
-        ))}
-        <strong>{stationSignal}</strong>
-      </div>
-
-      {safeMode ? (
-        <button className="sdf-render-button" type="button" onClick={requestRenderAccess}>
-          <span>{permissionState === "requesting" ? "Requesting renderer access" : "Start exploring"}</span>
-          <i style={{ transform: `scaleX(${Math.max(0.08, charge)})` }} />
+      <div className="sdf-route-action">
+        <span aria-hidden="true">01 — topology threshold</span>
+        <button
+          className="sdf-render-button"
+          type="button"
+          onClick={requestRenderAccess}
+          disabled={permissionState !== "idle"}
+          aria-describedby="sdf-renderer-status"
+        >
+          <span>{actionLabel}</span>
+          <i aria-hidden="true" />
         </button>
-      ) : (
-        <button className="sdf-render-button" type="button" onClick={requestRenderAccess}>
-          <span>{permissionState === "requesting" ? "Requesting renderer access" : "Start exploring"}</span>
-          <i style={{ transform: `scaleX(${Math.max(0.08, charge)})` }} />
-        </button>
-      )}
+        <small>Scroll left if boring</small>
+      </div>
     </div>
   );
 }

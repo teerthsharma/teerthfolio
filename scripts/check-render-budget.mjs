@@ -8,6 +8,8 @@ const files = {
   page: readFileSync(join(root, "app", "page.jsx"), "utf8"),
   portfolioPage: readFileSync(join(root, "components", "PortfolioPage.jsx"), "utf8"),
   scene: readFileSync(join(root, "components", "IglooScene.jsx"), "utf8"),
+  biome: readFileSync(join(root, "components", "PolarBiomeWorld.jsx"), "utf8"),
+  biomeFields: readFileSync(join(root, "lib", "polar-biome-fields.js"), "utf8"),
   artifacts: readFileSync(join(root, "components", "IglooArtifacts.jsx"), "utf8"),
   dome: readFileSync(join(root, "components", "PolarObservatoryDome.jsx"), "utf8"),
   splash: readFileSync(join(root, "components", "SdfSealSplash.jsx"), "utf8"),
@@ -17,6 +19,8 @@ const files = {
   snow: readFileSync(join(root, "components", "SnowAtmosphere.jsx"), "utf8"),
   splashShader: readFileSync(join(root, "components", "AntarcticSplashShader.jsx"), "utf8"),
   post: readFileSync(join(root, "components", "RetroCinematicPostProcess.jsx"), "utf8"),
+  polarArtDirection: readFileSync(join(root, "lib", "polar-art-direction.js"), "utf8"),
+  traversal: readFileSync(join(root, "lib", "polar-traversal.js"), "utf8"),
 };
 
 const checks = [
@@ -76,9 +80,9 @@ const checks = [
     pattern: /RendererFallback[\s\S]*asset-suspense[\s\S]*<Suspense fallback=\{<RendererFallback/,
   },
   {
-    name: "splash gate renders a premium object poster",
+    name: "splash gate renders the authored radial-wave threshold without a mascot layer",
     file: files.splash,
-    pattern: /SPLASH_GATE_PROFILE[\s\S]*sdf-splash-art[\s\S]*sdf-dome-tile[\s\S]*F\(p\)[\s\S]*grad F -&gt; impulse/,
+    pattern: /^(?![\s\S]*sdf-gate-seal)[\s\S]*SPLASH_GATE_PROFILE[\s\S]*AntarcticSplashShader[\s\S]*sdf-render-button/,
   },
   {
     name: "splash gate uses a bounded WebGL Antarctica shader separate from the heavy scene",
@@ -111,9 +115,9 @@ const checks = [
     pattern: /data-high-contrast[\s\S]*aria-pressed=\{highContrast\}[\s\S]*igloo-contrast-toggle[\s\S]*data-high-contrast="true"[\s\S]*verify-contrast/,
   },
   {
-    name: "atmosphere loop is capped",
-    file: files.world,
-    pattern: /ATMOSPHERE_FRAME_MS/,
+    name: "legacy CPU atmosphere is removed in favor of singular GPU biome weather",
+    file: `${files.world}\n${files.biome}\n${files.biomeFields}`,
+    pattern: /IglooWorld(?![\s\S]*useAtmosphereCanvas)(?![\s\S]*igloo-atmosphere-canvas)[\s\S]*resolveNearestWeather[\s\S]*weatherOwners:\s*1/,
   },
   {
     name: "idle world loop is capped",
@@ -121,9 +125,9 @@ const checks = [
     pattern: /IDLE_WORLD_FRAME_MS/,
   },
   {
-    name: "debug flags can remove expensive subsystems",
+    name: "debug flags can isolate every currently mounted expensive subsystem",
     file: files.world,
-    pattern: /qa-no-dome[\s\S]*qa-no-veil[\s\S]*qa-no-terrain[\s\S]*qa-no-signals[\s\S]*qa-no-smashables[\s\S]*qa-no-snow/,
+    pattern: /qa-no-dome[\s\S]*qa-no-veil[\s\S]*qa-no-terrain[\s\S]*qa-no-signals[\s\S]*qa-no-smashables[\s\S]*qa-no-dressing[\s\S]*noDressing[\s\S]*qa-no-mechanisms[\s\S]*noMechanisms/,
   },
   {
     name: "world uses bounded render-window note",
@@ -143,12 +147,12 @@ const checks = [
   {
     name: "terrain material stays in uplifting polar range",
     file: files.terrain,
-    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*"#d7f4f2"/,
+    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*POLAR_PALETTE\.polarIvory/,
   },
   {
     name: "terrain surface stays clean and subordinate",
     file: files.terrain,
-    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to stations[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.003, 0\.003\)/,
+    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to stations[\s\S]*ANIME_TERRAIN_SHADER_PROFILE[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*new THREE\.MeshToonMaterial[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.0025, 0\.0025\)/,
   },
   {
     name: "terrain uses recycled material tile label",
@@ -178,42 +182,57 @@ const checks = [
   {
     name: "polar dome rows remain finite",
     file: files.dome,
-    pattern: /DOME_PANEL_ROWS\s*=\s*8/,
+    pattern: /DOME_PANEL_ROWS\s*=\s*POLAR_DOME_LATTICE_TIERS\.medium\.ringCount/,
   },
   {
     name: "polar dome keeps bounded tile columns",
     file: files.dome,
-    pattern: /DOME_TILE_COLUMNS_BY_ROW\s*=\s*\[6, 8, 10, 12, 14, 16, 18, 20\]/,
+    pattern: /DOME_TILE_COLUMNS_BY_ROW\s*=\s*POLAR_DOME_LATTICE_COUNTS\.medium\.ringColumns/,
   },
   {
     name: "polar dome remains intact until deliberate impact",
     file: files.dome,
-    pattern: /DOME_COLLISION_MODE[\s\S]*intact by default[\s\S]*Math\.abs\(axisVelocity\) - 0\.72/,
+    pattern: /DOME_COLLISION_MODE[\s\S]*intact by default[\s\S]*DOME_WEIGHTED_CONTACT_PROFILE[\s\S]*angularLimitRadians:\s*0\.012[\s\S]*displacementLimit:\s*POLAR_DOME_INTERACTION_PROFILE\.maxDisplacement[\s\S]*Math\.abs\(axisVelocity\) - 0\.72/,
   },
   {
-    name: "polar dome fills tile gaps with a continuous premium shell",
+    name: "polar dome is one continuous premium shader-course shell",
     file: files.dome,
-    pattern: /DOME_INTACT_SHELL_PROFILE[\s\S]*continuous luminous ice shell[\s\S]*sphereGeometry args=\{\[1, 56, 18[\s\S]*opacity=\{0\.38\}/,
+    pattern: /DOME_INTACT_SHELL_PROFILE[\s\S]*one continuous inner weather shell[\s\S]*ContinuousDomeTopology[\s\S]*sphereGeometry[\s\S]*ContinuousDomeIceMaterial/,
   },
   {
-    name: "polar dome tiles use warped pillow geometry instead of flat rectangles",
+    name: "polar dome calculates staggered courses and anti-aliased recessed joints",
     file: files.dome,
-    pattern: /DOME_TILE_GEOMETRY_PROFILE[\s\S]*procedural crystal-growth ice brick[\s\S]*uSegments = 7[\s\S]*vSegments = 5[\s\S]*edgeFalloff[\s\S]*cornerTuck[\s\S]*crystalFacet/,
+    pattern: /DOME_BRICK_SHADER_PROFILE[\s\S]*domeCourse[\s\S]*domeColumn[\s\S]*fwidth\(domeJointDistance\)[\s\S]*domeMortar[\s\S]*domeBevelBand/,
   },
   {
-    name: "polar dome faces use a browser-native crystal ice shader",
+    name: "polar dome full tier uses bounded low-pass crystal math",
     file: files.dome,
-    pattern: /DOME_CRYSTAL_GROWTH_PROFILE[\s\S]*DOME_BRICK_SHADER_PROFILE[\s\S]*onBeforeCompile[\s\S]*domeIceHash[\s\S]*customProgramCacheKey/,
+    pattern: /DOME_CRYSTAL_GROWTH_PROFILE[\s\S]*amplitude \*= 0\.35[\s\S]*customProgramCacheKey[\s\S]*DOME_FULL_QUALITY/,
   },
   {
-    name: "polar dome shares texture bundle generation",
+    name: "polar dome forbids texture assets",
     file: files.dome,
-    pattern: /useDomeBrickTextureBundle/,
+    pattern: /DOME_TEXTURE_POLICY[\s\S]*zero image textures/,
+  },
+  {
+    name: "polar dome publishes a bounded instanced construction contract",
+    file: files.dome,
+    pattern: /DOME_CONTINUOUS_DRAW_CALL_PROFILE[\s\S]*continuousShellCalls:\s*1[\s\S]*shellBlockInstanceCalls:\s*1[\s\S]*airlockBlockInstanceCalls:\s*1[\s\S]*maxFullFrameCalls:\s*8/,
+  },
+  {
+    name: "polar dome uses real curved instanced blocks at full density",
+    file: files.dome,
+    pattern: /DOME_INSTANCED_CONSTRUCTION_PROFILE[\s\S]*shellBlocksByQuality:[\s\S]*POLAR_DOME_LATTICE_COUNTS\.high\.visibleCells[\s\S]*POLAR_DOME_LATTICE_COUNTS\.medium\.visibleCells[\s\S]*RoundedBoxGeometry[\s\S]*setMatrixAt[\s\S]*InstancedDomeBlocks/,
+  },
+  {
+    name: "polar dome merges a tier-bounded meridian network",
+    file: files.dome,
+    pattern: /createLatticeSkeletonGeometry[\s\S]*lattice\.ribs[\s\S]*lattice\.ringSeams[\s\S]*lattice\.baseRing\.segments[\s\S]*TubeGeometry[\s\S]*mergeGeometries/,
   },
   {
     name: "scene mounts the premium polar observatory dome",
     file: files.scene,
-    pattern: /PolarObservatoryDome[\s\S]*OBSERVATORY_VISUAL_HOME_X/,
+    pattern: /PolarObservatoryDome[\s\S]*homePosition[\s\S]*OBSERVATORY_WORLD\.center/,
   },
   {
     name: "seal remains a math-labeled avatar",
@@ -233,7 +252,7 @@ const checks = [
   {
     name: "seal bearing ray points at active station",
     file: files.seal,
-    pattern: /SEAL_STATION_BEARING_PROFILE[\s\S]*SEAL_WORLD_LOOP_LENGTH[\s\S]*activeArtifact\.position\[0\][\s\S]*bearingAngle[\s\S]*bearingRayRef\.current\.scale\.y/,
+    pattern: /SEAL_STATION_BEARING_PROFILE[\s\S]*STATION_WORLD_SCHEMA[\s\S]*stationWorld\?\.center\.x[\s\S]*bearingAngle[\s\S]*bearingRayRef\.current\.scale\.y/,
   },
   {
     name: "seal exposes an active station guide beacon",
@@ -246,14 +265,29 @@ const checks = [
     pattern: /renderEnabled && sealAwake && !debugFlags\.noSeal/,
   },
   {
-    name: "scene has an explicit uplifted polar PBR light budget",
-    file: files.scene,
-    pattern: /SCENE_LIGHT_BUDGET\s*=\s*"uplifted-polar-pbr"/,
+    name: "scene uses one explicit biome-driven light and fog authority",
+    file: `${files.scene}\n${files.biome}`,
+    pattern: /SCENE_LIGHT_BUDGET\s*=\s*"two biome-driven directionals plus quiet ambient hemisphere"[\s\S]*PolarBiomeWorld[\s\S]*keyLightRef[\s\S]*fillLightRef[\s\S]*scene\.fog/,
   },
   {
-    name: "scene has a single bounded global retro post shader pass",
+    name: "biome compositor owns bounded terrain sky geography and singular weather",
+    file: `${files.biomeFields}\n${files.biome}`,
+    pattern: /POLAR_BIOME_SHADER_POLICY[\s\S]*textures:\s*0[\s\S]*maxCompiledPrograms:\s*2[\s\S]*maxDrawCalls:\s*3[\s\S]*weatherOwners:\s*1[\s\S]*new THREE\.InstancedMesh/,
+  },
+  {
+    name: "scene removes redundant opaque world and weather owners",
+    file: files.scene,
+    pattern: /PolarBiomeWorld(?![\s\S]*<PolarGradientSky)(?![\s\S]*<IglooTerrain)(?![\s\S]*<SnowAtmosphere)(?![\s\S]*<PolarAtmosphereField)(?![\s\S]*<HorizontalParallaxSignalField)/,
+  },
+  {
+    name: "scene has a single bounded global anime depth post shader pass",
     file: `${files.scene}\n${files.post}`,
-    pattern: /RetroCinematicPostProcess[\s\S]*GLOBAL_RETRO_POST_PROFILE[\s\S]*toon quantization[\s\S]*chromatic AA[\s\S]*depth pixel fog[\s\S]*gaussian edge ink[\s\S]*scanline fisheye vignette[\s\S]*DepthTexture[\s\S]*useFrame/,
+    pattern: /RetroCinematicPostProcess[\s\S]*GLOBAL_ANIME_POST_PROFILE[\s\S]*anime-soft depth pixel fog[\s\S]*gaussianEdgeConfidence[\s\S]*depthEdgeConfidence[\s\S]*chromaticEdgeAA[\s\S]*toonQuantize[\s\S]*DepthTexture[\s\S]*useFrame/,
+  },
+  {
+    name: "anime post quality tiers retain exact bounded effect caps",
+    file: `${files.post}\n${files.polarArtDirection}`,
+    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.36[\s\S]*gradeCurve:\s*0\.4[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.003[\s\S]*chroma:\s*0\.55[\s\S]*ink:\s*0\.14[\s\S]*scanline:\s*0\.004[\s\S]*pixel:\s*1\.7[\s\S]*quantize:\s*0\.18[\s\S]*gradeBase:\s*0\.49[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.005[\s\S]*chroma:\s*0\.8[\s\S]*ink:\s*0\.18[\s\S]*scanline:\s*0\.007[\s\S]*pixel:\s*2\.2[\s\S]*quantize:\s*0\.24[\s\S]*gradeBase:\s*0\.52[\s\S]*gradeCurve:\s*0\.4/,
   },
   {
     name: "non-igloo stations expose active playable object behaviors",
@@ -266,14 +300,14 @@ const checks = [
     pattern: /UPLIFTING_STATION_COLOR_PROFILE[\s\S]*S2 blue[\s\S]*Aether violet[\s\S]*Field amber[\s\S]*QPU mint[\s\S]*Upstream coral-green[\s\S]*STATION_GRID_ELEVATION_PROFILE[\s\S]*FEATURED_STATION_IDS[\s\S]*floating-grid-pedestal[\s\S]*subjectLift/,
   },
   {
-    name: "world adopts Abeto-style damped fullscreen motion architecture",
-    file: `${files.world}\n${files.scene}`,
-    pattern: /ABETO_REFERENCE_MOTION_PROFILE[\s\S]*hidden document scroll[\s\S]*damped axis\/depth targets[\s\S]*station focus transitions[\s\S]*axisTargetRef[\s\S]*depthTargetRef[\s\S]*smoothDamp[\s\S]*CAMERA_DAMPING_PROFILE[\s\S]*Math\.exp\(-delta/,
+    name: "world adopts deterministic bounded traversal with damped camera and offscreen suspension",
+    file: `${files.traversal}\n${files.world}\n${files.scene}`,
+    pattern: /FIXED_STEP_SECONDS = 1 \/ 120[\s\S]*MAX_SUBSTEPS = 8[\s\S]*routeTraversalToStation[\s\S]*advanceTraversalFrame[\s\S]*OFFSCREEN_GPU_RELEASE_DELAY_MS = (?:1\d{2}|2[0-5]\d)[\s\S]*traversalPoseRef[\s\S]*IntersectionObserver[\s\S]*CAMERA_DAMPING_PROFILE[\s\S]*Math\.exp\(-delta[\s\S]*frameloop=\{worldActive[\s\S]*"never"/,
   },
   {
     name: "world loading combines Abeto fullscreen stream with Bruno evidence axis",
     file: `${files.world}\n${files.splash}\n${readFileSync(join(root, "app", "globals.css"), "utf8")}`,
-    pattern: /OPEN_WORLD_LOADING_PROFILE[\s\S]*Abeto fullscreen in-place world stream plus Bruno horizontal evidence index fallback[\s\S]*OpenWorldLoadingBridge[\s\S]*data-loading-model="abeto-fullscreen-world bruno-horizontal-index"[\s\S]*data-scroll-model="webgl-infinite-axis horizontal-evidence-axis"[\s\S]*OPEN_WORLD_GATE_PROFILE[\s\S]*fullscreen world stream first, horizontal evidence index remains reachable[\s\S]*open-world-loading-bridge/,
+    pattern: /OPEN_WORLD_LOADING_PROFILE[\s\S]*Abeto fullscreen in-place world stream plus Bruno horizontal evidence index fallback[\s\S]*OpenWorldLoadingBridge[\s\S]*data-loading-model="abeto-fullscreen-world bruno-horizontal-index"[\s\S]*data-scroll-model="webgl-open-xz-world horizontal-evidence-axis"[\s\S]*OPEN_WORLD_GATE_PROFILE[\s\S]*fullscreen world stream first, horizontal evidence index remains reachable[\s\S]*open-world-loading-bridge/,
   },
 ];
 

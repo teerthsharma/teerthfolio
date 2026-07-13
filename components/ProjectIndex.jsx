@@ -17,16 +17,40 @@ const languageLabel = (project) => {
   return "Research";
 };
 
-const sourceTraceLabel = (project) => {
-  const fileCount = project.evidenceFiles?.length || 0;
-  const commitCount = project.recentCommits?.length || 0;
-  if (fileCount && commitCount) return `${fileCount} files / ${commitCount} commits`;
-  if (fileCount) return `${fileCount} source files`;
-  if (commitCount) return `${commitCount} commit traces`;
-  return "source snapshot";
+const formatCount = (value) =>
+  new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(value);
+
+const formatBytes = (bytes) => {
+  if (!Number.isFinite(bytes) || bytes < 0) return "size unavailable";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KiB`;
+  return `${bytes} B`;
 };
 
-export default function ProjectIndex({ projects, stations }) {
+const sourceTraceLabel = (project, repositoryMetric) => {
+  if (Number.isInteger(repositoryMetric?.trackedFileCount)) {
+    return `${formatCount(repositoryMetric.trackedFileCount)} tracked / ${formatCount(
+      repositoryMetric.rustFileCount || 0,
+    )} Rust`;
+  }
+  const fileCount = project.evidenceFiles?.length || 0;
+  const commitCount = project.recentCommits?.length || 0;
+  if (fileCount && commitCount) {
+    return `${fileCount} sampled paths / ${commitCount} recent commits`;
+  }
+  if (fileCount) return `${fileCount} sampled evidence paths`;
+  if (commitCount) return `${commitCount} recent commit samples`;
+  return "Repository link available";
+};
+
+const repositoryMetricSource = (repositoryMetric) =>
+  repositoryMetric?.sourceMode === "live-github-tree"
+    ? "Live GitHub tree"
+    : repositoryMetric?.sourceMode === "github-tree-snapshot"
+      ? "Verified GitHub tree snapshot"
+      : "Curated source sample";
+
+export default function ProjectIndex({ projects, repositoryMetrics = {}, stations }) {
   const [activeName, setActiveName] = useState("Epsilon-Hollow");
   const activeProject = useMemo(
     () => projects.find((project) => project.name === activeName) || projects[0],
@@ -35,17 +59,18 @@ export default function ProjectIndex({ projects, stations }) {
   const station = stations.find((entry) =>
     entry.projects.some((projectName) => projectName === activeProject?.name),
   );
+  const activeRepositoryMetric = repositoryMetrics[activeProject?.name];
 
   return (
     <section className="project-index section-band" id="projects">
       <div className="section-kicker" data-reveal>
-        SPARSE PROJECT INDEX
+        SOURCE-BACKED PROJECT INDEX
       </div>
       <div className="project-index-head" data-reveal>
-        <h2>Source proof, project by project.</h2>
+        <h2>Repository evidence, project by project.</h2>
         <p>
-          Select a station to inspect its source trace: purpose, language mix,
-          recent commits, evidence files, repository link, and last push.
+          Select a project to inspect its purpose, language bytes, recent commit
+          sample, verified repository scope when available, and GitHub source.
         </p>
       </div>
 
@@ -84,15 +109,16 @@ export default function ProjectIndex({ projects, stations }) {
                 <strong>{activeProject.siteRole || "Source evidence"}</strong>
               </div>
               <div>
-                <span>Trace</span>
-                <strong>{sourceTraceLabel(activeProject)}</strong>
+                <span>Repository</span>
+                <strong>{sourceTraceLabel(activeProject, activeRepositoryMetric)}</strong>
+                <small>{repositoryMetricSource(activeRepositoryMetric)}</small>
               </div>
             </div>
 
             <div className="code-texture" aria-label="Repository language mix">
               {(activeProject.languages || []).slice(0, 5).map((entry) => (
                 <span key={`${activeProject.name}-${entry.language}`}>
-                  {entry.language}::{Math.round(entry.bytes / 1000)}kb
+                  {entry.language} · {formatBytes(entry.bytes)}
                 </span>
               ))}
             </div>

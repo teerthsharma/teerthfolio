@@ -1,0 +1,1408 @@
+[
+  {
+    "name": "1600x1000",
+    "metrics": {
+      "activeCenterDelta": 0,
+      "activeInsideRail": true,
+      "bodyCopy": [
+        16
+      ],
+      "bounds": {
+        "active": {
+          "bottom": 970,
+          "height": 57.6875,
+          "left": 744,
+          "right": 856,
+          "top": 912.3125,
+          "width": 112
+        },
+        "controls": {
+          "bottom": 890,
+          "height": 54,
+          "left": 1284.375,
+          "right": 1560,
+          "top": 836,
+          "width": 275.625
+        },
+        "live": {
+          "bottom": 890,
+          "height": 127.140625,
+          "left": 40,
+          "right": 344,
+          "top": 762.859375,
+          "width": 304
+        },
+        "nav": {
+          "bottom": 80,
+          "height": 46,
+          "left": 1333.1875,
+          "right": 1566,
+          "top": 34,
+          "width": 232.8125
+        },
+        "rail": {
+          "bottom": 976,
+          "height": 69.6875,
+          "left": 440,
+          "right": 1160,
+          "top": 906.3125,
+          "width": 720
+        },
+        "readout": {
+          "bottom": 360,
+          "height": 260,
+          "left": 1216,
+          "right": 1560,
+          "top": 100,
+          "width": 344
+        },
+        "route": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0
+        },
+        "world": {
+          "bottom": 1000,
+          "height": 1000,
+          "left": 0,
+          "right": 1600,
+          "top": 0,
+          "width": 1600
+        }
+      },
+      "mobile": false,
+      "contrastRatios": [
+        8.678483430482627,
+        11.00237778624301,
+        12.10271232958483,
+        14.232304916087642,
+        12.10271232958483,
+        12.10271232958483
+      ],
+      "overlaps": {
+        "controlsRoute": false,
+        "liveRoute": false,
+        "navControls": false,
+        "navReadout": false,
+        "railControls": false,
+        "railLive": false,
+        "railReadout": false
+      },
+      "railButtonCount": 8,
+      "rendererMode": "webgl",
+      "readoutStyle": {
+        "animation": "station-readout-corner-settle",
+        "position": "absolute",
+        "top": "100px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      },
+      "targets": [
+        {
+          "height": 44,
+          "label": "Work",
+          "width": 72
+        },
+        {
+          "height": 44,
+          "label": "Archive",
+          "width": 79.40625
+        },
+        {
+          "height": 44,
+          "label": "Contact",
+          "width": 79.40625
+        },
+        {
+          "height": 57.6875,
+          "label": "Plaque: 75 repos / 25 systems / 11 topology ML",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "S2 Core: Seal OS, Epsilon-Hollow, ISO boot proof",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Aether: Aether-Lang, persistent homology, Lean kernel",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Field: Faraday, Hamilton, fixed-point gauge fields",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "QPU: TopoBridge-Q, homology, IBM QPU evidence",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Upstream: Triton, PyTorch, NeMo Relay",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Archive: lambda-topo, topoflow, topoml, phi-mem",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Tooling: AVX-512, page tables, no_std kernels, SIMD homology",
+          "width": 112
+        },
+        {
+          "height": 127.140625,
+          "label": "Public source evidence from google-deepmind/mujoco",
+          "width": 304
+        },
+        {
+          "height": 44,
+          "label": "Use low graphics quality",
+          "width": 52
+        },
+        {
+          "height": 44,
+          "label": "Use medium graphics quality",
+          "width": 67.203125
+        },
+        {
+          "height": 44,
+          "label": "Use high graphics quality",
+          "width": 52.8125
+        },
+        {
+          "height": 44,
+          "label": "contrast",
+          "width": 81.609375
+        }
+      ],
+      "technicalSizes": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12
+      ],
+      "viewport": {
+        "height": 1000,
+        "width": 1600
+      },
+      "worldOverflow": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "pageErrors": []
+  },
+  {
+    "name": "768x1024",
+    "metrics": {
+      "activeCenterDelta": 0,
+      "activeInsideRail": true,
+      "bodyCopy": [
+        16
+      ],
+      "bounds": {
+        "active": {
+          "bottom": 994,
+          "height": 57.6875,
+          "left": 328,
+          "right": 440,
+          "top": 936.3125,
+          "width": 112
+        },
+        "controls": {
+          "bottom": 914,
+          "height": 54,
+          "left": 473.1875,
+          "right": 748.8125,
+          "top": 860,
+          "width": 275.625
+        },
+        "live": {
+          "bottom": 914,
+          "height": 64.375,
+          "left": 19.1875,
+          "right": 269.1875,
+          "top": 849.625,
+          "width": 250
+        },
+        "nav": {
+          "bottom": 64.8125,
+          "height": 46,
+          "left": 516.375,
+          "right": 749.1875,
+          "top": 18.8125,
+          "width": 232.8125
+        },
+        "rail": {
+          "bottom": 1000,
+          "height": 69.6875,
+          "left": 210,
+          "right": 558,
+          "top": 930.3125,
+          "width": 348
+        },
+        "readout": {
+          "bottom": 362.390625,
+          "height": 260,
+          "left": 428.8125,
+          "right": 748.8125,
+          "top": 102.390625,
+          "width": 320
+        },
+        "route": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0
+        },
+        "world": {
+          "bottom": 1024,
+          "height": 1024,
+          "left": 0,
+          "right": 768,
+          "top": 0,
+          "width": 768
+        }
+      },
+      "mobile": false,
+      "contrastRatios": [
+        8.678483430482627,
+        11.00237778624301,
+        12.10271232958483,
+        14.232304916087642,
+        12.10271232958483,
+        12.10271232958483
+      ],
+      "overlaps": {
+        "controlsRoute": false,
+        "liveRoute": false,
+        "navControls": false,
+        "navReadout": false,
+        "railControls": false,
+        "railLive": false,
+        "railReadout": false
+      },
+      "railButtonCount": 8,
+      "rendererMode": "webgl",
+      "readoutStyle": {
+        "animation": "station-readout-corner-settle",
+        "position": "absolute",
+        "top": "102.4px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      },
+      "targets": [
+        {
+          "height": 44,
+          "label": "Work",
+          "width": 72
+        },
+        {
+          "height": 44,
+          "label": "Archive",
+          "width": 79.40625
+        },
+        {
+          "height": 44,
+          "label": "Contact",
+          "width": 79.40625
+        },
+        {
+          "height": 57.6875,
+          "label": "Plaque: 75 repos / 25 systems / 11 topology ML",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "S2 Core: Seal OS, Epsilon-Hollow, ISO boot proof",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Aether: Aether-Lang, persistent homology, Lean kernel",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Field: Faraday, Hamilton, fixed-point gauge fields",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "QPU: TopoBridge-Q, homology, IBM QPU evidence",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Upstream: Triton, PyTorch, NeMo Relay",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Archive: lambda-topo, topoflow, topoml, phi-mem",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Tooling: AVX-512, page tables, no_std kernels, SIMD homology",
+          "width": 112
+        },
+        {
+          "height": 64.375,
+          "label": "Public source evidence from google-deepmind/mujoco",
+          "width": 250
+        },
+        {
+          "height": 44,
+          "label": "Use low graphics quality",
+          "width": 52
+        },
+        {
+          "height": 44,
+          "label": "Use medium graphics quality",
+          "width": 67.203125
+        },
+        {
+          "height": 44,
+          "label": "Use high graphics quality",
+          "width": 52.8125
+        },
+        {
+          "height": 44,
+          "label": "contrast",
+          "width": 81.609375
+        }
+      ],
+      "technicalSizes": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12
+      ],
+      "viewport": {
+        "height": 1024,
+        "width": 768
+      },
+      "worldOverflow": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "pageErrors": []
+  },
+  {
+    "name": "412x915",
+    "metrics": {
+      "activeCenterDelta": 0,
+      "activeInsideRail": true,
+      "bodyCopy": [
+        16
+      ],
+      "bounds": {
+        "active": {
+          "bottom": 875.8125,
+          "height": 57.6875,
+          "left": 150,
+          "right": 262,
+          "top": 818.125,
+          "width": 112
+        },
+        "controls": {
+          "bottom": 116,
+          "height": 54,
+          "left": 154.375,
+          "right": 404,
+          "top": 62,
+          "width": 249.625
+        },
+        "live": {
+          "bottom": 169.78125,
+          "height": 53.78125,
+          "left": 8,
+          "right": 192,
+          "top": 116,
+          "width": 184
+        },
+        "nav": {
+          "bottom": 62,
+          "height": 46,
+          "left": 228,
+          "right": 404,
+          "top": 16,
+          "width": 176
+        },
+        "rail": {
+          "bottom": 879.8125,
+          "height": 65.6875,
+          "left": 17,
+          "right": 395,
+          "top": 814.125,
+          "width": 378
+        },
+        "readout": {
+          "bottom": 814.125,
+          "height": 123.609375,
+          "left": 17,
+          "right": 395,
+          "top": 690.515625,
+          "width": 378
+        },
+        "route": {
+          "bottom": 907,
+          "height": 225.484375,
+          "left": 8,
+          "right": 404,
+          "top": 681.515625,
+          "width": 396
+        },
+        "world": {
+          "bottom": 915,
+          "height": 915,
+          "left": 0,
+          "right": 412,
+          "top": 0,
+          "width": 412
+        }
+      },
+      "mobile": true,
+      "contrastRatios": [
+        8.678483430482627,
+        11.00237778624301,
+        12.10271232958483,
+        14.232304916087642,
+        12.10271232958483,
+        12.10271232958483
+      ],
+      "overlaps": {
+        "controlsRoute": false,
+        "liveRoute": false,
+        "navControls": false,
+        "navReadout": false,
+        "railControls": false,
+        "railLive": false,
+        "railReadout": false
+      },
+      "railButtonCount": 8,
+      "rendererMode": "webgl",
+      "readoutStyle": {
+        "animation": "none",
+        "position": "static",
+        "top": "91.5px",
+        "transform": "none"
+      },
+      "targets": [
+        {
+          "height": 44,
+          "label": "Work",
+          "width": 57.328125
+        },
+        {
+          "height": 44,
+          "label": "Archive",
+          "width": 58.34375
+        },
+        {
+          "height": 44,
+          "label": "Contact",
+          "width": 58.328125
+        },
+        {
+          "height": 57.6875,
+          "label": "Plaque: 75 repos / 25 systems / 11 topology ML",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "S2 Core: Seal OS, Epsilon-Hollow, ISO boot proof",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Aether: Aether-Lang, persistent homology, Lean kernel",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Field: Faraday, Hamilton, fixed-point gauge fields",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "QPU: TopoBridge-Q, homology, IBM QPU evidence",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Upstream: Triton, PyTorch, NeMo Relay",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Archive: lambda-topo, topoflow, topoml, phi-mem",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Tooling: AVX-512, page tables, no_std kernels, SIMD homology",
+          "width": 112
+        },
+        {
+          "height": 53.78125,
+          "label": "Public source evidence from google-deepmind/mujoco",
+          "width": 184
+        },
+        {
+          "height": 44,
+          "label": "Use low graphics quality",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "label": "Use medium graphics quality",
+          "width": 61.203125
+        },
+        {
+          "height": 44,
+          "label": "Use high graphics quality",
+          "width": 46.8125
+        },
+        {
+          "height": 44,
+          "label": "contrast",
+          "width": 75.609375
+        }
+      ],
+      "technicalSizes": [
+        12,
+        12,
+        12,
+        12
+      ],
+      "viewport": {
+        "height": 915,
+        "width": 412
+      },
+      "worldOverflow": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "pageErrors": []
+  },
+  {
+    "name": "390x844",
+    "metrics": {
+      "activeCenterDelta": 0,
+      "activeInsideRail": true,
+      "bodyCopy": [
+        16
+      ],
+      "bounds": {
+        "active": {
+          "bottom": 804.8125,
+          "height": 57.6875,
+          "left": 139,
+          "right": 251,
+          "top": 747.125,
+          "width": 112
+        },
+        "controls": {
+          "bottom": 116,
+          "height": 54,
+          "left": 132.375,
+          "right": 382,
+          "top": 62,
+          "width": 249.625
+        },
+        "live": {
+          "bottom": 169.78125,
+          "height": 53.78125,
+          "left": 8,
+          "right": 192,
+          "top": 116,
+          "width": 184
+        },
+        "nav": {
+          "bottom": 62,
+          "height": 46,
+          "left": 206,
+          "right": 382,
+          "top": 16,
+          "width": 176
+        },
+        "rail": {
+          "bottom": 808.8125,
+          "height": 65.6875,
+          "left": 17,
+          "right": 373,
+          "top": 743.125,
+          "width": 356
+        },
+        "readout": {
+          "bottom": 743.125,
+          "height": 123.609375,
+          "left": 17,
+          "right": 373,
+          "top": 619.515625,
+          "width": 356
+        },
+        "route": {
+          "bottom": 836,
+          "height": 225.484375,
+          "left": 8,
+          "right": 382,
+          "top": 610.515625,
+          "width": 374
+        },
+        "world": {
+          "bottom": 844,
+          "height": 844,
+          "left": 0,
+          "right": 390,
+          "top": 0,
+          "width": 390
+        }
+      },
+      "mobile": true,
+      "contrastRatios": [
+        8.678483430482627,
+        11.00237778624301,
+        12.10271232958483,
+        14.232304916087642,
+        12.10271232958483,
+        12.10271232958483
+      ],
+      "overlaps": {
+        "controlsRoute": false,
+        "liveRoute": false,
+        "navControls": false,
+        "navReadout": false,
+        "railControls": false,
+        "railLive": false,
+        "railReadout": false
+      },
+      "railButtonCount": 8,
+      "rendererMode": "webgl",
+      "readoutStyle": {
+        "animation": "none",
+        "position": "static",
+        "top": "86px",
+        "transform": "none"
+      },
+      "targets": [
+        {
+          "height": 44,
+          "label": "Work",
+          "width": 57.328125
+        },
+        {
+          "height": 44,
+          "label": "Archive",
+          "width": 58.34375
+        },
+        {
+          "height": 44,
+          "label": "Contact",
+          "width": 58.328125
+        },
+        {
+          "height": 57.6875,
+          "label": "Plaque: 75 repos / 25 systems / 11 topology ML",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "S2 Core: Seal OS, Epsilon-Hollow, ISO boot proof",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Aether: Aether-Lang, persistent homology, Lean kernel",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Field: Faraday, Hamilton, fixed-point gauge fields",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "QPU: TopoBridge-Q, homology, IBM QPU evidence",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Upstream: Triton, PyTorch, NeMo Relay",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Archive: lambda-topo, topoflow, topoml, phi-mem",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Tooling: AVX-512, page tables, no_std kernels, SIMD homology",
+          "width": 112
+        },
+        {
+          "height": 53.78125,
+          "label": "Public source evidence from google-deepmind/mujoco",
+          "width": 184
+        },
+        {
+          "height": 44,
+          "label": "Use low graphics quality",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "label": "Use medium graphics quality",
+          "width": 61.203125
+        },
+        {
+          "height": 44,
+          "label": "Use high graphics quality",
+          "width": 46.8125
+        },
+        {
+          "height": 44,
+          "label": "contrast",
+          "width": 75.609375
+        }
+      ],
+      "technicalSizes": [
+        12,
+        12,
+        12,
+        12
+      ],
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "worldOverflow": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "pageErrors": []
+  },
+  {
+    "name": "320x700",
+    "metrics": {
+      "activeCenterDelta": 0,
+      "activeInsideRail": true,
+      "bodyCopy": [
+        16
+      ],
+      "bounds": {
+        "active": {
+          "bottom": 660.8125,
+          "height": 57.6875,
+          "left": 104,
+          "right": 216,
+          "top": 603.125,
+          "width": 112
+        },
+        "controls": {
+          "bottom": 114,
+          "height": 52,
+          "left": 81.1875,
+          "right": 312,
+          "top": 62,
+          "width": 230.8125
+        },
+        "live": {
+          "bottom": 169.78125,
+          "height": 53.78125,
+          "left": 8,
+          "right": 192,
+          "top": 116,
+          "width": 184
+        },
+        "nav": {
+          "bottom": 62,
+          "height": 46,
+          "left": 148,
+          "right": 312,
+          "top": 16,
+          "width": 164
+        },
+        "rail": {
+          "bottom": 664.8125,
+          "height": 65.6875,
+          "left": 17,
+          "right": 303,
+          "top": 599.125,
+          "width": 286
+        },
+        "readout": {
+          "bottom": 599.125,
+          "height": 123.609375,
+          "left": 17,
+          "right": 303,
+          "top": 475.515625,
+          "width": 286
+        },
+        "route": {
+          "bottom": 692,
+          "height": 225.484375,
+          "left": 8,
+          "right": 312,
+          "top": 466.515625,
+          "width": 304
+        },
+        "world": {
+          "bottom": 700,
+          "height": 700,
+          "left": 0,
+          "right": 320,
+          "top": 0,
+          "width": 320
+        }
+      },
+      "mobile": true,
+      "contrastRatios": [
+        8.678483430482627,
+        11.00237778624301,
+        12.10271232958483,
+        14.232304916087642,
+        12.10271232958483,
+        12.10271232958483
+      ],
+      "overlaps": {
+        "controlsRoute": false,
+        "liveRoute": false,
+        "navControls": false,
+        "navReadout": false,
+        "railControls": false,
+        "railLive": false,
+        "railReadout": false
+      },
+      "railButtonCount": 8,
+      "rendererMode": "webgl",
+      "readoutStyle": {
+        "animation": "none",
+        "position": "static",
+        "top": "86px",
+        "transform": "none"
+      },
+      "targets": [
+        {
+          "height": 44,
+          "label": "Work",
+          "width": 53.328125
+        },
+        {
+          "height": 44,
+          "label": "Archive",
+          "width": 54.34375
+        },
+        {
+          "height": 44,
+          "label": "Contact",
+          "width": 54.328125
+        },
+        {
+          "height": 57.6875,
+          "label": "Plaque: 75 repos / 25 systems / 11 topology ML",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "S2 Core: Seal OS, Epsilon-Hollow, ISO boot proof",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Aether: Aether-Lang, persistent homology, Lean kernel",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Field: Faraday, Hamilton, fixed-point gauge fields",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "QPU: TopoBridge-Q, homology, IBM QPU evidence",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Upstream: Triton, PyTorch, NeMo Relay",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Archive: lambda-topo, topoflow, topoml, phi-mem",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Tooling: AVX-512, page tables, no_std kernels, SIMD homology",
+          "width": 112
+        },
+        {
+          "height": 53.78125,
+          "label": "Public source evidence from google-deepmind/mujoco",
+          "width": 184
+        },
+        {
+          "height": 44,
+          "label": "Use low graphics quality",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "label": "Use medium graphics quality",
+          "width": 57.203125
+        },
+        {
+          "height": 44,
+          "label": "Use high graphics quality",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "label": "contrast",
+          "width": 71.609375
+        }
+      ],
+      "technicalSizes": [
+        12,
+        12,
+        12,
+        12
+      ],
+      "viewport": {
+        "height": 700,
+        "width": 320
+      },
+      "worldOverflow": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "pageErrors": []
+  },
+  {
+    "name": "2560x1440",
+    "metrics": {
+      "activeCenterDelta": 0,
+      "activeInsideRail": true,
+      "bodyCopy": [
+        16
+      ],
+      "bounds": {
+        "active": {
+          "bottom": 1410,
+          "height": 57.6875,
+          "left": 1224,
+          "right": 1336,
+          "top": 1352.3125,
+          "width": 112
+        },
+        "controls": {
+          "bottom": 1330,
+          "height": 54,
+          "left": 2240.375,
+          "right": 2516,
+          "top": 1276,
+          "width": 275.625
+        },
+        "live": {
+          "bottom": 1330,
+          "height": 127.140625,
+          "left": 44,
+          "right": 348,
+          "top": 1202.859375,
+          "width": 304
+        },
+        "nav": {
+          "bottom": 80,
+          "height": 46,
+          "left": 2293.1875,
+          "right": 2526,
+          "top": 34,
+          "width": 232.8125
+        },
+        "rail": {
+          "bottom": 1416,
+          "height": 69.6875,
+          "left": 920,
+          "right": 1640,
+          "top": 1346.3125,
+          "width": 720
+        },
+        "readout": {
+          "bottom": 378,
+          "height": 260,
+          "left": 2172,
+          "right": 2516,
+          "top": 118,
+          "width": 344
+        },
+        "route": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0
+        },
+        "world": {
+          "bottom": 1440,
+          "height": 1440,
+          "left": 0,
+          "right": 2560,
+          "top": 0,
+          "width": 2560
+        }
+      },
+      "mobile": false,
+      "contrastRatios": [
+        8.678483430482627,
+        11.00237778624301,
+        12.10271232958483,
+        14.232304916087642,
+        12.10271232958483,
+        12.10271232958483
+      ],
+      "overlaps": {
+        "controlsRoute": false,
+        "liveRoute": false,
+        "navControls": false,
+        "navReadout": false,
+        "railControls": false,
+        "railLive": false,
+        "railReadout": false
+      },
+      "railButtonCount": 8,
+      "rendererMode": "webgl",
+      "readoutStyle": {
+        "animation": "station-readout-corner-settle",
+        "position": "absolute",
+        "top": "118px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      },
+      "targets": [
+        {
+          "height": 44,
+          "label": "Work",
+          "width": 72
+        },
+        {
+          "height": 44,
+          "label": "Archive",
+          "width": 79.40625
+        },
+        {
+          "height": 44,
+          "label": "Contact",
+          "width": 79.40625
+        },
+        {
+          "height": 57.6875,
+          "label": "Plaque: 75 repos / 25 systems / 11 topology ML",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "S2 Core: Seal OS, Epsilon-Hollow, ISO boot proof",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Aether: Aether-Lang, persistent homology, Lean kernel",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Field: Faraday, Hamilton, fixed-point gauge fields",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "QPU: TopoBridge-Q, homology, IBM QPU evidence",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Upstream: Triton, PyTorch, NeMo Relay",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Archive: lambda-topo, topoflow, topoml, phi-mem",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Tooling: AVX-512, page tables, no_std kernels, SIMD homology",
+          "width": 112
+        },
+        {
+          "height": 127.140625,
+          "label": "Public source evidence from google-deepmind/mujoco",
+          "width": 304
+        },
+        {
+          "height": 44,
+          "label": "Use low graphics quality",
+          "width": 52
+        },
+        {
+          "height": 44,
+          "label": "Use medium graphics quality",
+          "width": 67.203125
+        },
+        {
+          "height": 44,
+          "label": "Use high graphics quality",
+          "width": 52.8125
+        },
+        {
+          "height": 44,
+          "label": "contrast",
+          "width": 81.609375
+        }
+      ],
+      "technicalSizes": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12
+      ],
+      "viewport": {
+        "height": 1440,
+        "width": 2560
+      },
+      "worldOverflow": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "pageErrors": []
+  },
+  {
+    "name": "150-percent-zoom",
+    "metrics": {
+      "activeCenterDelta": 0,
+      "activeInsideRail": true,
+      "bodyCopy": [
+        16
+      ],
+      "bounds": {
+        "active": {
+          "bottom": 637,
+          "height": 57.6875,
+          "left": 657.5,
+          "right": 769.5,
+          "top": 579.3125,
+          "width": 112
+        },
+        "controls": {
+          "bottom": 557,
+          "height": 54,
+          "left": 764.703125,
+          "right": 1040.328125,
+          "top": 503,
+          "width": 275.625
+        },
+        "live": {
+          "bottom": 557,
+          "height": 64.375,
+          "left": 26.671875,
+          "right": 276.671875,
+          "top": 492.625,
+          "width": 250
+        },
+        "nav": {
+          "bottom": 72.140625,
+          "height": 46,
+          "left": 808.046875,
+          "right": 1040.859375,
+          "top": 26.140625,
+          "width": 232.8125
+        },
+        "rail": {
+          "bottom": 643,
+          "height": 69.6875,
+          "left": 390,
+          "right": 1037,
+          "top": 573.3125,
+          "width": 647
+        },
+        "readout": {
+          "bottom": 346,
+          "height": 260,
+          "left": 720.328125,
+          "right": 1040.328125,
+          "top": 86,
+          "width": 320
+        },
+        "route": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0
+        },
+        "world": {
+          "bottom": 667,
+          "height": 667,
+          "left": 0,
+          "right": 1067,
+          "top": 0,
+          "width": 1067
+        }
+      },
+      "mobile": false,
+      "contrastRatios": [
+        8.678483430482627,
+        11.00237778624301,
+        12.10271232958483,
+        14.232304916087642,
+        12.10271232958483,
+        12.10271232958483
+      ],
+      "overlaps": {
+        "controlsRoute": false,
+        "liveRoute": false,
+        "navControls": false,
+        "navReadout": false,
+        "railControls": false,
+        "railLive": false,
+        "railReadout": false
+      },
+      "railButtonCount": 8,
+      "rendererMode": "webgl",
+      "readoutStyle": {
+        "animation": "station-readout-corner-settle",
+        "position": "absolute",
+        "top": "86px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      },
+      "targets": [
+        {
+          "height": 44,
+          "label": "Work",
+          "width": 72
+        },
+        {
+          "height": 44,
+          "label": "Archive",
+          "width": 79.40625
+        },
+        {
+          "height": 44,
+          "label": "Contact",
+          "width": 79.40625
+        },
+        {
+          "height": 57.6875,
+          "label": "Plaque: 75 repos / 25 systems / 11 topology ML",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "S2 Core: Seal OS, Epsilon-Hollow, ISO boot proof",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Aether: Aether-Lang, persistent homology, Lean kernel",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Field: Faraday, Hamilton, fixed-point gauge fields",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "QPU: TopoBridge-Q, homology, IBM QPU evidence",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Upstream: Triton, PyTorch, NeMo Relay",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Archive: lambda-topo, topoflow, topoml, phi-mem",
+          "width": 112
+        },
+        {
+          "height": 57.6875,
+          "label": "Tooling: AVX-512, page tables, no_std kernels, SIMD homology",
+          "width": 112
+        },
+        {
+          "height": 64.375,
+          "label": "Public source evidence from google-deepmind/mujoco",
+          "width": 250
+        },
+        {
+          "height": 44,
+          "label": "Use low graphics quality",
+          "width": 52
+        },
+        {
+          "height": 44,
+          "label": "Use medium graphics quality",
+          "width": 67.203125
+        },
+        {
+          "height": 44,
+          "label": "Use high graphics quality",
+          "width": 52.8125
+        },
+        {
+          "height": 44,
+          "label": "contrast",
+          "width": 81.609375
+        }
+      ],
+      "technicalSizes": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12
+      ],
+      "viewport": {
+        "height": 667,
+        "width": 1067
+      },
+      "worldOverflow": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  }
+]

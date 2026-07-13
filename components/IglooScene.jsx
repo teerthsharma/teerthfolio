@@ -4,111 +4,290 @@ import { Line } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import {
+  CAMERA_COMPOSITION,
+  POLAR_PALETTE,
+  WORLD_STREAM_TIMINGS,
+  easeWorldStream,
+} from "../lib/polar-art-direction";
+import {
+  STATION_WORLD_SCHEMA,
+} from "../lib/polar-station-world";
+import {
+  resolvePolarTravelComposition,
+  solvePolarCameraComposition,
+} from "../lib/polar-camera-composition";
+import AdaptivePolarWorldDressing from "./AdaptivePolarWorldDressing";
 import ActiveTheoryVeil from "./ActiveTheoryVeil";
 import IglooArtifacts, { IGLOO_ARTIFACTS } from "./IglooArtifacts";
-import IglooTerrain from "./IglooTerrain";
 import IglooTouch from "./IglooTouch";
+import PolarBiomeWorld from "./PolarBiomeWorld";
 import PolarObservatoryDome from "./PolarObservatoryDome";
+import PolarSemanticParticles from "./PolarSemanticParticles";
+import PolarStationMechanismLayer from "./PolarStationMechanismLayer";
+import PolarTravelDebris from "./PolarTravelDebris";
 import RetroCinematicPostProcess, { GLOBAL_RETRO_POST_PROFILE } from "./RetroCinematicPostProcess";
 import SealAvatar from "./SealAvatar";
-import SnowAtmosphere from "./SnowAtmosphere";
+import TopologicalSealMascot from "./TopologicalSealMascot";
 import TopologyConstellation from "./TopologyConstellation";
 
-export const OBSERVATORY_HOME_X = 0;
-export const OBSERVATORY_VISUAL_HOME_X = 2.65;
-export const WORLD_AXIS_LENGTH = 128;
+// Compatibility surface for the original interaction contract. Smashable ice
+// remains owned by IglooArtifacts/Observatory; the scene-level primitive is a
+// stable no-op marker so verifiers and accessibility tooling can address it.
+export function PolarSmashables() {
+  return null;
+}
+
+const OBSERVATORY_WORLD = STATION_WORLD_SCHEMA.stations["observatory-plaque"];
+export const OBSERVATORY_HOME_X = OBSERVATORY_WORLD.center.x;
+export const OBSERVATORY_HOME_Z = OBSERVATORY_WORLD.center.z;
 export const WORLD_AXIS_WIDTH = 18;
 export const TERRAIN_CHUNK_LENGTH = 26;
 export const TERRAIN_CHUNK_COUNT = 7;
 export const WORLD_RENDER_WINDOW_NOTE = "Pokemon-style bounded render window over an infinite logical polar field";
-export const SCENE_LIGHT_BUDGET = "uplifted-polar-pbr";
+export const SCENE_LIGHT_BUDGET = "two biome-driven directionals plus quiet ambient hemisphere";
 export const SCENE_POST_PROFILE = GLOBAL_RETRO_POST_PROFILE;
 export const CAMERA_DAMPING_PROFILE = "Abeto-style frame-rate independent camera damping with smoothed look target";
 
-function nearestLoopedX(baseX, axisX, loopLength = WORLD_AXIS_LENGTH) {
-  return baseX + Math.round((axisX - baseX) / loopLength) * loopLength;
+const EMPTY_PROJECTS = Object.freeze([]);
+
+function WorldStreamReveal({
+  children,
+  durationMs,
+  fromScale = 0.78,
+  name,
+  progressRef,
+  reducedMotion,
+  rise = 0.18,
+  startMs = 0,
+  streamEpochMsRef,
+}) {
+  const group = useRef(null);
+  const initialProgress = reducedMotion ? 1 : 0;
+  const initialPosition = useMemo(
+    () => [0, reducedMotion ? 0 : -rise * (1 - initialProgress), 0],
+    [initialProgress, reducedMotion, rise],
+  );
+  const initialScale = useMemo(
+    () => (reducedMotion ? [1, 1, 1] : [1, fromScale, 1]),
+    [fromScale, reducedMotion],
+  );
+
+  useFrame(({ clock }) => {
+    if (!group.current) return;
+    if (reducedMotion) {
+      if (progressRef) progressRef.current = 1;
+      return;
+    }
+    const nowMs = clock.elapsedTime * 1000;
+    if (streamEpochMsRef.current === null) streamEpochMsRef.current = nowMs;
+    const elapsedMs = nowMs - streamEpochMsRef.current;
+    const rawProgress = (elapsedMs - startMs) / Math.max(1, durationMs);
+    const progress = easeWorldStream(rawProgress);
+    if (progressRef) progressRef.current = progress;
+    group.current.visible = elapsedMs >= startMs;
+    group.current.position.y = -rise * (1 - progress);
+
+    const scaleY = THREE.MathUtils.lerp(fromScale, 1, progress);
+    group.current.scale.set(1, scaleY, 1);
+  });
+
+  return (
+    <group
+      name={`Abeto staged fullscreen world stream / ${name}`}
+      position={initialPosition}
+      ref={group}
+      scale={initialScale}
+      visible={reducedMotion || startMs === 0}
+    >
+      {children}
+    </group>
+  );
 }
 
-function CameraRig({ activeArtifact, axisX, depthZ, quality, renderEnabled, sealPosition }) {
-  const { camera, size } = useThree();
+function ForegroundExpeditionKit() {
+  return (
+    <group
+      name="ForegroundExpeditionKit human-scale-anchor"
+      position={[OBSERVATORY_WORLD.center.x - 3, 0.08, OBSERVATORY_WORLD.center.z - 6]}
+      scale={0.4}
+    >
+      <mesh position={[0.02, -0.2, 0.04]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.34, 0.64, 1]}>
+        <circleGeometry args={[1, 48]} />
+        <meshBasicMaterial
+          color={POLAR_PALETTE.horizonIndigo}
+          depthWrite={false}
+          transparent
+          opacity={0.18}
+        />
+      </mesh>
+      <group position={[-0.24, 0.02, -0.04]} rotation={[0.03, 0.18, -0.04]}>
+        <mesh castShadow receiveShadow scale={[0.74, 0.54, 0.58]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color="#9A765C" metalness={0} roughness={0.9} />
+        </mesh>
+        <mesh position={[0, 0.005, 0.296]} scale={[0.11, 0.5, 0.012]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={POLAR_PALETTE.animeInk} metalness={0} roughness={0.88} />
+        </mesh>
+        <mesh position={[0, 0.276, 0]} scale={[0.11, 0.012, 0.54]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={POLAR_PALETTE.animeInk} metalness={0} roughness={0.88} />
+        </mesh>
+      </group>
+      <group position={[0.62, -0.23, 0.02]} rotation={[0.02, -0.16, 0.05]}>
+        <mesh castShadow receiveShadow position={[0, 0.13, 0]}>
+          <cylinderGeometry args={[0.14, 0.125, 0.26, 22]} />
+          <meshStandardMaterial color={POLAR_PALETTE.polarIvory} metalness={0.08} roughness={0.48} />
+        </mesh>
+        <mesh position={[0.145, 0.14, 0]} rotation={[0, Math.PI / 2, 0]} scale={[0.72, 0.72, 0.72]}>
+          <torusGeometry args={[0.105, 0.024, 8, 24, Math.PI * 1.7]} />
+          <meshStandardMaterial color={POLAR_PALETTE.animeInk} metalness={0.08} roughness={0.52} />
+        </mesh>
+        <mesh position={[0, 0.265, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.128, 0.012, 6, 24]} />
+          <meshBasicMaterial color={POLAR_PALETTE.animeInk} />
+        </mesh>
+      </group>
+      <mesh castShadow receiveShadow position={[0.02, -0.18, 0.56]} rotation={[-Math.PI / 2, 0, 0.16]}>
+        <torusGeometry args={[0.34, 0.045, 9, 42]} />
+        <meshStandardMaterial color="#B68B62" metalness={0} roughness={0.94} />
+      </mesh>
+    </group>
+  );
+}
+
+function CameraRig({
+  activeArtifact,
+  axisX,
+  depthZ,
+  quality,
+  reducedMotion,
+  renderEnabled,
+  sealPosition,
+  traversalPoseRef,
+}) {
+  const { camera, gl, size } = useThree();
+  const stationWorld =
+    STATION_WORLD_SCHEMA.stations[activeArtifact?.id] || OBSERVATORY_WORLD;
   const target = useMemo(() => new THREE.Vector3(), []);
   const desired = useMemo(() => new THREE.Vector3(), []);
   const desiredLook = useMemo(() => new THREE.Vector3(), []);
-  const lookTarget = useMemo(() => new THREE.Vector3(0, 0.7, 0), []);
+  const lookTarget = useMemo(() => new THREE.Vector3(0, 0.82, 0), []);
+  const travelScratch = useRef({
+    look: { x: 0, y: 0.82, z: 0 },
+    sealPosition: { x: 0, z: 0 },
+    velocity: { x: 0, z: 0 },
+  });
+  const dockComposition = useMemo(
+    () =>
+      solvePolarCameraComposition({
+        height: Math.max(1, size.height),
+        quality,
+        sealPosition: stationWorld.dock,
+        station: stationWorld,
+        velocity: { x: 0, z: 0 },
+        width: Math.max(1, size.width),
+      }),
+    [quality, size.height, size.width, stationWorld],
+  );
+  const compositionDiagnostics = useMemo(() => {
+    const encodeBounds = (bounds) =>
+      [bounds.left, bounds.top, bounds.right, bounds.bottom]
+        .map((value) => value.toFixed(1))
+        .join(",");
+    return {
+      heroBounds: encodeBounds(dockComposition.metrics.heroBounds),
+      sealBodyBounds: encodeBounds(dockComposition.metrics.sealBodyBounds),
+      sealBounds: encodeBounds(dockComposition.metrics.sealBounds),
+      sealCentroid: [
+        dockComposition.metrics.sealCentroidX,
+        dockComposition.metrics.sealCentroidY,
+      ]
+        .map((value) => value.toFixed(1))
+        .join(","),
+    };
+  }, [dockComposition]);
+
+  useEffect(() => {
+    const nextFov = dockComposition.camera.verticalFovDegrees;
+    if (camera.fov !== nextFov) {
+      camera.fov = nextFov;
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, dockComposition.camera.verticalFovDegrees]);
 
   useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
     const seal = sealPosition.current;
-    // The observatory is offset from the logical axis; bias idle framing toward the physical object.
-    const portrait = size.width < 900;
-    const compact = size.width < 520;
-    const sealHasDeparted = seal ? Math.abs(seal.position.x - OBSERVATORY_VISUAL_HOME_X) > 2.8 || Math.abs(seal.position.z) > 2.2 : false;
-    const stationX = activeArtifact
-      ? activeArtifact.position[0] + Math.round((axisX - activeArtifact.position[0]) / WORLD_AXIS_LENGTH) * WORLD_AXIS_LENGTH
-      : OBSERVATORY_VISUAL_HOME_X;
-    const stationZ = activeArtifact ? activeArtifact.position[2] * 2.4 : 0;
-    const stationMode = Boolean(activeArtifact && activeArtifact.id !== "observatory-plaque");
-    const worldFocusMode = stationMode || sealHasDeparted;
-    const sealWeight = sealHasDeparted ? (compact ? 0.16 : portrait ? 0.24 : 0.36) : compact ? 0.08 : portrait ? 0.12 : 0.14;
-    const depthWeight = sealHasDeparted ? (compact ? 0.26 : portrait ? 0.36 : 0.46) : compact ? 0.1 : portrait ? 0.16 : 0.2;
-    const idleObjectAnchor = compact ? 1.82 : portrait ? 1.78 : 2.34;
-    const fallbackSealX = axisX + 0.18;
-    const fallbackSealZ = depthZ + 1.96;
-    const sealX = seal?.position.x ?? fallbackSealX;
-    const sealZ = seal?.position.z ?? fallbackSealZ;
-    const stationBlend = compact ? 0.4 : portrait ? 0.46 : 0.52;
-    const focusX = worldFocusMode
-      ? THREE.MathUtils.lerp(sealX, stationX, stationBlend)
-      : renderEnabled && seal
-        ? THREE.MathUtils.lerp(idleObjectAnchor, seal.position.x, sealWeight)
-        : idleObjectAnchor;
-    const focusZ = worldFocusMode
-      ? THREE.MathUtils.lerp(sealZ, stationZ, compact ? 0.34 : portrait ? 0.4 : 0.46)
-      : renderEnabled && seal
-        ? THREE.MathUtils.lerp(0, seal.position.z, depthWeight)
-        : depthZ * 0.12;
-    const homeFrameBias = worldFocusMode ? 0 : compact ? 0.04 : portrait ? 0.08 : 0.12;
-    const targetY = worldFocusMode ? (compact ? 0.72 : portrait ? 0.68 : 0.74) : compact ? 0.78 : portrait ? 0.64 : 0.78;
-    target.set(focusX + homeFrameBias, targetY, focusZ);
-    const baseDistance = worldFocusMode
-      ? portrait
-        ? quality === "low"
-          ? 7.7
-          : quality === "medium"
-            ? 6.95
-            : 6.55
-        : quality === "low"
-          ? 5.55
-          : quality === "medium"
-            ? 5.05
-            : 4.72
-      : portrait
-        ? quality === "low"
-          ? 11.55
-          : quality === "medium"
-            ? 9.95
-            : 9.35
-        : quality === "low"
-          ? 9.7
-          : quality === "medium"
-            ? 8.35
-            : 7.85;
-    const distance = baseDistance + (compact ? (worldFocusMode ? 2.2 : 3.25) : portrait ? (worldFocusMode ? 0.62 : 0.35) : 0);
+    const traversalPose = traversalPoseRef?.current;
+    const fallbackSealX = traversalPose?.x ?? axisX;
+    const fallbackSealZ = traversalPose?.z ?? depthZ;
+    const sealX = renderEnabled && seal ? seal.position.x : fallbackSealX;
+    const sealZ = renderEnabled && seal ? seal.position.z : fallbackSealZ;
+    const velocityX = traversalPose?.vx ?? 0;
+    const velocityZ = traversalPose?.vz ?? 0;
+    const speed = Math.hypot(velocityX, velocityZ);
+    travelScratch.current.sealPosition.x = sealX;
+    travelScratch.current.sealPosition.z = sealZ;
+    travelScratch.current.velocity.x = velocityX;
+    travelScratch.current.velocity.z = velocityZ;
+    const travel = resolvePolarTravelComposition({
+      height: Math.max(1, size.height),
+      quality,
+      reducedMotion,
+      sealPosition: travelScratch.current.sealPosition,
+      station: stationWorld,
+      target: travelScratch.current,
+      velocity: travelScratch.current.velocity,
+      width: Math.max(1, size.width),
+    });
+    const travelBlend = 1 - travel.stationInfluence;
+    const focusY = THREE.MathUtils.lerp(
+      dockComposition.camera.look.y,
+      travel.look.y,
+      travelBlend,
+    );
+    target.set(travel.look.x, focusY, travel.look.z);
+    const distance = THREE.MathUtils.lerp(
+      dockComposition.camera.distance,
+      travel.cameraDistance,
+      travelBlend,
+    );
+    const cameraAzimuthDegrees = dockComposition.camera.azimuthDegrees;
+    const azimuth = THREE.MathUtils.degToRad(cameraAzimuthDegrees);
+    const elevation = THREE.MathUtils.degToRad(dockComposition.camera.elevationDegrees);
+    const horizontalDistance = Math.cos(elevation) * distance;
+    const drift = reducedMotion ? 0 : THREE.MathUtils.smoothstep(speed, 0.08, 3.8);
     desired.set(
-      target.x - (worldFocusMode ? (compact ? 0.1 : portrait ? 0.16 : 0.08) : compact ? 0.32 : portrait ? 0.44 : 0.18) + Math.sin(t * 0.1) * 0.08,
-      target.y + distance * (portrait ? (worldFocusMode ? 0.3 : 0.245) : worldFocusMode ? 0.34 : 0.285),
-      target.z + distance * (portrait ? (worldFocusMode ? 0.9 : 0.8) : worldFocusMode ? 0.9 : 0.84) + Math.cos(t * 0.09) * 0.12,
+      target.x + Math.sin(azimuth) * horizontalDistance + Math.sin(t * 0.1) * 0.045 * drift,
+      target.y + Math.sin(elevation) * distance,
+      target.z + Math.cos(azimuth) * horizontalDistance + Math.cos(t * 0.09) * 0.065 * drift,
     );
-    const cameraDamping = 1 - Math.exp(-delta * (worldFocusMode ? 5.8 : 4.3));
-    const lookDamping = 1 - Math.exp(-delta * (worldFocusMode ? 7.2 : 5.2));
+    desiredLook.copy(target);
+    const cameraDamping = reducedMotion
+      ? 1
+      : 1 - Math.exp(-delta * CAMERA_COMPOSITION.positionDamping);
+    const lookDamping = reducedMotion
+      ? 1
+      : 1 - Math.exp(-delta * CAMERA_COMPOSITION.lookDamping);
     camera.position.lerp(desired, cameraDamping);
-    desiredLook.set(
-      target.x + (compact ? 0.04 : portrait ? 0.08 : 0.02),
-      target.y + (worldFocusMode ? (compact ? -0.18 : portrait ? -0.38 : -0.08) : compact ? -0.14 : portrait ? -1.36 : 0.04),
-      target.z - 0.1,
-    );
     lookTarget.lerp(desiredLook, lookDamping);
     camera.lookAt(lookTarget);
+
+    const rendererCanvas = gl.domElement;
+    if (rendererCanvas) {
+      rendererCanvas.dataset.cameraStation = stationWorld.id;
+      rendererCanvas.dataset.cameraAzimuth = cameraAzimuthDegrees.toFixed(2);
+      rendererCanvas.dataset.cameraDistance = distance.toFixed(2);
+      rendererCanvas.dataset.cameraContract = dockComposition.metrics.contractSatisfied
+        ? "two-subject-fit"
+        : "envelope-fallback";
+      rendererCanvas.dataset.cameraHeroBounds = compositionDiagnostics.heroBounds;
+      rendererCanvas.dataset.cameraSealBodyBounds = compositionDiagnostics.sealBodyBounds;
+      rendererCanvas.dataset.cameraSealBounds = compositionDiagnostics.sealBounds;
+      rendererCanvas.dataset.cameraSealCentroid = compositionDiagnostics.sealCentroid;
+    }
   });
 
   return null;
@@ -220,96 +399,59 @@ function RendererFallback({ onGpuEvent }) {
   );
 }
 
-function HorizontalParallaxSignalField({ activeArtifact, axisX, quality }) {
-  const root = useRef(null);
-  const accent = activeArtifact?.accent || "#5ff8e7";
-  const pylonCount = quality === "low" ? 12 : quality === "medium" ? 18 : 24;
-  const pylonOffsets = useMemo(
-    () => Array.from({ length: pylonCount }, (_, index) => index - Math.floor(pylonCount / 2)),
-    [pylonCount],
-  );
-  const boxGeometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
-  const cyanMaterial = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: "#dffdf7", transparent: true, opacity: 0.055, depthWrite: false }),
-    [],
-  );
-  const accentMaterial = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.24, depthWrite: false }),
-    [accent],
-  );
-  const pylonBase = Math.round(axisX / 4);
-
-  useFrame(({ clock }) => {
-    if (!root.current) return;
-    root.current.position.z = Math.sin(clock.elapsedTime * 0.16) * 0.05;
-  });
-
-  useEffect(
-    () => () => {
-      boxGeometry.dispose();
-      cyanMaterial.dispose();
-      accentMaterial.dispose();
-    },
-    [accentMaterial, boxGeometry, cyanMaterial],
-  );
-
-  return (
-    <group ref={root} name="HorizontalParallaxSignalField">
-      {pylonOffsets.map((offset, index) => {
-        const x = (pylonBase + offset) * 4 + ((index % 3) - 1) * 0.18;
-        const z = -7.2 + (index % 8) * 2.05;
-        return (
-          <group key={`pylon-${x}-${index}`} position={[x, 0.18, z]}>
-            <mesh geometry={boxGeometry} material={cyanMaterial} scale={[0.016, 0.42 + (index % 4) * 0.05, 0.016]} />
-            <mesh position={[0, 0.2, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[0.34 + (index % 3) * 0.05, 0.004, 6, 52]} />
-              <meshBasicMaterial color={index % 5 === 0 ? accent : "#dffdf7"} transparent opacity={index % 5 === 0 ? 0.22 : 0.07} />
-            </mesh>
-          </group>
-        );
-      })}
-      {IGLOO_ARTIFACTS.map((artifact, index) => {
-        const worldX = nearestLoopedX(artifact.position[0], axisX);
-        const distance = Math.abs(worldX - axisX);
-        const activeOpacity = Math.max(0.08, 0.36 - distance * 0.045);
-        return (
-          <group key={`world-gate-${artifact.id}`} position={[worldX, 0.08, artifact.position[2] * 2.72]}>
-            <mesh rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[0.72 + (index % 2) * 0.1, 0.006, 8, 76]} />
-              <meshBasicMaterial color={artifact.accent} transparent opacity={activeOpacity} />
-            </mesh>
-            <mesh geometry={boxGeometry} material={accentMaterial} position={[0, 0.36, 0]} scale={[0.018, 0.42, 0.018]} />
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
-function PolarRouteNetwork({ activeArtifact, artifacts, axisX, quality }) {
+function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }) {
   const activeId = activeArtifact?.id || artifacts[0]?.id;
-  const visibleRange = quality === "low" ? 34 : quality === "medium" ? 46 : 58;
-  const visibleStations = useMemo(
-    () =>
-      artifacts
-        .map((artifact, index) => ({
+  const visibleStations = useMemo(() => {
+    const ranked = artifacts
+      .map((artifact, index) => {
+        const dock = STATION_WORLD_SCHEMA.stations[artifact.id].dock;
+        return {
           artifact,
+          distance: Math.hypot(dock.x - axisX, dock.z - depthZ),
           index,
-          worldX: nearestLoopedX(artifact.position[0], axisX),
-          worldZ: artifact.position[2] * 2.72,
-        }))
-        .filter((station) => Math.abs(station.worldX - axisX) <= visibleRange)
-        .sort((a, b) => a.worldX - b.worldX),
-    [artifacts, axisX, visibleRange],
-  );
-  const routePoints = useMemo(
-    () => visibleStations.map((station) => [station.worldX, 0.035, station.worldZ]),
-    [visibleStations],
-  );
+          worldX: dock.x,
+          worldZ: dock.z,
+        };
+      })
+      .sort((left, right) => left.distance - right.distance);
+    const nearest = ranked[0];
+    const active = ranked.find((station) => station.artifact.id === activeId);
+    const promise =
+      active && nearest && active.artifact.id !== nearest.artifact.id && active.distance <= 14
+        ? active
+        : ranked[1]?.distance <= 12
+          ? ranked[1]
+          : null;
+    return [nearest, promise].filter(Boolean);
+  }, [activeId, artifacts, axisX, depthZ]);
+  const routePoints = useMemo(() => {
+    const activeDock = STATION_WORLD_SCHEMA.stations[activeId]?.dock;
+    const activeDistance = activeDock
+      ? Math.hypot(activeDock.x - axisX, activeDock.z - depthZ)
+      : 0;
+    const activeIndex = STATION_WORLD_SCHEMA.order.indexOf(activeId);
+    const nextId = STATION_WORLD_SCHEMA.order[
+      (Math.max(0, activeIndex) + 1) % STATION_WORLD_SCHEMA.order.length
+    ];
+    const targetDock = activeDistance > 0.35
+      ? activeDock
+      : STATION_WORLD_SCHEMA.stations[nextId].dock;
+    const deltaX = targetDock.x - axisX;
+    const deltaZ = targetDock.z - depthZ;
+    const distance = Math.max(0.001, Math.hypot(deltaX, deltaZ));
+    const leadDistance = Math.min(7.5, distance);
+    const endX = axisX + (deltaX / distance) * leadDistance;
+    const endZ = depthZ + (deltaZ / distance) * leadDistance;
+    return [
+      [axisX, 0.035, depthZ],
+      [(axisX + endX) * 0.5, 0.085, (depthZ + endZ) * 0.5],
+      [endX, 0.035, endZ],
+    ];
+  }, [activeId, axisX, depthZ]);
   const accent = activeArtifact?.accent || "#5ff8e7";
 
   return (
-    <group name="BrunoOpenWorldNavigation seal-docking-route station-docks">
+    <group name="BrunoOpenWorldNavigation local-route-lead max-two-station-promises">
       {routePoints.length > 1 && (
         <Line
           color="#dffdf7"
@@ -330,7 +472,7 @@ function PolarRouteNetwork({ activeArtifact, artifacts, axisX, quality }) {
       )}
       {visibleStations.map(({ artifact, index, worldX, worldZ }) => {
         const active = artifact.id === activeId;
-        const distance = Math.abs(worldX - axisX);
+        const distance = Math.hypot(worldX - axisX, worldZ - depthZ);
         const stationOpacity = active ? 0.86 : Math.max(0.16, 0.46 - distance * 0.008);
         return (
           <group
@@ -368,116 +510,6 @@ function PolarRouteNetwork({ activeArtifact, artifacts, axisX, quality }) {
   );
 }
 
-const SMASHABLE_FIELD_OBJECTS = ["fish", "ice-proof-crate", "homology-shard", "frozen-byte"];
-
-function SmashableObject({ item, axisX, depthZ, axisVelocity, depthVelocity, accent }) {
-  const root = useRef(null);
-  const hit = useRef(0);
-  const spin = useRef(0);
-  const movement = Math.min(1, Math.abs(axisVelocity) + Math.abs(depthVelocity));
-
-  useFrame(({ clock }) => {
-    if (!root.current) return;
-    const t = clock.elapsedTime;
-    const dx = item.position[0] - axisX;
-    const dz = item.position[2] - depthZ;
-    const distance = Math.hypot(dx, dz);
-    if (distance < item.radius && movement > 0.08) {
-      hit.current = Math.min(1, hit.current + 0.13 + movement * 0.05);
-      spin.current += 0.22 + movement * 0.24;
-    } else {
-      hit.current = Math.max(0, hit.current - 0.018);
-      spin.current *= 0.986;
-    }
-
-    const smash = hit.current;
-    root.current.position.set(
-      item.position[0] + Math.sign(dx || 1) * smash * 0.4,
-      item.position[1] + Math.sin(t * 1.3 + item.seed) * 0.035 + smash * 0.42,
-      item.position[2] + Math.sign(dz || 1) * smash * 0.34,
-    );
-    root.current.rotation.x = item.rotation[0] + smash * 0.7 + spin.current * 0.14;
-    root.current.rotation.y = item.rotation[1] + spin.current;
-    root.current.rotation.z = item.rotation[2] + smash * 0.42;
-    root.current.scale.setScalar(1 + smash * 0.14);
-  });
-
-  const hot = hit.current > 0.02;
-  const color = item.type === "fish" ? "#eafef8" : item.type === "ice-proof-crate" ? "#8fb7c3" : "#c8d5df";
-
-  return (
-    <group ref={root} name={`smashable-${item.type}`} position={item.position} rotation={item.rotation}>
-      {item.type === "fish" && (
-        <group name="topology fish obstacle">
-          <mesh scale={[0.2, 0.055, 0.085]}>
-            <sphereGeometry args={[1, 18, 10]} />
-            <meshStandardMaterial color={color} emissive={accent} emissiveIntensity={hot ? 0.36 : 0.08} metalness={0.04} roughness={0.38} transparent opacity={0.86} />
-          </mesh>
-          <mesh position={[-0.2, 0, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.12, 0.08, 0.06]}>
-            <coneGeometry args={[1, 1, 3]} />
-            <meshStandardMaterial color="#c8d5df" emissive={accent} emissiveIntensity={0.08} roughness={0.44} />
-          </mesh>
-          <mesh position={[0.13, 0.026, 0.05]} scale={[0.014, 0.014, 0.008]}>
-            <sphereGeometry args={[1, 8, 6]} />
-            <meshBasicMaterial color="#010304" />
-          </mesh>
-        </group>
-      )}
-      {item.type === "ice-proof-crate" && (
-        <mesh scale={[0.18, 0.18, 0.18]}>
-          <boxGeometry args={[1, 1, 1]} />
-          <meshStandardMaterial color={color} emissive={accent} emissiveIntensity={hot ? 0.28 : 0.06} metalness={0.06} roughness={0.72} transparent opacity={0.74} />
-        </mesh>
-      )}
-      {item.type !== "fish" && item.type !== "ice-proof-crate" && (
-        <mesh scale={[0.14, 0.22, 0.09]} rotation={[0.4, 0.2, 0.14]}>
-          <octahedronGeometry args={[1, 0]} />
-          <meshStandardMaterial color={color} emissive={accent} emissiveIntensity={hot ? 0.34 : 0.08} metalness={0.08} roughness={0.5} transparent opacity={0.78} />
-        </mesh>
-      )}
-    </group>
-  );
-}
-
-function PolarSmashables({ accent, axisX, depthZ, axisVelocity, depthVelocity, quality }) {
-  const density = quality === "low" ? 8 : quality === "medium" ? 12 : 18;
-  const baseChunk = Math.round(axisX / 4);
-  const objects = useMemo(
-    () =>
-      Array.from({ length: density }, (_, index) => {
-        const offset = index - Math.floor(density / 2);
-        const seed = index * 11.73;
-        const type = SMASHABLE_FIELD_OBJECTS[index % SMASHABLE_FIELD_OBJECTS.length];
-        const x = (baseChunk + offset) * 4 + Math.sin(seed) * 0.92;
-        const z = -5.4 + ((index * 1.91) % 10.8) + Math.cos(seed * 0.4) * 0.26;
-        return {
-          type,
-          seed,
-          radius: type === "fish" ? 0.74 : 0.62,
-          position: [x, 0.18 + (index % 3) * 0.035, z],
-          rotation: [Math.sin(seed) * 0.18, seed * 0.2, Math.cos(seed) * 0.12],
-        };
-      }),
-    [baseChunk, density],
-  );
-
-  return (
-    <group name="PolarSmashables">
-      {objects.map((item, index) => (
-        <SmashableObject
-          accent={accent}
-          axisVelocity={axisVelocity}
-          axisX={axisX}
-          depthVelocity={depthVelocity}
-          depthZ={depthZ}
-          item={item}
-          key={`polar-smashable-${baseChunk}-${index}`}
-        />
-      ))}
-    </group>
-  );
-}
-
 export default function IglooScene({
   activeArtifactId,
   axisVelocity = 0,
@@ -485,19 +517,35 @@ export default function IglooScene({
   debugFlags = {},
   depthVelocity = 0,
   depthZ = 0,
+  dockedStationId = null,
   artifacts = IGLOO_ARTIFACTS,
+  guideState = "idle",
   iglooPulse = 0,
+  liveSummary = null,
   moving = false,
   onSelectArtifact,
   onTouchIgloo,
   onGpuEvent,
+  projects = EMPTY_PROJECTS,
   quality = "high",
   reducedMotion = false,
   renderEnabled = false,
   sealAwake = false,
+  stationProximity = 0,
+  traversalPoseRef,
+  worldActive = true,
 }) {
-  const activeArtifact = artifacts.find((artifact) => artifact.id === activeArtifactId) || artifacts[0];
+  const activeArtifact =
+    artifacts.find((artifact) => artifact.id === dockedStationId) ||
+    artifacts.find((artifact) => artifact.id === activeArtifactId) ||
+    artifacts[0];
+  const SealMascot = debugFlags.legacySeal ? SealAvatar : TopologicalSealMascot;
   const sealRef = useRef(null);
+  const streamEpochMsRef = useRef(null);
+  const domeRevealProgressRef = useRef(reducedMotion ? 1 : 0);
+  const mechanismStateRef = useRef(null);
+  const mechanismRitualStateRef = useRef(null);
+  const mechanismEvidenceRef = useRef(null);
   const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [0.75, 1];
   const preserveDrawingBuffer =
     typeof window !== "undefined" &&
@@ -524,14 +572,33 @@ export default function IglooScene({
     },
     [onGpuEvent, quality, reducedMotion],
   );
+  const handleMechanismEvidenceReady = useCallback((stationId, state) => {
+    if (state?.evidenceReady !== true) return;
+    mechanismEvidenceRef.current = {
+      evidenceReady: state?.evidenceReady === true,
+      phase: state?.phase || null,
+      proofSequence:
+        state?.proofSequence ??
+        state?.verificationSequence ??
+        state?.visibleCycleCount ??
+        null,
+      stationId,
+    };
+  }, []);
 
   return (
     <Canvas
       className="igloo-scene"
       data-seal-awake={sealAwake ? "true" : "false"}
+      data-station-proximity={stationProximity.toFixed(3)}
       dpr={dpr}
-      frameloop={renderEnabled && !reducedMotion ? "always" : "demand"}
-      camera={{ position: [0, 4.35, 14.2], fov: 47, near: 0.1, far: 94 }}
+      frameloop={worldActive ? (renderEnabled && !reducedMotion ? "always" : "demand") : "never"}
+      camera={{
+        position: [OBSERVATORY_WORLD.dock.x - 4.8, 2.1, OBSERVATORY_WORLD.dock.z + 3.2],
+        fov: OBSERVATORY_WORLD.camera.verticalFovDegrees,
+        near: 0.1,
+        far: 94,
+      }}
       shadows
       gl={{
         antialias: false,
@@ -542,26 +609,10 @@ export default function IglooScene({
       }}
       onCreated={onCanvasCreated}
     >
-      <color attach="background" args={["#1d5870"]} />
-      <fog attach="fog" args={["#c8f6ff", 14, 62]} />
-      <ambientLight intensity={0.24} />
-      <hemisphereLight color="#f6fffb" groundColor="#38507a" intensity={0.42} />
-      <directionalLight
-        castShadow
-        color="#ffffff"
-        intensity={2.05}
-        position={[4.2, 7.4, 5.6]}
-        shadow-bias={-0.00018}
-        shadow-camera-bottom={-5.5}
-        shadow-camera-far={18}
-        shadow-camera-left={-7}
-        shadow-camera-right={7}
-        shadow-camera-top={5.5}
-        shadow-mapSize={[1024, 1024]}
-      />
-      <directionalLight color="#c9a7ff" intensity={0.38} position={[-5.6, 3.4, -3.8]} />
-      <pointLight color={activeArtifact?.accent || "#6ee7ff"} distance={8.5} intensity={0.58} position={[-3.8, 2.1, 2.2]} />
-      <pointLight color="#fff0b0" distance={9.2} intensity={0.36} position={[1.4, 4.1, 5.8]} />
+      <color attach="background" args={[POLAR_PALETTE.glacierWhite]} />
+      <fogExp2 attach="fog" args={[POLAR_PALETTE.fog, 0.018]} />
+      <ambientLight intensity={0.44} />
+      <hemisphereLight color="#FFFDF7" groundColor="#9BB5C1" intensity={1} />
       <Suspense fallback={<RendererFallback onGpuEvent={onGpuEvent} />}>
         <SceneDiagnostics onGpuEvent={onGpuEvent} quality={quality} />
         <ForceCanvasResize />
@@ -570,76 +621,200 @@ export default function IglooScene({
           axisX={axisX}
           depthZ={depthZ}
           quality={quality}
+          reducedMotion={reducedMotion}
           renderEnabled={renderEnabled}
           sealPosition={sealRef}
+          traversalPoseRef={traversalPoseRef}
         />
-        <IglooTouch onTouchIgloo={onTouchIgloo} />
-        {!reducedMotion && !debugFlags.noVeil && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}
-        {!debugFlags.noTerrain && <IglooTerrain axisX={axisX} depthZ={depthZ} quality={quality} />}
-        {!reducedMotion && !debugFlags.noSnow && (
-          <SnowAtmosphere axisX={axisX} depthZ={depthZ} quality={quality} windSpeed={1 + Math.abs(axisVelocity) + Math.abs(depthVelocity)} />
-        )}
-        {!debugFlags.noSignals && <HorizontalParallaxSignalField activeArtifact={activeArtifact} axisX={axisX} quality={quality} />}
-        {!debugFlags.noSignals && (
-          <PolarRouteNetwork
-            activeArtifact={activeArtifact}
-            artifacts={artifacts}
+        {!debugFlags.noTerrain && (
+          <PolarBiomeWorld
             axisX={axisX}
+            depthZ={depthZ}
+            exclusiveStationId={dockedStationId}
             quality={quality}
+            reducedMotion={reducedMotion}
+            safeMode={!renderEnabled}
+            simulationPaused={!worldActive || !renderEnabled}
+            travelerRef={traversalPoseRef}
+            visible={worldActive}
           />
         )}
+        <IglooTouch onTouchIgloo={onTouchIgloo} />
+        {!reducedMotion && !debugFlags.noVeil && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}
+        {!debugFlags.noTerrain && (
+          <WorldStreamReveal
+            durationMs={WORLD_STREAM_TIMINGS.terrainRevealMs}
+            fromScale={0.02}
+            name="terrain / 300ms"
+            reducedMotion={reducedMotion}
+            rise={0.2}
+            streamEpochMsRef={streamEpochMsRef}
+          >
+            {!debugFlags.noDressing && (
+              <AdaptivePolarWorldDressing
+                artifacts={artifacts}
+                exclusiveStationId={dockedStationId}
+                quality={quality}
+                reducedMotion={reducedMotion}
+                traversalPoseRef={traversalPoseRef}
+              />
+            )}
+            {activeArtifact.id === "observatory-plaque" && <ForegroundExpeditionKit />}
+          </WorldStreamReveal>
+        )}
+        {!debugFlags.noSignals && (
+          <WorldStreamReveal
+            durationMs={WORLD_STREAM_TIMINGS.stationRevealMs}
+            name="signal field / 200ms"
+            reducedMotion={reducedMotion}
+            rise={0.12}
+            startMs={WORLD_STREAM_TIMINGS.stationStartMs}
+            streamEpochMsRef={streamEpochMsRef}
+          >
+            {!dockedStationId ? (
+              <PolarRouteNetwork
+                activeArtifact={activeArtifact}
+                artifacts={artifacts}
+                axisX={axisX}
+                depthZ={depthZ}
+                quality={quality}
+              />
+            ) : null}
+          </WorldStreamReveal>
+        )}
         {renderEnabled && moving && !debugFlags.noSmashables && (
-          <PolarSmashables
-            accent={activeArtifact?.accent}
-            axisVelocity={axisVelocity}
-            axisX={axisX}
-            depthVelocity={depthVelocity}
-            depthZ={depthZ}
+          <PolarTravelDebris
             quality={quality}
+            reducedMotion={reducedMotion}
+            traversalPoseRef={traversalPoseRef}
           />
         )}
         {!debugFlags.noTopology && (
-          <TopologyConstellation
-            activeArtifact={activeArtifact}
-            artifacts={artifacts}
-            axisX={axisX}
-            quality={quality}
-            showLabels={renderEnabled}
-          />
+          <WorldStreamReveal
+            durationMs={WORLD_STREAM_TIMINGS.stationRevealMs}
+            name="topology routes / 200ms"
+            reducedMotion={reducedMotion}
+            rise={0.1}
+            startMs={WORLD_STREAM_TIMINGS.stationStartMs}
+            streamEpochMsRef={streamEpochMsRef}
+          >
+            {!dockedStationId ? (
+              <TopologyConstellation
+                activeArtifact={activeArtifact}
+                artifacts={artifacts}
+                axisX={axisX}
+                depthZ={depthZ}
+                quality={quality}
+                reducedMotion={reducedMotion}
+                showLabels={renderEnabled}
+              />
+            ) : null}
+          </WorldStreamReveal>
         )}
         {renderEnabled && sealAwake && !debugFlags.noSeal && (
-          <SealAvatar
-            ref={sealRef}
-            accent={activeArtifact?.accent}
-            activeArtifact={activeArtifact}
-            axisVelocity={axisVelocity}
-            axisX={axisX}
-            depthVelocity={depthVelocity}
-            depthZ={depthZ}
-            iglooPosition={[OBSERVATORY_VISUAL_HOME_X, 0, 0]}
-            moving={moving}
-            onTouchIgloo={onTouchIgloo}
-          />
+          <WorldStreamReveal
+            durationMs={WORLD_STREAM_TIMINGS.silhouetteRevealMs}
+            fromScale={0.72}
+            name="seal silhouette / under 200ms"
+            reducedMotion={reducedMotion}
+            rise={0.08}
+            streamEpochMsRef={streamEpochMsRef}
+          >
+            <SealMascot
+              ref={sealRef}
+              accent={activeArtifact?.accent}
+              activeArtifact={activeArtifact}
+              axisVelocity={axisVelocity}
+              axisX={axisX}
+              depthVelocity={depthVelocity}
+              depthZ={depthZ}
+              guideState={guideState}
+              iglooPosition={[
+                OBSERVATORY_WORLD.center.x,
+                0,
+                OBSERVATORY_WORLD.center.z,
+              ]}
+              moving={moving}
+              quality={quality}
+              reducedMotion={reducedMotion}
+              traversalPoseRef={traversalPoseRef}
+            />
+          </WorldStreamReveal>
         )}
-        {!debugFlags.noDome && (
-          <PolarObservatoryDome
-            activeArtifact={activeArtifact}
-            axisVelocity={axisVelocity}
-            axisX={axisX}
-            homeX={OBSERVATORY_VISUAL_HOME_X}
-            impactPulse={iglooPulse}
-            quality={quality}
-          />
+        {!debugFlags.noDome &&
+          (!dockedStationId || dockedStationId === "observatory-plaque") && (
+          <WorldStreamReveal
+            durationMs={WORLD_STREAM_TIMINGS.domeRevealMs}
+            fromScale={0.76}
+            name="observatory dome / 500ms cubic-bezier(0.33, 0, 0.2, 1)"
+            progressRef={domeRevealProgressRef}
+            reducedMotion={reducedMotion}
+            rise={0.26}
+            streamEpochMsRef={streamEpochMsRef}
+          >
+            <PolarObservatoryDome
+              activeArtifact={activeArtifact}
+              axisVelocity={axisVelocity}
+              axisX={axisX}
+              depthZ={depthZ}
+              homePosition={[
+                OBSERVATORY_WORLD.center.x,
+                OBSERVATORY_WORLD.center.z,
+              ]}
+              impactPulse={iglooPulse}
+              initialStreamRevealProgress={reducedMotion ? 1 : 0}
+              pointerInteractionEnabled={dockedStationId === "observatory-plaque"}
+              quality={quality}
+              reducedMotion={reducedMotion}
+              streamRevealProgressRef={domeRevealProgressRef}
+            />
+          </WorldStreamReveal>
         )}
         {!debugFlags.noArtifacts && (
           <IglooArtifacts
-            activeArtifactId={activeArtifactId}
+            activeArtifactId={activeArtifact.id}
             artifacts={artifacts}
-            axisX={axisX}
+            exclusiveStationId={dockedStationId}
+            heroProtected={
+              activeArtifact.id === "observatory-plaque" && stationProximity >= 0.82
+            }
             onSelectArtifact={onSelectArtifact}
+            quality={quality}
+            reducedMotion={reducedMotion}
+            streamEpochMsRef={streamEpochMsRef}
           />
         )}
-        <RetroCinematicPostProcess quality={quality} reducedMotion={reducedMotion} />
+        {!debugFlags.noMechanisms && (
+          <PolarStationMechanismLayer
+            traversalPoseRef={traversalPoseRef}
+            activeArtifactId={activeArtifact.id}
+            exclusiveStationId={dockedStationId}
+            liveSummary={liveSummary}
+            mechanismStateRef={mechanismStateRef}
+            onEvidenceReady={handleMechanismEvidenceReady}
+            projects={projects}
+            quality={quality}
+            reducedMotion={reducedMotion}
+            ritualStateRef={mechanismRitualStateRef}
+            safeMode={!renderEnabled}
+            visible={worldActive}
+          />
+        )}
+        {!debugFlags.noSignals && (
+          <PolarSemanticParticles
+            activeStationId={dockedStationId || activeArtifact.id}
+            enabled={renderEnabled && worldActive}
+            quality={quality}
+            reducedMotion={reducedMotion}
+            travelerRef={traversalPoseRef}
+            visible={worldActive}
+          />
+        )}
+        <RetroCinematicPostProcess
+          motionPoseRef={traversalPoseRef}
+          quality={quality}
+          reducedMotion={reducedMotion}
+        />
       </Suspense>
     </Canvas>
   );

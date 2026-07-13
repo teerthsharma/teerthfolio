@@ -30,6 +30,8 @@ const iglooScene = expectFile("components/IglooScene.jsx");
 const iglooHud = expectFile("components/IglooHud.jsx");
 const iglooArtifacts = expectFile("components/IglooArtifacts.jsx");
 const polarObservatoryDome = expectFile("components/PolarObservatoryDome.jsx");
+const polarBiomeWorld = expectFile("components/PolarBiomeWorld.jsx");
+const polarBiomeFields = expectFile("lib/polar-biome-fields.js");
 const iglooTerrain = expectFile("components/IglooTerrain.jsx");
 const iglooTouch = expectFile("components/IglooTouch.jsx");
 const sealAvatar = expectFile("components/SealAvatar.jsx");
@@ -90,7 +92,8 @@ for (const worldPrimitive of [
   "safe=1",
   "qa-low",
   "qa-no-dome",
-  "qa-no-snow",
+  "qa-no-dressing",
+  "qa-no-mechanisms",
   "sceneDebugFlags",
   "data-renderer-mode",
   "!effectiveSafeMode && sdfRenderEnabled",
@@ -111,24 +114,26 @@ for (const worldPrimitive of [
 for (const scenePrimitive of [
   "Canvas",
   "reducedMotion",
-  "frameloop={renderEnabled && !reducedMotion ? \"always\" : \"demand\"}",
+  "frameloop={worldActive ? (renderEnabled && !reducedMotion ? \"always\" : \"demand\") : \"never\"}",
   "failIfMajorPerformanceCaveat",
   "PolarObservatoryDome",
   "SealAvatar",
-  "IglooTerrain",
-  "SnowAtmosphere",
+  "PolarBiomeWorld",
+  "AdaptivePolarWorldDressing",
   "IglooTouch",
   "IglooArtifacts",
   "ActiveTheoryVeil",
   "TopologyConstellation",
-  "HorizontalParallaxSignalField",
+  "PolarRouteNetwork",
   "PolarSmashables",
   "WORLD_RENDER_WINDOW_NOTE",
   "OBSERVATORY_HOME_X",
-  "OBSERVATORY_VISUAL_HOME_X",
+  "OBSERVATORY_HOME_Z",
+  "STATION_WORLD_SCHEMA",
   "debugFlags",
   "!debugFlags.noDome",
-  "!debugFlags.noSnow",
+  "travelerRef={traversalPoseRef}",
+  "visible={worldActive}",
   "renderEnabled",
   "sealAwake",
   "axisX",
@@ -138,18 +143,55 @@ for (const scenePrimitive of [
   expectIncludes("components/IglooScene.jsx", iglooScene, scenePrimitive, `scene must expose ${scenePrimitive}`);
 }
 expectNoPattern("components/IglooScene.jsx", iglooScene, /function ObservatoryDome|gridHelper/i, "scene must not mount the rejected helper-grid dome path");
+expectNoPattern(
+  "components/IglooScene.jsx",
+  iglooScene,
+  /<PolarGradientSky|<IglooTerrain|<SnowAtmosphere|<PolarAtmosphereField|<HorizontalParallaxSignalField/,
+  "scene must not retain duplicate sky, floor, weather, or pylon-field owners",
+);
+
+for (const biomePrimitive of [
+  "POLAR_BIOME_WORLD_PROFILE",
+  "resolveTwoNearestBiomes",
+  "resolveNearestWeather",
+  "THREE.InstancedMesh",
+  "scene.fog",
+  "keyLightRef",
+  "fillLightRef",
+]) {
+  expectIncludes("components/PolarBiomeWorld.jsx", polarBiomeWorld, biomePrimitive, `biome world must define ${biomePrimitive}`);
+}
+for (const fieldPrimitive of [
+  "BIOME_WEIGHT_EXPONENT = 2.2",
+  "POLAR_BIOME_PROFILES",
+  "POLAR_BIOME_SHADER_POLICY",
+  "plaqueField",
+  "s2PressureField",
+  "aetherRibbonField",
+  "magneticSaltField",
+  "qpuLeadField",
+  "upstreamSignalField",
+  "topologyStrataField",
+  "assemblyRunwayField",
+]) {
+  expectIncludes("lib/polar-biome-fields.js", polarBiomeFields, fieldPrimitive, `biome fields must define ${fieldPrimitive}`);
+}
 
 for (const domePrimitive of [
   "DOME_PANEL_ROWS",
   "DOME_TILE_COLUMNS_BY_ROW",
   "PolarObservatoryDome",
-  "BLENDKIT_REFERENCE_ASSET_BASE_ID",
-  "DataTexture",
-  "Antarctic geodesic science radome",
-  "white-quilted-fabric",
-  "curved-thick-dome-brick",
-  "DomeBrickFaceMaterial",
-  "useDomeBrickTextureBundle",
+  "DOME_TEXTURE_POLICY",
+  "zero image textures",
+  "DOME_CONTINUOUS_DRAW_CALL_PROFILE",
+  "DOME_INSTANCED_CONSTRUCTION_PROFILE",
+  "ContinuousDomeTopology",
+  "InstancedDomeBlocks",
+  "InstancedAirlockBlocks",
+  "DOME_BRICK_SHADER_PROFILE",
+  "fwidth(domeJointDistance)",
+  "IntegratedAirlock",
+  "NeutralContactPlinth",
 ]) {
   expectIncludes("components/PolarObservatoryDome.jsx", polarObservatoryDome, domePrimitive, `polar observatory dome must define ${domePrimitive}`);
 }
@@ -302,11 +344,19 @@ expectIncludes("components/HorizontalAxisController.jsx", horizontalAxis, "windo
 expectIncludes("components/ActiveTheoryVeil.jsx", activeTheoryVeil, "active-theory-veil", "cinematic veil must expose class name");
 expectIncludes("components/TopologyConstellation.jsx", topologyConstellation, "persistent homology", "topology constellation must expose persistent homology language");
 expectIncludes("components/LiveRadar.jsx", liveRadar, "liveSummary", "LiveRadar must render server-provided live GitHub summary");
+expectIncludes("components/LiveRadar.jsx", liveRadar, "summary?.profile?.login", "LiveRadar must render the API profile login");
+expectIncludes("components/LiveRadar.jsx", liveRadar, "summary?.profile?.name", "LiveRadar must render the API profile name when available");
+expectNoPattern("components/LiveRadar.jsx", liveRadar, /Live GitHub signal over the ice shelf|The radar checks Teerth Sharma/i, "LiveRadar must stay compact and must not invent profile prose");
 expectIncludes("components/ProjectIndex.jsx", projectIndex, "Epsilon-Hollow", "ProjectIndex must expose Teerth flagship systems");
 expectIncludes("components/EvidenceArchive.jsx", evidenceArchive, "triton-lang/triton", "EvidenceArchive must include upstream evidence");
 expectIncludes("data/project-intelligence.json", corpus, "Epsilon-Hollow", "project intelligence corpus must be copied");
 expectIncludes("lib/github-live.js", github, "research-snapshot", "GitHub fetcher must expose snapshot fallback");
-expectIncludes("lib/github-live.js", github, "https://api.github.com/users/teerthsharma", "GitHub fetcher must call Teerth public API");
+expectIncludes("lib/github-live.js", github, 'GITHUB_HANDLE = "teerthsharma"', "GitHub fetcher must use the portfolio owner's handle");
+expectIncludes("lib/github-live.js", github, "https://api.github.com/users/${GITHUB_HANDLE}", "GitHub fetcher must build public API URLs from the source handle");
+expectIncludes("lib/github-live.js", github, "login: profile.login", "GitHub fetcher must return the API login");
+expectIncludes("lib/github-live.js", github, "name: profile.name", "GitHub fetcher must return the API name");
+expectNoPattern("lib/github-live.js", github, /name:\s*["']Teerth Sharma["']|public_repos:\s*75/, "GitHub fallback must not invent API profile fields");
+expectIncludes("app/page.jsx", page, "fallbackEvents: content.upstream", "page must provide source-backed fallback evidence");
 
 if (failures.length) {
   console.error("Teerth portfolio contract failed:");
