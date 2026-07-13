@@ -1,74 +1,143 @@
+"use client";
+
+import { useRef, useState } from "react";
+
 const formatDate = (value) => {
   if (!value) return "unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
   return new Intl.DateTimeFormat("en", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(value));
+  }).format(date);
 };
 
+const EVIDENCE_PANELS = Object.freeze({
+  source: { id: "source", label: "Source mode" },
+  domains: { id: "domains", label: "Domain map" },
+  upstream: { id: "upstream", label: "Upstream watch" },
+});
+
 export default function EvidenceArchive({ content, domainRows, liveSummary, projects }) {
+  const [activePanel, setActivePanel] = useState("source");
+  const tabRefs = useRef(new Map());
   const upstream = content.upstream || [];
+  const panels = Object.values(EVIDENCE_PANELS);
+  const selectedPanel = EVIDENCE_PANELS[activePanel];
+
+  const handleTabKeyDown = (event, index) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? panels.length - 1
+          : event.key === "ArrowLeft"
+            ? (index - 1 + panels.length) % panels.length
+            : (index + 1) % panels.length;
+    const nextPanel = panels[nextIndex];
+    event.preventDefault();
+    setActivePanel(nextPanel.id);
+    tabRefs.current.get(nextPanel.id)?.focus();
+  };
 
   return (
-    <section className="evidence-archive section-band" id="archive">
-      <div className="archive-head" data-reveal>
+    <section aria-labelledby="archive-title" className="evidence-archive section-band" id="archive">
+      <header className="archive-head" data-reveal>
         <span className="section-kicker">DENSE EVIDENCE ARCHIVE</span>
-        <h2>Live radar. Snapshot proof.</h2>
+        <h2 id="archive-title">Live radar. Snapshot proof.</h2>
         <p>
-          Every row is tied to a repository, timestamp, file trace, or upstream
-          link: Epsilon-Hollow, Aether-Lang, field physics, topology systems,
-          and public work in triton-lang/triton, PyTorch, and NeMo-Relay.
+          Every row is tied to a repository, timestamp, file trace, or upstream link:
+          Epsilon-Hollow, Aether-Lang, field physics, topology systems, and public work in
+          triton-lang/triton, PyTorch, and NeMo-Relay.
         </p>
-      </div>
+      </header>
 
-      <div className="archive-grid">
-        <article className="archive-panel archive-panel-wide" data-reveal>
-          <span>Source mode</span>
-          <strong>{liveSummary?.sourceMode || "research-snapshot"}</strong>
-          <p>
-            Generated {formatDate(liveSummary?.generatedAt)}. Live GitHub data
-            is shown when reachable; otherwise the mined corpus stays visible
-            and labeled as a snapshot.
-          </p>
-        </article>
+      <div className="archive-explorer">
+        <div aria-label="Evidence views" className="archive-tabs" role="tablist">
+          {panels.map((panel, index) => (
+            <button
+              aria-controls={`archive-panel-${panel.id}`}
+              aria-selected={activePanel === panel.id}
+              id={`archive-tab-${panel.id}`}
+              key={panel.id}
+              onClick={() => setActivePanel(panel.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, index)}
+              ref={(node) => {
+                if (node) tabRefs.current.set(panel.id, node);
+                else tabRefs.current.delete(panel.id);
+              }}
+              role="tab"
+              tabIndex={activePanel === panel.id ? 0 : -1}
+              type="button"
+            >
+              {panel.label}
+            </button>
+          ))}
+        </div>
 
-        <article className="archive-panel" data-reveal>
-          <span>Domain map</span>
-          <div className="domain-bars">
-            {domainRows.map(([domain, count]) => (
-              <div key={domain}>
-                <strong>{domain}</strong>
-                <span style={{ "--domain-size": `${Math.min(100, count * 4)}%` }}>
-                  {count}
-                </span>
+        <article
+          aria-labelledby={`archive-tab-${selectedPanel.id}`}
+          className="archive-panel archive-panel-active"
+          data-panel={selectedPanel.id}
+          data-reveal
+          id={`archive-panel-${selectedPanel.id}`}
+          role="tabpanel"
+          tabIndex={0}
+        >
+          {activePanel === "source" ? (
+            <>
+              <span>Source mode</span>
+              <strong>{liveSummary?.sourceMode || "research-snapshot"}</strong>
+              <p>
+                Generated {formatDate(liveSummary?.generatedAt)}. Live GitHub data is shown when
+                reachable; otherwise the mined corpus stays visible and labeled as a snapshot.
+              </p>
+            </>
+          ) : null}
+
+          {activePanel === "domains" ? (
+            <>
+              <span>Domain map</span>
+              <div className="domain-bars">
+                {domainRows.map(([domain, count]) => (
+                  <div key={domain}>
+                    <strong>{domain}</strong>
+                    <span style={{ "--domain-size": `${Math.min(100, count * 4)}%` }}>
+                      {count}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </article>
+            </>
+          ) : null}
 
-        <article className="archive-panel" data-reveal>
-          <span>Upstream watch</span>
-          <div className="upstream-list">
-            {upstream.map((item) => (
-              <a href={item.url} key={item.url} rel="noreferrer" target="_blank">
-                <small>{item.repo}</small>
-                <strong>{item.title}</strong>
-                <em>{formatDate(item.createdAt)}</em>
-              </a>
-            ))}
-          </div>
+          {activePanel === "upstream" ? (
+            <>
+              <span>Upstream watch</span>
+              <div className="upstream-list">
+                {upstream.map((item) => (
+                  <a href={item.url} key={item.url} rel="noreferrer" target="_blank">
+                    <small>{item.repo}</small>
+                    <strong>{item.title}</strong>
+                    <em>{formatDate(item.createdAt)}</em>
+                  </a>
+                ))}
+              </div>
+            </>
+          ) : null}
         </article>
       </div>
 
-      <div className="repo-tape" aria-label="Flagship source tape" data-reveal>
+      <nav className="repo-tape" aria-label="Flagship source tape" data-reveal>
         {projects.map((project) => (
           <a href={project.url} key={project.name} rel="noreferrer" target="_blank">
             <span>{project.name}</span>
             <small>{project.evidenceFiles?.slice(0, 3).join(" / ") || "source"}</small>
           </a>
         ))}
-      </div>
+      </nav>
     </section>
   );
 }

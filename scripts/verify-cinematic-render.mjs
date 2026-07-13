@@ -510,14 +510,24 @@ async function verifyMovement(page) {
 async function verifyRailTap(page) {
   const readoutText = async () => page.locator(".igloo-artifact-readout").textContent();
   const before = await readoutText();
-  const target = page.locator(".station-profile-rail .station-profile-chip").nth(2);
+  const target = page.locator(".station-profile-rail .station-profile-chip").nth(1);
   await target.click();
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(220);
+  const pending = await readoutText();
+  const pendingDestination = (await target.getAttribute("data-destination")) === "true";
+  await page.waitForFunction(
+    (initial) => document.querySelector(".igloo-artifact-readout")?.textContent !== initial,
+    before,
+    { timeout: 9000 },
+  );
   const after = await readoutText();
   return {
     after,
     before,
     changed: before !== after,
+    pendingDestination,
+    pendingReadoutStable: pending === before,
+    arrivalActive: (await target.getAttribute("data-active")) === "true",
     targetText: await target.textContent(),
   };
 }
@@ -534,6 +544,9 @@ function assertViewport(result) {
   }
   if (metrics.canvasSample.error) failures.push(`canvas sampling failed: ${metrics.canvasSample.error}`);
   if (metrics.canvasSample.nonBlankPixels < 100) failures.push(`canvas appears blank: ${metrics.canvasSample.nonBlankPixels} sampled pixels`);
+  if (name === "desktop" && metrics.canvasSample.averageLuminance < 118) {
+    failures.push(`desktop polar world is too dark: average luminance ${metrics.canvasSample.averageLuminance}`);
+  }
   if (metrics.canvasSample.averageLuminance > 178) {
     failures.push(`canvas is overexposed: average luminance ${metrics.canvasSample.averageLuminance}`);
   }
@@ -630,8 +643,14 @@ function assertViewport(result) {
     if (!movement.arrowHintVisible) failures.push("arrow key did not show WASD hint");
     if (!movement.dMoved) failures.push("D key did not move seal axis");
   }
-  if (name === "mobile" && !railTap.changed) {
-    failures.push(`mobile station rail tap did not change active station: ${railTap.targetText}`);
+  if (
+    name === "mobile" &&
+    (!railTap.pendingDestination ||
+      !railTap.pendingReadoutStable ||
+      !railTap.changed ||
+      !railTap.arrivalActive)
+  ) {
+    failures.push(`mobile station rail did not preserve route intent then earn station focus: ${JSON.stringify(railTap)}`);
   }
   if (name === "reduced-motion") {
     if (!metrics.reducedMotion) failures.push("reduced-motion viewport did not emulate reduced motion");

@@ -3,12 +3,15 @@
 import { useTexture } from "@react-three/drei";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { POLAR_PALETTE } from "../lib/polar-art-direction";
 
 export const TERRAIN_CHUNK_SIZE = 26;
 export const TERRAIN_CHUNK_COUNT = 7;
 export const TERRAIN_RENDER_NOTE = "recursive Antarctic floor material tile";
 export const CLEAN_POLAR_SURFACE_PROFILE = "uplifting clean polar ice, soft blue-violet shadows, texture subordinate to stations";
-export const TERRAIN_MATERIAL_COLOR = "#d7f4f2";
+export const ANIME_TERRAIN_SHADER_PROFILE =
+  "three-band anime snow on one memoized 4-pixel toon ramp: #F6F1E7 cream, #BCDCE2 cyan, #9EB2C5 lavender shadow";
+export const TERRAIN_MATERIAL_COLOR = POLAR_PALETTE.polarIvory;
 
 const SNOW_PBR = {
   map: "/assets/pbr/ground/cloudy-veined-quartz-light-bl/cloudy-veined-quartz-light_albedo.png",
@@ -17,11 +20,13 @@ const SNOW_PBR = {
 };
 
 function terrainHeight(x, z) {
+  const crossDrift = Math.sin(x * 0.052 + z * 0.031) * 0.12;
+  const longDrift = Math.sin(z * 0.041 - x * 0.019 + 1.7) * 0.075;
+  const pathSwell = Math.cos((x + z * 0.44) * 0.067 - 0.8) * 0.045;
   return (
-    Math.sin(x * 0.13) * 0.1 +
-    Math.cos(z * 0.21) * 0.07 +
-    Math.sin((x + z) * 0.055) * 0.11 +
-    Math.cos((x - z) * 0.038) * 0.06
+    crossDrift +
+    longDrift +
+    pathSwell
   );
 }
 
@@ -40,6 +45,24 @@ function useTerrainMaps() {
   }, [maps]);
 
   return maps;
+}
+
+function useAnimeGradientMap() {
+  return useMemo(() => {
+    const data = new Uint8Array([
+      158, 178, 197, 255,
+      188, 220, 226, 255,
+      188, 220, 226, 255,
+      246, 241, 231, 255,
+    ]);
+    const texture = new THREE.DataTexture(data, 4, 1, THREE.RGBAFormat);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = false;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
 }
 
 function TerrainChunk({ geometry, material, x, z }) {
@@ -69,6 +92,7 @@ function MountainRidge({ geometry, material, seed, x, z, scale }) {
 
 export default function IglooTerrain({ axisX = 0, depthZ = 0, quality = "medium" }) {
   const maps = useTerrainMaps();
+  const gradientMap = useAnimeGradientMap();
   const geometry = useMemo(() => {
     const geo = new THREE.PlaneGeometry(TERRAIN_CHUNK_SIZE, TERRAIN_CHUNK_SIZE, 34, 34);
     const pos = geo.attributes.position;
@@ -95,28 +119,23 @@ export default function IglooTerrain({ axisX = 0, depthZ = 0, quality = "medium"
   }, [quality]);
   const material = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(TERRAIN_MATERIAL_COLOR).multiplyScalar(0.82),
-        emissive: "#5daec3",
-        emissiveIntensity: 0.035,
-        metalness: 0.0,
+      new THREE.MeshToonMaterial({
+        color: TERRAIN_MATERIAL_COLOR,
+        gradientMap,
         normalMap: maps.normalMap,
-        normalScale: new THREE.Vector2(0.003, 0.003),
-        roughness: 0.96,
-        roughnessMap: maps.roughnessMap,
+        normalScale: new THREE.Vector2(0.0025, 0.0025),
       }),
-    [maps],
+    [gradientMap, maps.normalMap],
   );
   const mountainMaterial = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
-        color: "#a9d8e8",
-        emissive: "#7c5cff",
-        emissiveIntensity: 0.08,
-        metalness: 0.02,
-        roughness: 0.86,
+      new THREE.MeshToonMaterial({
+        color: "#A6D7E4",
+        emissive: POLAR_PALETTE.animeShadow,
+        emissiveIntensity: 0.025,
+        gradientMap,
       }),
-    [],
+    [gradientMap],
   );
   const activeChunkCount = quality === "low" ? 3 : quality === "medium" ? 5 : TERRAIN_CHUNK_COUNT;
   const chunks = useMemo(
@@ -137,15 +156,11 @@ export default function IglooTerrain({ axisX = 0, depthZ = 0, quality = "medium"
   const chunkX = Math.round(axisX / TERRAIN_CHUNK_SIZE);
   const chunkZ = Math.round(depthZ / TERRAIN_CHUNK_SIZE);
 
-  useEffect(
-    () => () => {
-      geometry.dispose();
-      mountainGeometry.dispose();
-      material.dispose();
-      mountainMaterial.dispose();
-    },
-    [geometry, material, mountainGeometry, mountainMaterial],
-  );
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(() => () => gradientMap.dispose(), [gradientMap]);
+  useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => mountainGeometry.dispose(), [mountainGeometry]);
+  useEffect(() => () => mountainMaterial.dispose(), [mountainMaterial]);
 
   return (
     <group name="IglooTerrain IglooHorizontalAxisTerrain">

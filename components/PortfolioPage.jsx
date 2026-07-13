@@ -14,6 +14,7 @@ export default function PortfolioPage({
   initialWorldQuery,
   liveSummary,
   projects,
+  repositoryMetrics,
   stations,
 }) {
   return (
@@ -30,7 +31,11 @@ export default function PortfolioPage({
         stations={stations}
       />
       <LiveRadar content={content} liveSummary={liveSummary} />
-      <ProjectIndex projects={projects} stations={stations} />
+      <ProjectIndex
+        projects={projects}
+        repositoryMetrics={repositoryMetrics}
+        stations={stations}
+      />
       <EvidenceArchive
         content={content}
         domainRows={domainRows}
