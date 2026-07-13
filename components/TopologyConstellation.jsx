@@ -4,10 +4,11 @@ import { Html, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
 
 function makeManifoldCurve(start, end, index) {
-  const startPoint = new THREE.Vector3(start[0], start[1] + 0.18, start[2] * 0.34);
-  const endPoint = new THREE.Vector3(end[0], end[1] + 0.18, end[2] * 0.34);
+  const startPoint = new THREE.Vector3(start.center.x, 0.3, start.center.z);
+  const endPoint = new THREE.Vector3(end.center.x, 0.3, end.center.z);
   const midpoint = startPoint.clone().lerp(endPoint, 0.5);
   midpoint.y += 0.56 + (index % 3) * 0.16;
   midpoint.z += Math.sin(index * 1.7) * 0.28;
@@ -23,24 +24,62 @@ function bettiWeight(artifact) {
 export default function TopologyConstellation({
   activeArtifact,
   artifacts,
-  axisX,
+  axisX = 0,
+  depthZ = 0,
   quality = "high",
+  reducedMotion = false,
   showLabels = false,
 }) {
   const root = useRef(null);
   const activeId = activeArtifact?.id || artifacts[0]?.id;
+  const artifactById = useMemo(
+    () => new Map(artifacts.map((artifact) => [artifact.id, artifact])),
+    [artifacts],
+  );
   const links = useMemo(
     () =>
-      artifacts.slice(1).map((artifact, index) => ({
-        id: `${artifacts[index].id}-${artifact.id}`,
-        accent: artifact.accent,
-        points: makeManifoldCurve(artifacts[index].position, artifact.position, index),
+      STATION_WORLD_SCHEMA.edges.map((edge, index) => ({
+        id: `${edge.from}-${edge.to}`,
+        from: edge.from,
+        to: edge.to,
+        accent: artifactById.get(edge.to)?.accent || "#65C1BC",
+        points: makeManifoldCurve(
+          STATION_WORLD_SCHEMA.stations[edge.from],
+          STATION_WORLD_SCHEMA.stations[edge.to],
+          index,
+        ),
       })),
-    [artifacts],
+    [artifactById],
+  );
+  const visibleArtifacts = useMemo(() => {
+    const ranked = artifacts
+      .map((artifact) => {
+        const station = STATION_WORLD_SCHEMA.stations[artifact.id];
+        return {
+          artifact,
+          distance: Math.hypot(axisX - station.center.x, depthZ - station.center.z),
+        };
+      })
+      .sort((left, right) => left.distance - right.distance);
+    const nearest = ranked[0];
+    const active = ranked.find((entry) => entry.artifact.id === activeId);
+    if (active && nearest && active.artifact.id !== nearest.artifact.id && active.distance <= 14) {
+      return [nearest, active];
+    }
+    return ranked.slice(0, 2);
+  }, [activeId, artifacts, axisX, depthZ]);
+  const visibleIds = useMemo(
+    () => new Set(visibleArtifacts.map(({ artifact }) => artifact.id)),
+    [visibleArtifacts],
   );
 
   useFrame(({ clock }) => {
     if (!root.current) return;
+    if (reducedMotion) {
+      root.current.rotation.y = 0;
+      root.current.position.z = 0;
+      return;
+    }
     const t = clock.elapsedTime;
     root.current.rotation.y = Math.sin(t * 0.1) * 0.012;
     root.current.position.z = Math.cos(t * 0.16) * 0.035;
@@ -52,7 +91,7 @@ export default function TopologyConstellation({
       name="TopologyConstellation manifold-profile-field persistent homology Betti"
       userData={{ className: "manifold-profile-field" }}
     >
-      {links.map((link) => (
+      {links.filter((link) => visibleIds.has(link.from) && visibleIds.has(link.to)).map((link) => (
         <Line
           color={link.accent}
           key={link.id}
@@ -63,9 +102,13 @@ export default function TopologyConstellation({
         />
       ))}
 
-      {artifacts.map((artifact, index) => {
+      {visibleArtifacts.map(({ artifact }, index) => {
         const active = artifact.id === activeId;
-        const distance = Math.abs(axisX - artifact.position[0]);
+        const station = STATION_WORLD_SCHEMA.stations[artifact.id];
+        const distance = Math.hypot(
+          axisX - station.center.x,
+          depthZ - station.center.z,
+        );
         const opacity = active ? 0.68 : Math.max(0.08, 0.28 - distance * 0.026);
         const weight = bettiWeight(artifact);
 
@@ -73,7 +116,7 @@ export default function TopologyConstellation({
           <group
             key={artifact.id}
             name={`topology-profile-node ${artifact.id}`}
-            position={[artifact.position[0], artifact.position[1] + 0.18, artifact.position[2] * 0.34]}
+            position={[station.center.x, artifact.position[1] + 0.18, station.center.z]}
             userData={{ className: "topology-profile-node", topology: artifact.topology }}
           >
             <mesh>

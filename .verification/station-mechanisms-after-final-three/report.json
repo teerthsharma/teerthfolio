@@ -1,0 +1,140 @@
+{
+  "contactSheetPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-after-final-three\\mechanism-world-contact-sheet.png",
+  "hudContactSheetPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-after-final-three\\mechanism-hud-contact-sheet.png",
+  "report": [
+    {
+      "family": "northeast",
+      "id": "s2-kernel-core",
+      "label": "S2 Kernel Core",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-after-final-three\\s2-kernel-core-hud.png",
+      "logs": [
+        {
+          "text": "[.WebGL-0x2f9c001ac800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x2f9c001ac800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x2f9c001ac800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x2f9c001ac800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+          "type": "warning"
+        }
+      ],
+      "metrics": {
+        "averageLuminance": 157.65559118055614,
+        "blackPixelRatio": 0.00034722222222222224,
+        "diagnostics": "",
+        "dockedStation": "s2-kernel-core",
+        "edgeEnergy": 8.090809996480074,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 210.0314,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "northeast",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "s2-kernel-core",
+          "textureBudget": "0"
+        },
+        "readoutStation": "s2-kernel-core",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-after-final-three\\s2-kernel-core-world.png"
+    },
+    {
+      "family": "northeast",
+      "id": "qpu-ice-bridge",
+      "label": "QPU Ice Bridge",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-after-final-three\\qpu-ice-bridge-hud.png",
+      "logs": [],
+      "metrics": {
+        "averageLuminance": 171.35330614583486,
+        "blackPixelRatio": 0.00034722222222222224,
+        "diagnostics": "",
+        "dockedStation": "qpu-ice-bridge",
+        "edgeEnergy": 6.070423160858906,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 209.95919999999995,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "northeast",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "qpu-ice-bridge",
+          "textureBudget": "0"
+        },
+        "readoutStation": "qpu-ice-bridge",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-after-final-three\\qpu-ice-bridge-world.png"
+    },
+    {
+      "family": "southwest",
+      "id": "assembly-tool-locker",
+      "label": "Assembly Tool Locker",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-after-final-three\\assembly-tool-locker-hud.png",
+      "logs": [],
+      "metrics": {
+        "averageLuminance": 156.0692454166672,
+        "blackPixelRatio": 0.00034722222222222224,
+        "diagnostics": "",
+        "dockedStation": "assembly-tool-locker",
+        "edgeEnergy": 6.681243329813435,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 217.99999999999997,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "southwest",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "assembly-tool-locker",
+          "textureBudget": "0"
+        },
+        "readoutStation": "assembly-tool-locker",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-after-final-three\\assembly-tool-locker-world.png"
+    }
+  ]
+}

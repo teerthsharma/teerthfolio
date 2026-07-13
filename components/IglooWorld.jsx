@@ -1,16 +1,30 @@
 "use client";
 
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
+import {
+  MANUAL_MAX_SPEED,
+  advanceTraversalFrame,
+  createStationCollisionSet,
+  createStationTraversalTarget,
+  createTraversalState,
+  deriveLiveTraversalPresentation,
+  deriveTraversalPresentation,
+  didPhysicalDockOwnershipChange,
+  getTraversalRenderPose,
+  routeTraversalToStation,
+} from "../lib/polar-traversal";
+import { deriveSealGuideState } from "../lib/seal-guide-state";
 import BlackHoleTransition from "./BlackHoleTransition";
 import IglooHud from "./IglooHud";
 import IglooScene from "./IglooScene";
 import { IGLOO_ARTIFACTS } from "./IglooArtifacts";
 import SdfSealSplash from "./SdfSealSplash";
 
-const AXIS_HOLD_SPEED = 5.8;
-const DEPTH_HOLD_SPEED = 3.4;
-const DEPTH_RANGE = { min: -4.8, max: 4.8 };
-const WORLD_LOOP_LENGTH = 128;
+const WORLD_Z_VALUES = STATION_WORLD_SCHEMA.order.map(
+  (id) => STATION_WORLD_SCHEMA.stations[id].dock.z,
+);
+const DEPTH_RANGE = { min: Math.min(...WORLD_Z_VALUES), max: Math.max(...WORLD_Z_VALUES) };
 const RIGHT_KEYS = new Set(["d"]);
 const LEFT_KEYS = new Set(["a"]);
 const DEPTH_KEYS = {
@@ -23,29 +37,41 @@ const INPUT_HINT_COPY = "Use WASD to pilot the seal";
 const INPUT_HINT_DURATION = 1700;
 const GPU_PROBE_TIMEOUT_MS = 7000;
 const MAX_DIAGNOSTIC_EVENTS = 8;
+const SEAL_ROUTE_HINT_INTERVAL_MS = 15000;
+const SEAL_ROUTE_HINT_VISIBLE_MS = 3800;
 const FATAL_RENDER_EVENT_TYPES = new Set(["webgl-context-lost", "webgl-create-failed", "canvas-error"]);
 const SAFE_RENDER_QUERY = "safe=1";
 const QA_AUTO_PROBE_RENDER_QUERY = "qa-auto-probe";
 const QA_LOW_RENDER_QUERY = "qa-low";
 const SAFE_QA_AUTO_PROBE_DELAY_MS = 900;
-const ATMOSPHERE_FRAME_MS = 1000 / 30;
 const IDLE_WORLD_FRAME_MS = 1000 / 20;
 const ACTIVE_WORLD_FRAME_MS = 1000 / 60;
+const SEMANTIC_SNAPSHOT_FRAME_MS = 100;
+const OFFSCREEN_GPU_RELEASE_DELAY_MS = 180;
+const HOME_STATION_ID = "observatory-plaque";
+const ARCHIVE_STATION_ID = "topology-archive-wall";
 export const ABETO_REFERENCE_MOTION_PROFILE =
-  "Abeto Messenger reference: hidden document scroll, fullscreen WebGL stage, damped axis/depth targets, station focus transitions";
+  "Abeto Messenger reference: hidden document scroll, fullscreen WebGL stage, damped canonical XZ travel, station focus transitions";
 export const OPEN_WORLD_LOADING_PROFILE =
   "best-of-two loading: Abeto fullscreen in-place world stream plus Bruno horizontal evidence index fallback";
-const AXIS_DAMPING_RATE = 10.5;
-const DEPTH_DAMPING_RATE = 12;
-const STATION_FOCUS_DAMPING_RATE = 7.5;
 const OPEN_WORLD_LOADING_SETTLE_MS = 1800;
+const STATION_COLLIDERS = Object.freeze(
+  createStationCollisionSet().map((collider) => Object.freeze(collider)),
+);
+const STATION_TARGETS = Object.freeze(
+  STATION_WORLD_SCHEMA.order.map((id) =>
+    Object.freeze(createStationTraversalTarget(id)),
+  ),
+);
+const HOME_TARGET = Object.freeze(createStationTraversalTarget(HOME_STATION_ID));
 const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-no-dome", "noDome"],
   ["qa-no-veil", "noVeil"],
   ["qa-no-terrain", "noTerrain"],
   ["qa-no-signals", "noSignals"],
   ["qa-no-smashables", "noSmashables"],
-  ["qa-no-snow", "noSnow"],
+  ["qa-no-dressing", "noDressing"],
+  ["qa-no-mechanisms", "noMechanisms"],
   ["qa-no-topology", "noTopology"],
   ["qa-no-seal", "noSeal"],
   ["qa-no-artifacts", "noArtifacts"],
@@ -54,32 +80,69 @@ const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),
 );
 
+function hasCurrentFatalRenderEvent(events, rendererMode) {
+  // An explicit retry supersedes an earlier failure while preserving the diagnostic history.
+  if (rendererMode === "probe") return false;
+  const latestTerminalEvent = events.find(
+    (event) =>
+      event.type === "webgl-scene-ready" ||
+      (event.severity === "error" && FATAL_RENDER_EVENT_TYPES.has(event.type)),
+  );
+  return Boolean(
+    latestTerminalEvent &&
+      latestTerminalEvent.type !== "webgl-scene-ready" &&
+      latestTerminalEvent.severity === "error",
+  );
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function smoothDamp(current, target, rate, dt) {
-  const alpha = 1 - Math.exp(-rate * Math.max(0, dt));
-  return current + (target - current) * alpha;
+function stationRouteProgress(stationId) {
+  const index = STATION_WORLD_SCHEMA.order.indexOf(stationId);
+  return index < 0 ? 0 : index / Math.max(1, STATION_WORLD_SCHEMA.order.length - 1);
 }
 
-function wrapAxis(value, min, length) {
-  return ((((value - min) % length) + length) % length) + min;
+function createWorldTraversalPresentation(
+  traversal,
+  selectedDestinationId,
+  pose = getTraversalRenderPose(traversal),
+) {
+  return deriveLiveTraversalPresentation(traversal, {
+    pose,
+    progress: stationRouteProgress(
+      selectedDestinationId || traversal.dockedId || HOME_STATION_ID,
+    ),
+    selectedDestinationId,
+    stations: STATION_TARGETS,
+  });
 }
 
-function circularDistance(a, b, length) {
-  const diff = Math.abs(a - b) % length;
-  return Math.min(diff, length - diff);
+function sameTraversalPresentation(left, right) {
+  return (
+    left.destinationId === right.destinationId &&
+    left.dockedStationId === right.dockedStationId &&
+    left.nearestStationId === right.nearestStationId &&
+    left.phase === right.phase &&
+    left.progress === right.progress &&
+    left.isArrived === right.isArrived
+  );
 }
 
-function nearestArtifact(artifacts, axisX, loopLength) {
-  const loopedAxisX = wrapAxis(axisX, 0, loopLength);
-  return artifacts.reduce((nearest, artifact) => {
-    const nearestDistance = circularDistance(nearest.position[0], loopedAxisX, loopLength);
-    const artifactDistance = circularDistance(artifact.position[0], loopedAxisX, loopLength);
-    return artifactDistance < nearestDistance ? artifact : nearest;
-  }, artifacts[0]);
-}
+const INITIAL_TRAVERSAL_PRESENTATION = Object.freeze(
+  deriveTraversalPresentation(
+    {
+      destinationId: HOME_STATION_ID,
+      dockedStationId: HOME_STATION_ID,
+      positionXZ: HOME_TARGET,
+      progress: stationRouteProgress(HOME_STATION_ID),
+      routeActive: false,
+      velocityXZ: { x: 0, z: 0 },
+    },
+    STATION_TARGETS,
+  ),
+);
 
 function isSafeRenderQuery(search) {
   if (!search) return false;
@@ -116,9 +179,8 @@ function DiagnosticPanel({ events, rendererMode }) {
   );
 }
 
-function OpenWorldLoadingBridge({ active, activeArtifact, axisProgress, rendererMode }) {
+function OpenWorldLoadingBridge({ active, activeArtifact, rendererMode }) {
   const loading = active || rendererMode === "probe";
-  const percent = String(Math.round(axisProgress * 100)).padStart(2, "0");
 
   return (
     <div
@@ -129,12 +191,8 @@ function OpenWorldLoadingBridge({ active, activeArtifact, axisProgress, renderer
       role="status"
     >
       <span>open world stream</span>
-      <strong>{activeArtifact.shortLabel} / axis {percent}%</strong>
-      <ol>
-        <li>field renderer</li>
-        <li>station loop</li>
-        <li>evidence index</li>
-      </ol>
+      <strong>{activeArtifact.shortLabel}</strong>
+      <small>field renderer / station loop / evidence index</small>
       <i />
     </div>
   );
@@ -199,120 +257,40 @@ function useReducedMotion() {
   return reduced;
 }
 
-function useAtmosphereCanvas(canvasRef, activeArtifact, quality, reduced) {
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
-    const context = canvas.getContext("2d", { alpha: true });
-    if (!context) return undefined;
-
-    let raf = 0;
-    let lastFrame = 0;
-
-    const resize = () => {
-      const rect = canvas.parentElement?.getBoundingClientRect();
-      const maxDpr = quality === "high" ? 1.25 : 1;
-      const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
-      canvas.width = Math.max(1, Math.floor((rect?.width || window.innerWidth) * dpr));
-      canvas.height = Math.max(1, Math.floor((rect?.height || window.innerHeight) * dpr));
-      canvas.style.width = `${rect?.width || window.innerWidth}px`;
-      canvas.style.height = `${rect?.height || window.innerHeight}px`;
-    };
-
-    const draw = (time = 0) => {
-      if (!reduced) raf = window.requestAnimationFrame(draw);
-      if (!reduced && time - lastFrame < ATMOSPHERE_FRAME_MS) {
-        return;
-      }
-      lastFrame = time;
-      const w = canvas.width;
-      const h = canvas.height;
-      const t = reduced ? 0 : time * 0.001;
-      const accent = activeArtifact?.accent || "#5ff8e7";
-      const gradient = context.createLinearGradient(0, 0, w, h);
-      gradient.addColorStop(0, "#081f2f");
-      gradient.addColorStop(0.44, "#0e3142");
-      gradient.addColorStop(1, "#102035");
-      context.fillStyle = gradient;
-      context.fillRect(0, 0, w, h);
-
-      const glow = context.createRadialGradient(w * 0.52, h * 0.52, 0, w * 0.52, h * 0.52, Math.min(w, h) * 0.56);
-      glow.addColorStop(0, `${accent}16`);
-      glow.addColorStop(0.42, "rgba(125, 220, 239, 0.12)");
-      glow.addColorStop(1, "rgba(0, 0, 0, 0)");
-      context.fillStyle = glow;
-      context.fillRect(0, 0, w, h);
-
-      context.save();
-      context.translate(w * 0.5, h * 0.65);
-      context.rotate(-0.04);
-      context.strokeStyle = "rgba(223, 253, 247, 0.055)";
-      context.lineWidth = Math.max(1, w / 1600);
-      for (let i = 0; i < 24; i += 1) {
-        context.beginPath();
-        context.ellipse(0, 0, w * (0.12 + i * 0.018), h * (0.018 + i * 0.005), 0, 0, Math.PI * 2);
-        context.stroke();
-      }
-      context.restore();
-
-      context.save();
-      context.globalCompositeOperation = "screen";
-      context.strokeStyle = "rgba(223, 253, 247, 0.035)";
-      for (let y = 0; y < h; y += Math.max(4, h / 150)) {
-        context.beginPath();
-        context.moveTo(0, y + Math.sin(t + y * 0.02) * 2);
-        context.lineTo(w, y + Math.cos(t + y * 0.015) * 2);
-        context.stroke();
-      }
-      context.fillStyle = "rgba(143, 183, 195, 0.12)";
-      const particles = quality === "low" ? 40 : quality === "medium" ? 76 : 118;
-      for (let i = 0; i < particles; i += 1) {
-        const x = (Math.sin(i * 91.7 + t * 0.23) * 0.5 + 0.5) * w;
-        const y = (Math.cos(i * 41.3 + t * 0.19) * 0.5 + 0.5) * h;
-        const r = ((i % 5) + 1) * 0.38;
-        context.globalAlpha = 0.07 + (i % 4) * 0.025;
-        context.beginPath();
-        context.arc(x, y, r, 0, Math.PI * 2);
-        context.fill();
-      }
-      context.restore();
-
-    };
-
-    resize();
-    draw();
-    const observer = new ResizeObserver(resize);
-    observer.observe(canvas.parentElement || canvas);
-    window.addEventListener("resize", resize);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", resize);
-      window.cancelAnimationFrame(raf);
-    };
-  }, [activeArtifact, canvasRef, quality, reduced]);
-}
-
 export default function IglooWorld({ content, initialQuery = {}, liveSummary, projects, stations }) {
   const reduced = useReducedMotion();
-  const atmosphere = useRef(null);
-  const axisRef = useRef(IGLOO_ARTIFACTS[0].position[0]);
-  const axisTargetRef = useRef(IGLOO_ARTIFACTS[0].position[0]);
-  const depthRef = useRef(0);
-  const depthTargetRef = useRef(0);
+  const traversalRef = useRef(null);
+  if (!traversalRef.current) {
+    traversalRef.current = createTraversalState(HOME_TARGET);
+  }
+  const traversalPoseRef = useRef(getTraversalRenderPose(traversalRef.current));
+  const selectedDestinationIdRef = useRef(HOME_STATION_ID);
+  const earnedDockedStationIdRef = useRef(HOME_STATION_ID);
+  const presentationRef = useRef(INITIAL_TRAVERSAL_PRESENTATION);
+  const lastSemanticSnapshotRef = useRef(0);
+  const lastImpactSequenceRef = useRef(0);
+  const worldVisibilityRef = useRef(true);
   const inputHintTimeoutRef = useRef(0);
+  const impactTimeoutRef = useRef(0);
+  const offscreenReleaseTimeoutRef = useRef(0);
   const loadBridgeTimeoutRef = useRef(0);
+  const sealRouteHintIntervalRef = useRef(0);
+  const sealRouteHintTimeoutRef = useRef(0);
+  const sealRouteHintDirectionRef = useRef(1);
   const pressedKeysRef = useRef(new Set());
   const worldRef = useRef(null);
-  const blackHoleDismissedRef = useRef(false);
+  const archiveOfferDismissedArrivalRef = useRef(null);
   const initialSafeMode = Boolean(initialQuery.initialSafeMode);
-  const initialLowQuality = Boolean(initialQuery.initialQaLow || initialSafeMode);
-  const [quality, setQuality] = useState(initialLowQuality ? "low" : "medium");
+  const initialSafetyQuality = Boolean(initialQuery.initialQaLow || initialSafeMode);
+  const [quality, setQuality] = useState(initialSafetyQuality ? "low" : "high");
   const [highContrast, setHighContrast] = useState(false);
-  const [activeArtifactId, setActiveArtifactId] = useState(IGLOO_ARTIFACTS[0].id);
+  const [traversalPresentation, setTraversalPresentation] = useState(
+    INITIAL_TRAVERSAL_PRESENTATION,
+  );
   const [axisVelocity, setAxisVelocity] = useState(0);
-  const [axisX, setAxisX] = useState(IGLOO_ARTIFACTS[0].position[0]);
+  const [axisX, setAxisX] = useState(HOME_TARGET.x);
   const [depthVelocity, setDepthVelocity] = useState(0);
-  const [depthZ, setDepthZ] = useState(0);
+  const [depthZ, setDepthZ] = useState(HOME_TARGET.z);
   const [sdfRenderEnabled, setSdfRenderEnabled] = useState(false);
   const [safeMode, setSafeMode] = useState(initialSafeMode);
   const [sceneReady, setSceneReady] = useState(false);
@@ -333,35 +311,162 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       : [],
   );
   const [inputHint, setInputHint] = useState("");
+  const [sealRouteHint, setSealRouteHint] = useState("");
   const [worldLoadBridgeActive, setWorldLoadBridgeActive] = useState(false);
+  const [archivePortalOfferOpen, setArchivePortalOfferOpen] = useState(false);
   const [blackHoleActive, setBlackHoleActive] = useState(false);
   const [qaAutoProbe, setQaAutoProbe] = useState(false);
-  const axisVelocityRef = useRef(0);
-  const depthVelocityRef = useRef(0);
+  const [stationProximity, setStationProximity] = useState(0);
+  const [worldInView, setWorldInView] = useState(true);
+  const [gpuStageMounted, setGpuStageMounted] = useState(true);
   const renderEnabledRef = useRef(false);
   const artifacts = useMemo(() => IGLOO_ARTIFACTS, []);
-  const axisRange = useMemo(
-    () => ({
-      length: WORLD_LOOP_LENGTH,
-      min: 0,
-      max: WORLD_LOOP_LENGTH,
-    }),
-    [],
+  const evidenceArtifact =
+    artifacts.find(
+      (artifact) => artifact.id === traversalPresentation.dockedStationId,
+    ) ||
+    artifacts.find(
+      (artifact) => artifact.id === earnedDockedStationIdRef.current,
+    ) ||
+    artifacts.find(
+      (artifact) => artifact.id === traversalPresentation.nearestStationId,
+    ) ||
+    artifacts[0];
+  const intentArtifact =
+    artifacts.find(
+      (artifact) => artifact.id === traversalPresentation.destinationId,
+    ) ||
+    artifacts.find(
+      (artifact) => artifact.id === traversalPresentation.nearestStationId,
+    ) ||
+    evidenceArtifact;
+  const exclusiveStationId = traversalPresentation.dockedStationId || null;
+  const axisProgress = traversalPresentation.progress;
+  const depthProgress = clamp(
+    (depthZ - DEPTH_RANGE.min) / Math.max(0.1, DEPTH_RANGE.max - DEPTH_RANGE.min),
+    0,
+    1,
   );
-  const activeArtifact =
-    artifacts.find((artifact) => artifact.id === activeArtifactId) || artifacts[0];
-  const axisProgress = wrapAxis(axisX, axisRange.min, axisRange.length) / Math.max(1, axisRange.length);
-  const depthProgress =
-    (depthZ - DEPTH_RANGE.min) / Math.max(0.1, DEPTH_RANGE.max - DEPTH_RANGE.min);
   const effectiveSafeMode = safeMode && !sdfRenderEnabled;
-  const publicRenderEnabled = Boolean(sdfRenderEnabled && sceneReady && !effectiveSafeMode);
+  const worldPresentationActive = worldInView && !blackHoleActive;
+  const publicRenderEnabled = Boolean(
+    sdfRenderEnabled &&
+      sceneReady &&
+      !effectiveSafeMode &&
+      gpuStageMounted &&
+      worldPresentationActive,
+  );
   const rendererMode = effectiveSafeMode ? "safe" : sdfRenderEnabled ? (sceneReady ? "webgl" : "probe") : "gated";
+  const traversalState = traversalRef.current;
+  const semanticTarget =
+    traversalState.route || createStationTraversalTarget(intentArtifact.id);
+  const stationAxisDelta = (semanticTarget?.x ?? traversalState.x) - traversalState.x;
+  const stationDepthDelta = (semanticTarget?.z ?? traversalState.z) - traversalState.z;
+  const stationDistance = Math.hypot(stationAxisDelta, stationDepthDelta);
+  const approachingStation =
+    stationAxisDelta * traversalState.vx + stationDepthDelta * traversalState.vz > 0.001;
+  const hasRenderError =
+    effectiveSafeMode ||
+    hasCurrentFatalRenderEvent(gpuDiagnostics, rendererMode);
+  const sealGuideState = deriveSealGuideState({
+    approachingStation,
+    bridgeActive: worldLoadBridgeActive,
+    hasRenderError,
+    moving: ["moving", "docking"].includes(traversalPresentation.phase),
+    rendererMode,
+    stationDistance,
+  });
 
-  useAtmosphereCanvas(atmosphere, activeArtifact, safeMode || reduced ? "low" : quality, reduced);
+  useEffect(() => {
+    const element = worldRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        const wasVisible = worldVisibilityRef.current;
+        const nextVisible = wasVisible
+          ? entry.isIntersecting && entry.intersectionRatio > 0.01
+          : entry.isIntersecting && entry.intersectionRatio >= 0.08;
+        if (nextVisible === wasVisible) return;
+        worldVisibilityRef.current = nextVisible;
+        setWorldInView(nextVisible);
+        window.clearTimeout(offscreenReleaseTimeoutRef.current);
+        if (nextVisible) {
+          setGpuStageMounted(true);
+          return;
+        }
+        offscreenReleaseTimeoutRef.current = window.setTimeout(() => {
+          if (!worldVisibilityRef.current) setGpuStageMounted(false);
+        }, OFFSCREEN_GPU_RELEASE_DELAY_MS);
+      },
+      { threshold: [0, 0.01, 0.08, 0.16] },
+    );
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(offscreenReleaseTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     renderEnabledRef.current = sdfRenderEnabled;
   }, [sdfRenderEnabled]);
+
+  useEffect(() => {
+    window.clearInterval(sealRouteHintIntervalRef.current);
+    window.clearTimeout(sealRouteHintTimeoutRef.current);
+    setSealRouteHint("");
+    if (
+      !sdfRenderEnabled ||
+      !worldPresentationActive ||
+      !traversalPresentation.isArrived ||
+      archivePortalOfferOpen
+    ) {
+      return undefined;
+    }
+
+    const showHint = () => {
+      const currentId =
+        traversalPresentation.dockedStationId ||
+        traversalPresentation.nearestStationId ||
+        HOME_STATION_ID;
+      const currentIndex = STATION_WORLD_SCHEMA.order.indexOf(currentId);
+      const direction = sealRouteHintDirectionRef.current;
+      const nextIndex =
+        (Math.max(0, currentIndex) + direction + STATION_WORLD_SCHEMA.order.length) %
+        STATION_WORLD_SCHEMA.order.length;
+      const nextId = STATION_WORLD_SCHEMA.order[nextIndex];
+      const nextArtifact = artifacts.find((artifact) => artifact.id === nextId);
+      const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+      const directionMark = direction > 0 ? "D →" : "A ←";
+      setSealRouteHint(
+        coarsePointer
+          ? `Tap the ${nextArtifact?.shortLabel || "next station"} beacon`
+          : `${directionMark} ${nextArtifact?.shortLabel || "next station"}`,
+      );
+      sealRouteHintDirectionRef.current = direction * -1;
+      window.clearTimeout(sealRouteHintTimeoutRef.current);
+      sealRouteHintTimeoutRef.current = window.setTimeout(
+        () => setSealRouteHint(""),
+        SEAL_ROUTE_HINT_VISIBLE_MS,
+      );
+    };
+
+    sealRouteHintIntervalRef.current = window.setInterval(
+      showHint,
+      SEAL_ROUTE_HINT_INTERVAL_MS,
+    );
+    return () => {
+      window.clearInterval(sealRouteHintIntervalRef.current);
+      window.clearTimeout(sealRouteHintTimeoutRef.current);
+    };
+  }, [
+    archivePortalOfferOpen,
+    artifacts,
+    sdfRenderEnabled,
+    traversalPresentation,
+    worldPresentationActive,
+  ]);
 
   const reportGpuEvent = useCallback(
     (event) => {
@@ -402,18 +507,6 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     [],
   );
 
-  const setAxisVelocityState = useCallback((nextVelocity) => {
-    if (axisVelocityRef.current === nextVelocity) return;
-    axisVelocityRef.current = nextVelocity;
-    setAxisVelocity(nextVelocity);
-  }, []);
-
-  const setDepthVelocityState = useCallback((nextVelocity) => {
-    if (depthVelocityRef.current === nextVelocity) return;
-    depthVelocityRef.current = nextVelocity;
-    setDepthVelocity(nextVelocity);
-  }, []);
-
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     // safe=1 is the incident path: boot cheap first and wait for an explicit user probe.
@@ -428,10 +521,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       setQuality("low");
     } else {
       const memory = navigator.deviceMemory || 8;
-      const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-      const smallViewport = window.innerWidth < 720;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      setQuality(reducedMotion || smallViewport || memory <= 4 || coarsePointer ? "low" : "medium");
+      setQuality(reducedMotion || memory <= 4 ? "low" : "high");
     }
     setSceneDebugFlags(nextSceneDebugFlags);
     setSafeMode(nextSafeMode);
@@ -509,7 +600,14 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     return () => window.clearTimeout(timeout);
   }, [qaAutoProbe, reportGpuEvent, safeMode, sdfRenderEnabled]);
 
-  useEffect(() => () => window.clearTimeout(inputHintTimeoutRef.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(inputHintTimeoutRef.current);
+      window.clearTimeout(impactTimeoutRef.current);
+      window.clearTimeout(offscreenReleaseTimeoutRef.current);
+    },
+    [],
+  );
   useEffect(
     () => () => {
       window.clearTimeout(loadBridgeTimeoutRef.current);
@@ -529,6 +627,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     setWorldLoadBridgeActive(true);
     setSceneReady(false);
     setSdfRenderEnabled(true);
+    setSealAwake(true);
   }, [reportGpuEvent, safeMode]);
 
   const startExplorationRender = useCallback(() => {
@@ -539,9 +638,11 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     setSealAwake(true);
   }, [safeMode, sdfRenderEnabled]);
 
-  const touchIgloo = useCallback(() => {
-    setIglooPulse(1);
-    window.setTimeout(() => setIglooPulse(0), 1200);
+  const touchIgloo = useCallback((strength = 1) => {
+    const boundedStrength = clamp(Number.isFinite(strength) ? strength : 1, 0.04, 1);
+    setIglooPulse((current) => Math.max(current, boundedStrength));
+    window.clearTimeout(impactTimeoutRef.current);
+    impactTimeoutRef.current = window.setTimeout(() => setIglooPulse(0), 620);
   }, []);
 
   const showInputHint = useCallback(() => {
@@ -550,78 +651,131 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     inputHintTimeoutRef.current = window.setTimeout(() => setInputHint(""), INPUT_HINT_DURATION);
   }, []);
 
+  const commitTraversalPresentation = useCallback((traversal, pose) => {
+    const nextPresentation = createWorldTraversalPresentation(
+      traversal,
+      selectedDestinationIdRef.current,
+      pose,
+    );
+    presentationRef.current = nextPresentation;
+    setTraversalPresentation((current) =>
+      sameTraversalPresentation(current, nextPresentation)
+        ? current
+        : nextPresentation,
+    );
+    return nextPresentation;
+  }, []);
+
   useEffect(() => {
-    if (activeArtifactId === "topology-archive-wall" && sdfRenderEnabled && !blackHoleDismissedRef.current) {
-      setBlackHoleActive(true);
+    const arrivedAtArchive =
+      traversalPresentation.isArrived &&
+      traversalPresentation.dockedStationId === ARCHIVE_STATION_ID;
+    if (!arrivedAtArchive || !sdfRenderEnabled || blackHoleActive) {
+      if (!arrivedAtArchive || blackHoleActive) {
+        setArchivePortalOfferOpen(false);
+      }
+      if (traversalPresentation.dockedStationId !== ARCHIVE_STATION_ID) {
+        archiveOfferDismissedArrivalRef.current = null;
+      }
       return;
     }
-
-    if (activeArtifactId !== "topology-archive-wall") {
-      blackHoleDismissedRef.current = false;
-      setBlackHoleActive(false);
+    if (
+      archiveOfferDismissedArrivalRef.current ===
+      traversalRef.current.arrivalSequence
+    ) {
+      return;
     }
-  }, [activeArtifactId, sdfRenderEnabled]);
+    setArchivePortalOfferOpen(true);
+  }, [blackHoleActive, sdfRenderEnabled, traversalPresentation]);
 
-  const setAxisTarget = useCallback(
-    (nextAxisX, { immediate = false, selectNearest = true } = {}) => {
-      const next = nextAxisX;
-      axisTargetRef.current = next;
-      if (immediate) {
-        axisRef.current = next;
-        setAxisX(next);
-      }
-      if (selectNearest) {
-        const nearest = nearestArtifact(artifacts, next, axisRange.length);
-        setActiveArtifactId(nearest.id);
-      }
-    },
-    [artifacts, axisRange],
-  );
-
-  const setDepthTarget = useCallback((nextDepthZ, { immediate = false } = {}) => {
-    const next = clamp(nextDepthZ, DEPTH_RANGE.min, DEPTH_RANGE.max);
-    depthTargetRef.current = next;
-    if (immediate) {
-      depthRef.current = next;
-      setDepthZ(next);
+  const confirmArchivePortal = useCallback(() => {
+    const presentation = presentationRef.current;
+    if (
+      !presentation.isArrived ||
+      presentation.dockedStationId !== ARCHIVE_STATION_ID
+    ) {
+      return;
     }
+    setArchivePortalOfferOpen(false);
+    setBlackHoleActive(true);
+  }, []);
+
+  const cancelArchivePortal = useCallback(() => {
+    archiveOfferDismissedArrivalRef.current =
+      traversalRef.current.arrivalSequence;
+    setArchivePortalOfferOpen(false);
   }, []);
 
   const selectArtifact = useCallback(
     (artifactId) => {
       const artifact = artifacts.find((item) => item.id === artifactId);
       if (!artifact) return;
-      const nearestCycle = Math.round((axisRef.current - artifact.position[0]) / axisRange.length);
-      const nextAxisX = artifact.position[0] + nearestCycle * axisRange.length;
-      setActiveArtifactId(artifact.id);
-      axisTargetRef.current = nextAxisX;
-      depthTargetRef.current = clamp(artifact.position[2] * 0.55, DEPTH_RANGE.min, DEPTH_RANGE.max);
+      const target = createStationTraversalTarget(artifact.id);
+      if (!target) return;
+      routeTraversalToStation(traversalRef.current, artifact.id);
+      selectedDestinationIdRef.current = artifact.id;
+      archiveOfferDismissedArrivalRef.current =
+        traversalRef.current.arrivalSequence;
+      setArchivePortalOfferOpen(false);
+      setBlackHoleActive(false);
+      commitTraversalPresentation(traversalRef.current);
     },
-    [artifacts, axisRange.length],
+    [artifacts, commitTraversalPresentation],
   );
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const qaArtifact = query.get("qa-artifact");
-    if (qaArtifact) selectArtifact(qaArtifact);
-  }, [selectArtifact]);
+    if (!qaArtifact) return;
+    const artifact = artifacts.find((item) => item.id === qaArtifact);
+    const target = createStationTraversalTarget(artifact?.id);
+    if (!artifact || !target) return;
+    const qaTraversal = createTraversalState(target);
+    qaTraversal.dockedId = artifact.id;
+    qaTraversal.nearbyId = artifact.id;
+    qaTraversal.proximityStationId = artifact.id;
+    qaTraversal.stationProximity = 1;
+    traversalRef.current = qaTraversal;
+    traversalPoseRef.current = {
+      ...getTraversalRenderPose(qaTraversal),
+      dockSettleOffset: 0,
+      dockedId: artifact.id,
+      nearbyId: artifact.id,
+      proximityStationId: artifact.id,
+      stationProximity: 1,
+    };
+    selectedDestinationIdRef.current = artifact.id;
+    earnedDockedStationIdRef.current = artifact.id;
+    archiveOfferDismissedArrivalRef.current = null;
+    setArchivePortalOfferOpen(false);
+    setBlackHoleActive(false);
+    const qaPresentation = commitTraversalPresentation(
+      qaTraversal,
+      getTraversalRenderPose(qaTraversal),
+    );
+    traversalPoseRef.current = {
+      ...traversalPoseRef.current,
+      presentation: qaPresentation,
+    };
+    setAxisX(target.x);
+    setDepthZ(target.z);
+    setStationProximity(1);
+  }, [artifacts, commitTraversalPresentation]);
 
   useEffect(() => {
-    axisRef.current = axisX;
-  }, [axisX]);
-
-  useEffect(() => {
-    depthRef.current = depthZ;
-  }, [depthZ]);
-
-  useEffect(() => {
+    if (!worldPresentationActive) return undefined;
     let raf = 0;
     let previous = performance.now();
     let lastFrame = previous;
 
     const tick = (now) => {
+      const traversal = traversalRef.current;
       const activeInput = pressedKeysRef.current.size > 0;
-      const targetFrameMs = activeInput ? ACTIVE_WORLD_FRAME_MS : IDLE_WORLD_FRAME_MS;
+      const traversalActive =
+        activeInput ||
+        Boolean(traversal.destinationId) ||
+        Math.hypot(traversal.vx, traversal.vz) > 0.025;
+      const targetFrameMs = traversalActive ? ACTIVE_WORLD_FRAME_MS : IDLE_WORLD_FRAME_MS;
       if (now - lastFrame < targetFrameMs) {
         raf = window.requestAnimationFrame(tick);
         return;
@@ -639,48 +793,82 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       }
 
       const visible = isWorldVisible(worldRef.current);
+      const hasManualDirection =
+        visible && (direction !== 0 || depthDirection !== 0);
+      advanceTraversalFrame(traversal, {
+        colliders: STATION_COLLIDERS,
+        dt,
+        input: visible ? { x: direction, z: depthDirection } : { x: 0, z: 0 },
+        stations: STATION_TARGETS,
+      });
 
-      if (direction && visible) {
-        const normalized = Math.sign(direction);
-        setAxisTarget(axisTargetRef.current + normalized * AXIS_HOLD_SPEED * dt, { selectNearest: true });
+      if (hasManualDirection && !traversal.destinationId) {
+        selectedDestinationIdRef.current = null;
+      }
+      if (traversal.dockedId) {
+        earnedDockedStationIdRef.current = traversal.dockedId;
+        selectedDestinationIdRef.current = traversal.dockedId;
       }
 
-      if (depthDirection && visible) {
-        const normalizedDepth = Math.sign(depthDirection);
-        setDepthTarget(depthTargetRef.current + normalizedDepth * DEPTH_HOLD_SPEED * dt);
+      const pose = getTraversalRenderPose(traversal);
+      let semanticPresentation = presentationRef.current;
+      const dockOwnershipChanged = didPhysicalDockOwnershipChange(
+        semanticPresentation,
+        traversal,
+      );
+
+      if (
+        dockOwnershipChanged ||
+        now - lastSemanticSnapshotRef.current >= SEMANTIC_SNAPSHOT_FRAME_MS
+      ) {
+        lastSemanticSnapshotRef.current = now;
+        semanticPresentation = commitTraversalPresentation(traversal, pose);
+        const axisMotion = clamp(pose.vx / MANUAL_MAX_SPEED, -1, 1);
+        const depthMotion = clamp(pose.vz / MANUAL_MAX_SPEED, -1, 1);
+        setAxisX(pose.x);
+        setDepthZ(pose.z);
+        setAxisVelocity(Math.abs(axisMotion) > 0.025 ? Number(axisMotion.toFixed(2)) : 0);
+        setDepthVelocity(Math.abs(depthMotion) > 0.025 ? Number(depthMotion.toFixed(2)) : 0);
+        setStationProximity(Number(traversal.stationProximity.toFixed(4)));
       }
 
-      const axisBefore = axisRef.current;
-      const depthBefore = depthRef.current;
-      const axisRate = direction ? AXIS_DAMPING_RATE : STATION_FOCUS_DAMPING_RATE;
-      const nextAxis = smoothDamp(axisRef.current, axisTargetRef.current, axisRate, dt);
-      const nextDepth = smoothDamp(depthRef.current, depthTargetRef.current, DEPTH_DAMPING_RATE, dt);
-      const axisDelta = nextAxis - axisBefore;
-      const depthDelta = nextDepth - depthBefore;
+      traversalPoseRef.current = {
+        ...pose,
+        arrivalSequence: traversal.arrivalSequence,
+        arrivalStationId: traversal.arrivalStationId,
+        arrivalStrength: traversal.arrivalStrength,
+        destinationId: semanticPresentation.destinationId,
+        dockSettleOffset: traversal.dockSettleOffset,
+        dockedId: traversal.dockedId,
+        dockedStationId: semanticPresentation.dockedStationId,
+        nearestStationId: semanticPresentation.nearestStationId,
+        phase: semanticPresentation.phase,
+        presentation: semanticPresentation,
+        proximityStationId: traversal.proximityStationId,
+        nearbyId: traversal.nearbyId,
+        stationProximity: traversal.stationProximity,
+      };
 
-      if (Math.abs(axisDelta) > 0.0005) {
-        axisRef.current = nextAxis;
-        setAxisX(nextAxis);
+      if (traversal.impactSequence !== lastImpactSequenceRef.current) {
+        lastImpactSequenceRef.current = traversal.impactSequence;
+        if (traversal.collisionId === "observatory-plaque") {
+          touchIgloo(traversal.lastImpactStrength);
+        }
       }
-      if (Math.abs(depthDelta) > 0.0005) {
-        depthRef.current = nextDepth;
-        setDepthZ(nextDepth);
-      }
-
-      const axisMotion = dt > 0 ? clamp(axisDelta / Math.max(0.0001, AXIS_HOLD_SPEED * dt), -1, 1) : 0;
-      const depthMotion = dt > 0 ? clamp(depthDelta / Math.max(0.0001, DEPTH_HOLD_SPEED * dt), -1, 1) : 0;
-      setAxisVelocityState(Math.abs(axisMotion) > 0.025 ? Number(axisMotion.toFixed(2)) : 0);
-      setDepthVelocityState(Math.abs(depthMotion) > 0.025 ? Number(depthMotion.toFixed(2)) : 0);
-
       raf = window.requestAnimationFrame(tick);
     };
 
     raf = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(raf);
-  }, [setAxisTarget, setAxisVelocityState, setDepthTarget, setDepthVelocityState]);
+  }, [commitTraversalPresentation, touchIgloo, worldPresentationActive]);
+
+  useEffect(() => {
+    if (blackHoleActive) pressedKeysRef.current.clear();
+  }, [blackHoleActive]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (blackHoleActive) return;
       if (!isWorldVisible(worldRef.current)) return;
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select, button, a")) {
         return;
@@ -701,8 +889,6 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     };
     const onBlur = () => {
       pressedKeysRef.current.clear();
-      setAxisVelocityState(0);
-      setDepthVelocityState(0);
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -713,48 +899,85 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [setAxisVelocityState, setDepthVelocityState, showInputHint, startExplorationRender]);
+  }, [blackHoleActive, showInputHint, startExplorationRender]);
 
   return (
     <section
       className={`igloo-world quality-${quality}`}
-      data-axis="horizontal"
-      data-moving={Math.abs(axisVelocity) + Math.abs(depthVelocity) > 0 ? "true" : "false"}
+      data-axis="world-xz"
+      data-moving={
+        ["moving", "docking"].includes(traversalPresentation.phase)
+          ? "true"
+          : "false"
+      }
       data-project-count={projects?.length || 0}
       data-station-count={stations?.length || 0}
       id="world"
       ref={worldRef}
       data-render-enabled={publicRenderEnabled ? "true" : "false"}
       data-renderer-mode={rendererMode}
+      data-world-suspended={worldPresentationActive ? "false" : "true"}
+      data-world-portal-active={blackHoleActive ? "true" : "false"}
+      data-world-portal-offer={archivePortalOfferOpen ? "archive" : "none"}
+      data-gpu-stage-mounted={gpuStageMounted ? "true" : "false"}
+      data-seal-guide-state={sealGuideState}
       data-seal-awake={sealAwake ? "true" : "false"}
       data-high-contrast={highContrast ? "true" : "false"}
       data-loading-model="abeto-fullscreen-world bruno-horizontal-index"
-      data-scroll-model="webgl-infinite-axis horizontal-evidence-axis"
-      style={{ "--axis-progress": axisProgress, "--depth-progress": depthProgress }}
+      data-scroll-model="webgl-open-xz-world horizontal-evidence-axis"
+      data-docked-station={traversalRef.current.dockedId || "none"}
+      data-presentation-arrived={traversalPresentation.isArrived ? "true" : "false"}
+      data-presentation-destination={traversalPresentation.destinationId || "none"}
+      data-presentation-docked={traversalPresentation.dockedStationId || "none"}
+      data-presentation-nearest={traversalPresentation.nearestStationId || "none"}
+      data-presentation-phase={traversalPresentation.phase}
+      data-presentation-progress={traversalPresentation.progress.toFixed(3)}
+      data-proximity-station={traversalRef.current.proximityStationId || "none"}
+      data-route-queue-length={traversalRef.current.routeQueue.length}
+      data-route-waypoint={traversalRef.current.route?.id || "none"}
+      data-station-proximity={stationProximity.toFixed(3)}
+      data-traversal-speed={Math.hypot(
+        traversalRef.current.vx,
+        traversalRef.current.vz,
+      ).toFixed(3)}
+      data-seal-halo-station={exclusiveStationId || intentArtifact.id}
+      data-world-x={axisX.toFixed(3)}
+      data-world-z={depthZ.toFixed(3)}
+      style={{
+        "--axis-progress": axisProgress,
+        "--depth-progress": depthProgress,
+        "--station-proximity": stationProximity,
+      }}
     >
       <div className="igloo-poster" aria-hidden="true" />
-      <canvas ref={atmosphere} className="igloo-atmosphere-canvas active-theory-veil" aria-hidden="true" />
-      {!effectiveSafeMode && sdfRenderEnabled && (
+      {!effectiveSafeMode && sdfRenderEnabled && gpuStageMounted && (
         <GpuErrorBoundary
           onGpuEvent={reportGpuEvent}
-          resetKey={`${activeArtifactId}-${quality}-${safeMode ? "safe" : "live"}`}
+          resetKey={`${intentArtifact.id}-${quality}-${safeMode ? "safe" : "live"}`}
         >
           <IglooScene
-            activeArtifactId={activeArtifactId}
+            activeArtifactId={intentArtifact.id}
             axisVelocity={axisVelocity}
             axisX={axisX}
             depthVelocity={depthVelocity}
             depthZ={depthZ}
+            dockedStationId={exclusiveStationId}
             artifacts={artifacts}
             iglooPulse={iglooPulse}
-            moving={Math.abs(axisVelocity) + Math.abs(depthVelocity) > 0}
+            guideState={sealGuideState}
+            liveSummary={liveSummary}
+            moving={["moving", "docking"].includes(traversalPresentation.phase)}
             onGpuEvent={reportGpuEvent}
             onSelectArtifact={selectArtifact}
             onTouchIgloo={touchIgloo}
+            projects={projects}
             quality={safeMode || reduced ? "low" : quality}
             reducedMotion={reduced}
             renderEnabled={sdfRenderEnabled}
             sealAwake={sealAwake}
+            stationProximity={stationProximity}
+            traversalPoseRef={traversalPoseRef}
+            worldActive={worldPresentationActive}
             debugFlags={sceneDebugFlags}
           />
         </GpuErrorBoundary>
@@ -764,42 +987,51 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
           {inputHint}
         </div>
       )}
+      {sealRouteHint && (
+        <div className="seal-navigation-bubble" role="status" aria-live="polite">
+          <span>seal guide</span>
+          <strong>{sealRouteHint}</strong>
+        </div>
+      )}
       <DiagnosticPanel events={gpuDiagnostics} rendererMode={rendererMode} />
       {!sdfRenderEnabled && (
         <SdfSealSplash
-          activeArtifact={activeArtifact}
+          active={worldInView}
+          activeArtifact={evidenceArtifact}
           diagnosticEvents={gpuDiagnostics}
+          guideState={sealGuideState}
           onEnable={enableRenderer}
           safeMode={safeMode}
         />
       )}
       <IglooHud
-        activeArtifact={activeArtifact}
-        axisProgress={axisProgress}
-        axisVelocity={axisVelocity}
-        depthVelocity={depthVelocity}
+        activeArtifact={evidenceArtifact}
         artifacts={artifacts}
         content={content}
         liveSummary={liveSummary}
+        onCancelArchivePortal={cancelArchivePortal}
+        onConfirmArchivePortal={confirmArchivePortal}
         onSelectArtifact={selectArtifact}
+        portalOfferOpen={archivePortalOfferOpen}
+        presentation={traversalPresentation}
         quality={quality}
         highContrast={highContrast}
+        reducedMotion={reduced}
         renderEnabled={publicRenderEnabled}
         sealAwake={sealAwake}
         setQuality={setQuality}
         setHighContrast={setHighContrast}
       />
       <BlackHoleTransition
-        active={blackHoleActive}
+        active={blackHoleActive && worldInView}
         onClose={() => {
-          blackHoleDismissedRef.current = true;
+          cancelArchivePortal();
           setBlackHoleActive(false);
         }}
       />
       <OpenWorldLoadingBridge
         active={worldLoadBridgeActive && !effectiveSafeMode}
-        activeArtifact={activeArtifact}
-        axisProgress={axisProgress}
+        activeArtifact={intentArtifact}
         rendererMode={rendererMode}
       />
     </section>

@@ -1,0 +1,36 @@
+{
+  "baseUrl": "http://127.0.0.1:3000",
+  "moving": {
+    "averageLuminance": 171.2893579749976,
+    "blackPixelRatio": 0.0005,
+    "debris": {
+      "instances": 18,
+      "ownedDelta": {
+        "drawCalls": 1,
+        "programs": 1,
+        "textures": 0
+      },
+      "profile": "bright pooled frost wake / one instanced draw / deterministic mass-weighted arcs / zero reduced-motion shards"
+    },
+    "quality": "high",
+    "diagnostics": [],
+    "driverReadbackNotes": [
+      "[.WebGL-0x6f34037d3a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+      "[.WebGL-0x6f34037d3a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+      "[.WebGL-0x6f34037d3a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+      "[.WebGL-0x6f34037d3a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+    ],
+    "failedRequests": [],
+    "screenshot": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\travel-debris\\plaque-to-s2-moving-1600x1000.png",
+    "viewport": {
+      "height": 1000,
+      "width": 1600
+    }
+  },
+  "reducedMotion": {
+    "debrisDrawCalls": 0,
+    "debrisInstances": 0,
+    "reducedMotion": "true",
+    "diagnostics": []
+  }
+}

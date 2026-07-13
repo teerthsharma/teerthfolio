@@ -146,14 +146,54 @@ function compileShader(gl, type, source) {
   return shader;
 }
 
+function scheduleManualWebglRelease({
+  buffer,
+  canvas,
+  contextReleaseTimerRef,
+  fragment,
+  gl,
+  program,
+  vertex,
+}) {
+  canvas.dataset.webglLifecycleActive = "pending-release";
+  if (buffer) gl.deleteBuffer(buffer);
+  if (program) gl.deleteProgram(program);
+  if (vertex) gl.deleteShader(vertex);
+  if (fragment) gl.deleteShader(fragment);
+  gl.flush();
+  window.clearTimeout(contextReleaseTimerRef.current);
+  contextReleaseTimerRef.current = window.setTimeout(() => {
+    if (canvas.isConnected && canvas.dataset.webglLifecycleActive === "true") {
+      contextReleaseTimerRef.current = 0;
+      return;
+    }
+    try {
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    } finally {
+      canvas.width = 0;
+      canvas.height = 0;
+      contextReleaseTimerRef.current = 0;
+    }
+  }, 48);
+}
+
+function cancelScheduledContextRelease(contextReleaseTimerRef) {
+  if (!contextReleaseTimerRef.current) return;
+  window.clearTimeout(contextReleaseTimerRef.current);
+  contextReleaseTimerRef.current = 0;
+}
+
 export default function BlackHoleTransition({ active, onClose }) {
   const canvasRef = useRef(null);
+  const contextReleaseTimerRef = useRef(0);
   const mouseRef = useRef([0, 0]);
 
   useEffect(() => {
     if (!active) return undefined;
+    cancelScheduledContextRelease(contextReleaseTimerRef);
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
+    canvas.dataset.webglLifecycleActive = "true";
 
     const gl = canvas.getContext("webgl", {
       alpha: false,
@@ -163,14 +203,33 @@ export default function BlackHoleTransition({ active, onClose }) {
     });
     if (!gl) return undefined;
 
+    const scheduleRelease = (resources = {}) =>
+      scheduleManualWebglRelease({
+        canvas,
+        contextReleaseTimerRef,
+        gl,
+        ...resources,
+      });
+
     const vertex = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
     const fragment = compileShader(gl, gl.FRAGMENT_SHADER, STAR_NEST_FRAGMENT_SHADER);
-    if (!vertex || !fragment) return undefined;
+    if (!vertex || !fragment) {
+      scheduleRelease({ fragment, vertex });
+      return undefined;
+    }
 
     const program = gl.createProgram();
+    if (!program) {
+      scheduleRelease({ fragment, vertex });
+      return undefined;
+    }
     gl.attachShader(program, vertex);
     gl.attachShader(program, fragment);
     gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      scheduleRelease({ fragment, program, vertex });
+      return undefined;
+    }
     gl.useProgram(program);
 
     const buffer = gl.createBuffer();
@@ -218,10 +277,7 @@ export default function BlackHoleTransition({ active, onClose }) {
       window.cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onPointerMove);
-      gl.deleteProgram(program);
-      gl.deleteBuffer(buffer);
-      gl.deleteShader(vertex);
-      gl.deleteShader(fragment);
+      scheduleRelease({ buffer, fragment, program, vertex });
     };
   }, [active]);
 

@@ -1,0 +1,30 @@
+{
+  "after": [
+    {
+      "className": "igloo-scene-canvas",
+      "drawCount": 121465,
+      "parentClassName": ""
+    },
+    {
+      "className": "",
+      "drawCount": 254,
+      "parentClassName": "black-hole-transition"
+    }
+  ],
+  "before": [
+    {
+      "className": "igloo-scene-canvas",
+      "drawCount": 121465,
+      "parentClassName": ""
+    },
+    {
+      "className": "",
+      "drawCount": 71,
+      "parentClassName": "black-hole-transition"
+    }
+  ],
+  "errors": [],
+  "mainDrawDelta": 0,
+  "portalActive": "true",
+  "worldSuspended": "true"
+}

@@ -1,0 +1,15 @@
+{
+  "errors": [],
+  "maximumObservedSpeeds": {
+    "assemblyToPlaque": 1.2492967642172783,
+    "plaqueToS2": 1.4650963641086545,
+    "s2ToAssembly": 1.2041060375201011
+  },
+  "minimumIntermediateSpeed": 4.593,
+  "route": [
+    "observatory-plaque",
+    "s2-kernel-core",
+    "assembly-tool-locker",
+    "observatory-plaque"
+  ]
+}

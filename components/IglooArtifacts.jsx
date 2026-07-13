@@ -1,6 +1,15 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import {
+  POLAR_PALETTE,
+  STATION_PALETTE,
+  WORLD_STREAM_TIMINGS,
+  easeWorldStream,
+} from "../lib/polar-art-direction";
+import { MECHANISM_BASE_MOTION_CONFLICTS } from "../lib/polar-station-mechanism-layer";
+import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
+import StationSurfaceMaterial from "./StationSurfaceMaterial";
 
 export const STATION_INTERACTION_PROFILE =
   "s2-kernel-core interactive gyroscope; manifold-reactor phase beads; field-chamber-coils charge gates; qpu-ice-bridge qubit stepping stones; upstream-radio-mast live signal sweep";
@@ -9,9 +18,34 @@ export const UPLIFTING_STATION_COLOR_PROFILE =
 export const STATION_GRID_ELEVATION_PROFILE =
   "non-igloo stations sit on floating 3D grid pedestals above the polar ground";
 
-const FEATURED_STATION_IDS = new Set(["s2-kernel-core", "manifold-reactor", "field-chamber-coils", "qpu-ice-bridge", "upstream-radio-mast"]);
-const ICE_HIGHLIGHT = "#f6fffb";
-const GRID_GLASS = "#bdefff";
+export const MONUMENT_ART_DIRECTION = Object.freeze({
+  "s2-kernel-core": Object.freeze({ silhouette: "split-kernel-proof-vault", footprint: Object.freeze([1, 1]), drawDelta: 0 }),
+  "manifold-reactor": Object.freeze({ silhouette: "vertical-nerve-reactor", footprint: Object.freeze([0.82, 1.12]), drawDelta: -2 }),
+  "field-chamber-coils": Object.freeze({ silhouette: "helmholtz-field-gate", footprint: Object.freeze([1.24, 0.78]), drawDelta: -6 }),
+  "qpu-ice-bridge": Object.freeze({ silhouette: "segmented-qubit-span", footprint: Object.freeze([1.48, 0.8]), drawDelta: 2 }),
+  "upstream-radio-mast": Object.freeze({ silhouette: "asymmetric-dish-spire", footprint: Object.freeze([0.82, 0.94]), drawDelta: 1 }),
+  "topology-archive-wall": Object.freeze({ silhouette: "stepped-barcode-vault", footprint: Object.freeze([1.3, 0.62]), drawDelta: 0 }),
+  "assembly-tool-locker": Object.freeze({ silhouette: "forked-tool-gantry", footprint: Object.freeze([1.08, 0.86]), drawDelta: 2 }),
+});
+
+export const MECHANISM_ACTIVE_BASE_SCALE = Object.freeze({
+  "s2-kernel-core": 1.48,
+  "manifold-reactor": 1.45,
+  "field-chamber-coils": 1.28,
+  "qpu-ice-bridge": 1.3,
+  "upstream-radio-mast": 1.32,
+  "topology-archive-wall": 1.18,
+  "assembly-tool-locker": 1.24,
+});
+
+const FEATURED_STATION_IDS = new Set(Object.keys(MONUMENT_ART_DIRECTION));
+const MECHANISM_STATION_IDS = new Set(
+  MECHANISM_BASE_MOTION_CONFLICTS.stationIds,
+);
+const DEFAULT_STATION_FOOTPRINT = Object.freeze([1, 1]);
+const ICE_HIGHLIGHT = POLAR_PALETTE.glacierWhite;
+const GRID_GLASS = POLAR_PALETTE.dawnCyan;
+const stationWorld = STATION_WORLD_SCHEMA.stations;
 
 export const IGLOO_ARTIFACTS = [
   {
@@ -26,9 +60,10 @@ export const IGLOO_ARTIFACTS = [
     signal: "75 repos / 25 systems / 11 topology ML",
     description:
       "Entry station for the mined public corpus: physics, compilers, AI systems, and topology projects arranged as inspectable polar work.",
-    position: [0, 0.34, 0.78],
-    color: "#dffdf7",
-    accent: "#8fb7c3",
+    position: [-15, 0.34, 7],
+    world: stationWorld["observatory-plaque"],
+    color: STATION_PALETTE["observatory-plaque"].surface,
+    accent: STATION_PALETTE["observatory-plaque"].accent,
     shape: "plate",
   },
   {
@@ -43,9 +78,10 @@ export const IGLOO_ARTIFACTS = [
     signal: "Seal OS, Epsilon-Hollow, ISO boot proof",
     description:
       "Rust microkernel work framed as S2 state topology: Epsilon-Hollow, boot proof, runtime discipline, and inspectable kernel edges.",
-    position: [16, 0.7, -0.82],
-    color: "#6ee7ff",
-    accent: "#3478ff",
+    position: [-5, 0.7, 13],
+    world: stationWorld["s2-kernel-core"],
+    color: STATION_PALETTE["s2-kernel-core"].surface,
+    accent: STATION_PALETTE["s2-kernel-core"].accent,
     shape: "sphere",
   },
   {
@@ -60,9 +96,10 @@ export const IGLOO_ARTIFACTS = [
     signal: "Aether-Lang, persistent homology, Lean kernel",
     description:
       "Language-runtime station for Aether-Lang: neighborhoods, manifold embeddings, persistent homology, and verified kernel structure.",
-    position: [32, 0.62, -0.94],
-    color: "#c9a7ff",
-    accent: "#7c5cff",
+    position: [8, 0.62, 12],
+    world: stationWorld["manifold-reactor"],
+    color: STATION_PALETTE["manifold-reactor"].surface,
+    accent: STATION_PALETTE["manifold-reactor"].accent,
     shape: "torus",
   },
   {
@@ -77,9 +114,10 @@ export const IGLOO_ARTIFACTS = [
     signal: "Faraday, Hamilton, fixed-point gauge fields",
     description:
       "Field-physics station for Faraday and Hamilton: fixed-point EM coupling, gauge notation, and N-body topological fingerprints.",
-    position: [48, 0.54, 0.24],
-    color: "#ffc857",
-    accent: "#ff8f3d",
+    position: [17, 0.54, 4],
+    world: stationWorld["field-chamber-coils"],
+    color: STATION_PALETTE["field-chamber-coils"].surface,
+    accent: STATION_PALETTE["field-chamber-coils"].accent,
     shape: "coil",
   },
   {
@@ -94,9 +132,10 @@ export const IGLOO_ARTIFACTS = [
     signal: "TopoBridge-Q, homology, IBM QPU evidence",
     description:
       "Quantum verification station where TopoBridge-Q, homology paths, IBM QPU evidence, and high-performance I/O meet.",
-    position: [64, 0.42, 1.05],
-    color: "#7dffcf",
-    accent: "#36d8ff",
+    position: [15, 0.42, -8],
+    world: stationWorld["qpu-ice-bridge"],
+    color: STATION_PALETTE["qpu-ice-bridge"].surface,
+    accent: STATION_PALETTE["qpu-ice-bridge"].accent,
     shape: "bridge",
   },
   {
@@ -111,9 +150,10 @@ export const IGLOO_ARTIFACTS = [
     signal: "Triton, PyTorch, NeMo Relay",
     description:
       "Upstream station for live external work: Triton sparse attention, PyTorch topology modules, and NeMo ACG cache reuse.",
-    position: [80, 0.82, 0.36],
-    color: "#ff8da1",
-    accent: "#7dff9a",
+    position: [3, 0.82, -14],
+    world: stationWorld["upstream-radio-mast"],
+    color: STATION_PALETTE["upstream-radio-mast"].surface,
+    accent: STATION_PALETTE["upstream-radio-mast"].accent,
     shape: "mast",
   },
   {
@@ -128,9 +168,10 @@ export const IGLOO_ARTIFACTS = [
     signal: "lambda-topo, topoflow, topoml, phi-mem",
     description:
       "Archive station for topology engines: lambda-topo, topoflow, topoml, phi-mem, visualization, memory, and phase-space traces.",
-    position: [96, 0.52, 0.86],
-    color: "#dffdf7",
-    accent: "#5ff8e7",
+    position: [-11, 0.52, -11],
+    world: stationWorld["topology-archive-wall"],
+    color: STATION_PALETTE["topology-archive-wall"].surface,
+    accent: STATION_PALETTE["topology-archive-wall"].accent,
     shape: "archive",
   },
   {
@@ -145,30 +186,26 @@ export const IGLOO_ARTIFACTS = [
     signal: "AVX-512, page tables, no_std kernels, SIMD homology",
     description:
       "Tooling station for bare-metal work: AVX-512, page tables, no_std kernels, assembly stencils, and SIMD topology maps.",
-    position: [112, 0.42, -0.72],
-    color: "#e8f2f5",
-    accent: "#8aa9ad",
+    position: [-18, 0.42, -2],
+    world: stationWorld["assembly-tool-locker"],
+    color: STATION_PALETTE["assembly-tool-locker"].surface,
+    accent: STATION_PALETTE["assembly-tool-locker"].accent,
     shape: "locker",
   },
 ];
 
 const ARTIFACT_CLASS = "igloo-artifact";
-const ARTIFACT_LOOP_LENGTH = 128;
-const PHASE_BEADS = Array.from({ length: 9 }, (_, index) => {
-  const angle = (index / 9) * Math.PI * 2;
+const PHASE_BEADS = Array.from({ length: 7 }, (_, index) => {
+  const angle = (index / 7) * Math.PI * 2;
   return {
     key: `phase-bead-${index}`,
     position: [Math.cos(angle) * 0.55, Math.sin(angle * 2.0) * 0.08, Math.sin(angle) * 0.34],
     scale: 0.028 + (index % 3) * 0.008,
   };
 });
-const CHARGE_GATE_OFFSETS = [-0.44, -0.22, 0, 0.22, 0.44];
+const CHARGE_GATE_OFFSETS = [-0.42, 0, 0.42];
 const QUBIT_STEPS = [-0.42, -0.21, 0, 0.21, 0.42];
 const SWEEP_RINGS = [0.26, 0.42, 0.6];
-
-function nearestLoopedX(baseX, axisX, loopLength = ARTIFACT_LOOP_LENGTH) {
-  return baseX + Math.round((axisX - baseX) / loopLength) * loopLength;
-}
 
 function StationInteractionRig({ accent, active, artifact, hovered }) {
   const root = useRef(null);
@@ -202,12 +239,8 @@ function StationInteractionRig({ accent, active, artifact, hovered }) {
           <torusGeometry args={[0.54, 0.007, 8, 86]} />
           <meshBasicMaterial color={ICE_HIGHLIGHT} transparent opacity={0.14 + intensity * 0.26} />
         </mesh>
-        <mesh ref={secondary} rotation={[0.2, 0.4, Math.PI / 2]}>
-          <torusGeometry args={[0.38, 0.006, 8, 74]} />
-          <meshBasicMaterial color={GRID_GLASS} transparent opacity={0.12 + intensity * 0.22} />
-        </mesh>
-        {[0, 1, 2].map((index) => {
-          const angle = (index / 3) * Math.PI * 2;
+        {[0, 1].map((index) => {
+          const angle = index * Math.PI;
           return (
             <mesh key={`s2-orbit-bit-${index}`} position={[Math.cos(angle) * 0.66, 0.04, Math.sin(angle) * 0.46]} scale={[0.055, 0.055, 0.055]}>
               <octahedronGeometry args={[1, 0]} />
@@ -318,18 +351,34 @@ function StationInteractionRig({ accent, active, artifact, hovered }) {
   return null;
 }
 
-function StationGridPedestal({ accent, active, featured }) {
+function StationGridPedestal({ accent, active, featured, footprint = [1, 1] }) {
   const ringOpacity = featured ? (active ? 0.72 : 0.36) : active ? 0.5 : 0.16;
   const beamOpacity = featured ? (active ? 0.54 : 0.24) : active ? 0.34 : 0.12;
 
   return (
     <group name="floating-grid-pedestal uplifting-station-grid">
-      <mesh position={[0, -0.5, 0]} scale={[featured ? 0.92 : 0.78, 0.035, featured ? 0.92 : 0.78]}>
+      <mesh
+        position={[0, -0.5, 0]}
+        scale={[
+          (featured ? 0.92 : 0.78) * footprint[0],
+          0.035,
+          (featured ? 0.92 : 0.78) * footprint[1],
+        ]}
+      >
         <cylinderGeometry args={[1, 1, 1, 76]} />
         <meshStandardMaterial color={featured ? "#e9fff8" : "#b7d7df"} emissive={accent} emissiveIntensity={featured ? 0.14 : 0.04} transparent opacity={featured ? 0.34 : 0.24} roughness={0.42} />
       </mesh>
       {[-0.42, -0.22, 0.02].map((y, index) => (
-        <mesh key={`grid-pedestal-ring-${y}`} position={[0, y, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[1 + index * 0.16, 0.62 + index * 0.08, 1]}>
+        <mesh
+          key={`grid-pedestal-ring-${y}`}
+          position={[0, y, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[
+            footprint[0] * (1 + index * 0.16),
+            footprint[1] * (0.62 + index * 0.08),
+            1,
+          ]}
+        >
           <ringGeometry args={[0.54, 0.555, 80]} />
           <meshBasicMaterial color={index === 1 ? ICE_HIGHLIGHT : accent} transparent opacity={ringOpacity * (0.68 - index * 0.12)} />
         </mesh>
@@ -340,7 +389,11 @@ function StationGridPedestal({ accent, active, featured }) {
         [0.52, -0.52],
         [-0.52, -0.52],
       ].map(([x, z]) => (
-        <mesh key={`grid-pedestal-beam-${x}-${z}`} position={[x, -0.21, z]} scale={[0.012, 0.5, 0.012]}>
+        <mesh
+          key={`grid-pedestal-beam-${x}-${z}`}
+          position={[x * footprint[0], -0.21, z * footprint[1]]}
+          scale={[0.012, 0.5, 0.012]}
+        >
           <cylinderGeometry args={[1, 1, 1, 6]} />
           <meshBasicMaterial color={accent} transparent opacity={beamOpacity} />
         </mesh>
@@ -349,46 +402,151 @@ function StationGridPedestal({ accent, active, featured }) {
   );
 }
 
-function ArtifactMesh({ artifact, active, axisX, onSelectArtifact }) {
+function ArtifactMesh({
+  artifact,
+  active,
+  heroProtected,
+  onSelectArtifact,
+  quality,
+  reducedMotion,
+  revealIndex,
+  streamEpochMsRef,
+}) {
   const group = useRef(null);
   const pulse = useRef(0);
+  const stationLight = useRef(null);
   const [hovered, setHovered] = useState(false);
-  const accent = useMemo(() => new THREE.Color(artifact.accent), [artifact.accent]);
+  const stationPalette = STATION_PALETTE[artifact.id];
+  const stationAccent = stationPalette?.accent || artifact.accent;
+  const accent = useMemo(() => new THREE.Color(stationAccent), [stationAccent]);
   const featured = FEATURED_STATION_IDS.has(artifact.id);
-  const stationScale = active ? (artifact.id === "observatory-plaque" ? 1.18 : featured ? 2.05 : 3.08) : featured ? 1.04 : 0.92;
+  const mechanismMotionOwned = MECHANISM_STATION_IDS.has(artifact.id);
+  const homeNeighbor =
+    artifact.id === "s2-kernel-core" || artifact.id === "assembly-tool-locker";
+  const homeSuppressed =
+    heroProtected && !active && artifact.id !== "observatory-plaque" && !homeNeighbor;
+  const footprint = MONUMENT_ART_DIRECTION[artifact.id]?.footprint || DEFAULT_STATION_FOOTPRINT;
+  const stationScale = active
+    ? artifact.id === "observatory-plaque"
+      ? 1.18
+      : featured
+        ? MECHANISM_ACTIVE_BASE_SCALE[artifact.id] || 1.28
+        : 3.08
+    : heroProtected
+      ? featured
+        ? 0.72
+        : 0.6
+      : featured
+        ? 1.04
+        : 0.92;
   const gridLift = featured ? (active ? 0.58 : 0.36) : 0;
   const subjectLift = featured ? 0.2 : 0;
   const worldPosition = useMemo(
-    () => [nearestLoopedX(artifact.position[0], axisX), artifact.position[1], artifact.position[2] * 2.4],
-    [artifact.position, axisX],
+    () => [artifact.world.center.x, artifact.position[1], artifact.world.center.z],
+    [artifact.position, artifact.world],
   );
   const displayPosition = [worldPosition[0], worldPosition[1] + gridLift, worldPosition[2]];
+  const initialArtifactScale = useMemo(
+    () => (reducedMotion ? [1, 1, 1] : [0.001, 0.001, 0.001]),
+    [reducedMotion],
+  );
+  const revealStartMs =
+    WORLD_STREAM_TIMINGS.stationStartMs +
+    revealIndex * WORLD_STREAM_TIMINGS.stationStaggerMs;
+  const stationLightIntensity = active
+    ? 2.25
+    : heroProtected
+      ? featured
+        ? 0.24
+        : 0.16
+      : featured
+        ? 0.55
+        : 0.32;
+  const stationZoneOrigin = useMemo(
+    () => [worldPosition[0], worldPosition[2]],
+    [worldPosition],
+  );
 
   useFrame(({ clock }) => {
     if (!group.current) return;
     const t = clock.elapsedTime;
+    const nowMs = t * 1000;
+    if (streamEpochMsRef.current === null) streamEpochMsRef.current = nowMs;
+    const streamElapsedMs = nowMs - streamEpochMsRef.current;
+    const revealProgress = reducedMotion
+      ? 1
+      : easeWorldStream(
+          (streamElapsedMs - revealStartMs) / WORLD_STREAM_TIMINGS.stationRevealMs,
+        );
     pulse.current = Math.max(0, pulse.current - 0.025);
-    group.current.position.y = displayPosition[1] + Math.sin(t * 0.8 + worldPosition[0]) * (featured ? 0.052 : 0.035) + pulse.current * 0.06;
-    group.current.rotation.y += active ? 0.006 : 0.002;
-    group.current.scale.setScalar(stationScale * (1 + pulse.current * 0.08 + (hovered ? 0.035 : 0)));
+    group.current.visible =
+      !homeSuppressed && (reducedMotion || streamElapsedMs >= revealStartMs);
+    if (stationLight.current) {
+      stationLight.current.intensity = stationLightIntensity * revealProgress;
+    }
+    const idleBob = mechanismMotionOwned ? 0 : Math.sin(t * 0.8 + worldPosition[0]) * 0.035;
+    group.current.position.y = displayPosition[1] + idleBob + pulse.current * 0.06;
+    if (mechanismMotionOwned) group.current.rotation.y = 0;
+    else group.current.rotation.y += active ? 0.006 : 0.002;
+    group.current.scale.setScalar(
+      stationScale *
+        (1 + pulse.current * 0.08 + (hovered ? 0.035 : 0)) *
+        Math.max(0.001, revealProgress),
+    );
   });
 
-  const materialProps = {
-    color: artifact.color,
-    emissive: artifact.accent,
-    emissiveIntensity: active ? 0.42 : featured ? 0.16 : 0.08,
-    metalness: 0.12,
-    roughness: featured ? 0.38 : 0.48,
-    transparent: true,
-    opacity: active ? 0.98 : featured ? 0.68 : 0.5,
-  };
   const darkMaterialProps = {
-    color: featured ? "#58798a" : "#253e47",
+    color: featured ? POLAR_PALETTE.animeShadow : POLAR_PALETTE.horizonIndigo,
     emissive: artifact.accent,
     emissiveIntensity: active ? 0.12 : featured ? 0.05 : 0.01,
     metalness: 0.16,
     roughness: featured ? 0.58 : 0.78,
   };
+
+  if (mechanismMotionOwned) {
+    return (
+      <group
+        ref={group}
+        name={`mechanism-navigation-proxy ${artifact.id}`}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          pulse.current = 1;
+          onSelectArtifact?.(artifact.id);
+        }}
+        onPointerOut={(event) => {
+          event.stopPropagation();
+          setHovered(false);
+        }}
+        onPointerOver={(event) => {
+          event.stopPropagation();
+          setHovered(true);
+        }}
+        position={displayPosition}
+        scale={initialArtifactScale}
+        userData={{
+          className: `${ARTIFACT_CLASS} mechanism-navigation-proxy`,
+          stationId: artifact.id,
+          visualOwner: "PolarStationMechanismLayer",
+        }}
+        visible={reducedMotion}
+      >
+        <mesh
+          name={`${artifact.id}-transparent-navigation-volume`}
+          position={[0, 0.42, 0]}
+          scale={[footprint[0] * 0.82, 0.72, footprint[1] * 0.82]}
+        >
+          <cylinderGeometry args={[1, 1, 1, 18]} />
+          <meshBasicMaterial
+            colorWrite={false}
+            depthTest={false}
+            depthWrite={false}
+            opacity={0}
+            transparent
+          />
+        </mesh>
+      </group>
+    );
+  }
 
   return (
     <group
@@ -408,126 +566,401 @@ function ArtifactMesh({ artifact, active, axisX, onSelectArtifact }) {
       }}
       userData={{ className: `${ARTIFACT_CLASS} interactive-station-object`, stationId: artifact.id }}
       position={displayPosition}
-      scale={[stationScale, stationScale, stationScale]}
+      scale={initialArtifactScale}
+      visible={reducedMotion}
     >
-      <StationGridPedestal accent={accent} active={active} featured={featured} />
-      <mesh receiveShadow position={[0, featured ? -0.42 : -0.31, 0]} scale={[featured ? 0.86 : 0.78, featured ? 0.05 : 0.07, featured ? 0.86 : 0.78]}>
+      <StationGridPedestal accent={accent} active={active} featured={featured} footprint={footprint} />
+      <mesh
+        receiveShadow
+        position={[0, featured ? -0.42 : -0.31, 0]}
+        scale={[
+          (featured ? 0.86 : 0.78) * footprint[0],
+          featured ? 0.05 : 0.07,
+          (featured ? 0.86 : 0.78) * footprint[1],
+        ]}
+      >
         <cylinderGeometry args={[1, 1, 1, 72]} />
         <meshStandardMaterial {...darkMaterialProps} transparent opacity={active ? 0.48 : featured ? 0.24 : 0.44} />
       </mesh>
-      <mesh position={[0, featured ? -0.16 : -0.24, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh
+        position={[0, featured ? -0.16 : -0.24, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[footprint[0], footprint[1], 1]}
+      >
         <ringGeometry args={[0.56, 0.59, 72]} />
         <meshBasicMaterial color={accent} transparent opacity={active ? 0.64 : 0.2} />
       </mesh>
       {artifact.shape === "sphere" && (
-        <group name="physical-station-subject s2-kernel-core" position={[0, subjectLift, 0]}>
-          <mesh castShadow receiveShadow>
-            <icosahedronGeometry args={[0.42, 3]} />
-            <meshStandardMaterial {...materialProps} />
+        <group name="physical-station-subject s2-kernel-core split-kernel-proof-vault" position={[0, subjectLift, 0]}>
+          <mesh castShadow receiveShadow scale={[0.24, 0.46, 0.24]}>
+            <icosahedronGeometry args={[0.44, 3]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.98 : 0.76}
+              profileId={artifact.id}
+              quality={quality}
+              zoneOrigin={stationZoneOrigin}
+            />
           </mesh>
-          <mesh rotation={[Math.PI / 2, 0.3, 0]}>
-            <torusGeometry args={[0.56, 0.009, 8, 96]} />
-            <meshBasicMaterial color={accent} transparent opacity={active ? 0.48 : 0.14} />
+          <mesh
+            castShadow
+            name="split-kernel-state-plane"
+            position={[0, 0.02, 0]}
+            receiveShadow
+            rotation={[0.06, 0.32, 0.05]}
+            scale={[0.78, 0.04, 0.5]}
+          >
+            <boxGeometry args={[1, 1, 1]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.94 : 0.68}
+              profileId={artifact.id}
+              quality={quality}
+              tone="surface"
+              zoneOrigin={stationZoneOrigin}
+            />
           </mesh>
-          <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          {[-1, 1].map((side) => (
+            <mesh
+              castShadow
+              key={`s2-polar-crown-${side}`}
+              name={`split-kernel-interrupt-proof-${side}`}
+              position={[0, side * 0.52, 0]}
+              receiveShadow
+              rotation={[0, side * 0.45, side < 0 ? Math.PI : 0]}
+              scale={[1.12, 1.12, 0.78]}
+            >
+              <coneGeometry args={[0.16, 0.28, 5]} />
+              <StationSurfaceMaterial
+                active={active}
+                hovered={hovered}
+                opacity={0.92}
+                profileId={artifact.id}
+                quality={quality}
+                tone="surface"
+                zoneOrigin={stationZoneOrigin}
+              />
+            </mesh>
+          ))}
+          {!mechanismMotionOwned && (
+            <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          )}
         </group>
       )}
       {artifact.shape === "torus" && (
-        <group name="physical-station-subject manifold-reactor" position={[0, subjectLift, 0]}>
-          <mesh castShadow receiveShadow rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.4, 0.052, 12, 88]} />
-            <meshStandardMaterial {...materialProps} />
+        <group name="physical-station-subject manifold-reactor vertical-nerve-reactor" position={[0, subjectLift, 0]}>
+          <mesh castShadow receiveShadow rotation={[0.12, 0.28, 0.08]} scale={[0.82, 1.18, 0.82]}>
+            <torusGeometry args={[0.4, 0.058, 12, 88]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.98 : 0.76}
+              profileId={artifact.id}
+              quality={quality}
+              zoneOrigin={stationZoneOrigin}
+            />
           </mesh>
-          <mesh castShadow receiveShadow rotation={[0.2, Math.PI / 2, 0.35]}>
-            <torusGeometry args={[0.31, 0.025, 10, 72]} />
-            <meshStandardMaterial {...materialProps} opacity={active ? 0.72 : 0.38} />
+          <mesh castShadow receiveShadow rotation={[0.22, Math.PI / 2, 0.48]} scale={[0.86, 1.08, 0.86]}>
+            <torusGeometry args={[0.34, 0.034, 10, 72]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.78 : 0.48}
+              profileId={artifact.id}
+              quality={quality}
+              zoneOrigin={stationZoneOrigin}
+            />
           </mesh>
-          <mesh castShadow receiveShadow scale={[0.16, 0.16, 0.16]}>
-            <sphereGeometry args={[1, 18, 12]} />
-            <meshStandardMaterial {...darkMaterialProps} />
+          <mesh castShadow receiveShadow rotation={[0, 0.22, 0]} scale={[0.14, 0.28, 0.14]}>
+            <icosahedronGeometry args={[1, 2]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={0.92}
+              profileId={artifact.id}
+              quality={quality}
+              tone="ink"
+              zoneOrigin={stationZoneOrigin}
+            />
           </mesh>
-          <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          {!mechanismMotionOwned && (
+            <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          )}
         </group>
       )}
       {artifact.shape === "coil" && (
-        <group name="physical-station-subject field-chamber-coils" position={[0, subjectLift, 0]}>
-          {[-0.24, -0.06, 0.12, 0.3].map((y, index) => (
-            <mesh castShadow receiveShadow key={index} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[0.34 + index * 0.032, 0.022, 10, 72]} />
-              <meshStandardMaterial {...materialProps} />
-            </mesh>
-          ))}
-          <mesh castShadow receiveShadow position={[0, 0.04, 0]} scale={[0.04, 0.78, 0.04]}>
-            <cylinderGeometry args={[1, 1, 1, 10]} />
-            <meshStandardMaterial {...darkMaterialProps} />
+        <group name="physical-station-subject field-chamber-coils helmholtz-field-gate" position={[0, subjectLift, 0]}>
+          <mesh
+            castShadow
+            name="field-chamber-ink-foundation"
+            position={[0, -0.34, 0]}
+            receiveShadow
+            scale={[0.64, 0.055, 0.42]}
+          >
+            <cylinderGeometry args={[1, 1, 1, 36]} />
+            <meshStandardMaterial color="#D7E7E7" emissive="#F29C46" emissiveIntensity={0.06} metalness={0.06} roughness={0.62} />
+          </mesh>
+          <mesh name="field-chamber-glass-housing" position={[0, 0.03, 0]} scale={[0.88, 0.72, 0.5]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshPhysicalMaterial
+              clearcoat={0.32}
+              clearcoatRoughness={0.42}
+              color={POLAR_PALETTE.dawnCyan}
+              depthWrite={false}
+              opacity={active ? 0.2 : 0.1}
+              roughness={0.28}
+              side={THREE.DoubleSide}
+              transparent
+            />
           </mesh>
           {[-1, 1].map((side) => (
-            <mesh castShadow receiveShadow key={`field-post-${side}`} position={[side * 0.43, 0.02, 0]} scale={[0.032, 0.72, 0.032]}>
+            <mesh
+              castShadow
+              receiveShadow
+              key={`helmholtz-coil-${side}`}
+              position={[side * 0.3, 0.03, 0]}
+              rotation={[0, Math.PI / 2, side * 0.08]}
+              scale={[0.9, 1.08, 0.9]}
+            >
+              <torusGeometry args={[0.34, 0.034, 10, 72]} />
+              <StationSurfaceMaterial
+                active={active}
+                hovered={hovered}
+                opacity={active ? 0.98 : 0.78}
+                profileId={artifact.id}
+                quality={quality}
+                zoneOrigin={stationZoneOrigin}
+              />
+            </mesh>
+          ))}
+          <mesh castShadow receiveShadow position={[0, 0.04, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.04, 0.9, 0.04]}>
+            <cylinderGeometry args={[1, 1, 1, 10]} />
+            <meshStandardMaterial color="#D7E7E7" emissive="#F29C46" emissiveIntensity={0.06} metalness={0.08} roughness={0.58} />
+          </mesh>
+          {[
+            [-0.4, -0.28],
+            [0.4, -0.28],
+            [-0.4, 0.28],
+            [0.4, 0.28],
+          ].map(([x, z]) => (
+            <mesh
+              castShadow
+              receiveShadow
+              key={`field-post-${x}-${z}`}
+              position={[x, 0.02, z]}
+              scale={[0.045, 0.72, 0.045]}
+            >
               <cylinderGeometry args={[1, 1, 1, 8]} />
-              <meshStandardMaterial {...darkMaterialProps} />
+              <meshStandardMaterial color="#D7E7E7" emissive="#F29C46" emissiveIntensity={0.06} metalness={0.08} roughness={0.58} />
             </mesh>
           ))}
           <mesh position={[0, 0.04, 0]} scale={[0.16, 0.16, 0.16]}>
             <sphereGeometry args={[1, 18, 12]} />
             <meshBasicMaterial color={artifact.accent} transparent opacity={active ? 0.5 : 0.18} />
           </mesh>
-          <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          {!mechanismMotionOwned && (
+            <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          )}
         </group>
       )}
       {artifact.shape === "bridge" && (
-        <group name="physical-station-subject qpu-ice-bridge" position={[0, subjectLift, 0]}>
+        <group name="physical-station-subject qpu-ice-bridge segmented-qubit-span qpu-coherence-bridge-pylons" position={[0, subjectLift, 0]}>
           {[-1, 1].map((side) => (
-            <mesh castShadow receiveShadow key={`bridge-pylon-${side}`} position={[side * 0.32, 0.02, 0]} scale={[0.08, 0.52, 0.12]}>
+            <mesh
+              castShadow
+              receiveShadow
+              key={`bridge-pylon-${side}`}
+              position={[side * 0.62, 0.04, 0]}
+              rotation={[0, 0, side * -0.1]}
+              scale={[0.13, 0.72, 0.22]}
+            >
               <boxGeometry args={[1, 1, 1]} />
-              <meshStandardMaterial {...darkMaterialProps} />
+              <StationSurfaceMaterial
+                active={active}
+                hovered={hovered}
+                opacity={0.94}
+                profileId={artifact.id}
+                quality={quality}
+                tone="surface"
+                zoneOrigin={stationZoneOrigin}
+              />
             </mesh>
           ))}
-          <mesh castShadow receiveShadow rotation={[0, 0, -0.16]} scale={[0.92, 0.08, 0.22]}>
+          <mesh castShadow receiveShadow position={[0, -0.12, 0]} rotation={[0, 0, -0.05]} scale={[1.62, 0.12, 0.36]}>
             <boxGeometry args={[1, 1, 1]} />
-            <meshStandardMaterial {...materialProps} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.98 : 0.8}
+              profileId={artifact.id}
+              quality={quality}
+              zoneOrigin={stationZoneOrigin}
+            />
           </mesh>
-          <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          {[-1, 1].map((side) => (
+            <mesh
+              castShadow
+              key={`qpu-catenary-gate-${side}`}
+              position={[side * 0.34, 0.26, 0]}
+              receiveShadow
+              rotation={[0, 0, side * 0.7]}
+              scale={[0.065, 0.86, 0.065]}
+            >
+              <cylinderGeometry args={[1, 1, 1, 8]} />
+              <StationSurfaceMaterial
+                active={active}
+                hovered={hovered}
+                opacity={0.9}
+                profileId={artifact.id}
+                quality={quality}
+                tone="surface"
+                zoneOrigin={stationZoneOrigin}
+              />
+            </mesh>
+          ))}
+          {!mechanismMotionOwned && (
+            <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          )}
         </group>
       )}
       {artifact.shape === "mast" && (
-        <group name="physical-station-subject upstream-radio-mast" position={[0, subjectLift, 0]}>
-          <mesh castShadow receiveShadow scale={[0.045, 0.88, 0.045]}>
+        <group name="physical-station-subject upstream-radio-mast asymmetric-dish-spire" position={[0, subjectLift, 0]}>
+          <mesh castShadow receiveShadow position={[0, 0.08, 0]} scale={[0.055, 1.12, 0.055]}>
             <cylinderGeometry args={[1, 1, 1, 8]} />
-            <meshStandardMaterial {...materialProps} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.98 : 0.8}
+              profileId={artifact.id}
+              quality={quality}
+              zoneOrigin={stationZoneOrigin}
+            />
           </mesh>
-          {[0.26, 0.45].map((y, index) => (
-            <mesh castShadow receiveShadow key={`mast-ring-${y}`} position={[0, y, 0]} rotation={[0.72, 0.2 + index * 0.8, Math.PI / 4]}>
-              <torusGeometry args={[0.25 + index * 0.1, 0.01, 8, 58]} />
-              <meshStandardMaterial {...materialProps} />
+          {[-1, 1].map((side) => (
+            <mesh
+              castShadow
+              receiveShadow
+              key={`mast-tripod-${side}`}
+              position={[side * 0.2, -0.18, 0]}
+              rotation={[0, 0, side * -0.46]}
+              scale={[0.045, 0.68, 0.045]}
+            >
+              <cylinderGeometry args={[1, 1, 1, 8]} />
+              <StationSurfaceMaterial
+                active={active}
+                hovered={hovered}
+                opacity={active ? 0.96 : 0.74}
+                profileId={artifact.id}
+                quality={quality}
+                tone="surface"
+                zoneOrigin={stationZoneOrigin}
+              />
             </mesh>
           ))}
-          <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          <mesh castShadow receiveShadow position={[0.3, 0.48, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[1, 0.72, 1]}>
+            <coneGeometry args={[0.32, 0.13, 24, 1, true]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.96 : 0.76}
+              profileId={artifact.id}
+              quality={quality}
+              zoneOrigin={stationZoneOrigin}
+            />
+          </mesh>
+          {!mechanismMotionOwned && (
+            <StationInteractionRig accent={accent} active={active} artifact={artifact} hovered={hovered} />
+          )}
         </group>
       )}
       {artifact.shape === "archive" && (
-        <group name="physical-station-subject topology-archive-wall">
-          {[-0.28, -0.1, 0.08, 0.26].map((y, index) => (
-            <mesh castShadow receiveShadow key={index} position={[0, y, 0]} scale={[0.66 - index * 0.035, 0.105, 0.1]}>
+        <group name="physical-station-subject topology-archive-wall stepped-barcode-vault" position={[0, subjectLift, 0]}>
+          <mesh castShadow receiveShadow position={[0, 0, -0.12]} rotation={[0, -0.08, -0.05]} scale={[0.72, 0.64, 0.1]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.96 : 0.72}
+              profileId={artifact.id}
+              quality={quality}
+              tone="surface"
+              zoneOrigin={stationZoneOrigin}
+            />
+          </mesh>
+          {[
+            [-0.22, -0.18, 0.62],
+            [0.08, 0.02, 0.5],
+            [-0.13, 0.23, 0.7],
+          ].map(([x, y, width], index) => (
+            <mesh castShadow receiveShadow key={`archive-barcode-${index}`} position={[x, y, 0.02]} scale={[width, 0.09, 0.18]}>
               <boxGeometry args={[1, 1, 1]} />
-              <meshStandardMaterial {...materialProps} />
+              <StationSurfaceMaterial
+                active={active}
+                hovered={hovered}
+                opacity={active ? 0.98 : 0.74}
+                profileId={artifact.id}
+                quality={quality}
+                zoneOrigin={stationZoneOrigin}
+              />
             </mesh>
           ))}
-          <mesh position={[0, 0.02, -0.08]} scale={[0.74, 0.52, 0.02]}>
-            <boxGeometry args={[1, 1, 1]} />
-            <meshBasicMaterial color={accent} transparent opacity={active ? 0.16 : 0.05} />
+          <mesh position={[0.08, 0.02, 0.14]} rotation={[0, 0, -0.18]}>
+            <torusGeometry args={[0.31, 0.026, 8, 48, Math.PI * 1.48]} />
+            <meshBasicMaterial color={accent} transparent opacity={active ? 0.5 : 0.18} />
           </mesh>
         </group>
       )}
       {artifact.shape === "locker" && (
-        <group name="physical-station-subject assembly-tool-locker">
-          <mesh castShadow receiveShadow scale={[0.36, 0.62, 0.2]}>
-            <boxGeometry args={[1, 1, 1]} />
-            <meshStandardMaterial {...materialProps} />
-          </mesh>
-          {[-0.14, 0.02, 0.18].map((y) => (
-            <mesh key={`locker-line-${y}`} position={[0.01, y, 0.106]} scale={[0.26, 0.01, 0.01]}>
+        <group name="physical-station-subject assembly-tool-locker forked-tool-gantry assembly-locker-mass-backplane" position={[0, subjectLift, 0]}>
+          {[-1, 1].map((side) => (
+            <mesh
+              castShadow
+              key={`assembly-cheek-${side}`}
+              position={[side * 0.36, 0.04, 0]}
+              receiveShadow
+              rotation={[0, side * 0.05, side * -0.07]}
+              scale={[0.18, 0.82, 0.28]}
+            >
               <boxGeometry args={[1, 1, 1]} />
-              <meshBasicMaterial color="#020607" transparent opacity={0.7} />
+              <StationSurfaceMaterial
+                active={active}
+                hovered={hovered}
+                opacity={active ? 0.98 : 0.8}
+                profileId={artifact.id}
+                quality={quality}
+                zoneOrigin={stationZoneOrigin}
+              />
+            </mesh>
+          ))}
+          <mesh castShadow receiveShadow position={[0, 0.42, 0]} scale={[0.86, 0.16, 0.28]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={active ? 0.98 : 0.8}
+              profileId={artifact.id}
+              quality={quality}
+              zoneOrigin={stationZoneOrigin}
+            />
+          </mesh>
+          <mesh castShadow receiveShadow position={[0, -0.16, 0.11]} rotation={[Math.PI / 2, 0, 0]} scale={[0.24, 0.2, 0.24]}>
+            <cylinderGeometry args={[1, 1, 1, 12]} />
+            <StationSurfaceMaterial
+              active={active}
+              hovered={hovered}
+              opacity={0.94}
+              profileId={artifact.id}
+              quality={quality}
+              tone="surface"
+              zoneOrigin={stationZoneOrigin}
+            />
+          </mesh>
+          {[-1, 1].map((side) => (
+            <mesh key={`assembly-tool-${side}`} position={[side * 0.18, -0.05, 0.29]} rotation={[0, 0, side * 0.18]} scale={[0.03, 0.44, 0.03]}>
+              <cylinderGeometry args={[1, 1, 1, 8]} />
+              <meshBasicMaterial color={side < 0 ? accent : POLAR_PALETTE.animeInk} />
             </mesh>
           ))}
         </group>
@@ -535,28 +968,63 @@ function ArtifactMesh({ artifact, active, axisX, onSelectArtifact }) {
       {artifact.shape === "plate" && (
         <mesh castShadow receiveShadow name="physical-station-subject observatory-plaque" rotation={[-0.26, 0.18, 0]} scale={[0.68, 0.28, 0.05]}>
           <boxGeometry args={[1, 1, 1]} />
-          <meshStandardMaterial {...materialProps} />
+          <StationSurfaceMaterial
+            active={active}
+            hovered={hovered}
+            opacity={active ? 0.98 : 0.84}
+            profileId={artifact.id}
+            quality={quality}
+            zoneOrigin={stationZoneOrigin}
+          />
         </mesh>
       )}
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[footprint[0], footprint[1], 1]}>
         <ringGeometry args={[0.46, 0.48, 52]} />
         <meshBasicMaterial color={accent} transparent opacity={active ? 0.52 : 0.18} />
       </mesh>
-      <pointLight color={artifact.accent} intensity={active ? 2.25 : featured ? 0.55 : 0.32} distance={active ? 5.2 : 2.9} />
+      <pointLight
+        color={artifact.accent}
+        distance={active ? 5.2 : 2.9}
+        intensity={reducedMotion ? stationLightIntensity : 0}
+        ref={stationLight}
+      />
     </group>
   );
 }
 
-export default function IglooArtifacts({ activeArtifactId, artifacts = IGLOO_ARTIFACTS, axisX = 0, onSelectArtifact }) {
+export default function IglooArtifacts({
+  activeArtifactId,
+  artifacts = IGLOO_ARTIFACTS,
+  exclusiveStationId = null,
+  heroProtected = false,
+  onSelectArtifact,
+  quality = "medium",
+  reducedMotion = false,
+  streamEpochMsRef,
+}) {
+  const localStreamEpochMsRef = useRef(null);
+  const resolvedStreamEpochMsRef = streamEpochMsRef || localStreamEpochMsRef;
+  const artifactsToRender = useMemo(
+    () =>
+      exclusiveStationId
+        ? artifacts.filter((artifact) => artifact.id === exclusiveStationId)
+        : artifacts,
+    [artifacts, exclusiveStationId],
+  );
+
   return (
-    <group name="IglooArtifacts">
-      {artifacts.map((artifact) => (
+    <group name="IglooArtifacts / 200ms station groups / 120ms stagger">
+      {artifactsToRender.map((artifact, index) => (
         <ArtifactMesh
           active={artifact.id === activeArtifactId}
           artifact={artifact}
-          axisX={axisX}
+          heroProtected={heroProtected}
           key={artifact.id}
           onSelectArtifact={onSelectArtifact}
+          quality={quality}
+          reducedMotion={reducedMotion}
+          revealIndex={index}
+          streamEpochMsRef={resolvedStreamEpochMsRef}
         />
       ))}
     </group>

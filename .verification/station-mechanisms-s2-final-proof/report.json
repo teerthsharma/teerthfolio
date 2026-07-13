@@ -1,0 +1,62 @@
+{
+  "contactSheetPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-s2-final-proof\\mechanism-world-contact-sheet.png",
+  "hudContactSheetPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-s2-final-proof\\mechanism-hud-contact-sheet.png",
+  "report": [
+    {
+      "family": "northeast",
+      "id": "s2-kernel-core",
+      "label": "S2 Kernel Core",
+      "failedRequests": [],
+      "familySamples": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "hudPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-s2-final-proof\\s2-kernel-core-hud.png",
+      "logs": [
+        {
+          "text": "[.WebGL-0x278c03990000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x278c03990000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x278c03990000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+          "type": "warning"
+        },
+        {
+          "text": "[.WebGL-0x278c03990000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+          "type": "warning"
+        }
+      ],
+      "metrics": {
+        "averageLuminance": 158.29386753472258,
+        "blackPixelRatio": 0.00034722222222222224,
+        "diagnostics": "",
+        "dockedStation": "s2-kernel-core",
+        "edgeEnergy": 8.143616684266075,
+        "heroBlackPixelRatio": 0,
+        "luminanceRange": 210.38439999999997,
+        "mechanism": {
+          "activeFamilies": "1",
+          "drawBudget": "12",
+          "family": "northeast",
+          "opacity": "1",
+          "programBudget": "3",
+          "station": "s2-kernel-core",
+          "textureBudget": "0"
+        },
+        "readoutStation": "s2-kernel-core",
+        "renderer": "webgl"
+      },
+      "worldPath": "C:\\Users\\seal\\Documents\\GitHub\\teerthfolio\\.verification\\station-mechanisms-s2-final-proof\\s2-kernel-core-world.png"
+    }
+  ]
+}

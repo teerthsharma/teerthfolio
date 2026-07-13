@@ -1,0 +1,129 @@
+{
+  "generatedAt": "2026-07-12T00:58:21.857Z",
+  "tiers": {
+    "medium": {
+      "authoredDome": {
+        "imageTextures": 0,
+        "materialPrograms": 7,
+        "visibleDraws": 8
+      },
+      "domeRegion": {
+        "averageLuma": 160.85,
+        "blackRatio": 0.00545,
+        "coolRatio": 0.43918,
+        "region": {
+          "height": 420,
+          "left": 512,
+          "top": 280,
+          "width": 608
+        }
+      },
+      "liveDelta": {
+        "createdPrograms": 7,
+        "createdTextures": 0,
+        "medianDraws": 8
+      },
+      "full": {
+        "frameStats": {
+          "canvasCreationQuality": "medium",
+          "max": 112,
+          "median": 112,
+          "min": 112,
+          "selectedQuality": "medium",
+          "samples": 28
+        },
+        "glStats": {
+          "createdPrograms": 38,
+          "createdTextures": 10,
+          "shaderDiagnostics": [],
+          "wrappedContexts": 2
+        }
+      },
+      "shaderDiagnostics": [],
+      "touchedRegion": null,
+      "withoutDome": {
+        "frameStats": {
+          "canvasCreationQuality": "medium",
+          "max": 104,
+          "median": 104,
+          "min": 104,
+          "selectedQuality": "medium",
+          "samples": 28
+        },
+        "glStats": {
+          "createdPrograms": 31,
+          "createdTextures": 10,
+          "shaderDiagnostics": [],
+          "wrappedContexts": 2
+        }
+      }
+    },
+    "high": {
+      "authoredDome": {
+        "imageTextures": 0,
+        "materialPrograms": 7,
+        "visibleDraws": 8
+      },
+      "domeRegion": {
+        "averageLuma": 165.65,
+        "blackRatio": 0.00222,
+        "coolRatio": 0.43573,
+        "region": {
+          "height": 420,
+          "left": 512,
+          "top": 280,
+          "width": 608
+        }
+      },
+      "liveDelta": {
+        "createdPrograms": 30,
+        "createdTextures": 0,
+        "medianDraws": 8
+      },
+      "full": {
+        "frameStats": {
+          "canvasCreationQuality": "medium",
+          "max": 113,
+          "median": 113,
+          "min": 113,
+          "selectedQuality": "high",
+          "samples": 28
+        },
+        "glStats": {
+          "createdPrograms": 65,
+          "createdTextures": 12,
+          "shaderDiagnostics": [],
+          "wrappedContexts": 2
+        }
+      },
+      "shaderDiagnostics": [],
+      "touchedRegion": {
+        "averageLuma": 178.03,
+        "blackRatio": 0.00222,
+        "coolRatio": 0.42743,
+        "region": {
+          "height": 420,
+          "left": 512,
+          "top": 280,
+          "width": 608
+        }
+      },
+      "withoutDome": {
+        "frameStats": {
+          "canvasCreationQuality": "medium",
+          "max": 105,
+          "median": 105,
+          "min": 105,
+          "selectedQuality": "high",
+          "samples": 28
+        },
+        "glStats": {
+          "createdPrograms": 35,
+          "createdTextures": 12,
+          "shaderDiagnostics": [],
+          "wrappedContexts": 2
+        }
+      }
+    }
+  }
+}

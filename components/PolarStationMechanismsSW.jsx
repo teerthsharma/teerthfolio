@@ -132,6 +132,8 @@ function createLaunchPadGeometry(quality) {
   return createBeveledExtrusion(shape, quality, 0.035);
 }
 
+// Semantic alias: the archive monument is a launch pad, but the shared
+// station contract names its reusable slab resource explicitly.
 function createArchiveSlabGeometry(quality) {
   return createLaunchPadGeometry(quality);
 }
@@ -192,7 +194,7 @@ function createRenderResources(quality) {
   );
   const harborMember = createHarborMemberGeometry(quality);
   const dish = createBearingDishGeometry(quality);
-  const archiveSlab = createLaunchPadGeometry(quality);
+  const archiveSlab = createArchiveSlabGeometry(quality);
   const assemblyBlock = createAssemblyBlockGeometry(quality);
   const torus = new THREE.TorusGeometry(
     0.36,

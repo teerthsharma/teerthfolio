@@ -1,0 +1,4 @@
+interface:
+  display_name: "Award 3D Object Worlds"
+  short_description: "Direct modern, cinematic WebGL object worlds"
+  default_prompt: "Use $crafting-award-3d-object-worlds to direct and verify this Three.js object-world pass."
