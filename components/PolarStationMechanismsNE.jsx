@@ -23,7 +23,7 @@ export const AETHER_ABYSS_PROFILE =
 export const FIELD_THERMAL_FORGE_PROFILE =
   "graphite thermal land with copper opposed coils and a large orange-white plasma heater below it, contained plasma, and a living heat shimmer";
 export const QPU_ALIEN_COHERENCE_PROFILE =
-  "huge suspended inverse nano-robot bridge: alien jade support, iridescent cyan/teal interference fins, luminous components spanning a non-Euclidean coherence bridge";
+  "continuous sampled Riemann-manifold ice pavilion: alien jade dock band, iridescent cyan contiguous floor shell and ribs, slender abutments, and a coherence verification beam";
 
 const TWO_PI = Math.PI * 2;
 const S2_KERNEL_SHELL_GAP = 0.25;
@@ -31,7 +31,9 @@ const S2_DIAGNOSTIC_HALF_SPAN = 1.72;
 const AETHER_DOMINANT_SEED_RADIUS = 0.34;
 const FIELD_HEATER_HALF_LENGTH = 0.92;
 const QPU_BRIDGE_HALF_SPAN = 1.28;
-const QPU_ENDPOINT_SCALE = Object.freeze([1.68, 2.35, 1.68]);
+const QPU_ABUTMENT_RADIUS = 0.09;
+const QPU_ABUTMENT_HEIGHT = 0.52;
+const QPU_MANIFOLD_SLICE_COUNT = 13;
 const QPU_SIGNAL_BASE_LENGTH = 0.43;
 const QPU_INVERSE_BRIDGE_LIFT = 0.58;
 const REDUCED_MOTION_SHADER_TIME = 0.75;
@@ -424,81 +426,112 @@ function createFieldPlasmaCoreGeometry(quality) {
   );
 }
 
-function createQpuCausewayFrameGeometry(quality) {
+function createQpuStableDockBandGeometry(quality) {
   const policy = geometryPolicy(quality);
   const parts = [
-    roundedPart(policy, [2.72, 0.13, 0.24], [0, -0.43, 0], [0, 0, 0], 0.055),
+    roundedPart(policy, [2.88, 0.1, 0.24], [0, -0.43, -0.52], [0, 0, 0], 0.045),
+    roundedPart(policy, [2.72, 0.075, 0.84], [0, -0.46, 0], [0, 0, 0], 0.035),
   ];
   for (const x of [-1.58, 1.58]) {
     parts.push(
-      cylinderPart(policy, 0.61, 0.7, 0.17, [x, -0.53, 0]),
-      cylinderPart(policy, 0.5, 0.58, 0.62, [x, -0.17, 0], [0, 0, 0], [1, 1, 0.86]),
-      bakeGeometry(
-        new THREE.SphereGeometry(
-          0.56,
-          policy.round,
-          Math.max(10, Math.round(policy.round * 0.5)),
-          0,
-          TWO_PI,
-          0,
-          Math.PI / 2,
-        ),
-        {
-          position: [x, 0.5, 0],
-          rotation: [Math.PI, 0, 0],
-          scale: [1, 1.2, 0.86],
-        },
-      ),
-      torusPart(policy, 0.34, 0.042, [x, 0.02, 0.49], [0, 0, 0], [1, 1.15, 1], Math.PI),
-    );
-  }
-  for (const z of [-0.48, 0.48]) {
-    parts.push(
-      tubePart(
+      cylinderPart(
         policy,
-        new THREE.QuadraticBezierCurve3(
-          new THREE.Vector3(-1.5, 0.2, z),
-          new THREE.Vector3(0, -0.38, z),
-          new THREE.Vector3(1.5, 0.2, z),
-        ),
-        0.045,
-        "qpu-coherence-arch-rail",
+        QPU_ABUTMENT_RADIUS * 0.78,
+        QPU_ABUTMENT_RADIUS,
+        QPU_ABUTMENT_HEIGHT,
+        [x, -0.18, 0],
       ),
     );
-    for (const x of [-1.02, 1.02]) {
-      parts.push(cylinderPart(policy, 0.045, 0.065, 0.48, [x, -0.22, z]));
-    }
   }
-  return mergeParts(parts, "qpu-jade-cyan-coherence-causeway paired-sanctums");
-}
-
-function createQpuCoherencePlateGeometry(quality) {
-  const policy = geometryPolicy(quality);
   return mergeParts(
-    [
-      roundedPart(policy, [0.52, 0.12, 0.72], [0, 0, 0], [0, 0, 0], 0.065),
-      roundedPart(policy, [0.34, 0.17, 0.18], [0, -0.105, 0], [0, 0, 0], 0.045),
-      roundedPart(policy, [0.06, 0.055, 0.62], [-0.2, 0.075, 0], [0, 0, 0], 0.02),
-      roundedPart(policy, [0.06, 0.055, 0.62], [0.2, 0.075, 0], [0, 0, 0], 0.02),
-      createQpuInterferenceFinGeometry(quality),
-    ],
-    "qpu-stepped-coherence-span qpu-alien-iridescent-interference-fins",
+    parts,
+    "qpu-jade-cyan-coherence-causeway qpu-stable-visitor-dock-band-and-slender-abutments",
   );
 }
 
-function createQpuInterferenceFinGeometry(quality) {
-  const policy = geometryPolicy(quality);
-  const parts = [];
-  for (const [z, tilt] of [
-    [-0.24, -0.16],
-    [0, 0],
-    [0.24, 0.16],
-  ]) {
-    parts.push(
-      roundedPart(policy, [0.045, 0.38, 0.14], [0, 0.25, z], [0, 0, tilt], 0.02),
-    );
+function createQpuSampledRiemannStripGeometry(quality) {
+  const uSegments = quality === "high" ? 6 : 4;
+  const vSegments = quality === "high" ? 12 : 8;
+  const sliceWidth = (QPU_BRIDGE_HALF_SPAN * 2) / (QPU_MANIFOLD_SLICE_COUNT - 1) * 1.08;
+  const halfWidth = sliceWidth * 0.5;
+  const halfDepth = 0.48;
+  const positions = [];
+  const indices = [];
+  const rowLength = vSegments + 1;
+
+  for (let surface = 0; surface < 2; surface += 1) {
+    for (let uIndex = 0; uIndex <= uSegments; uIndex += 1) {
+      const u = uIndex / uSegments;
+      const x = (u - 0.5) * sliceWidth;
+      for (let vIndex = 0; vIndex <= vSegments; vIndex += 1) {
+        const v = vIndex / vSegments;
+        const z = (v - 0.5) * halfDepth * 2;
+        const normalizedV = z / halfDepth;
+        const arch = 0.16 * (1 - normalizedV * normalizedV);
+        const saddle = 0.035 * (normalizedV * normalizedV - (x / halfWidth) ** 2);
+        const ripple = 0.018 * Math.sin(u * Math.PI) * Math.cos(normalizedV * Math.PI);
+        const shellY = arch + saddle + ripple;
+        positions.push(x, shellY - surface * 0.085, z);
+      }
+    }
   }
-  return mergeParts(parts, "qpu-alien-iridescent-interference-fins");
+
+  const surfaceStride = (uSegments + 1) * rowLength;
+  for (let surface = 0; surface < 2; surface += 1) {
+    const offset = surface * surfaceStride;
+    for (let uIndex = 0; uIndex < uSegments; uIndex += 1) {
+      for (let vIndex = 0; vIndex < vSegments; vIndex += 1) {
+        const a = offset + uIndex * rowLength + vIndex;
+        const b = a + rowLength;
+        if (surface === 0) indices.push(a, b, a + 1, b, b + 1, a + 1);
+        else indices.push(a, a + 1, b, b, a + 1, b + 1);
+      }
+    }
+  }
+  for (const vIndex of [0, vSegments]) {
+    for (let uIndex = 0; uIndex < uSegments; uIndex += 1) {
+      const topA = uIndex * rowLength + vIndex;
+      const topB = (uIndex + 1) * rowLength + vIndex;
+      const floorA = surfaceStride + topA;
+      const floorB = surfaceStride + topB;
+      indices.push(topA, floorA, topB, topB, floorA, floorB);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.name = "qpu-sampled-double-curved-riemann-floor-and-shell";
+  return bakeGeometry(geometry);
+}
+
+function createQpuSampledManifoldSliceGeometry(quality) {
+  const policy = geometryPolicy(quality);
+  return mergeParts(
+    [
+      createQpuSampledRiemannStripGeometry(quality),
+      tubePart(
+        policy,
+        new THREE.QuadraticBezierCurve3(
+          new THREE.Vector3(0, 0.02, -0.48),
+          new THREE.Vector3(0, 0.24, 0),
+          new THREE.Vector3(0, 0.02, 0.48),
+        ),
+        0.024,
+        "qpu-contiguous-manifold-rib",
+      ),
+    ],
+    "qpu-contiguous-floor-shell-and-ribs qpu-alien-iridescent-interference-fins",
+  );
+}
+
+function createQpuCausewayFrameGeometry(quality) {
+  return createQpuStableDockBandGeometry(quality);
+}
+
+function createQpuCoherencePlateGeometry(quality) {
+  return createQpuSampledManifoldSliceGeometry(quality);
 }
 
 function createQpuSignalGeometry(quality) {
@@ -769,11 +802,11 @@ function createRenderResources(quality, detailed) {
       roughness: 0.12,
     }),
     qpuFrame: makeArchitecturalSurface({
-      color: "#0B756A",
+      color: "#29A99D",
       effectMode: 4,
       effectStrength: 0.12,
-      emissive: "#053D43",
-      emissiveIntensity: 0.34,
+      emissive: "#0B756A",
+      emissiveIntensity: 0.68,
       metalness: 0.58,
       opacity: 0.96,
       phaseColor: "#36D8FF",
@@ -809,11 +842,11 @@ function createRenderResources(quality, detailed) {
       roughness: 0.1,
     }),
     s2Frame: makeArchitecturalSurface({
-      color: "#245FC2",
+      color: "#4C8EF0",
       effectMode: 1,
       effectStrength: 0.08,
-      emissive: "#0B244E",
-      emissiveIntensity: 0.28,
+      emissive: "#245FC2",
+      emissiveIntensity: 0.72,
       metalness: 0.78,
       opacity: 0.97,
       phaseColor: "#56D7FF",
@@ -907,7 +940,11 @@ function commitPool(mesh) {
 }
 
 function applyS2Instances(state, pools, scratch) {
-  setIdentityInstance(pools.frame, scratch);
+  const brownian = state.brownianCoordinates;
+  const brownianBlend = state.brownianBlend || 0;
+  const coreX = (brownian?.[4] || 0) * brownianBlend;
+  const coreZ = (brownian?.[5] || 0) * brownianBlend;
+  setInstance(pools.frame, 0, scratch, coreX, 0, coreZ, 0, 0, 0, 1, 1, 1);
   const closure = state.shellClosure || 0;
   const gap = S2_KERNEL_SHELL_GAP + (1 - closure) * 0.17;
   const firstAngle = state.ringAngles[0];
@@ -916,9 +953,9 @@ function applyS2Instances(state, pools, scratch) {
     pools.shells,
     0,
     scratch,
-    -gap,
-    0.04,
-    -0.03,
+    -gap + (brownian?.[0] || 0) * brownianBlend,
+    0.04 + (brownian?.[1] || 0) * brownianBlend,
+    -0.03 + coreZ * 0.35,
     Math.sin(firstAngle) * 0.025,
     firstAngle * 0.035,
     -0.025 - closure * 0.018,
@@ -930,9 +967,9 @@ function applyS2Instances(state, pools, scratch) {
     pools.shells,
     1,
     scratch,
-    gap,
-    0.04,
-    0.03,
+    gap + (brownian?.[2] || 0) * brownianBlend,
+    0.04 + (brownian?.[3] || 0) * brownianBlend,
+    0.03 - coreZ * 0.35,
     Math.sin(secondAngle) * -0.025,
     Math.PI + secondAngle * 0.035,
     0.025 + closure * 0.018,
@@ -941,8 +978,8 @@ function applyS2Instances(state, pools, scratch) {
     0.96,
   );
 
-  setInstance(pools.signals, 0, scratch, -0.84, 0.2, 0, 0, 0, -0.16, 1.05, 1.05, 1.05);
-  setInstance(pools.signals, 1, scratch, 0.84, 0.2, 0, 0, 0, 0.16, 1.05, 1.05, 1.05);
+  setInstance(pools.signals, 0, scratch, -0.84 + coreX, 0.2, coreZ, 0, 0, -0.16, 1.05, 1.05, 1.05);
+  setInstance(pools.signals, 1, scratch, 0.84 + coreX, 0.2, coreZ, 0, 0, 0.16, 1.05, 1.05, 1.05);
   const bitPhase = state.proofBitPhase;
   const s2AxialTravel = (bitPhase + Math.PI) / TWO_PI;
   const bitScale = state.capExchange ? 1.22 : 0.56;
@@ -951,8 +988,8 @@ function applyS2Instances(state, pools, scratch) {
     2,
     scratch,
     -S2_DIAGNOSTIC_HALF_SPAN + s2AxialTravel * S2_DIAGNOSTIC_HALF_SPAN * 2,
-    0.2 + Math.sin(bitPhase * 2) * 0.08,
-    Math.sin(bitPhase) * 0.08,
+    0.2 + Math.sin(bitPhase * 2) * 0.08 + (brownian?.[4] || 0) * brownianBlend,
+    Math.sin(bitPhase) * 0.08 + (brownian?.[5] || 0) * brownianBlend,
     bitPhase,
     0,
     bitPhase * 0.5,
@@ -964,7 +1001,7 @@ function applyS2Instances(state, pools, scratch) {
     pools.shells.material.emissiveIntensity = 0.3 + closure * 0.34;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.18 + closure * 0.18;
+    pools.frame.material.emissiveIntensity = 0.58 + closure * 0.38;
   }
   setAwardSurfaceActivity(pools.frame?.material, closure);
   setAwardSurfaceActivity(pools.shells?.material, closure);
@@ -1147,10 +1184,6 @@ function applyFieldInstances(state, pools, scratch) {
   commitPool(pools.packets);
 }
 
-function qpuNaniteScatter(index, axis) {
-  return Math.sin((index + 1) * 12.9898 + axis * 78.233) * 0.46;
-}
-
 function applyQpuInstances(state, pools, scratch) {
   setInstance(
     pools.frame,
@@ -1161,49 +1194,53 @@ function applyQpuInstances(state, pools, scratch) {
     0,
     0,
     0,
-    Math.PI,
+    0,
     1.08,
     1.08,
     1.08,
   );
-  for (let index = 0; index < state.plateLifts.length; index += 1) {
-    const lift = state.plateLifts[index];
-    const naniteAssembly = state.naniteAssembly?.[index] ?? lift;
-    const disassembly = 1 - naniteAssembly;
-    const x =
-      -QPU_BRIDGE_HALF_SPAN +
-      index * (QPU_BRIDGE_HALF_SPAN / 2) +
-      qpuNaniteScatter(index, 0) * disassembly;
-    const naniteScale = 0.06 + naniteAssembly * 0.94;
+  const lastSlice = state.manifoldSliceBuild.length - 1;
+  const sliceSpacing = (QPU_BRIDGE_HALF_SPAN * 2) / lastSlice;
+  for (let index = 0; index < state.manifoldSliceBuild.length; index += 1) {
+    const build = state.manifoldSliceBuild[index];
+    const normalizedX = index / lastSlice * 2 - 1;
+    const x = -QPU_BRIDGE_HALF_SPAN + index * sliceSpacing;
+    const arch = 0.34 * (1 - normalizedX * normalizedX);
+    const reweave = Math.sin(state.reweavePhase + index * 0.42) * 0.012 * state.manifoldBuild;
     setInstance(
       pools.plates,
       index,
       scratch,
       x,
-      QPU_INVERSE_BRIDGE_LIFT + 0.06 + lift * 0.34 + qpuNaniteScatter(index, 1) * disassembly,
-      (index % 2 === 0 ? -0.045 : 0.045) + qpuNaniteScatter(index, 2) * disassembly,
-      qpuNaniteScatter(index, 3) * disassembly,
-      (index - 2) * 0.025 + disassembly * 0.7,
-      (index % 2 ? -1 : 1) * disassembly * 0.42,
-      naniteScale,
-      (0.78 + lift * 0.22) * naniteScale,
-      naniteScale,
+      QPU_INVERSE_BRIDGE_LIFT + arch + reweave,
+      0,
+      0,
+      0,
+      normalizedX * -0.21 + reweave * 0.8,
+      1.04,
+      0.045 + build * 0.955,
+      1,
     );
-    const endpoint = index === 0 || index === state.plateLifts.length - 1;
-    const jointScale = 0.52 + lift * 0.55;
+  }
+  for (let index = 0; index < 5; index += 1) {
+    const signalProgress = index / 4;
+    const normalizedX = signalProgress * 2 - 1;
+    const x = -QPU_BRIDGE_HALF_SPAN + signalProgress * QPU_BRIDGE_HALF_SPAN * 2;
+    const arch = 0.34 * (1 - normalizedX * normalizedX);
+    const signalScale = 0.3 + state.manifoldBuild * 0.24;
     setInstance(
       pools.signals,
       index,
       scratch,
       x,
-      QPU_INVERSE_BRIDGE_LIFT + 0.3 + lift * 0.36 + (endpoint ? 0.12 : 0),
-      endpoint ? 0 : 0.32,
+      QPU_INVERSE_BRIDGE_LIFT + arch + 0.2,
+      0.34,
       0,
-      index * 0.48,
-      endpoint ? Math.PI / 2 : 0,
-      endpoint ? QPU_ENDPOINT_SCALE[0] : jointScale,
-      endpoint ? QPU_ENDPOINT_SCALE[1] : jointScale,
-      endpoint ? QPU_ENDPOINT_SCALE[2] : jointScale,
+      normalizedX * 0.16,
+      0,
+      signalScale,
+      signalScale,
+      signalScale,
     );
   }
   const progress = state.verificationBeamProgress;
@@ -1230,7 +1267,7 @@ function applyQpuInstances(state, pools, scratch) {
     pools.signals.material.emissiveIntensity = 0.88 + Math.max(state.coherence, progress) * 0.86;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.17 + state.sanctumPulse * 0.25;
+    pools.frame.material.emissiveIntensity = 0.54 + state.sanctumPulse * 0.4;
   }
   const qpuActivity = Math.max(state.coherence, progress, state.sanctumPulse);
   setAwardSurfaceActivity(pools.frame?.material, qpuActivity);
@@ -1325,7 +1362,7 @@ export default function PolarStationMechanismsNE({
     preparePool(fieldCoils.current, 2);
     preparePool(fieldPackets.current, 4);
     preparePool(qpuFrame.current, 1);
-    preparePool(qpuPlates.current, 5);
+    preparePool(qpuPlates.current, QPU_MANIFOLD_SLICE_COUNT);
     preparePool(qpuSignals.current, 6);
   }, [resources]);
 
@@ -1550,7 +1587,7 @@ export default function PolarStationMechanismsNE({
       </group>
 
       <group
-        name="qpu-jade-cyan-coherence-causeway"
+        name="qpu-continuous-riemann-manifold-pavilion"
         position={qpuTransform.position}
         ref={(node) => {
           stationRootRefs.current["qpu-ice-bridge"] = node;
@@ -1564,19 +1601,19 @@ export default function PolarStationMechanismsNE({
           frustumCulled
           geometry={resources.geometries.qpuFrame}
           material={resources.materials.qpuFrame}
-          name="qpu-jade-cyan-coherence-causeway paired-sanctums"
+          name="qpu-stable-visitor-dock-band-and-slender-abutments"
           receiveShadow
           ref={qpuFrame}
         />
         {detailed ? (
           <>
             <instancedMesh
-              args={[resources.geometries.qpuPlate, resources.materials.qpuPlate, 5]}
+              args={[resources.geometries.qpuPlate, resources.materials.qpuPlate, QPU_MANIFOLD_SLICE_COUNT]}
               castShadow={castsShadow}
               frustumCulled
               geometry={resources.geometries.qpuPlate}
               material={resources.materials.qpuPlate}
-              name="qpu-stepped-coherence-span"
+              name="qpu-contiguous-floor-shell-and-ribs qpu-sampled-double-curved-riemann-manifold"
               receiveShadow
               ref={qpuPlates}
             />
@@ -1585,7 +1622,7 @@ export default function PolarStationMechanismsNE({
               frustumCulled={false}
               geometry={resources.geometries.qpuSignal}
               material={resources.materials.qpuSignal}
-              name="qpu-paired-sanctums-and-verification-beam qpu-coherence-beam-path verification-beam"
+              name="qpu-manifold-verification-beam qpu-coherence-beam-path verification-beam"
               ref={qpuSignals}
             />
           </>

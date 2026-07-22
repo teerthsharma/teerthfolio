@@ -79,7 +79,7 @@ assert.equal(NE_MECHANISM_PROFILES[IDS[1]].persistHoldSeconds, 0.62);
 assert.equal(NE_MECHANISM_PROFILES[IDS[2]].coilLimitDegrees, 2.5);
 assert.equal(NE_MECHANISM_PROFILES[IDS[2]].packetCount, 4);
 assert.equal(NE_MECHANISM_PROFILES[IDS[2]].resonanceHoldSeconds, 0.54);
-assert.equal(NE_MECHANISM_PROFILES[IDS[3]].plateCount, 5);
+assert.equal(NE_MECHANISM_PROFILES[IDS[3]].manifoldSliceCount, 13);
 assert.equal(NE_MECHANISM_PROFILES[IDS[3]].coherenceThreshold, 0.82);
 assert.equal(NE_MECHANISM_PROFILES[IDS[3]].verifySeconds, 0.7);
 
@@ -100,8 +100,9 @@ assert.deepEqual(NE_MONUMENT_CONTRACTS[IDS[2]].silhouette, [
   "flux skin",
 ]);
 assert.deepEqual(NE_MONUMENT_CONTRACTS[IDS[3]].silhouette, [
-  "stepped coherence span",
-  "paired endpoints",
+  "continuous sampled Riemann-manifold pavilion",
+  "stable dock band and slender abutments",
+  "contiguous floor shell and ribs",
   "verification beam",
 ]);
 assert.equal(NE_MONUMENT_CONTRACTS[IDS[0]].topology, "antimatter is measured inside a controlled Penning trap");
@@ -109,7 +110,7 @@ assert.equal(NE_MONUMENT_CONTRACTS[IDS[1]].topology, "first energy is shielded b
 assert.match(NE_MONUMENT_CONTRACTS[IDS[1]].materialSignature, /abyss-blue[\s\S]*living gold/i);
 assert.equal(NE_MONUMENT_CONTRACTS[IDS[2]].topology, "field compresses inside a boundary");
 assert.match(NE_MONUMENT_CONTRACTS[IDS[2]].materialSignature, /graphite[\s\S]*copper[\s\S]*orange-white plasma/i);
-assert.equal(NE_MONUMENT_CONTRACTS[IDS[3]].topology, "coherence crosses between sanctums");
+assert.equal(NE_MONUMENT_CONTRACTS[IDS[3]].topology, "coherence closes continuously from both endpoints toward the center");
 assert.match(NE_MONUMENT_CONTRACTS[IDS[3]].materialSignature, /alien jade[\s\S]*iridescent cyan[\s\S]*interference/i);
 assert.deepEqual(
   IDS.map((id) => NE_MONUMENT_CONTRACTS[id].heroSpanSealWidths),
@@ -219,6 +220,14 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.equal(state.capExchange, true);
   assert.ok(Array.from(state.ringAngles).every((angle) => Math.abs(angle) <= Math.PI));
   assert.ok(state.shellClosure > 0.2 && state.shellClosure < 1);
+  assert.equal(state.brownianCoordinates.length, 6);
+  assert.equal(state.brownianVelocities.length, 6);
+  assert.equal(state.brownianHarmonicSeeds.length, 6);
+  assert.ok(Array.from(state.brownianCoordinates).some((coordinate) => Math.abs(coordinate) > 1e-4));
+  assert.ok(
+    Math.hypot(...state.brownianCoordinates) <= state.brownianRadius + 1e-6,
+    "S2 tangent coordinates must remain projected onto the authored manifold bound",
+  );
   assert.equal(state.ritual.breathingMultiplier, 1);
   assert.equal(state.ritual.haloColor, "#3E5BC7");
   const firstDiagnosticPhase = state.proofBitPhase;
@@ -315,7 +324,7 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.equal(state.phase, "DECAY");
 }
 
-// QPU: route progress raises ordered plates; coherent dock emits one finite verification beam.
+// QPU: one continuous build envelope closes from both endpoints; coherent dock emits one finite beam.
 {
   const system = createNortheastMechanismSystem();
   const inputs = emptyInputs();
@@ -323,12 +332,16 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   advanceFor(system, inputs, 0.7);
   const state = system.states[IDS[3]];
   assert.equal(state.phase, "ENTANGLE");
-  assert.ok(state.plateLifts[0] > state.plateLifts[3]);
-  assert.ok(state.plateLifts[1] > state.plateLifts[4]);
+  assert.ok(state.manifoldBuild > 0.45 && state.manifoldBuild < 0.6);
+  assert.equal(state.manifoldSliceBuild.length, 13);
+  assert.ok(state.manifoldSliceBuild[0] > state.manifoldSliceBuild[6]);
+  assert.ok(state.manifoldSliceBuild[12] > state.manifoldSliceBuild[6]);
+  assert.ok(
+    Math.abs(state.manifoldSliceBuild[0] - state.manifoldSliceBuild[12]) < 1e-6,
+    "QPU endpoint construction must be symmetric",
+  );
   assert.ok(state.sanctumPulse > 0.1);
   assert.equal(state.ritual.breathingMultiplier, 1);
-  assert.equal(state.naniteAssembly.length, 5);
-  assert.ok(state.naniteAssembly[0] > state.naniteAssembly[4]);
 
   Object.assign(inputs[IDS[3]], { docked: true, proximity: 1, routeProgress: 1 });
   advanceFor(system, inputs, 1.6);
@@ -338,7 +351,7 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.equal(state.verificationBeamProgress, 1);
   assert.equal(state.evidenceReady, true);
   assert.equal(state.ritual.haloBrightnessStep, 4);
-  assert.ok(Array.from(state.naniteAssembly).every((segment) => segment > 0.98));
+  assert.ok(Array.from(state.manifoldSliceBuild).every((segment) => segment > 0.98));
 
   advanceFor(system, inputs, 0.8);
   assert.equal(state.verificationSequence, 1, "verification beam must not loop while docked");
@@ -355,16 +368,19 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   const field = reduced.states[IDS[2]];
   const qpu = reduced.states[IDS[3]];
   const frozenS2Rings = Array.from(s2.ringAngles);
+  const frozenS2Brownian = Array.from(s2.brownianCoordinates);
   const frozenAetherPhase = aether.circulationPhase;
   const frozenFieldPackets = Array.from(field.packetPhases);
   advanceFor(reduced, inputs, 0.8, { reducedMotion: true });
   assert.deepEqual(Array.from(s2.ringAngles), frozenS2Rings);
+  assert.deepEqual(Array.from(s2.brownianCoordinates), frozenS2Brownian);
+  assert.deepEqual(Array.from(s2.brownianVelocities), [0, 0, 0, 0, 0, 0]);
   assert.equal(aether.circulationPhase, frozenAetherPhase);
   assert.deepEqual(Array.from(field.packetPhases), frozenFieldPackets);
   assert.equal(field.phase, "RESONATE");
   assert.equal(field.evidenceReady, true);
-  assert.deepEqual(Array.from(qpu.plateLifts), [1, 1, 1, 1, 1]);
-  assert.deepEqual(Array.from(qpu.plateVelocities), [0, 0, 0, 0, 0]);
+  assert.deepEqual(Array.from(qpu.manifoldSliceBuild), new Array(13).fill(1));
+  assert.deepEqual(Array.from(qpu.manifoldSliceVelocities), new Array(13).fill(0));
 
   const safe = createNortheastMechanismSystem();
   advanceFor(safe, inputs, 0.1, { safeMode: true });
@@ -388,6 +404,22 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   const b = at144.states[IDS[0]];
   assert.ok(Math.abs(a.ringAngles[0] - b.ringAngles[0]) < 1e-5);
   assert.ok(Math.abs(a.ringAngles[1] - b.ringAngles[1]) < 1e-5);
+  for (let index = 0; index < a.brownianCoordinates.length; index += 1) {
+    assert.ok(Math.abs(a.brownianCoordinates[index] - b.brownianCoordinates[index]) < 1e-5);
+    assert.ok(Math.abs(a.brownianVelocities[index] - b.brownianVelocities[index]) < 1e-5);
+  }
+}
+
+// Deterministic harmonic/OU forcing remains mean-reverting and bounded over a long run.
+{
+  const system = createNortheastMechanismSystem();
+  const inputs = emptyInputs();
+  Object.assign(inputs[IDS[0]], { proximity: 0.86, positionX: -7, positionZ: 15 });
+  advanceFor(system, inputs, 90, {}, 60);
+  const state = system.states[IDS[0]];
+  assert.ok(Math.hypot(...state.brownianCoordinates) <= state.brownianRadius + 1e-6);
+  assert.ok(Array.from(state.brownianCoordinates).every(Number.isFinite));
+  assert.ok(Array.from(state.brownianVelocities).every(Number.isFinite));
 }
 
 assert.ok(
@@ -395,6 +427,19 @@ assert.ok(
   "components/PolarStationMechanismsNE.jsx must render the pooled northeast mechanisms",
 );
 const source = readFileSync(componentPath, "utf8");
+const librarySource = readFileSync(libraryPath, "utf8");
+
+for (const token of [
+  "brownianCoordinates",
+  "brownianVelocities",
+  "brownianHarmonicSeeds",
+  "S2_BROWNIAN_RADIUS",
+  "S2_BROWNIAN_FREQUENCIES",
+  "stepS2BrownianManifold",
+]) {
+  assert.ok(librarySource.includes(token), `S2 Brownian authority is missing ${JSON.stringify(token)}`);
+}
+assert.ok(!librarySource.includes("Math.random"), "mechanism authority must not sample Math.random");
 
 function materialValue(materialName, property) {
   const block = source.match(
@@ -432,8 +477,12 @@ assert.ok(
 );
 const fieldHeaterHalfLength = Number(source.match(/const FIELD_HEATER_HALF_LENGTH = ([0-9.]+);/)?.[1]);
 const qpuBridgeHalfSpan = Number(source.match(/const QPU_BRIDGE_HALF_SPAN = ([0-9.]+);/)?.[1]);
+const qpuAbutmentRadius = Number(source.match(/const QPU_ABUTMENT_RADIUS = ([0-9.]+);/)?.[1]);
+const qpuAbutmentHeight = Number(source.match(/const QPU_ABUTMENT_HEIGHT = ([0-9.]+);/)?.[1]);
 assert.ok(fieldHeaterHalfLength >= 0.9, "Field heater must retain its authored thermal-land span");
 assert.ok(qpuBridgeHalfSpan >= 1.2, "QPU inverse bridge must retain its authored suspended span");
+assert.ok(qpuAbutmentRadius <= 0.1, "QPU endpoint abutments must stay slender rather than reading as blocks");
+assert.ok(qpuAbutmentHeight <= 0.55, "QPU endpoint abutments must stay subordinate to the shell");
 
 assert.match(
   source,
@@ -462,8 +511,13 @@ assert.match(
 );
 assert.match(
   source,
-  /QPU_INVERSE_BRIDGE_LIFT[\s\S]*naniteAssembly[\s\S]*qpuNaniteScatter/,
-  "QPU must float as an inverse bridge and deterministically disassemble/reconstruct its segments",
+  /QPU_MANIFOLD_SLICE_COUNT[\s\S]*manifoldSliceBuild[\s\S]*manifoldBuild/,
+  "QPU must reconstruct continuously from one bounded build envelope",
+);
+assert.match(
+  source,
+  /createQpuSampledRiemannStripGeometry[\s\S]*geometry\.setIndex\(indices\)[\s\S]*return bakeGeometry\(geometry\)/,
+  "sampled QPU geometry must normalize its index and attributes before merging with ribs",
 );
 assert.match(
   source,
@@ -482,8 +536,8 @@ assert.match(
 );
 assert.match(
   source,
-  /QPU_ALIEN_COHERENCE_PROFILE[\s\S]*alien jade[\s\S]*iridescent cyan[\s\S]*interference fins[\s\S]*coherence bridge/,
-  "QPU must publish an alien jade/cyan interference identity",
+  /QPU_ALIEN_COHERENCE_PROFILE[\s\S]*Riemann-manifold ice pavilion[\s\S]*alien jade dock band[\s\S]*contiguous floor shell and ribs[\s\S]*verification beam/,
+  "QPU must publish a continuous alien-jade/cyan manifold pavilion identity",
 );
 assert.match(
   source,
@@ -538,14 +592,14 @@ for (const token of [
   "createFieldHelixGeometry",
   "createFieldPlasmaCoreGeometry",
   "createQpuCausewayFrameGeometry",
-  "createQpuCoherencePlateGeometry",
-  "createQpuInterferenceFinGeometry",
+  "createQpuSampledManifoldSliceGeometry",
+  "createQpuStableDockBandGeometry",
   "awardLowPass",
   "wrapped diffuse",
   "Fresnel containment",
   "S2_KERNEL_SHELL_GAP",
   "QPU_BRIDGE_HALF_SPAN",
-  "QPU_ENDPOINT_SCALE",
+  "QPU_MANIFOLD_SLICE_COUNT",
   "s2-cern-antimatter-cryostat",
   "s2-penning-trap-superconducting-coil-rings",
   "s2-vacuum-throat diagnostic-beamline",
@@ -559,10 +613,14 @@ for (const token of [
   "field-graphite-copper-contained-thermal-chamber",
   "field-compressing-helical-coils",
   "field-graphite-copper-orange-white-plasma",
-  "qpu-jade-cyan-coherence-causeway",
-  "qpu-alien-iridescent-interference-fins",
-  "qpu-stepped-coherence-span",
-  "qpu-paired-sanctums-and-verification-beam",
+  "qpu-continuous-riemann-manifold-pavilion",
+  "qpu-contiguous-floor-shell-and-ribs",
+  "qpu-stable-visitor-dock-band-and-slender-abutments",
+  "qpu-manifold-verification-beam",
+  "new THREE.BufferGeometry()",
+  "geometry.setAttribute(\"position\"",
+  "geometry.setIndex(indices)",
+  "brownianCoordinates",
   "customProgramCacheKey",
   "castShadow",
   "receiveShadow",
@@ -582,6 +640,10 @@ for (const forbidden of [
   "aether-seven-phase-beads",
   "s2-split-kernel-shells-and-state-planes",
   "field-amber-mint-contained-field-chamber",
+  "qpuNaniteScatter",
+  "QPU_ENDPOINT_SCALE",
+  "qpu-stepped-coherence-span",
+  "paired-sanctums",
 ]) {
   assert.ok(!source.includes(forbidden), `mechanism renderer must not include ${JSON.stringify(forbidden)}`);
 }
@@ -602,5 +664,5 @@ for (const forbidden of [
 }
 
 console.log(
-  "Northeast station mechanisms contract staged: four distinct high-finish architectural silhouettes, three bounded pools each, 12/4/0 draw tiers, shared programs, one ritual channel, zero textures.",
+  "Northeast station mechanisms verified: continuous QPU manifold, bounded deterministic S2 Brownian coordinates, three bounded pools each, 12/4/0 draw tiers, zero textures.",
 );
