@@ -46,7 +46,7 @@ Controller foundation (2026-07-12):
 
 Plan: `docs/superpowers/plans/2026-07-22-particles-manifold-release.md`
 
-- Task 1: complete (512/1536/4096 bounded semantic particles; focused static and live proof passed)
+- Task 1: complete (512/1536/4096 deterministic one-draw field; static/browser proof green; independent review clean)
 - Task 2: pending (continuous QPU manifold, visitor-facing Tooling, Brownian S2)
 - Task 3: pending (cinematic proof, Vercel production deployment, GitHub main/CI verification)
 - Final whole-branch review: pending
