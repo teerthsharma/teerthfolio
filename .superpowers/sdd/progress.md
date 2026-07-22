@@ -49,5 +49,5 @@ Plan: `docs/superpowers/plans/2026-07-22-particles-manifold-release.md`
 - Task 1: complete (512/1536/4096 deterministic one-draw field; static/browser proof green; independent review clean)
 - Task 2: complete (continuous QPU surface/rebuild, visitor-facing Tooling/collider, bounded Brownian S2; high + low/reduced browser proof green; independent review clean)
 - Task 3: complete locally (cinematic/station/particle/build gates green; independent review clean; deployment and push remain root-gated)
-- Final whole-branch review: in progress
-- Node server: live at `http://127.0.0.1:3000`
+- Final whole-branch review: complete (no Critical or Important findings after publication hardening and history cleanup)
+- Node server: live at `http://localhost:3000`
