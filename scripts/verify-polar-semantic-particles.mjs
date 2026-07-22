@@ -20,9 +20,15 @@ const stationIds = [
 ];
 await mkdir(outputDir, { recursive: true });
 
-function isFatal(message) {
-  return /(?:shader error|webgl.*(?:error|lost)|referenceerror|typeerror|uncaught|failed to compile)/i.test(
-    message,
+function fatalBrowserLog(entry) {
+  const text = entry?.text || "";
+  if (/GPU stall due to ReadPixels|GL_CLOSE_PATH_NV.*Performance/i.test(text)) return false;
+  return (
+    entry?.type === "pageerror" ||
+    entry?.type === "error" ||
+    /uncaught|unhandled(?: promise)? rejection|referenceerror|typeerror|syntaxerror|rangeerror|shader (?:error|compile)|error compiling shader|failed to compile|webglprogram|webgl context lost|context lost|gl_invalid|react-three|@react-three|\br3f\b|window-error/i.test(
+      text,
+    )
   );
 }
 
@@ -96,9 +102,13 @@ try {
   const page = await context.newPage();
   const diagnostics = [];
   page.on("console", (message) => {
-    if (["error", "warning"].includes(message.type())) diagnostics.push(message.text());
+    if (["error", "warning"].includes(message.type())) {
+      diagnostics.push({ text: message.text(), type: message.type() });
+    }
   });
-  page.on("pageerror", (error) => diagnostics.push(error.message));
+  page.on("pageerror", (error) => {
+    diagnostics.push({ text: error.message, type: "pageerror" });
+  });
   await page.goto(`${baseUrl}/?qa-sdf=1&qa=wave-f-particles`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('#world[data-render-enabled="true"]', { timeout: 30000 });
   await page.waitForFunction(
@@ -139,7 +149,7 @@ try {
     report.stations.push({ ...state, screenshot, stationId });
   }
   report.diagnostics = diagnostics;
-  assert.deepEqual(diagnostics.filter(isFatal), [], "particle tour emitted fatal diagnostics");
+  assert.deepEqual(diagnostics.filter(fatalBrowserLog), [], "particle tour emitted fatal diagnostics");
   await context.close();
 
   const reducedContext = await browser.newContext({
@@ -150,9 +160,13 @@ try {
   const reducedPage = await reducedContext.newPage();
   const reducedDiagnostics = [];
   reducedPage.on("console", (message) => {
-    if (["error", "warning"].includes(message.type())) reducedDiagnostics.push(message.text());
+    if (["error", "warning"].includes(message.type())) {
+      reducedDiagnostics.push({ text: message.text(), type: message.type() });
+    }
   });
-  reducedPage.on("pageerror", (error) => reducedDiagnostics.push(error.message));
+  reducedPage.on("pageerror", (error) => {
+    reducedDiagnostics.push({ text: error.message, type: "pageerror" });
+  });
   await reducedPage.goto(`${baseUrl}/?qa-sdf=1&qa=wave-f-particles-reduced`, {
     waitUntil: "domcontentloaded",
   });
@@ -169,7 +183,11 @@ try {
   assert.equal(reducedState.programs, 1);
   assert.equal(reducedState.mode, "active");
   assert.equal(reducedState.source, "cortiz-igloo-concepts-original-webgl-port");
-  assert.deepEqual(reducedDiagnostics.filter(isFatal), [], "reduced particle field emitted fatal diagnostics");
+  assert.deepEqual(
+    reducedDiagnostics.filter(fatalBrowserLog),
+    [],
+    "reduced particle field emitted fatal diagnostics",
+  );
   report.reducedMotion = { ...reducedState, diagnostics: reducedDiagnostics };
   await reducedContext.close();
 } finally {

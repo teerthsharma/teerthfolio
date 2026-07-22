@@ -25,4 +25,3 @@ Write a failing focused contract for each functional fix. Make one variable chan
 - [ ] **Step 5: Finalize global color and post**
 
 Tune post only after raw frames pass. Keep chromatic AA, depth pixel/fog, dither/quantization, Gaussian edge line, scanline, fisheye, and vignette subtle, modular, and quality-tiered. Remove duplicate CSS/shader treatments.
-

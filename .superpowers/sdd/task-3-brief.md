@@ -27,4 +27,3 @@ Keep the focal dome/seal visible at 1440×900 and 390×844. Under reduced motion
 - [ ] **Step 4: Verify**
 
 Run the gate check, lint the two components, and capture settled desktop/mobile frames with zero shader/runtime errors.
-

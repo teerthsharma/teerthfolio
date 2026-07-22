@@ -1,7 +1,7 @@
 # teerthfolio Awwwards Cumulative Benchmark
 
-Date: 2026-07-11  
-Status: Phase 1 research baseline; **teerthfolio itself has not yet been audited**  
+Date: 2026-07-11
+Status: Phase 1 research baseline; **teerthfolio itself has not yet been audited**
 Scope: beat the strongest published result among Igloo Inc, Junni is..., and Bruno's Portfolio in every Awwwards category, rather than comparing against their average.
 
 ## 1. Source contract and what is authoritative

@@ -31,4 +31,3 @@ Use shader-space detail and bounded post hooks for stable antialiasing, subtle d
 - [ ] **Step 5: Record Wave E proof requirements**
 
 Record exact expected captures: raw shell, final medium/high, doorway, touch, weighted return sequence, collision, mobile, reduced motion, and draw/program/texture counts. Do not start the Node server or execute tests in Wave D.
-

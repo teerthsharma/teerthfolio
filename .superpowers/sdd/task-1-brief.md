@@ -69,4 +69,3 @@ node scripts/verify-hud-accessibility.mjs
 ```
 
 Expected GREEN: every semantic consumer agrees at moving/docking/arrival boundaries; Plaque return restores the dome.
-

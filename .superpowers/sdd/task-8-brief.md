@@ -41,4 +41,3 @@ Give a fresh reviewer the plan, current diff, before/after frames, and report. R
 - [ ] **Step 5: Make the award claim honestly**
 
 Do not call the goal complete unless the current frames no longer show the reported structural defects and the production evidence proves every preserved contract. If the hour ends first, report exact achieved work and remaining named gaps without claiming perfection.
-

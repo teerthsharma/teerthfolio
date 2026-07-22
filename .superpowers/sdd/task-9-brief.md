@@ -19,4 +19,3 @@ Return either `CLEAN` with direct evidence or a ranked Critical/Important/Minor 
 - [ ] **Step 4: Fix only confirmed blockers**
 
 For a Critical/Important defect, write the failing focused contract, patch the source, rerun the exact trace, rerun the production build, and update the frozen evidence report.
-

@@ -42,4 +42,3 @@ Drive one state-specific response from proximity/hover: kernel interrupt, phase 
 - [ ] **Step 5: Verify all four**
 
 Run NE checks and capture HUD-hidden settled/interaction frames. Each silhouette must remain distinguishable in grayscale thumbnail and must read as a compound, high-finish architectural object rather than low-poly primitives.
-

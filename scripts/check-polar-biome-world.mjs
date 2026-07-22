@@ -594,7 +594,8 @@ assert.equal(
   "node scripts/verify-polar-biome-shader-compile.mjs",
 );
 assert.ok(packageJson.scripts.build.includes("npm run check:biome-world"));
-assert.ok(packageJson.scripts.build.includes("npm run verify:biome-shaders"));
+assert.ok(!packageJson.scripts.build.includes("npm run verify:biome-shaders"));
+assert.equal(packageJson.scripts["verify:ci-browser"], "npm run verify:biome-shaders");
 
 console.log(
   "Polar biome world contract verified: dominant local owner plus <=1 framed neighbor, 8 continuous-XZ atmospheres, no remote geography leakage, bounded highlights, 1 weather owner, 2 programs, <=3 draws, 0 textures.",

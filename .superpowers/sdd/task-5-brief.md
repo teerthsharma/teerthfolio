@@ -35,4 +35,3 @@ Drive packet/pulse, topology category, and inspection proof only from supplied G
 - [ ] **Step 5: Verify all three**
 
 Run SW checks and capture HUD-hidden desktop/mobile frames plus one interaction state per monument. Reject any building that still reads as a doorframe, poles, disks, or boxes without a layered high-poly appearance.
-

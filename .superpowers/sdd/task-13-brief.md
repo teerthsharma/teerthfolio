@@ -26,4 +26,3 @@ List every static check, lint/build command, production server command, browser 
 - [ ] **Step 5: Freeze the spec before Wave F**
 
 Wave F may add implementation and tests required by this specification, but may not weaken the spec. Final execution of the full matrix occurs only after Wave F.
-

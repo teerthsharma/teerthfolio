@@ -50,4 +50,3 @@ For the seven mechanism station IDs, disable these generic motions in `IglooArti
 3. Stop `ArtifactMesh`'s perpetual `rotation.y += ...` for the seven mechanism station groups. Keep a fixed authored yaw.
 
 Topology and Assembly have no `StationInteractionRig`, but their parent bob/yaw still must stop. Do not remove the base geometry: it is the distant silhouette and the visual bridge during family handoff.
-

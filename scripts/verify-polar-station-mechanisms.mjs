@@ -84,11 +84,14 @@ const browser = await chromium.launch({
 });
 const report = [];
 
-function fatalLog(entry) {
+function fatalBrowserLog(entry) {
+  const text = entry?.text || "";
+  if (/GPU stall due to ReadPixels|GL_CLOSE_PATH_NV.*Performance/i.test(text)) return false;
   return (
-    entry.type === "pageerror" ||
-    /uncaught|referenceerror|typeerror|shader error|webglprogram|context lost|gl_invalid/i.test(
-      entry.text,
+    entry?.type === "pageerror" ||
+    entry?.type === "error" ||
+    /uncaught|unhandled(?: promise)? rejection|referenceerror|typeerror|syntaxerror|rangeerror|shader (?:error|compile)|error compiling shader|failed to compile|webglprogram|webgl context lost|context lost|gl_invalid|react-three|@react-three|\br3f\b|window-error/i.test(
+      text,
     )
   );
 }
@@ -345,7 +348,7 @@ try {
     );
     assert.ok(metrics.luminanceRange > 48, `${station.id}: scene lacks tonal structure`);
     assert.ok(metrics.edgeEnergy > 2, `${station.id}: mechanisms/geography lack visible edges`);
-    assert.deepEqual(logs.filter(fatalLog), [], `${station.id}: fatal browser logs`);
+    assert.deepEqual(logs.filter(fatalBrowserLog), [], `${station.id}: fatal browser logs`);
     assert.deepEqual(failedRequests, [], `${station.id}: failed requests`);
 
     report.push({

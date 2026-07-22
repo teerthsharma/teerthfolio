@@ -29,4 +29,3 @@ Use camera composition and bounded post distortion to create circular-world pres
 - [ ] **Step 5: Verify**
 
 Capture Plaque idle/touch/collision/return, one travel midpoint, all eight settled camera frames, and mobile routing. Run dome, seal, camera, and traversal checks.
-
