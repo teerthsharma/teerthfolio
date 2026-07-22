@@ -62,11 +62,17 @@ async function readParticleState(page) {
   });
 }
 
-async function selectQuality(page, quality) {
+async function selectQuality(page, quality, expectedCount) {
   await page.getByRole("button", { name: new RegExp(`${quality} graphics quality`, "i") }).click();
   await page.waitForFunction(
-    (expected) => document.querySelector("canvas.igloo-scene-canvas")?.dataset.quality === expected,
-    quality,
+    ({ expectedCount, expectedQuality }) => {
+      const canvas = document.querySelector("canvas.igloo-scene-canvas");
+      return (
+        canvas?.dataset.quality === expectedQuality &&
+        canvas.dataset.semanticParticleCount === String(expectedCount)
+      );
+    },
+    { expectedCount, expectedQuality: quality },
     { timeout: 10000 },
   );
 }
@@ -102,8 +108,7 @@ try {
   );
 
   for (const [quality, expectedCount] of [["low", 512], ["medium", 1536], ["high", 4096]]) {
-    await selectQuality(page, quality);
-    await page.waitForTimeout(240);
+    await selectQuality(page, quality, expectedCount);
     const state = await readParticleState(page);
     assert.equal(state.error, undefined, state.error);
     assert.equal(state.count, expectedCount, `${quality} particle count`);
