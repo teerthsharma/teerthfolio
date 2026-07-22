@@ -5,6 +5,7 @@ Commits:
 
 - `98154ee` — `fix: finish cinematic release proof`
 - `8d1a437` — `test: harden cinematic release verification`
+- `e10658d` — `test: fail cinematic proof on console errors`
 
 ## Outcome
 
@@ -98,6 +99,23 @@ GREEN evidence:
 - `npm run verify:render` — all 20 viewports passed.
 - Mobile report records both `EN ROUTE → S2 Core` and final `ARRIVED • S2 Core`; `pendingDestination`, `pendingReadoutUpdated`, `routeMoving`, `arrivedDocked`, `arrivalActive`, `arrivalFocused`, `arrivalCurrent`, and `arrivalReadout` are all `true`.
 - Final report contains zero fatal failures, zero console errors, and zero page errors across all 20 results. The one safe-gate warning is the existing non-fatal GPU probe timeout.
+
+## Final re-review console-error gate
+
+The final re-review found that a console entry with `type: "error"` could still pass when its text lacked a known fatal signature. A behavioral static contract was added against the verifier's actual `fatalBrowserLog` source.
+
+RED evidence:
+
+- An arbitrary CSP-blocked canvas resource with `type: "error"` evaluated to `false`, producing `false !== true` at `scripts/check-render-budget.mjs`.
+- The paired Chromium `ReadPixels` performance warning evaluated to `false` as intended.
+
+GREEN evidence for commit `e10658d`:
+
+- After the explicit benign driver-warning exclusion, `entry.type === "error"` is now fatal exactly like `pageerror`; text-signature matching continues to catch fatal warnings.
+- `npm run check:render-budget` — 61 checks plus both behavioral log fixtures passed.
+- `npm run lint -- --quiet` — passed.
+- `npm run verify:render` — all 20 viewports passed.
+- Final report aggregation: zero failures, zero console errors, and zero page errors.
 
 ## Read-only publication audit
 
