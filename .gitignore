@@ -11,3 +11,4 @@ verification/
 .verification/
 public/uploads/*
 !public/uploads/.gitkeep
+.vercel
