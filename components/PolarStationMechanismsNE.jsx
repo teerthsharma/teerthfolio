@@ -780,11 +780,11 @@ function createRenderResources(quality, detailed) {
       roughness: 0.1,
     }),
     aetherFrame: makeArchitecturalSurface({
-      color: "#103D78",
+      color: "#6EAAD2",
       effectMode: 2,
       effectStrength: 0.1,
-      emissive: "#081C3D",
-      emissiveIntensity: 0.42,
+      emissive: "#3B7EAD",
+      emissiveIntensity: 1,
       metalness: 0.68,
       opacity: 0.98,
       phaseColor: "#FFD05A",
@@ -793,10 +793,10 @@ function createRenderResources(quality, detailed) {
       roughness: 0.24,
     }),
     aetherRibbon: makeArchitecturalSurface({
-      color: "#16437A",
+      color: "#326B99",
       effectMode: 2,
       effectStrength: 0.13,
-      emissive: "#0B2A56",
+      emissive: "#245A88",
       emissiveIntensity: 0.48,
       macroStrength: 0.016,
       metalness: 0.5,
@@ -819,10 +819,10 @@ function createRenderResources(quality, detailed) {
       roughness: 0.23,
     }),
     fieldFrame: makeArchitecturalSurface({
-      color: "#24262D",
+      color: "#6B5550",
       effectMode: 3,
       effectStrength: 0.07,
-      emissive: "#2C160F",
+      emissive: "#9A4E30",
       emissiveIntensity: 0.32,
       metalness: 0.74,
       opacity: 0.98,
@@ -1140,10 +1140,10 @@ function applyAetherInstances(state, pools, scratch) {
     );
   }
   if (pools.ribbons?.material) {
-    pools.ribbons.material.emissiveIntensity = 0.3 + bloom * 0.34;
+    pools.ribbons.material.emissiveIntensity = 0.65 + bloom * 0.25;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.24 + bloom * 0.24;
+    pools.frame.material.emissiveIntensity = 0.62 + bloom * 0.28;
   }
   if (pools.beads?.material) {
     pools.beads.material.emissiveIntensity = 1.12 + bloom * 0.72;
@@ -1230,7 +1230,7 @@ function applyFieldInstances(state, pools, scratch) {
     pools.coils.material.emissiveIntensity = 0.56 + compression * 0.8;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.22 + state.fluxSkin * 0.34;
+    pools.frame.material.emissiveIntensity = 0.8 + state.fluxSkin * 0.3;
   }
   if (pools.packets?.material) {
     pools.packets.material.emissiveIntensity = 1.16 + compression * 0.78;

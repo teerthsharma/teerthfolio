@@ -5850,13 +5850,14 @@ img {
     position: static;
     width: 100%;
     max-width: none;
-    max-height: 184px;
+    max-height: none;
     padding: 10px 11px;
     border: 0;
     border-bottom: 1px solid var(--hud-line);
     border-radius: 0;
     background: transparent;
     box-shadow: none;
+    overflow: visible;
     text-align: left;
     animation: none;
   }
@@ -5875,6 +5876,12 @@ img {
   .igloo-route-sheet .igloo-artifact.station-profile-chip {
     flex-basis: 104px;
     min-width: 104px;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1100px) {
+  .sdf-seal-splash > .sdf-splash-status {
+    bottom: 128px;
   }
 }
 

@@ -39,11 +39,21 @@ uniform float uScanlineStrength;
 uniform float uQuantizeStrength;
 uniform float uGradeBase;
 uniform float uGradeCurve;
+uniform float uShadowSeparation;
 
 varying vec2 vUv;
 
 float animeLuminance(vec3 color) {
   return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec3 paperShadowSeparation(vec3 color) {
+  float gradedLuma = animeLuminance(color);
+  float shadowMask = 1.0 - smoothstep(0.18, 0.46, gradedLuma);
+  float highlightMask = smoothstep(0.58, 0.88, gradedLuma);
+  float gradeGain = 1.0 - shadowMask * uShadowSeparation
+    + highlightMask * uShadowSeparation * 0.12;
+  return color * gradeGain;
 }
 
 float interleavedGradientNoise(vec2 pixel, float seed) {
@@ -173,6 +183,7 @@ void main() {
 
   // 11. A tiered paper-grade curve restores ink structure; medium/high retain brighter snow.
   color *= (uGradeBase + uGradeCurve * color);
+  color = paperShadowSeparation(color);
 
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
@@ -222,6 +233,7 @@ export default function RetroCinematicPostProcess({
           uInkStrength: { value: qualityBudget.high.ink },
           uGradeBase: { value: qualityBudget.high.gradeBase },
           uGradeCurve: { value: qualityBudget.high.gradeCurve },
+          uShadowSeparation: { value: qualityBudget.high.shadowSeparation },
           uPixelSize: { value: qualityBudget.high.pixel },
           uQuantizeStrength: { value: qualityBudget.high.quantize },
           uResolution: { value: new THREE.Vector2(1, 1) },
@@ -255,6 +267,7 @@ export default function RetroCinematicPostProcess({
     material.uniforms.uInkStrength.value = budget.ink;
     material.uniforms.uGradeBase.value = budget.gradeBase;
     material.uniforms.uGradeCurve.value = budget.gradeCurve;
+    material.uniforms.uShadowSeparation.value = budget.shadowSeparation;
     material.uniforms.uScanlineStrength.value = budget.scanline;
     material.uniforms.uPixelSize.value = budget.pixel;
     material.uniforms.uQuantizeStrength.value = budget.quantize;

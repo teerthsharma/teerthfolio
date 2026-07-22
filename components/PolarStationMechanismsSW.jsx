@@ -251,8 +251,8 @@ function createRenderResources(quality) {
     }),
     topologySurface: makeSurface({
       color: "#FFFFFF",
-      emissive: topologyPalette.shadow,
-      emissiveIntensity: 0.16,
+      emissive: topologyPalette.surface,
+      emissiveIntensity: 0.58,
       metalness: 0.28,
       opacity: 0.92,
       roughness: 0.24,
@@ -268,8 +268,8 @@ function createRenderResources(quality) {
     upstreamSignal: makeGlow(upstreamPalette.signal, 0.9),
     upstreamSurface: makeSurface({
       color: "#FFFFFF",
-      emissive: upstreamPalette.shadow,
-      emissiveIntensity: 0.14,
+      emissive: upstreamPalette.surface,
+      emissiveIntensity: 0.62,
       metalness: 0.72,
       opacity: 1,
       roughness: 0.26,

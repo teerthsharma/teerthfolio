@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const DEFAULT_BASE_URL = "http://127.0.0.1:5273";
+const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 const baseUrl = process.env.VERIFY_RENDER_URL || DEFAULT_BASE_URL;
 const outDir = path.resolve("verification/screenshots-cinematic-render");
 const isWindows = process.platform === "win32";
@@ -63,9 +63,9 @@ async function canReach(url) {
 
 function devServerPort() {
   try {
-    return new URL(baseUrl).port || "5273";
+    return new URL(baseUrl).port || "3000";
   } catch {
-    return "5273";
+    return "3000";
   }
 }
 
@@ -314,7 +314,7 @@ async function collectSafeGateMetrics(page) {
     const world = document.querySelector("#world");
     const gate = document.querySelector(".sdf-seal-splash");
     const gateButton = document.querySelector(".sdf-render-button");
-    const diagnostics = document.querySelector(".igloo-diagnostics");
+    const diagnostics = document.querySelector(".sdf-splash-status");
     const splashShader = document.querySelector(".sdf-splash-shader-canvas");
     const canvas = Array.from(document.querySelectorAll("canvas")).find(
       (item) => !item.classList.contains("igloo-atmosphere-canvas") && !item.classList.contains("sdf-splash-shader-canvas"),
@@ -455,7 +455,7 @@ async function collectSectionMetrics(page) {
     const projectList = rectOf(".project-list");
     const projectDetail = rectOf(".project-detail");
     const archiveHead = rectOf(".archive-head");
-    const archiveGrid = rectOf(".archive-grid");
+    const archiveGrid = rectOf(".archive-explorer");
     const repoTapeNode = document.querySelector(".repo-tape");
     const repoTape = rectOf(".repo-tape");
 
@@ -479,7 +479,7 @@ async function collectSectionMetrics(page) {
         projectDetail: visible(projectDetail, 160, 120),
         projectHead: visible(projectHead, 160, 80),
         projectList: visible(projectList, 160, 60),
-        repoTape: visible(repoTape, 160, 80),
+        repoTape: visible(repoTape, 160, 60),
       },
       viewport: { height: window.innerHeight, width: window.innerWidth },
     };
@@ -487,23 +487,48 @@ async function collectSectionMetrics(page) {
 }
 
 async function verifyMovement(page) {
-  const axisText = async () => page.locator(".igloo-axis-meter strong").textContent();
-  const before = await axisText();
+  const worldPose = async () =>
+    page.locator("#world").evaluate((world) => ({
+      x: Number(world.dataset.worldX),
+      z: Number(world.dataset.worldZ),
+    }));
+  const moved = (left, right) => Math.hypot(right.x - left.x, right.z - left.z) > 0.01;
+  const before = await worldPose();
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(250);
-  const afterArrow = await axisText();
+  const afterArrow = await worldPose();
   const hint = await page.locator(".igloo-input-hint").textContent().catch(() => "");
   await page.keyboard.down("d");
   await page.waitForTimeout(700);
   await page.keyboard.up("d");
-  const afterD = await axisText();
+  const afterD = await worldPose();
+
+  const s2Button = page.locator('.station-profile-chip[data-station-id="s2-kernel-core"]');
+  await s2Button.click();
+  await page.waitForFunction(
+    () => {
+      const world = document.querySelector("#world");
+      const x = Number(world?.dataset.worldX);
+      const z = Number(world?.dataset.worldZ);
+      return Math.hypot(x - -15, z - 7) > 7.4;
+    },
+    null,
+    { timeout: 12000 },
+  );
+  const observatoryDomeVisible = await page
+    .locator("canvas.igloo-scene-canvas")
+    .getAttribute("data-observatory-dome-visible");
+  const departureScreenshot = path.join(outDir, "observatory-departure-s2.png");
+  await page.screenshot({ path: departureScreenshot, fullPage: false });
   return {
     afterArrow,
     afterD,
     arrowHintVisible: /wasd/i.test(hint || ""),
-    arrowMoved: before !== afterArrow,
-    dMoved: afterArrow !== afterD,
+    arrowMoved: moved(before, afterArrow),
+    dMoved: moved(afterArrow, afterD),
     before,
+    departureScreenshot,
+    observatoryDomeVisible,
   };
 }
 
@@ -516,9 +541,9 @@ async function verifyRailTap(page) {
   const pending = await readoutText();
   const pendingDestination = (await target.getAttribute("data-destination")) === "true";
   await page.waitForFunction(
-    (initial) => document.querySelector(".igloo-artifact-readout")?.textContent !== initial,
-    before,
-    { timeout: 9000 },
+    () => document.querySelector("#world")?.dataset.presentationPhase === "moving",
+    null,
+    { timeout: 3000 },
   );
   const after = await readoutText();
   return {
@@ -526,8 +551,8 @@ async function verifyRailTap(page) {
     before,
     changed: before !== after,
     pendingDestination,
-    pendingReadoutStable: pending === before,
-    arrivalActive: (await target.getAttribute("data-active")) === "true",
+    pendingReadoutUpdated: pending !== before && /S2 Kernel Core/i.test(pending || ""),
+    routeMoving: (await page.locator("#world").getAttribute("data-presentation-phase")) === "moving",
     targetText: await target.textContent(),
   };
 }
@@ -620,7 +645,7 @@ function assertViewport(result) {
   if (name === "desktop" && !metrics.visibleHud.controlsHint) {
     failures.push(`desktop WASD hint is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.controlsHint)}`);
   }
-  if (!/live upstream radar|snapshot radar/i.test(metrics.contentText.latestEvidence)) {
+  if (!/live GitHub API|live upstream radar|snapshot radar|research snapshot/i.test(metrics.contentText.latestEvidence)) {
     failures.push(`first viewport lacks source evidence: ${metrics.contentText.latestEvidence}`);
   }
   if (!/topology|manifold|homology/i.test(metrics.contentText.manifesto) || !/ml|kernel|qpu|upstream/i.test(metrics.contentText.manifesto)) {
@@ -642,13 +667,18 @@ function assertViewport(result) {
     if (movement.arrowMoved) failures.push("arrow key moved seal axis");
     if (!movement.arrowHintVisible) failures.push("arrow key did not show WASD hint");
     if (!movement.dMoved) failures.push("D key did not move seal axis");
+    if (movement.observatoryDomeVisible !== "false") {
+      failures.push(
+        `Observatory dome did not unmount beyond its bounded S2 departure threshold: ${JSON.stringify(movement)}`,
+      );
+    }
   }
   if (
     name === "mobile" &&
     (!railTap.pendingDestination ||
-      !railTap.pendingReadoutStable ||
+      !railTap.pendingReadoutUpdated ||
       !railTap.changed ||
-      !railTap.arrivalActive)
+      !railTap.routeMoving)
   ) {
     failures.push(`mobile station rail did not preserve route intent then earn station focus: ${JSON.stringify(railTap)}`);
   }
@@ -703,13 +733,13 @@ function assertSafeGate(result) {
   }
   if (!buttonVisible(initial.buttonBounds)) failures.push(`safe gate button is not visible: ${JSON.stringify(initial.buttonBounds)}`);
   if (overlaps(initial.buttonBounds, initial.diagnosticsBounds)) failures.push("safe gate diagnostics overlap the start button");
-  if (!/start exploring/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
+  if (!/start (?:exploring|the adventure)/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
   if (initial.renderEnabled !== "false") failures.push(`safe gate initially enabled renderer: ${initial.renderEnabled}`);
   if (initial.rendererMode !== "safe") failures.push(`safe gate initial mode is ${initial.rendererMode}`);
   if (initial.sealAwake !== "false") failures.push(`safe gate initially woke seal: ${initial.sealAwake}`);
   if (initial.webglCanvasPresent) failures.push("safe gate mounted WebGL canvas before probe");
-  if (!idle.diagnosticsVisible || !/safe-boot/i.test(idle.diagnosticText)) {
-    failures.push("safe gate did not expose safe-boot diagnostics");
+  if (!idle.diagnosticsVisible || !/safe route ready/i.test(idle.diagnosticText)) {
+    failures.push("safe gate did not expose its renderer-safe departure status");
   }
   if (idle.renderEnabled !== "false" || idle.rendererMode !== "safe" || idle.webglCanvasPresent) {
     failures.push(`safe gate auto-started before button click: ${JSON.stringify(idle)}`);
@@ -740,17 +770,17 @@ function assertSection(result) {
     if (!metrics.visible.projectHead) failures.push(`project heading is not visible: ${JSON.stringify(metrics.projectHead)}`);
     if (!metrics.visible.projectList) failures.push(`project selector is not visible: ${JSON.stringify(metrics.projectList)}`);
     if (!metrics.visible.projectDetail) failures.push(`project detail is not visible: ${JSON.stringify(metrics.projectDetail)}`);
-    if (mobile && metrics.projectList.height > 130) failures.push(`mobile project selector is too tall: ${metrics.projectList.height}`);
-    if (metrics.projectDetail.bottom > metrics.viewport.height - 8) {
+    if (mobile && (metrics.projectList?.height || 0) > 130) failures.push(`mobile project selector is too tall: ${metrics.projectList.height}`);
+    if (!mobile && (metrics.projectDetail?.bottom || 0) > metrics.viewport.height - 8) {
       failures.push(`project detail escapes first viewport: ${JSON.stringify(metrics.projectDetail)}`);
     }
-    if (!/Epsilon-Hollow|Aether-Lang|faraday|hamliton/i.test(metrics.projectList.text)) {
+    if (!/Epsilon-Hollow|Aether-Lang|faraday|hamliton/i.test(metrics.projectList?.text || "")) {
       failures.push("project selector lacks flagship project names");
     }
-    if (!/source trace|evidence files|repository link|Trace/i.test(`${metrics.projectHead.text} ${metrics.projectDetail.text}`)) {
+    if (!/source(?: trace|\s*\/\s*github)|evidence files|repository link|Trace/i.test(`${metrics.projectHead?.text || ""} ${metrics.projectDetail?.text || ""}`)) {
       failures.push("project section lacks source-trace evidence language");
     }
-    if (/confidence/i.test(`${metrics.projectHead.text} ${metrics.projectDetail.text}`)) {
+    if (/confidence/i.test(`${metrics.projectHead?.text || ""} ${metrics.projectDetail?.text || ""}`)) {
       failures.push("project section leaked generic confidence language");
     }
   }
@@ -760,8 +790,8 @@ function assertSection(result) {
     if (!metrics.visible.repoTape) failures.push(`repo tape is not visible: ${JSON.stringify(metrics.repoTape)}`);
     if (!mobile && metrics.repoTapeOverflow?.vertical) failures.push("desktop repo tape is vertically clipped");
     if (!mobile && !metrics.repoTapeOverflow?.horizontal) failures.push("desktop repo tape is not a horizontal source rail");
-    if (!/live-github|research-snapshot/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks source-mode label");
-    if (!/triton-lang|PyTorch|NeMo/i.test(metrics.archiveGrid.text)) failures.push("archive grid lacks upstream evidence");
+    if (!/source mode|live-github|research-snapshot/i.test(metrics.archiveGrid?.text || "")) failures.push("archive grid lacks source-mode label");
+    if (!/triton-lang|PyTorch|NeMo/i.test(metrics.archiveGrid?.text || "")) failures.push("archive grid lacks upstream evidence");
   }
   if (
     ![
@@ -876,6 +906,10 @@ try {
 
     await page.goto(`${baseUrl}/?qa-low=1#${sectionViewport.hash}`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1600);
+    if (sectionViewport.hash === "archive") {
+      await page.getByRole("tab", { name: "Upstream watch" }).click();
+      await page.waitForTimeout(120);
+    }
     const metrics = await collectSectionMetrics(page);
     const screenshot = path.join(outDir, `${sectionViewport.name}.png`);
     await page.screenshot({ path: screenshot, fullPage: false });

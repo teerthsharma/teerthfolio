@@ -1,7 +1,53 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import assert from "node:assert/strict";
+import {
+  OBSERVATORY_DOME_DEPARTURE_DISTANCE,
+  shouldRenderObservatoryDome,
+} from "../lib/polar-art-direction.js";
+import { STATION_PERSONALITY_PROFILES } from "../lib/polar-station-personality.js";
 
 const root = process.cwd();
+
+function hexLuminance(hex) {
+  const value = Number.parseInt(hex.slice(1), 16);
+  const red = (value >> 16) & 0xff;
+  const green = (value >> 8) & 0xff;
+  const blue = value & 0xff;
+  return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+}
+
+const manifoldWorldColors = STATION_PERSONALITY_PROFILES["manifold-reactor"].palette.world.colors;
+assert.ok(
+  hexLuminance(manifoldWorldColors.base) >= 72
+    && hexLuminance(manifoldWorldColors.secondary) >= 88,
+  "Low-tier Manifold terrain must retain a readable blue floor after the bounded shadow toe",
+);
+
+assert.equal(
+  shouldRenderObservatoryDome({
+    destinationStationId: "s2-kernel-core",
+    distanceFromHome: OBSERVATORY_DOME_DEPARTURE_DISTANCE + 0.01,
+  }),
+  false,
+  "Observatory must unmount once an outbound route crosses its bounded departure distance",
+);
+assert.equal(
+  shouldRenderObservatoryDome({
+    destinationStationId: "observatory-plaque",
+    distanceFromHome: OBSERVATORY_DOME_DEPARTURE_DISTANCE + 20,
+  }),
+  true,
+  "Observatory must remain available throughout its selected approach route",
+);
+assert.equal(
+  shouldRenderObservatoryDome({
+    destinationStationId: "s2-kernel-core",
+    distanceFromHome: OBSERVATORY_DOME_DEPARTURE_DISTANCE - 0.01,
+  }),
+  true,
+  "Observatory must remain visible while an outbound traveler is still inside its home field",
+);
 
 const files = {
   world: readFileSync(join(root, "components", "IglooWorld.jsx"), "utf8"),
@@ -75,9 +121,9 @@ const checks = [
     pattern: /sceneReady[\s\S]*publicRenderEnabled[\s\S]*webgl-scene-ready[\s\S]*setSceneReady\(true\)[\s\S]*data-render-enabled=\{publicRenderEnabled/,
   },
   {
-    name: "scene has visible asset suspense fallback",
+    name: "live scene suspense never projects a world-space fallback silhouette",
     file: files.scene,
-    pattern: /RendererFallback[\s\S]*asset-suspense[\s\S]*<Suspense fallback=\{<RendererFallback/,
+    pattern: /<Suspense fallback=\{null\}>/,
   },
   {
     name: "splash gate renders the authored radial-wave threshold without a mascot layer",
@@ -287,7 +333,12 @@ const checks = [
   {
     name: "anime post quality tiers retain exact bounded effect caps",
     file: `${files.post}\n${files.polarArtDirection}`,
-    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.36[\s\S]*gradeCurve:\s*0\.4[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.003[\s\S]*chroma:\s*0\.55[\s\S]*ink:\s*0\.14[\s\S]*scanline:\s*0\.004[\s\S]*pixel:\s*1\.7[\s\S]*quantize:\s*0\.18[\s\S]*gradeBase:\s*0\.49[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.005[\s\S]*chroma:\s*0\.8[\s\S]*ink:\s*0\.18[\s\S]*scanline:\s*0\.007[\s\S]*pixel:\s*2\.2[\s\S]*quantize:\s*0\.24[\s\S]*gradeBase:\s*0\.52[\s\S]*gradeCurve:\s*0\.4/,
+    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.003[\s\S]*chroma:\s*0\.55[\s\S]*ink:\s*0\.14[\s\S]*scanline:\s*0\.004[\s\S]*pixel:\s*1\.7[\s\S]*quantize:\s*0\.18[\s\S]*gradeBase:\s*0\.49[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.005[\s\S]*chroma:\s*0\.8[\s\S]*ink:\s*0\.18[\s\S]*scanline:\s*0\.007[\s\S]*pixel:\s*2\.2[\s\S]*quantize:\s*0\.24[\s\S]*gradeBase:\s*0\.52[\s\S]*gradeCurve:\s*0\.4/,
+  },
+  {
+    name: "low-tier paper grade restores a bounded luminance toe without dimming highlights",
+    file: `${files.post}\n${files.polarArtDirection}`,
+    pattern: /uShadowSeparation[\s\S]*paperShadowSeparation[\s\S]*smoothstep\(0\.18, 0\.46[\s\S]*highlightMask[\s\S]*low:[\s\S]*shadowSeparation:\s*0\.24[\s\S]*medium:[\s\S]*shadowSeparation:\s*0[\s\S]*high:[\s\S]*shadowSeparation:\s*0/,
   },
   {
     name: "non-igloo stations expose active playable object behaviors",

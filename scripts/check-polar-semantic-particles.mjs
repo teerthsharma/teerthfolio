@@ -86,7 +86,7 @@ assert.equal((component.match(/new THREE\.ShaderMaterial\(/g) ?? []).length, 1, 
 assert.doesNotMatch(component, /new THREE\.(?:Texture|CanvasTexture|DataTexture)|\b(?:alphaMap|map)\s*:/);
 assert.match(
   scene,
-  /function SceneDiagnostics\(\{ onGpuEvent, quality, reducedMotion \}\)[\s\S]*gl\.domElement\.dataset\.quality\s*=\s*quality[\s\S]*gl\.domElement\.dataset\.reducedMotion\s*=\s*reducedMotion\s*\?\s*"true"\s*:\s*"false"/,
+  /function SceneDiagnostics\(\{[\s\S]*?onGpuEvent,[\s\S]*?quality,[\s\S]*?reducedMotion,[\s\S]*?\}\)[\s\S]*gl\.domElement\.dataset\.quality\s*=\s*quality[\s\S]*gl\.domElement\.dataset\.reducedMotion\s*=\s*reducedMotion\s*\?\s*"true"\s*:\s*"false"/,
 );
 assert.match(world, /setQuality\(memory\s*<=\s*4\s*\?\s*"low"\s*:\s*reducedMotion\s*\?\s*"medium"\s*:\s*"high"\)/);
 assert.match(world, /quality=\{safeMode\s*\?\s*"low"\s*:\s*quality\}/);
