@@ -48,6 +48,6 @@ Plan: `docs/superpowers/plans/2026-07-22-particles-manifold-release.md`
 
 - Task 1: complete (512/1536/4096 deterministic one-draw field; static/browser proof green; independent review clean)
 - Task 2: complete (continuous QPU surface/rebuild, visitor-facing Tooling/collider, bounded Brownian S2; high + low/reduced browser proof green; independent review clean)
-- Task 3: local implementation and proof complete (cinematic/station/particle/build gates green; read-only Vercel/GitHub audit complete; deployment, push, and main/CI mutation intentionally deferred to the controller)
-- Final whole-branch review: pending
+- Task 3: complete locally (cinematic/station/particle/build gates green; independent review clean; deployment and push remain root-gated)
+- Final whole-branch review: in progress
 - Node server: live at `http://127.0.0.1:3000`
