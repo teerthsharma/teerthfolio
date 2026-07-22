@@ -120,7 +120,7 @@ const EXPECTED = {
   "assembly-tool-locker": {
     center: { x: -18, z: -2 },
     dock: { x: -20.98, z: -2.33 },
-    collider: { radiusX: 2.15, radiusZ: 1.9, rotationDegrees: -9 },
+    collider: { radiusX: 2.15, radiusZ: 1.9, rotationDegrees: 83.68091167100431 },
     proximity: { far: 8.7, approach: 5.8, dock: 2.1 },
     camera: {
       azimuthDegrees: 264,

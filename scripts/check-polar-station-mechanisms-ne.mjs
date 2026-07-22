@@ -19,9 +19,11 @@ const {
   NE_MECHANISM_PHASES,
   NE_MECHANISM_PROFILES,
   NE_MONUMENT_CONTRACTS,
+  QPU_MANIFOLD_LAYOUT,
   advanceNortheastMechanisms,
   createNortheastMechanismSystem,
   resolveNortheastStationReveal,
+  sampleQpuManifoldBoundary,
 } = mechanisms;
 
 const IDS = [
@@ -200,6 +202,35 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
     advanceNortheastMechanisms(system, inputs, 1 / frameRate, options);
   }
   return system;
+}
+
+function advanceChunks(system, inputs, chunks, options = {}) {
+  for (const chunk of chunks) {
+    advanceNortheastMechanisms(system, inputs, chunk, options);
+  }
+  return system;
+}
+
+// Every authored QPU slice edge samples the same global manifold point, even at maximum fold.
+{
+  assert.equal(QPU_MANIFOLD_LAYOUT.sliceCount, 13);
+  assert.ok(QPU_MANIFOLD_LAYOUT.halfSpan >= 1.2);
+  assert.ok(Object.isFrozen(QPU_MANIFOLD_LAYOUT));
+  for (const foldActivity of [0, 1]) {
+    for (const time of [0, 0.75, 2.2]) {
+      for (let boundary = 0; boundary < QPU_MANIFOLD_LAYOUT.sliceCount - 1; boundary += 1) {
+        for (let transverseIndex = 0; transverseIndex <= 8; transverseIndex += 1) {
+          const transverse = transverseIndex / 4 - 1;
+          const left = sampleQpuManifoldBoundary(boundary, 1, transverse, foldActivity, time);
+          const right = sampleQpuManifoldBoundary(boundary + 1, -1, transverse, foldActivity, time);
+          assert.ok(
+            Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z) < 1e-10,
+            `QPU boundary ${boundary}/${boundary + 1} opened at v=${transverse}`,
+          );
+        }
+      }
+    }
+  }
 }
 
 // S2: approach momentum drives bounded precession, cap exchange, proof lock, then timed release.
@@ -399,14 +430,24 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
     velocityZ: 1.4,
   });
   const at30 = advanceFor(createNortheastMechanismSystem(), inputs, 2, {}, 30);
+  const at10 = advanceFor(createNortheastMechanismSystem(), inputs, 2, {}, 10);
   const at144 = advanceFor(createNortheastMechanismSystem(), inputs, 2, {}, 144);
+  const mixed = advanceChunks(
+    createNortheastMechanismSystem(),
+    inputs,
+    Array.from({ length: 8 }, () => [0.1, 0.025, 0.05, 0.075]).flat(),
+  );
   const a = at30.states[IDS[0]];
   const b = at144.states[IDS[0]];
+  assert.ok(Math.abs(at10.simulationTime - at144.simulationTime) < 1e-8);
+  assert.ok(Math.abs(mixed.simulationTime - at144.simulationTime) < 1e-8);
   assert.ok(Math.abs(a.ringAngles[0] - b.ringAngles[0]) < 1e-5);
   assert.ok(Math.abs(a.ringAngles[1] - b.ringAngles[1]) < 1e-5);
   for (let index = 0; index < a.brownianCoordinates.length; index += 1) {
     assert.ok(Math.abs(a.brownianCoordinates[index] - b.brownianCoordinates[index]) < 1e-5);
     assert.ok(Math.abs(a.brownianVelocities[index] - b.brownianVelocities[index]) < 1e-5);
+    assert.ok(Math.abs(at10.states[IDS[0]].brownianCoordinates[index] - b.brownianCoordinates[index]) < 1e-5);
+    assert.ok(Math.abs(mixed.states[IDS[0]].brownianCoordinates[index] - b.brownianCoordinates[index]) < 1e-5);
   }
 }
 
@@ -476,11 +517,9 @@ assert.ok(
   `QPU bridge support must read as luminous teal rather than black (${qpuFrameColor})`,
 );
 const fieldHeaterHalfLength = Number(source.match(/const FIELD_HEATER_HALF_LENGTH = ([0-9.]+);/)?.[1]);
-const qpuBridgeHalfSpan = Number(source.match(/const QPU_BRIDGE_HALF_SPAN = ([0-9.]+);/)?.[1]);
 const qpuAbutmentRadius = Number(source.match(/const QPU_ABUTMENT_RADIUS = ([0-9.]+);/)?.[1]);
 const qpuAbutmentHeight = Number(source.match(/const QPU_ABUTMENT_HEIGHT = ([0-9.]+);/)?.[1]);
 assert.ok(fieldHeaterHalfLength >= 0.9, "Field heater must retain its authored thermal-land span");
-assert.ok(qpuBridgeHalfSpan >= 1.2, "QPU inverse bridge must retain its authored suspended span");
 assert.ok(qpuAbutmentRadius <= 0.1, "QPU endpoint abutments must stay slender rather than reading as blocks");
 assert.ok(qpuAbutmentHeight <= 0.55, "QPU endpoint abutments must stay subordinate to the shell");
 
@@ -516,8 +555,8 @@ assert.match(
 );
 assert.match(
   source,
-  /createQpuSampledRiemannStripGeometry[\s\S]*geometry\.setIndex\(indices\)[\s\S]*return bakeGeometry\(geometry\)/,
-  "sampled QPU geometry must normalize its index and attributes before merging with ribs",
+  /function createQpuCausewayFrameGeometry\(quality\) \{[\s\S]*createQpuContinuousManifoldGeometry\(quality\)[\s\S]*\n\}/,
+  "the low QPU frame pool must include a completed continuous manifold",
 );
 assert.match(
   source,
@@ -592,7 +631,8 @@ for (const token of [
   "createFieldHelixGeometry",
   "createFieldPlasmaCoreGeometry",
   "createQpuCausewayFrameGeometry",
-  "createQpuSampledManifoldSliceGeometry",
+  "createQpuContinuousManifoldGeometry",
+  "createQpuManifoldRibGeometry",
   "createQpuStableDockBandGeometry",
   "awardLowPass",
   "wrapped diffuse",
@@ -644,6 +684,7 @@ for (const forbidden of [
   "QPU_ENDPOINT_SCALE",
   "qpu-stepped-coherence-span",
   "paired-sanctums",
+  "createQpuSampledRiemannStripGeometry",
 ]) {
   assert.ok(!source.includes(forbidden), `mechanism renderer must not include ${JSON.stringify(forbidden)}`);
 }

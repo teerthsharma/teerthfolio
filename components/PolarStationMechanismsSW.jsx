@@ -2,6 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
+  ASSEMBLY_WORKSHOP_GEOMETRY,
   SW_MECHANISM_BUDGET,
   SW_MECHANISM_IDS,
   SW_MECHANISM_PROFILES,
@@ -603,7 +604,20 @@ function applyAssemblyInstances(state, pools, scratch) {
   const cycleProgress =
     assemblyCycleTime / SW_MECHANISM_PROFILES["assembly-tool-locker"].assemblyCycleSeconds;
   setInstance(pools.structures, 0, scratch, 0, groundY + 0.11, 0, 0, 0, 0, 2.82, 0.22, 1.56);
-  setInstance(pools.structures, 1, scratch, 0, 0.32, 0.54, 0, 0, 0, 2.08, 0.56, 0.18);
+  setInstance(
+    pools.structures,
+    1,
+    scratch,
+    0,
+    0.32,
+    ASSEMBLY_WORKSHOP_GEOMETRY.backplaneLocalZ,
+    0,
+    0,
+    0,
+    2.08,
+    0.56,
+    0.18,
+  );
   for (let index = 0; index < 4; index += 1) {
     const progress = state.partProgress[index];
     const start = ASSEMBLY_STARTS[index];
@@ -654,7 +668,7 @@ function applyAssemblyInstances(state, pools, scratch) {
   const gantrySpan = 1.48 - gantryCompression * 0.08;
   const gantryRise = 1.92 - gantryCompression * 0.16;
   for (let rib = 0; rib < 2; rib += 1) {
-    const ribZ = rib === 0 ? -0.62 : 0.62;
+    const ribZ = ASSEMBLY_WORKSHOP_GEOMETRY.ribPlanesLocalZ[rib];
     for (let segment = 0; segment < ASSEMBLY_ARCH_SEGMENTS; segment += 1) {
       const progress = segment / (ASSEMBLY_ARCH_SEGMENTS - 1);
       const theta = Math.PI * (1 - progress);

@@ -8,10 +8,12 @@ import {
   NE_MECHANISM_IDS,
   NE_MECHANISM_PROFILES,
   NE_MONUMENT_CONTRACTS,
+  QPU_MANIFOLD_LAYOUT,
   advanceNortheastMechanisms,
   createNortheastMechanismSystem,
   resolveNortheastMechanismInputs,
   resolveNortheastStationReveal,
+  sampleQpuManifoldPoint,
 } from "../lib/polar-station-mechanisms";
 
 export const NORTHEAST_MECHANISM_RENDER_PROFILE =
@@ -30,10 +32,10 @@ const S2_KERNEL_SHELL_GAP = 0.25;
 const S2_DIAGNOSTIC_HALF_SPAN = 1.72;
 const AETHER_DOMINANT_SEED_RADIUS = 0.34;
 const FIELD_HEATER_HALF_LENGTH = 0.92;
-const QPU_BRIDGE_HALF_SPAN = 1.28;
+const QPU_BRIDGE_HALF_SPAN = QPU_MANIFOLD_LAYOUT.halfSpan;
 const QPU_ABUTMENT_RADIUS = 0.09;
 const QPU_ABUTMENT_HEIGHT = 0.52;
-const QPU_MANIFOLD_SLICE_COUNT = 13;
+const QPU_MANIFOLD_SLICE_COUNT = QPU_MANIFOLD_LAYOUT.sliceCount;
 const QPU_SIGNAL_BASE_LENGTH = 0.43;
 const QPU_INVERSE_BRIDGE_LIFT = 0.58;
 const REDUCED_MOTION_SHADER_TIME = 0.75;
@@ -449,29 +451,26 @@ function createQpuStableDockBandGeometry(quality) {
   );
 }
 
-function createQpuSampledRiemannStripGeometry(quality) {
-  const uSegments = quality === "high" ? 6 : 4;
-  const vSegments = quality === "high" ? 12 : 8;
-  const sliceWidth = (QPU_BRIDGE_HALF_SPAN * 2) / (QPU_MANIFOLD_SLICE_COUNT - 1) * 1.08;
-  const halfWidth = sliceWidth * 0.5;
-  const halfDepth = 0.48;
+function createQpuContinuousManifoldGeometry(quality) {
+  const uSegments = quality === "high" ? 48 : quality === "medium" ? 32 : 20;
+  const vSegments = quality === "high" ? 16 : quality === "medium" ? 12 : 8;
   const positions = [];
   const indices = [];
   const rowLength = vSegments + 1;
 
   for (let surface = 0; surface < 2; surface += 1) {
     for (let uIndex = 0; uIndex <= uSegments; uIndex += 1) {
-      const u = uIndex / uSegments;
-      const x = (u - 0.5) * sliceWidth;
+      const x = -QPU_MANIFOLD_LAYOUT.halfSpan +
+        (uIndex / uSegments) * QPU_MANIFOLD_LAYOUT.halfSpan * 2;
       for (let vIndex = 0; vIndex <= vSegments; vIndex += 1) {
-        const v = vIndex / vSegments;
-        const z = (v - 0.5) * halfDepth * 2;
-        const normalizedV = z / halfDepth;
-        const arch = 0.16 * (1 - normalizedV * normalizedV);
-        const saddle = 0.035 * (normalizedV * normalizedV - (x / halfWidth) ** 2);
-        const ripple = 0.018 * Math.sin(u * Math.PI) * Math.cos(normalizedV * Math.PI);
-        const shellY = arch + saddle + ripple;
-        positions.push(x, shellY - surface * 0.085, z);
+        const z = -QPU_MANIFOLD_LAYOUT.halfDepth +
+          (vIndex / vSegments) * QPU_MANIFOLD_LAYOUT.halfDepth * 2;
+        const point = sampleQpuManifoldPoint(x, z);
+        positions.push(
+          point.x,
+          point.y - surface * QPU_MANIFOLD_LAYOUT.floorThickness,
+          point.z,
+        );
       }
     }
   }
@@ -497,41 +496,64 @@ function createQpuSampledRiemannStripGeometry(quality) {
       indices.push(topA, floorA, topB, topB, floorA, floorB);
     }
   }
+  for (const uIndex of [0, uSegments]) {
+    for (let vIndex = 0; vIndex < vSegments; vIndex += 1) {
+      const topA = uIndex * rowLength + vIndex;
+      const topB = topA + 1;
+      const floorA = surfaceStride + topA;
+      const floorB = surfaceStride + topB;
+      indices.push(topA, topB, floorA, topB, floorB, floorA);
+    }
+  }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
-  geometry.name = "qpu-sampled-double-curved-riemann-floor-and-shell";
+  geometry.name = "qpu-one-piece-global-sampled-double-curved-riemann-floor-and-shell";
   return bakeGeometry(geometry);
 }
 
-function createQpuSampledManifoldSliceGeometry(quality) {
+function createQpuManifoldRibGeometry(quality) {
   const policy = geometryPolicy(quality);
-  return mergeParts(
-    [
-      createQpuSampledRiemannStripGeometry(quality),
-      tubePart(
-        policy,
-        new THREE.QuadraticBezierCurve3(
-          new THREE.Vector3(0, 0.02, -0.48),
-          new THREE.Vector3(0, 0.24, 0),
-          new THREE.Vector3(0, 0.02, 0.48),
-        ),
-        0.024,
-        "qpu-contiguous-manifold-rib",
-      ),
-    ],
-    "qpu-contiguous-floor-shell-and-ribs qpu-alien-iridescent-interference-fins",
+  return tubePart(
+    policy,
+    new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(0, 0.02, -QPU_MANIFOLD_LAYOUT.halfDepth),
+      new THREE.Vector3(0, 0.24, 0),
+      new THREE.Vector3(0, 0.02, QPU_MANIFOLD_LAYOUT.halfDepth),
+    ),
+    0.024,
+    "qpu-endpoint-to-center-reconstruction-rib",
   );
 }
 
 function createQpuCausewayFrameGeometry(quality) {
-  return createQpuStableDockBandGeometry(quality);
+  return mergeParts(
+    [
+      createQpuStableDockBandGeometry(quality),
+      createQpuContinuousManifoldGeometry(quality),
+    ],
+    "qpu-jade-cyan-coherence-causeway qpu-continuous-global-riemann-manifold qpu-contiguous-floor-shell-and-ribs",
+  );
 }
 
 function createQpuCoherencePlateGeometry(quality) {
-  return createQpuSampledManifoldSliceGeometry(quality);
+  return mergeParts(
+    [
+      createQpuManifoldRibGeometry(quality),
+      tubePart(
+        geometryPolicy(quality),
+        new THREE.LineCurve3(
+          new THREE.Vector3(-0.08, 0, 0),
+          new THREE.Vector3(0.08, 0, 0),
+        ),
+        0.018,
+        "qpu-rib-edge-lock",
+      ),
+    ],
+    "qpu-manifold-reconstruction-ribs qpu-alien-iridescent-interference-fins",
+  );
 }
 
 function createQpuSignalGeometry(quality) {
@@ -816,8 +838,8 @@ function createRenderResources(quality, detailed) {
     }),
     qpuPlate: makeArchitecturalSurface({
       color: "#68EBC8",
-      effectMode: 4,
-      effectStrength: 0.24,
+      effectMode: 0,
+      effectStrength: 0,
       emissive: "#1AB6B2",
       emissiveIntensity: 0.5,
       metalness: 0.16,
@@ -1613,7 +1635,7 @@ export default function PolarStationMechanismsNE({
               frustumCulled
               geometry={resources.geometries.qpuPlate}
               material={resources.materials.qpuPlate}
-              name="qpu-contiguous-floor-shell-and-ribs qpu-sampled-double-curved-riemann-manifold"
+              name="qpu-manifold-reconstruction-ribs qpu-endpoint-to-center-build-field"
               receiveShadow
               ref={qpuPlates}
             />
