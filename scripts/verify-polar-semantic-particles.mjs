@@ -22,7 +22,14 @@ await mkdir(outputDir, { recursive: true });
 
 function fatalBrowserLog(entry) {
   const text = entry?.text || "";
-  if (/GPU stall due to ReadPixels|GL_CLOSE_PATH_NV.*Performance/i.test(text)) return false;
+  if (
+    entry?.type === "warning" &&
+    /GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): GPU stall due to ReadPixels(?: \(this message will no longer repeat\))?$/i.test(
+      text,
+    )
+  ) {
+    return false;
+  }
   return (
     entry?.type === "pageerror" ||
     entry?.type === "error" ||

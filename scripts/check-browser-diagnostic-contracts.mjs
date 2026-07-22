@@ -33,6 +33,22 @@ for (const [label, file] of verifiers) {
     `${label}: the known Chromium ReadPixels warning must remain benign`,
   );
   assert.equal(
+    fatalBrowserLog({
+      type: "error",
+      text: "GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    }),
+    true,
+    `${label}: a console error must remain fatal even when its text matches the known ReadPixels warning`,
+  );
+  assert.equal(
+    fatalBrowserLog({
+      type: "pageerror",
+      text: "GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    }),
+    true,
+    `${label}: a page error must remain fatal even when its text matches the known ReadPixels warning`,
+  );
+  assert.equal(
     fatalBrowserLog({ type: "warning", text: "WebGL context lost during render" }),
     true,
     `${label}: warning text with a fatal signature must be fatal`,
