@@ -37,7 +37,13 @@ const STATION_TRANSFORMS = Object.freeze(
         id,
         Object.freeze({
           position: Object.freeze([profile.centerXZ[0], profile.y, profile.centerXZ[1]]),
-          rotation: Object.freeze([0, profile.angleDegrees * DEG_TO_RAD, 0]),
+          rotation: Object.freeze([
+            0,
+            Number.isFinite(profile.angleRadians)
+              ? profile.angleRadians
+              : profile.angleDegrees * DEG_TO_RAD,
+            0,
+          ]),
         }),
       ];
     }),
@@ -237,7 +243,7 @@ function createRenderResources(quality) {
     assemblySurface: makeSurface({
       color: "#FFFFFF",
       emissive: assemblyPalette.highlight,
-      emissiveIntensity: 0.2,
+      emissiveIntensity: 0.62,
       metalness: 0.62,
       opacity: 1,
       roughness: 0.3,
@@ -385,7 +391,7 @@ function applySouthwestIdentityColors(pools) {
     setInstanceColor(pools.topologySurfaces, index, color);
   }
 
-  const basalt = new THREE.Color(toolingPalette.shadow);
+  const basalt = new THREE.Color(toolingPalette.surface);
   const deepPurple = new THREE.Color(toolingPalette.surface);
   const purple = new THREE.Color(toolingPalette.steel);
   const lavender = new THREE.Color(toolingPalette.highlight);
@@ -1010,7 +1016,7 @@ export default function PolarStationMechanismsSW({
           castShadow={quality === "high"}
           geometry={resources.assemblyBlock}
           material={resources.materials.assemblySurface}
-          name="assembly-heavy-curved-gantry-inspection-backplane-and-proof-tool-mass assembly-basalt-ochre-computational-archaeology circuit-hieroglyph-etching assembly-purple-lit-archaeology-gantry assembly-ochre-circuit-hieroglyphs assembly-purple-gold-lit-workshop assembly-suspended-assembly-rails assembly-lit-edge-rails"
+          name="assembly-visitor-facing-open-workshop assembly-heavy-curved-gantry-inspection-backplane-and-proof-tool-mass assembly-basalt-ochre-computational-archaeology circuit-hieroglyph-etching assembly-purple-lit-archaeology-gantry assembly-ochre-circuit-hieroglyphs assembly-purple-gold-lit-workshop assembly-suspended-assembly-rails assembly-lit-edge-rails"
           receiveShadow={quality !== "low"}
           ref={assemblyStructures}
         />

@@ -26,6 +26,7 @@ const {
   SW_MECHANISM_VISUAL_CONTRACTS,
   advanceSouthwestMechanisms,
   createSouthwestMechanismSystem,
+  deriveAssemblyVisitorYaw,
   deriveStableSignalBearing,
   deriveTopologyBarcode,
   resolveSouthwestMechanismInputs,
@@ -129,6 +130,21 @@ assert.equal(SW_MECHANISM_PROFILES[IDS[2]].naturalFrequency, 7);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].dampingRatio, 0.88);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].orientationToleranceDegrees, 1.5);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].translationTolerance, 0.025);
+{
+  const profile = SW_MECHANISM_PROFILES[IDS[2]];
+  const yaw = deriveAssemblyVisitorYaw(profile.centerXZ, profile.dockXZ);
+  assert.equal(profile.angleRadians, yaw);
+  assert.ok(Object.isFrozen(profile.localOpenFaceXZ));
+  const cosine = Math.cos(yaw);
+  const sine = Math.sin(yaw);
+  const worldOpenX = cosine * profile.localOpenFaceXZ[0] + sine * profile.localOpenFaceXZ[1];
+  const worldOpenZ = -sine * profile.localOpenFaceXZ[0] + cosine * profile.localOpenFaceXZ[1];
+  const dockX = profile.dockXZ[0] - profile.centerXZ[0];
+  const dockZ = profile.dockXZ[1] - profile.centerXZ[1];
+  const dockLength = Math.hypot(dockX, dockZ);
+  const dot = worldOpenX * (dockX / dockLength) + worldOpenZ * (dockZ / dockLength);
+  assert.ok(dot > 0.999999, `Tooling open face must point toward its dock (dot=${dot})`);
+}
 assert.equal(
   SW_MECHANISM_PROFILES[IDS[0]].palette.surface,
   STATION_PERSONALITY_PROFILES[IDS[0]].palette.signature[2],
@@ -611,6 +627,7 @@ for (const token of [
   "archive-open-canyon-gantry",
   "archive-launch-aperture-countdown-ignition",
   "assembly-purple-gold-lit-workshop",
+  "assembly-visitor-facing-open-workshop",
   "assembly-suspended-assembly-rails",
   "assembly-lit-edge-rails",
 ]) {
