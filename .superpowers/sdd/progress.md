@@ -47,7 +47,7 @@ Controller foundation (2026-07-12):
 Plan: `docs/superpowers/plans/2026-07-22-particles-manifold-release.md`
 
 - Task 1: complete (512/1536/4096 deterministic one-draw field; static/browser proof green; independent review clean)
-- Task 2: pending (continuous QPU manifold, visitor-facing Tooling, Brownian S2)
-- Task 3: pending (cinematic proof, Vercel production deployment, GitHub main/CI verification)
+- Task 2: complete (continuous QPU surface/rebuild, visitor-facing Tooling/collider, bounded Brownian S2; high + low/reduced browser proof green; independent review clean)
+- Task 3: in progress (cinematic proof, Vercel production deployment, GitHub main/CI verification)
 - Final whole-branch review: pending
 - Node server: live at `http://127.0.0.1:3000`

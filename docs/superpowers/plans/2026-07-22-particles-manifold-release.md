@@ -141,6 +141,8 @@ Expected baseline if still unfixed: FAIL on readable shadow structure at desktop
 
 Keep the verifier's requirement for both a bright average image and at least 30 meaningfully dark/shadow pixels in the sampled frame. Trace the final post-grade, tone-mapping exposure, fog, fill/key ratios, and station material luminance. Make the smallest fix that lifts readable highlights while restoring shadow separation; do not hide the failure by lowering the threshold. Preserve accessibility contrast and reduced-motion behavior.
 
+Reproduce the current unscoped mechanism verifier failure where the low-tier Manifold Reactor hero exceeds the near-black ratio (`0.0613553 > 0.05`). Fix the responsible material/light balance without weakening the threshold, then rerun the complete unscoped station-mechanism tour.
+
 Also reproduce the Observatory departure view where the translucent `PolarObservatoryDome` remains mounted and projects as a massive flat circle behind the next station. Add a focused visibility/fade contract and make the distant home dome recede as an identifiable landmark—or unmount after a bounded departure threshold—without breaking its observatory docking view.
 
 **Step 3: Run the complete local release gate**
