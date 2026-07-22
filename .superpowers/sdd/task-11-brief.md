@@ -47,4 +47,3 @@ Compute each cell's cursor-response weight from angular/geodesic distance, struc
 - [ ] **Step 5: Write deferred Wave E checks**
 
 Write assertions for deterministic counts, unit/outward normals, tangent orthogonality, no doorway overlap, no duplicate cells, collision continuity, bounded displacement weights, and low/medium/high tier budgets. Do not run them until Wave E.
-

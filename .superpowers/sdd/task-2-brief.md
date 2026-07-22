@@ -42,4 +42,3 @@ Use warm off-white snow, cool cyan/lavender shadows, navy anchors, and small loc
 - [ ] **Step 5: Verify five representative stations**
 
 Capture Plaque, S2, QPU, Topology, and Assembly at 1440×900 plus QPU mobile. Expected GREEN: no clipped focal highlight, no full-screen station wash, ground remains subordinate, and runtime has zero shader errors.
-

@@ -31,4 +31,3 @@ Reuse Wave D math/modules where appropriate. Do not create a second competing cu
 - [ ] **Step 5: Hand off to final proof**
 
 Record program/draw/texture deltas, count ceilings, reduced-motion behavior, suspension behavior, and station state mapping. Then start final Tasks 7–10 and run the frozen Wave E specification.
-

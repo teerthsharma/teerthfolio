@@ -1,7 +1,7 @@
 # Wave E Verification Specification — Polar Object-World Rescue
 
-Status: **DRAFT — NOT YET FROZEN**  
-Execution boundary: write and review during Wave E; execute the full matrix only after Wave F integration.  
+Status: **DRAFT — NOT YET FROZEN**
+Execution boundary: write and review during Wave E; execute the full matrix only after Wave F integration.
 Server boundary: the shared Node server remains off until post-Wave-F execution begins.
 
 ## 1. Release claim

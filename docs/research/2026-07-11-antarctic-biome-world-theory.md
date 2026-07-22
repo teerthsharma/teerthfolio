@@ -1,7 +1,7 @@
 # Antarctic Biome World Theory — Approval Packet
 
-Date: 2026-07-11  
-Status: **Main-approved for implementation on 2026-07-11, with the approved seal-breath timing/amplitude preserved exactly**  
+Date: 2026-07-11
+Status: **Main-approved for implementation on 2026-07-11, with the approved seal-breath timing/amplitude preserved exactly**
 Scope: eight authored Antarctic micro-worlds, one continuous XZ traversal space, no production code or coordinate changes in this document pass
 
 ## 0. Decision in one sentence

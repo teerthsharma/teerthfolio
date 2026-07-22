@@ -8,5 +8,6 @@ skills-lock.json
 .env.local
 *.log
 verification/
+.verification/
 public/uploads/*
 !public/uploads/.gitkeep

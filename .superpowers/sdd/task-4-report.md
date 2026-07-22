@@ -53,4 +53,3 @@ The checker was upgraded before production code to reject the old primitive name
 - Camera framing and overlap with the smaller legacy `IglooArtifacts` core subjects need HUD-hidden still-frame review. The new compound frames are sized to dominate and reinterpret those cores, but this cannot be approved from source alone.
 - Transparent Aether depth ordering, QPU rail/plate alignment, S2 shell seam spacing and Field coil contact require desktop/mobile screenshots before any award-quality claim.
 - Real program count may be below the declared ceiling of three; it must never exceed the ceiling.
-
