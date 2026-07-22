@@ -10,7 +10,7 @@
 
 ## Compatibility boundary
 
-The donor targets Three.js r182, WebGPU, TSL nodes, storage buffers, and compute dispatch. teerthfolio targets Three.js r178 through React Three Fiber and WebGL. TSL node graphs, WebGPU storage buffers, compute kernels, renderer setup, and GLB assets cannot be copied directly.
+The donor targets Three.js r182, WebGPU, TSL nodes, storage buffers, and compute dispatch. teerthfolio targets Three.js r178 through React Three Fiber and WebGL. TSL node graphs, WebGPU storage buffers, compute kernels, renderer setup, donor textures, source code, and GLB assets cannot be copied directly.
 
 The bounded WebGL adaptation in `lib/polar-semantic-particles.js` and `components/PolarSemanticParticles.jsx` transfers these behaviors:
 
@@ -32,7 +32,7 @@ The bounded WebGL adaptation in `lib/polar-semantic-particles.js` and `component
 | Donor system | Production adaptation | Boundary |
 | --- | --- | --- |
 | GLB `MeshSurfaceSampler` | deterministic, surface-biased sampling over station-authored parametric bounds and the shared dome lattice | No donor GLB is copied. Dome cells become the authoritative sampling surface after Wave D. |
-| WebGPU storage buffers | immutable WebGL `BufferAttribute` streams for center, local point, bounds, color, seed, velocity, station, and behavior | Counts are intentionally bounded at 96/224/448 rather than 60k. |
+| WebGPU storage buffers | immutable WebGL `BufferAttribute` streams for center, local point, bounds, color, seed, velocity, station, and behavior | Counts are intentionally bounded at 512/1536/4096 (64/192/512 per station) rather than 60k. No donor assets or WebGPU/TSL source are included. |
 | TSL compute dispatch | vertex-shader procedural motion with one shared draw | Stateful per-particle compute is replaced by analytic motion and a uniform spring envelope. |
 | Dual source/current normals | blended point-sprite and parametric surface normals | Used for readable soft volume without a normal texture. |
 | Wrapped diffuse | wrapped key-light term in the semantic particle fragment shader and dome crystal shader | Maintains anime-soft light on back-facing/edge regions. |
