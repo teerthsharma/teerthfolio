@@ -22,6 +22,7 @@ const {
   QPU_MANIFOLD_LAYOUT,
   advanceNortheastMechanisms,
   createNortheastMechanismSystem,
+  resolveQpuConstructionStep,
   resolveNortheastStationReveal,
   sampleQpuManifoldBoundary,
 } = mechanisms;
@@ -451,6 +452,35 @@ function advanceChunks(system, inputs, chunks, options = {}) {
   }
 }
 
+// A fractional display remainder survives the largest accepted hitch instead of being pre-clamped away.
+{
+  const inputs = emptyInputs();
+  Object.assign(inputs[IDS[0]], { proximity: 0.8, positionX: -7, positionZ: 15 });
+  const fractionalHitch = createNortheastMechanismSystem();
+  advanceNortheastMechanisms(fractionalHitch, inputs, 1 / 144);
+  advanceNortheastMechanisms(fractionalHitch, inputs, 0.1);
+  assert.ok(Math.abs(fractionalHitch.simulationTime + fractionalHitch.accumulator - (1 / 144 + 0.1)) < 1e-10);
+  assert.ok(fractionalHitch.accumulator > 0 && fractionalHitch.accumulator < 1 / 120);
+
+  const fractionalMixed = createNortheastMechanismSystem();
+  const chunks = Array.from({ length: 20 }, () => [1 / 144, 0.1, 1 / 165, 0.05]).flat();
+  let acceptedTime = 0;
+  for (const chunk of chunks) {
+    acceptedTime += chunk;
+    advanceNortheastMechanisms(fractionalMixed, inputs, chunk);
+    assert.ok(fractionalMixed.accumulator < 1 / 120 + 1e-10, "accepted <=0.1 frames must not accumulate an unbounded backlog");
+  }
+  assert.ok(Math.abs(fractionalMixed.simulationTime + fractionalMixed.accumulator - acceptedTime) < 1e-9);
+}
+
+// The actual one-draw manifold reveal advances in endpoint-paired construction steps.
+{
+  assert.equal(resolveQpuConstructionStep(0, 24), 0);
+  assert.equal(resolveQpuConstructionStep(0.24, 24), 5);
+  assert.equal(resolveQpuConstructionStep(0.5, 24), 12);
+  assert.equal(resolveQpuConstructionStep(1, 24), 24);
+}
+
 // Deterministic harmonic/OU forcing remains mean-reverting and bounded over a long run.
 {
   const system = createNortheastMechanismSystem();
@@ -555,8 +585,23 @@ assert.match(
 );
 assert.match(
   source,
-  /function createQpuCausewayFrameGeometry\(quality\) \{[\s\S]*createQpuContinuousManifoldGeometry\(quality\)[\s\S]*\n\}/,
-  "the low QPU frame pool must include a completed continuous manifold",
+  /createQpuCausewayFrameGeometry[\s\S]*stableVertexCount[\s\S]*constructionStepEndVertexCounts/,
+  "the one-draw QPU frame must retain stable and endpoint-paired construction vertex ranges",
+);
+assert.match(
+  source,
+  /const leftBand = step[\s\S]*const rightBand = uSegments - 1 - step[\s\S]*orderedIndices\.push/,
+  "non-indexed manifold triangles must be ordered in symmetric endpoint-to-center pairs",
+);
+assert.match(
+  source,
+  /function updateQpuFrameDrawRange[\s\S]*geometry\.setDrawRange\(0, visibleVertexCount\)/,
+  "the QPU frame helper must change actual geometry visibility",
+);
+assert.match(
+  source,
+  /updateQpuFrameDrawRange\(pools\.frame, state\.manifoldBuild\)/,
+  "actual QPU floor and shell visibility must consume manifold build progress",
 );
 assert.match(
   source,
@@ -659,7 +704,7 @@ for (const token of [
   "qpu-manifold-verification-beam",
   "new THREE.BufferGeometry()",
   "geometry.setAttribute(\"position\"",
-  "geometry.setIndex(indices)",
+  "constructionStepEndVertexCounts",
   "brownianCoordinates",
   "customProgramCacheKey",
   "castShadow",
