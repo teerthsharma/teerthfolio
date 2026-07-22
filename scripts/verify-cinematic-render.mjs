@@ -535,7 +535,9 @@ async function verifyMovement(page) {
 async function verifyRailTap(page) {
   const readoutText = async () => page.locator(".igloo-artifact-readout").textContent();
   const before = await readoutText();
-  const target = page.locator(".station-profile-rail .station-profile-chip").nth(1);
+  const target = page.locator(
+    '.station-profile-rail .station-profile-chip[data-station-id="s2-kernel-core"]',
+  );
   await target.click();
   await page.waitForTimeout(220);
   const pending = await readoutText();
@@ -546,15 +548,64 @@ async function verifyRailTap(page) {
     { timeout: 3000 },
   );
   const after = await readoutText();
+  const routeMoving =
+    (await page.locator("#world").getAttribute("data-presentation-phase")) === "moving";
+  await page.waitForSelector('#world[data-docked-station="s2-kernel-core"]', {
+    timeout: 25000,
+  });
+  await page.waitForFunction(
+    () => {
+      const target = document.querySelector(
+        '.station-profile-rail .station-profile-chip[data-station-id="s2-kernel-core"]',
+      );
+      const readout = document.querySelector(".igloo-artifact-readout");
+      return (
+        target?.dataset.active === "true" &&
+        target?.getAttribute("aria-pressed") === "true" &&
+        target?.getAttribute("aria-current") === "location" &&
+        readout?.dataset.stationId === "s2-kernel-core"
+      );
+    },
+    null,
+    { timeout: 10000 },
+  );
+  const arrivalReadoutText = await readoutText();
   return {
     after,
+    arrivalActive: (await target.getAttribute("data-active")) === "true",
+    arrivalCurrent: (await target.getAttribute("aria-current")) === "location",
+    arrivalFocused: (await target.getAttribute("aria-pressed")) === "true",
+    arrivalReadout:
+      (await page.locator(".igloo-artifact-readout").getAttribute("data-station-id")) ===
+      "s2-kernel-core",
+    arrivalReadoutText,
+    arrivedDocked:
+      (await page.locator("#world").getAttribute("data-docked-station")) ===
+      "s2-kernel-core",
     before,
     changed: before !== after,
     pendingDestination,
     pendingReadoutUpdated: pending !== before && /S2 Kernel Core/i.test(pending || ""),
-    routeMoving: (await page.locator("#world").getAttribute("data-presentation-phase")) === "moving",
+    routeMoving,
     targetText: await target.textContent(),
   };
+}
+
+function fatalBrowserLog(entry) {
+  const text = entry?.text || "";
+  if (/GPU stall due to ReadPixels|GL_CLOSE_PATH_NV.*Performance/i.test(text)) return false;
+  return (
+    entry?.type === "pageerror" ||
+    /uncaught|unhandled(?: promise)? rejection|referenceerror|typeerror|syntaxerror|rangeerror|shader (?:error|compile)|error compiling shader|webglprogram|webgl context lost|context lost|gl_invalid|react-three|@react-three|\br3f\b|window-error/i.test(
+      text,
+    )
+  );
+}
+
+function fatalLogFailures(result) {
+  return (result.logs || [])
+    .filter(fatalBrowserLog)
+    .map((entry) => `fatal browser ${entry.type}: ${entry.text}`);
 }
 
 function assertViewport(result) {
@@ -678,9 +729,15 @@ function assertViewport(result) {
     (!railTap.pendingDestination ||
       !railTap.pendingReadoutUpdated ||
       !railTap.changed ||
-      !railTap.routeMoving)
+      !railTap.routeMoving ||
+      !railTap.arrivedDocked ||
+      !railTap.arrivalActive ||
+      !railTap.arrivalFocused ||
+      !railTap.arrivalCurrent ||
+      !railTap.arrivalReadout ||
+      !/S2 Kernel Core/i.test(railTap.arrivalReadoutText || ""))
   ) {
-    failures.push(`mobile station rail did not preserve route intent then earn station focus: ${JSON.stringify(railTap)}`);
+    failures.push(`mobile station rail did not initiate and complete S2 navigation: ${JSON.stringify(railTap)}`);
   }
   if (name === "reduced-motion") {
     if (!metrics.reducedMotion) failures.push("reduced-motion viewport did not emulate reduced motion");
@@ -854,7 +911,7 @@ try {
       logs,
       viewport: { width: safeGateViewport.width, height: safeGateViewport.height },
     };
-    result.failures = assertSafeGate(result);
+    result.failures = [...assertSafeGate(result), ...fatalLogFailures(result)];
     report.push(result);
     await context.close();
   }
@@ -887,7 +944,7 @@ try {
     const movement = viewport.name === "desktop" ? await verifyMovement(page) : {};
     const railTap = viewport.name === "mobile" ? await verifyRailTap(page) : {};
     const result = { name: viewport.name, screenshot, metrics, movement, railTap, logs };
-    result.failures = assertViewport(result);
+    result.failures = [...assertViewport(result), ...fatalLogFailures(result)];
     report.push(result);
     await context.close();
   }
@@ -920,7 +977,7 @@ try {
       metrics,
       logs,
     };
-    result.failures = assertSection(result);
+    result.failures = [...assertSection(result), ...fatalLogFailures(result)];
     report.push(result);
     await context.close();
   }

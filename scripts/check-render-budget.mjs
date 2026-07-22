@@ -67,6 +67,7 @@ const files = {
   post: readFileSync(join(root, "components", "RetroCinematicPostProcess.jsx"), "utf8"),
   polarArtDirection: readFileSync(join(root, "lib", "polar-art-direction.js"), "utf8"),
   traversal: readFileSync(join(root, "lib", "polar-traversal.js"), "utf8"),
+  cinematicVerifier: readFileSync(join(root, "scripts", "verify-cinematic-render.mjs"), "utf8"),
 };
 
 const checks = [
@@ -114,6 +115,21 @@ const checks = [
     name: "scene reports WebGL lifecycle and first rendered frame into diagnostics",
     file: files.scene,
     pattern: /SceneDiagnostics[\s\S]*webglcontextlost[\s\S]*onGpuEvent[\s\S]*webgl-scene-ready[\s\S]*onCanvasCreated[\s\S]*igloo-scene-canvas[\s\S]*webgl-created[\s\S]*onCreated=\{onCanvasCreated\}/,
+  },
+  {
+    name: "cinematic verifier fails every result family on fatal browser diagnostics",
+    file: files.cinematicVerifier,
+    pattern: /function fatalBrowserLog[\s\S]*ReadPixels[\s\S]*return false[\s\S]*pageerror[\s\S]*window-error[\s\S]*function fatalLogFailures[\s\S]*result\.failures = \[\.\.\.assertSafeGate\(result\), \.\.\.fatalLogFailures\(result\)\][\s\S]*result\.failures = \[\.\.\.assertViewport\(result\), \.\.\.fatalLogFailures\(result\)\][\s\S]*result\.failures = \[\.\.\.assertSection\(result\), \.\.\.fatalLogFailures\(result\)\]/,
+  },
+  {
+    name: "mobile cinematic rail proof checks route initiation and completed S2 focus",
+    file: files.cinematicVerifier,
+    pattern: /async function verifyRailTap[\s\S]*presentationPhase === "moving"[\s\S]*data-docked-station="s2-kernel-core"[\s\S]*arrivalActive[\s\S]*arrivalCurrent[\s\S]*arrivalFocused[\s\S]*arrivalReadout[\s\S]*arrivedDocked[\s\S]*pendingDestination[\s\S]*routeMoving/,
+  },
+  {
+    name: "observatory dataset updates are isolated from stable WebGL lifecycle listeners",
+    file: files.scene,
+    pattern: /function syncSceneDiagnosticsDataset[\s\S]*observatoryDomeDistance[\s\S]*observatoryDomeVisible[\s\S]*function SceneDiagnostics[\s\S]*syncSceneDiagnosticsDataset[\s\S]*\[gl, observatoryDistance, observatoryDomeVisible, quality, reducedMotion\][\s\S]*addEventListener\("webglcontextlost"[\s\S]*removeEventListener\("webglcontextlost"[\s\S]*\[gl, onGpuEvent\]/,
   },
   {
     name: "public render-enabled state waits for the first rendered WebGL frame",

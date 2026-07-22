@@ -322,6 +322,16 @@ function ForceCanvasResize() {
   return null;
 }
 
+function syncSceneDiagnosticsDataset(
+  canvas,
+  { observatoryDistance, observatoryDomeVisible, quality, reducedMotion },
+) {
+  canvas.dataset.observatoryDomeDistance = observatoryDistance.toFixed(3);
+  canvas.dataset.observatoryDomeVisible = observatoryDomeVisible ? "true" : "false";
+  canvas.dataset.quality = quality;
+  canvas.dataset.reducedMotion = reducedMotion ? "true" : "false";
+}
+
 function SceneDiagnostics({
   observatoryDistance,
   observatoryDomeVisible,
@@ -333,15 +343,20 @@ function SceneDiagnostics({
   const readyFrames = useRef(0);
 
   useEffect(() => {
+    syncSceneDiagnosticsDataset(gl.domElement, {
+      observatoryDistance,
+      observatoryDomeVisible,
+      quality,
+      reducedMotion,
+    });
+  }, [gl, observatoryDistance, observatoryDomeVisible, quality, reducedMotion]);
+
+  useEffect(() => {
     const canvas = gl.domElement;
     const context = gl.getContext();
-    canvas.dataset.observatoryDomeDistance = observatoryDistance.toFixed(3);
-    canvas.dataset.observatoryDomeVisible = observatoryDomeVisible ? "true" : "false";
-    canvas.dataset.quality = quality;
-    canvas.dataset.reducedMotion = reducedMotion ? "true" : "false";
     onGpuEvent?.({
       detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
-      message: `WebGL context listeners armed at ${quality} quality.`,
+      message: "WebGL context listeners armed.",
       severity: "info",
       type: "webgl-listeners-ready",
     });
@@ -369,7 +384,7 @@ function SceneDiagnostics({
       canvas.removeEventListener("webglcontextlost", onContextLost);
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
     };
-  }, [gl, observatoryDistance, observatoryDomeVisible, onGpuEvent, quality, reducedMotion]);
+  }, [gl, onGpuEvent]);
 
   useFrame(() => {
     if (readyFrames.current >= 2) return;
