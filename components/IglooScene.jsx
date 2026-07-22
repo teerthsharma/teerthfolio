@@ -9,6 +9,7 @@ import {
   POLAR_PALETTE,
   WORLD_STREAM_TIMINGS,
   easeWorldStream,
+  shouldRenderObservatoryDome,
 } from "../lib/polar-art-direction";
 import {
   STATION_WORLD_SCHEMA,
@@ -321,13 +322,21 @@ function ForceCanvasResize() {
   return null;
 }
 
-function SceneDiagnostics({ onGpuEvent, quality, reducedMotion }) {
+function SceneDiagnostics({
+  observatoryDistance,
+  observatoryDomeVisible,
+  onGpuEvent,
+  quality,
+  reducedMotion,
+}) {
   const { gl } = useThree();
   const readyFrames = useRef(0);
 
   useEffect(() => {
     const canvas = gl.domElement;
     const context = gl.getContext();
+    canvas.dataset.observatoryDomeDistance = observatoryDistance.toFixed(3);
+    canvas.dataset.observatoryDomeVisible = observatoryDomeVisible ? "true" : "false";
     canvas.dataset.quality = quality;
     canvas.dataset.reducedMotion = reducedMotion ? "true" : "false";
     onGpuEvent?.({
@@ -360,7 +369,7 @@ function SceneDiagnostics({ onGpuEvent, quality, reducedMotion }) {
       canvas.removeEventListener("webglcontextlost", onContextLost);
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
     };
-  }, [gl, onGpuEvent, quality, reducedMotion]);
+  }, [gl, observatoryDistance, observatoryDomeVisible, onGpuEvent, quality, reducedMotion]);
 
   useFrame(() => {
     if (readyFrames.current >= 2) return;
@@ -376,29 +385,6 @@ function SceneDiagnostics({ onGpuEvent, quality, reducedMotion }) {
   });
 
   return null;
-}
-
-function RendererFallback({ onGpuEvent }) {
-  useEffect(() => {
-    onGpuEvent?.({
-      message: "Renderer is waiting for texture and geometry assets.",
-      severity: "info",
-      type: "asset-suspense",
-    });
-  }, [onGpuEvent]);
-
-  return (
-    <group name="RendererFallback">
-      <mesh position={[0, 0.68, 0]}>
-        <sphereGeometry args={[1.5, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshBasicMaterial color="#dffdf7" transparent opacity={0.14} wireframe />
-      </mesh>
-      <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.75, 0.01, 6, 72]} />
-        <meshBasicMaterial color="#5ff8e7" transparent opacity={0.36} />
-      </mesh>
-    </group>
-  );
 }
 
 function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }) {
@@ -555,6 +541,14 @@ export default function IglooScene({
       window.location.search.includes("qa-sdf") ||
       window.location.search.includes("qa-low") ||
       window.location.search.includes("safe=1"));
+  const observatoryDistance = Math.hypot(
+    axisX - OBSERVATORY_WORLD.center.x,
+    depthZ - OBSERVATORY_WORLD.center.z,
+  );
+  const observatoryDomeVisible = shouldRenderObservatoryDome({
+    destinationStationId: activeArtifactId,
+    distanceFromHome: observatoryDistance,
+  });
   const onCanvasCreated = useCallback(
     ({ gl }) => {
       gl.domElement.classList.add("igloo-scene-canvas");
@@ -615,8 +609,10 @@ export default function IglooScene({
       <fogExp2 attach="fog" args={[POLAR_PALETTE.fog, 0.018]} />
       <ambientLight intensity={0.44} />
       <hemisphereLight color="#FFFDF7" groundColor="#9BB5C1" intensity={1} />
-      <Suspense fallback={<RendererFallback onGpuEvent={onGpuEvent} />}>
+      <Suspense fallback={null}>
         <SceneDiagnostics
+          observatoryDistance={observatoryDistance}
+          observatoryDomeVisible={observatoryDomeVisible}
           onGpuEvent={onGpuEvent}
           quality={quality}
           reducedMotion={reducedMotion}
@@ -747,8 +743,7 @@ export default function IglooScene({
             />
           </WorldStreamReveal>
         )}
-        {!debugFlags.noDome &&
-          (!dockedStationId || dockedStationId === "observatory-plaque") && (
+        {!debugFlags.noDome && observatoryDomeVisible && (
           <WorldStreamReveal
             durationMs={WORLD_STREAM_TIMINGS.domeRevealMs}
             fromScale={0.76}

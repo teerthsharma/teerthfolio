@@ -179,16 +179,21 @@ try {
     });
     if (station.id === "topology-archive-wall") {
       const portalOffer = page.getByRole("dialog", {
-        name: "Launch into the archive?",
+        name: /topology archive/i,
       });
       await portalOffer.waitFor({ state: "attached", timeout: 25000 });
-      await portalOffer.getByRole("button", { name: "Stay in world" }).click();
+      await portalOffer
+        .getByRole("button", { name: /Stay in (?:the polar )?world/i })
+        .click();
       await portalOffer.waitFor({ state: "detached", timeout: 25000 });
     }
     await page.waitForSelector('#world[data-render-enabled="true"]', {
       timeout: 25000,
     });
-    if (quality !== "medium") {
+    const renderedQuality = await page
+      .locator("canvas.igloo-scene-canvas")
+      .getAttribute("data-quality");
+    if (renderedQuality !== quality) {
       await page
         .getByRole("button", { name: `Use ${quality} graphics quality` })
         .click();
@@ -330,7 +335,10 @@ try {
     assert.ok(familySamples.every((count) => count === "1"));
     assert.equal(metrics.renderer, "webgl");
     assert.ok(metrics.averageLuminance > 70, `${station.id}: scene too dark`);
-    assert.ok(metrics.blackPixelRatio < 0.14, `${station.id}: black monolith/void ratio too high`);
+    assert.ok(
+      metrics.blackPixelRatio < 0.14,
+      `${station.id}: black monolith/void ratio too high (${metrics.blackPixelRatio})`,
+    );
     assert.ok(
       metrics.heroBlackPixelRatio < 0.05,
       `${station.id}: near-black hero pixels exceed 5% (${metrics.heroBlackPixelRatio})`,
