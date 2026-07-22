@@ -321,13 +321,15 @@ function ForceCanvasResize() {
   return null;
 }
 
-function SceneDiagnostics({ onGpuEvent, quality }) {
+function SceneDiagnostics({ onGpuEvent, quality, reducedMotion }) {
   const { gl } = useThree();
   const readyFrames = useRef(0);
 
   useEffect(() => {
     const canvas = gl.domElement;
     const context = gl.getContext();
+    canvas.dataset.quality = quality;
+    canvas.dataset.reducedMotion = reducedMotion ? "true" : "false";
     onGpuEvent?.({
       detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
       message: `WebGL context listeners armed at ${quality} quality.`,
@@ -358,7 +360,7 @@ function SceneDiagnostics({ onGpuEvent, quality }) {
       canvas.removeEventListener("webglcontextlost", onContextLost);
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
     };
-  }, [gl, onGpuEvent, quality]);
+  }, [gl, onGpuEvent, quality, reducedMotion]);
 
   useFrame(() => {
     if (readyFrames.current >= 2) return;
@@ -614,7 +616,11 @@ export default function IglooScene({
       <ambientLight intensity={0.44} />
       <hemisphereLight color="#FFFDF7" groundColor="#9BB5C1" intensity={1} />
       <Suspense fallback={<RendererFallback onGpuEvent={onGpuEvent} />}>
-        <SceneDiagnostics onGpuEvent={onGpuEvent} quality={quality} />
+        <SceneDiagnostics
+          onGpuEvent={onGpuEvent}
+          quality={quality}
+          reducedMotion={reducedMotion}
+        />
         <ForceCanvasResize />
         <CameraRig
           activeArtifact={activeArtifact}

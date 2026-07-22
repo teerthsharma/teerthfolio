@@ -101,7 +101,7 @@ try {
     { timeout: 15000 },
   );
 
-  for (const [quality, expectedCount] of [["low", 96], ["medium", 224], ["high", 448]]) {
+  for (const [quality, expectedCount] of [["low", 512], ["medium", 1536], ["high", 4096]]) {
     await selectQuality(page, quality);
     await page.waitForTimeout(240);
     const state = await readParticleState(page);
@@ -128,7 +128,7 @@ try {
     const screenshot = path.join(outputDir, `${String(index + 1).padStart(2, "0")}-${stationId}.png`);
     await page.screenshot({ path: screenshot, fullPage: false });
     assert.equal(state.station, stationId);
-    assert.equal(state.count, 448);
+    assert.equal(state.count, 4096);
     assert.ok(state.averageLuminance > 24, `${stationId} frame must not be blank`);
     assert.ok(state.blackPixelRatio < 0.08, `${stationId} must not regress to a black particle field`);
     report.stations.push({ ...state, screenshot, stationId });
@@ -153,14 +153,17 @@ try {
   });
   await reducedPage.waitForSelector('#world[data-render-enabled="true"]', { timeout: 30000 });
   await reducedPage.waitForFunction(
-    () => document.querySelector("canvas.igloo-scene-canvas")?.dataset.semanticParticleCount === "224",
+    () => document.querySelector("canvas.igloo-scene-canvas")?.dataset.semanticParticleCount === "1536",
     null,
     { timeout: 15000 },
   );
   const reducedState = await readParticleState(reducedPage);
   assert.equal(reducedState.reducedMotion, "true");
-  assert.equal(reducedState.count, 224);
+  assert.equal(reducedState.count, 1536);
   assert.equal(reducedState.draws, 1);
+  assert.equal(reducedState.programs, 1);
+  assert.equal(reducedState.mode, "active");
+  assert.equal(reducedState.source, "cortiz-igloo-concepts-original-webgl-port");
   assert.deepEqual(reducedDiagnostics.filter(isFatal), [], "reduced particle field emitted fatal diagnostics");
   report.reducedMotion = { ...reducedState, diagnostics: reducedDiagnostics };
   await reducedContext.close();

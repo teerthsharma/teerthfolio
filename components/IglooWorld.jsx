@@ -522,7 +522,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     } else {
       const memory = navigator.deviceMemory || 8;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      setQuality(reducedMotion || memory <= 4 ? "low" : "high");
+      setQuality(memory <= 4 ? "low" : reducedMotion ? "medium" : "high");
     }
     setSceneDebugFlags(nextSceneDebugFlags);
     setSafeMode(nextSafeMode);
@@ -971,7 +971,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
             onSelectArtifact={selectArtifact}
             onTouchIgloo={touchIgloo}
             projects={projects}
-            quality={safeMode || reduced ? "low" : quality}
+            quality={safeMode ? "low" : quality}
             reducedMotion={reduced}
             renderEnabled={sdfRenderEnabled}
             sealAwake={sealAwake}

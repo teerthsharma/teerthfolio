@@ -96,11 +96,11 @@ export default function PolarSemanticParticles({
 
   useEffect(() => {
     gl.domElement.dataset.semanticParticleStation = activeStationId;
-  }, [activeStationId, gl]);
+  }, [activeStationId, geometry, gl]);
 
   useEffect(() => {
     gl.domElement.dataset.semanticParticleMode = enabled && visible ? "active" : "suspended";
-  }, [enabled, gl, visible]);
+  }, [enabled, geometry, gl, visible]);
 
   useEffect(() => {
     material.uniforms.uMotion.value = reducedMotion ? 0 : 1;

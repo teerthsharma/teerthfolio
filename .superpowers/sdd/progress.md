@@ -41,3 +41,13 @@ Controller foundation (2026-07-12):
 - Task 18: evidence-integrity root fix complete pending task review; Epsilon-Hollow resolves from a complete GitHub tree to `1,013` tracked files / `397` Rust files while six curated entries remain explicitly sampled paths.
 - Task 19 / Wave G: brief written at `.superpowers/sdd/task-19-brief.md`; full user-facing copy/evidence audit waits for the next available agent slot.
 - Node server: live at `http://127.0.0.1:3000`; latest clean start completed in `831 ms`.
+
+## 2026-07-22 Final Particle and Manifold Release
+
+Plan: `docs/superpowers/plans/2026-07-22-particles-manifold-release.md`
+
+- Task 1: complete (512/1536/4096 bounded semantic particles; focused static and live proof passed)
+- Task 2: pending (continuous QPU manifold, visitor-facing Tooling, Brownian S2)
+- Task 3: pending (cinematic proof, Vercel production deployment, GitHub main/CI verification)
+- Final whole-branch review: pending
+- Node server: live at `http://127.0.0.1:3000`
