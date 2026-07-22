@@ -7,6 +7,7 @@ const root = process.cwd();
 const libraryPath = join(root, "lib", "polar-station-mechanisms-sw.js");
 const componentPath = join(root, "components", "PolarStationMechanismsSW.jsx");
 const personalityPath = join(root, "lib", "polar-station-personality.js");
+const worldPath = join(root, "lib", "polar-station-world.js");
 
 assert.ok(
   existsSync(libraryPath),
@@ -15,7 +16,9 @@ assert.ok(
 
 const mechanisms = await import(pathToFileURL(libraryPath).href);
 const { STATION_PERSONALITY_PROFILES } = await import(pathToFileURL(personalityPath).href);
+const { STATION_WORLD_SCHEMA } = await import(pathToFileURL(worldPath).href);
 const {
+  ASSEMBLY_WORKSHOP_GEOMETRY,
   SW_ASSEMBLY_PART_TYPES,
   SW_MECHANISM_INTEGRATION,
   SW_MECHANISM_BUDGET,
@@ -132,18 +135,25 @@ assert.equal(SW_MECHANISM_PROFILES[IDS[2]].orientationToleranceDegrees, 1.5);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].translationTolerance, 0.025);
 {
   const profile = SW_MECHANISM_PROFILES[IDS[2]];
-  const yaw = deriveAssemblyVisitorYaw(profile.centerXZ, profile.dockXZ);
+  const expectedOpenFace = [0, -Math.sign(ASSEMBLY_WORKSHOP_GEOMETRY.backplaneLocalZ)];
+  assert.deepEqual(ASSEMBLY_WORKSHOP_GEOMETRY.localOpenFaceXZ, expectedOpenFace);
+  assert.deepEqual(ASSEMBLY_WORKSHOP_GEOMETRY.ribPlanesLocalZ, [-0.62, 0.62]);
+  assert.ok(Object.isFrozen(ASSEMBLY_WORKSHOP_GEOMETRY));
+  const yaw = deriveAssemblyVisitorYaw(profile.centerXZ, profile.dockXZ, expectedOpenFace);
   assert.equal(profile.angleRadians, yaw);
-  assert.ok(Object.isFrozen(profile.localOpenFaceXZ));
   const cosine = Math.cos(yaw);
   const sine = Math.sin(yaw);
-  const worldOpenX = cosine * profile.localOpenFaceXZ[0] + sine * profile.localOpenFaceXZ[1];
-  const worldOpenZ = -sine * profile.localOpenFaceXZ[0] + cosine * profile.localOpenFaceXZ[1];
+  const worldOpenX = cosine * expectedOpenFace[0] + sine * expectedOpenFace[1];
+  const worldOpenZ = -sine * expectedOpenFace[0] + cosine * expectedOpenFace[1];
   const dockX = profile.dockXZ[0] - profile.centerXZ[0];
   const dockZ = profile.dockXZ[1] - profile.centerXZ[1];
   const dockLength = Math.hypot(dockX, dockZ);
   const dot = worldOpenX * (dockX / dockLength) + worldOpenZ * (dockZ / dockLength);
   assert.ok(dot > 0.999999, `Tooling open face must point toward its dock (dot=${dot})`);
+  assert.ok(
+    Math.abs(STATION_WORLD_SCHEMA.stations[IDS[2]].collider.rotationDegrees - profile.angleDegrees) < 1e-9,
+    "Tooling collider and rendered footprint must share the architectural yaw",
+  );
 }
 assert.equal(
   SW_MECHANISM_PROFILES[IDS[0]].palette.surface,
@@ -550,13 +560,22 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   const inputs = emptyInputs();
   Object.assign(inputs[IDS[0]], { proximity: 0.83, signalMetadata: liveSummary });
   const at30 = advanceFor(createSouthwestMechanismSystem(), inputs, 2, {}, 30);
+  const at10 = advanceFor(createSouthwestMechanismSystem(), inputs, 2, {}, 10);
   const at144 = advanceFor(createSouthwestMechanismSystem(), inputs, 2, {}, 144);
+  const mixed = createSouthwestMechanismSystem();
+  for (const chunk of Array.from({ length: 8 }, () => [0.1, 0.025, 0.05, 0.075]).flat()) {
+    advanceSouthwestMechanisms(mixed, inputs, chunk);
+  }
+  assert.ok(Math.abs(at10.simulationTime - at144.simulationTime) < 1e-8);
+  assert.ok(Math.abs(mixed.simulationTime - at144.simulationTime) < 1e-8);
   assert.ok(
     Math.abs(
       at30.states[IDS[0]].dishBearingRadians -
         at144.states[IDS[0]].dishBearingRadians,
     ) < 1e-5,
   );
+  assert.ok(Math.abs(at10.states[IDS[0]].dishBearingRadians - at144.states[IDS[0]].dishBearingRadians) < 1e-5);
+  assert.ok(Math.abs(mixed.states[IDS[0]].dishBearingRadians - at144.states[IDS[0]].dishBearingRadians) < 1e-5);
 }
 
 assert.ok(
@@ -603,6 +622,8 @@ for (const token of [
   "visualBearingRadians",
   "ASSEMBLY_ARCH_SEGMENTS",
   "ASSEMBLY_STRUCTURE_COUNT",
+  "ASSEMBLY_WORKSHOP_GEOMETRY.backplaneLocalZ",
+  "ASSEMBLY_WORKSHOP_GEOMETRY.ribPlanesLocalZ",
   "gantryCompression",
   "THREE.ExtrudeGeometry",
   "THREE.LatheGeometry",
