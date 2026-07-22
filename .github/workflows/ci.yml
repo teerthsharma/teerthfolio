@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check release boundaries
+        run: npm run check:release-boundaries
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 

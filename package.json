@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "npm run check:publication-packaging && npm run check:ci-browser-boundary && npm run check:browser-diagnostics && npm run check:teerth && npm run check:evidence-integrity && npm run check:user-copy && npm run check:render-budget && npm run check:gpu-lifecycle && npm run check:polar-rescue && npm run check:hud-accessibility && npm run check:station-world && npm run check:station-world-integration && npm run check:polar-traversal && npm run check:camera-composition && npm run check:world-cadence && npm run check:seal-manifold && npm run check:dome-crystal && npm run check:station-shaders && npm run check:station-mechanisms-ne && npm run check:station-mechanisms-sw && npm run check:station-mechanism-layer && npm run check:biome-world && npm run check:particles && next build",
+    "build": "npm run check:browser-diagnostics && npm run check:teerth && npm run check:evidence-integrity && npm run check:user-copy && npm run check:render-budget && npm run check:gpu-lifecycle && npm run check:polar-rescue && npm run check:hud-accessibility && npm run check:station-world && npm run check:station-world-integration && npm run check:polar-traversal && npm run check:camera-composition && npm run check:world-cadence && npm run check:seal-manifold && npm run check:dome-crystal && npm run check:station-shaders && npm run check:station-mechanisms-ne && npm run check:station-mechanisms-sw && npm run check:station-mechanism-layer && npm run check:biome-world && npm run check:particles && next build",
     "check:biome-world": "node scripts/check-polar-biome-world.mjs",
     "check:browser-diagnostics": "node scripts/check-browser-diagnostic-contracts.mjs",
     "check:camera-composition": "node scripts/check-polar-camera-composition.mjs",
@@ -17,6 +17,7 @@
     "check:particles": "node scripts/check-polar-semantic-particles.mjs",
     "check:publication-packaging": "node scripts/check-publication-packaging.mjs",
     "check:ci-browser-boundary": "node scripts/check-ci-browser-boundary.mjs",
+    "check:release-boundaries": "npm run check:publication-packaging && npm run check:ci-browser-boundary",
     "check:polar-traversal": "node scripts/check-polar-traversal.mjs",
     "check:render-budget": "node scripts/check-render-budget.mjs",
     "check:seal-manifold": "node scripts/check-seal-manifold.mjs",
