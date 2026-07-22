@@ -70,6 +70,28 @@ const files = {
   cinematicVerifier: readFileSync(join(root, "scripts", "verify-cinematic-render.mjs"), "utf8"),
 };
 
+const fatalBrowserLogBody = files.cinematicVerifier.match(
+  /function fatalBrowserLog\(entry\) \{([\s\S]*?)\r?\n\}\r?\n\r?\nfunction fatalLogFailures/,
+)?.[1];
+assert.ok(fatalBrowserLogBody, "cinematic fatal browser-log predicate must remain statically inspectable");
+const fatalBrowserLogContract = new Function("entry", fatalBrowserLogBody);
+assert.equal(
+  fatalBrowserLogContract({
+    type: "error",
+    text: "Refused to load a canvas resource because Content Security Policy blocked it",
+  }),
+  true,
+  "an arbitrary console error must fail cinematic verification even without a known text signature",
+);
+assert.equal(
+  fatalBrowserLogContract({
+    type: "warning",
+    text: "GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+  }),
+  false,
+  "the known Chromium ReadPixels performance warning must remain non-fatal",
+);
+
 const checks = [
   {
     name: "plain safe mode waits for explicit user probe",

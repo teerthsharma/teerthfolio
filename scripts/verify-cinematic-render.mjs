@@ -596,6 +596,7 @@ function fatalBrowserLog(entry) {
   if (/GPU stall due to ReadPixels|GL_CLOSE_PATH_NV.*Performance/i.test(text)) return false;
   return (
     entry?.type === "pageerror" ||
+    entry?.type === "error" ||
     /uncaught|unhandled(?: promise)? rejection|referenceerror|typeerror|syntaxerror|rangeerror|shader (?:error|compile)|error compiling shader|webglprogram|webgl context lost|context lost|gl_invalid|react-three|@react-three|\br3f\b|window-error/i.test(
       text,
     )
