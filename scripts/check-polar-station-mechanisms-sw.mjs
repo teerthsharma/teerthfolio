@@ -578,6 +578,27 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.ok(Math.abs(mixed.states[IDS[0]].dishBearingRadians - at144.states[IDS[0]].dishBearingRadians) < 1e-5);
 }
 
+// A fractional display remainder survives the largest accepted hitch instead of being pre-clamped away.
+{
+  const inputs = emptyInputs();
+  Object.assign(inputs[IDS[0]], { proximity: 0.83, signalMetadata: liveSummary });
+  const fractionalHitch = createSouthwestMechanismSystem();
+  advanceSouthwestMechanisms(fractionalHitch, inputs, 1 / 144);
+  advanceSouthwestMechanisms(fractionalHitch, inputs, 0.1);
+  assert.ok(Math.abs(fractionalHitch.simulationTime + fractionalHitch.accumulator - (1 / 144 + 0.1)) < 1e-10);
+  assert.ok(fractionalHitch.accumulator > 0 && fractionalHitch.accumulator < 1 / 120);
+
+  const fractionalMixed = createSouthwestMechanismSystem();
+  const chunks = Array.from({ length: 20 }, () => [1 / 144, 0.1, 1 / 165, 0.05]).flat();
+  let acceptedTime = 0;
+  for (const chunk of chunks) {
+    acceptedTime += chunk;
+    advanceSouthwestMechanisms(fractionalMixed, inputs, chunk);
+    assert.ok(fractionalMixed.accumulator < 1 / 120 + 1e-10, "accepted <=0.1 frames must not accumulate an unbounded backlog");
+  }
+  assert.ok(Math.abs(fractionalMixed.simulationTime + fractionalMixed.accumulator - acceptedTime) < 1e-9);
+}
+
 assert.ok(
   existsSync(componentPath),
   "components/PolarStationMechanismsSW.jsx must render the pooled southwest mechanisms",

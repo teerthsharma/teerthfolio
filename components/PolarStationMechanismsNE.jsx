@@ -11,6 +11,7 @@ import {
   QPU_MANIFOLD_LAYOUT,
   advanceNortheastMechanisms,
   createNortheastMechanismSystem,
+  resolveQpuConstructionStep,
   resolveNortheastMechanismInputs,
   resolveNortheastStationReveal,
   sampleQpuManifoldPoint,
@@ -455,7 +456,7 @@ function createQpuContinuousManifoldGeometry(quality) {
   const uSegments = quality === "high" ? 48 : quality === "medium" ? 32 : 20;
   const vSegments = quality === "high" ? 16 : quality === "medium" ? 12 : 8;
   const positions = [];
-  const indices = [];
+  const bandIndices = Array.from({ length: uSegments }, () => []);
   const rowLength = vSegments + 1;
 
   for (let surface = 0; surface < 2; surface += 1) {
@@ -476,9 +477,10 @@ function createQpuContinuousManifoldGeometry(quality) {
   }
 
   const surfaceStride = (uSegments + 1) * rowLength;
-  for (let surface = 0; surface < 2; surface += 1) {
-    const offset = surface * surfaceStride;
-    for (let uIndex = 0; uIndex < uSegments; uIndex += 1) {
+  for (let uIndex = 0; uIndex < uSegments; uIndex += 1) {
+    const indices = bandIndices[uIndex];
+    for (let surface = 0; surface < 2; surface += 1) {
+      const offset = surface * surfaceStride;
       for (let vIndex = 0; vIndex < vSegments; vIndex += 1) {
         const a = offset + uIndex * rowLength + vIndex;
         const b = a + rowLength;
@@ -486,32 +488,43 @@ function createQpuContinuousManifoldGeometry(quality) {
         else indices.push(a, a + 1, b, b, a + 1, b + 1);
       }
     }
-  }
-  for (const vIndex of [0, vSegments]) {
-    for (let uIndex = 0; uIndex < uSegments; uIndex += 1) {
+    for (const vIndex of [0, vSegments]) {
       const topA = uIndex * rowLength + vIndex;
       const topB = (uIndex + 1) * rowLength + vIndex;
       const floorA = surfaceStride + topA;
       const floorB = surfaceStride + topB;
       indices.push(topA, floorA, topB, topB, floorA, floorB);
     }
-  }
-  for (const uIndex of [0, uSegments]) {
-    for (let vIndex = 0; vIndex < vSegments; vIndex += 1) {
-      const topA = uIndex * rowLength + vIndex;
-      const topB = topA + 1;
-      const floorA = surfaceStride + topA;
-      const floorB = surfaceStride + topB;
-      indices.push(topA, topB, floorA, topB, floorB, floorA);
+    if (uIndex === 0 || uIndex === uSegments - 1) {
+      const endpointU = uIndex === 0 ? 0 : uSegments;
+      for (let vIndex = 0; vIndex < vSegments; vIndex += 1) {
+        const topA = endpointU * rowLength + vIndex;
+        const topB = topA + 1;
+        const floorA = surfaceStride + topA;
+        const floorB = surfaceStride + topB;
+        indices.push(topA, topB, floorA, topB, floorB, floorA);
+      }
     }
+  }
+
+  const orderedIndices = [];
+  const constructionStepEndVertexCounts = [];
+  for (let step = 0; step < Math.ceil(uSegments / 2); step += 1) {
+    const leftBand = step;
+    const rightBand = uSegments - 1 - step;
+    orderedIndices.push(...bandIndices[leftBand]);
+    if (rightBand !== leftBand) orderedIndices.push(...bandIndices[rightBand]);
+    constructionStepEndVertexCounts.push(orderedIndices.length);
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setIndex(indices);
+  geometry.setIndex(orderedIndices);
   geometry.computeVertexNormals();
   geometry.name = "qpu-one-piece-global-sampled-double-curved-riemann-floor-and-shell";
-  return bakeGeometry(geometry);
+  const baked = bakeGeometry(geometry);
+  baked.userData.constructionStepEndVertexCounts = constructionStepEndVertexCounts;
+  return baked;
 }
 
 function createQpuManifoldRibGeometry(quality) {
@@ -529,13 +542,21 @@ function createQpuManifoldRibGeometry(quality) {
 }
 
 function createQpuCausewayFrameGeometry(quality) {
-  return mergeParts(
-    [
-      createQpuStableDockBandGeometry(quality),
-      createQpuContinuousManifoldGeometry(quality),
-    ],
+  const stableGeometry = createQpuStableDockBandGeometry(quality);
+  const constructionGeometry = createQpuContinuousManifoldGeometry(quality);
+  const stableVertexCount = stableGeometry.getAttribute("position").count;
+  const constructionVertexCount = constructionGeometry.getAttribute("position").count;
+  const constructionStepEndVertexCounts = [
+    ...constructionGeometry.userData.constructionStepEndVertexCounts,
+  ];
+  const geometry = mergeParts(
+    [stableGeometry, constructionGeometry],
     "qpu-jade-cyan-coherence-causeway qpu-continuous-global-riemann-manifold qpu-contiguous-floor-shell-and-ribs",
   );
+  geometry.userData.stableVertexCount = stableVertexCount;
+  geometry.userData.constructionVertexCount = constructionVertexCount;
+  geometry.userData.constructionStepEndVertexCounts = constructionStepEndVertexCounts;
+  return geometry;
 }
 
 function createQpuCoherencePlateGeometry(quality) {
@@ -961,6 +982,22 @@ function commitPool(mesh) {
   if (mesh) mesh.instanceMatrix.needsUpdate = true;
 }
 
+function updateQpuFrameDrawRange(frame, buildProgress) {
+  const geometry = frame?.geometry;
+  const stableVertexCount = geometry?.userData?.stableVertexCount;
+  const constructionStepEndVertexCounts = geometry?.userData?.constructionStepEndVertexCounts;
+  if (!geometry || !Number.isFinite(stableVertexCount) || !constructionStepEndVertexCounts?.length) return;
+  const constructionStep = resolveQpuConstructionStep(
+    buildProgress,
+    constructionStepEndVertexCounts.length,
+  );
+  const constructionVertexCount = constructionStep > 0
+    ? constructionStepEndVertexCounts[constructionStep - 1]
+    : 0;
+  const visibleVertexCount = stableVertexCount + constructionVertexCount;
+  geometry.setDrawRange(0, visibleVertexCount);
+}
+
 function applyS2Instances(state, pools, scratch) {
   const brownian = state.brownianCoordinates;
   const brownianBlend = state.brownianBlend || 0;
@@ -1207,6 +1244,7 @@ function applyFieldInstances(state, pools, scratch) {
 }
 
 function applyQpuInstances(state, pools, scratch) {
+  updateQpuFrameDrawRange(pools.frame, state.manifoldBuild);
   setInstance(
     pools.frame,
     0,
@@ -1384,6 +1422,10 @@ export default function PolarStationMechanismsNE({
     preparePool(fieldCoils.current, 2);
     preparePool(fieldPackets.current, 4);
     preparePool(qpuFrame.current, 1);
+    updateQpuFrameDrawRange(
+      qpuFrame.current,
+      systemRef.current.states["qpu-ice-bridge"].manifoldBuild,
+    );
     preparePool(qpuPlates.current, QPU_MANIFOLD_SLICE_COUNT);
     preparePool(qpuSignals.current, 6);
   }, [resources]);
