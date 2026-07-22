@@ -1,7 +1,10 @@
 # Task 3 — Cinematic Release Proof
 
 Date: 2026-07-22
-Commit: this report ships with `fix: finish cinematic release proof` (exact SHA recorded in the controller handoff)
+Commits:
+
+- `98154ee` — `fix: finish cinematic release proof`
+- `8d1a437` — `test: harden cinematic release verification`
 
 ## Outcome
 
@@ -63,13 +66,38 @@ Particle runtime evidence: `.verification/wave-f-particles/report.json` with all
 
 - `npm run lint` — pass
 - `npm run build` — pass, including every chained contract and Chromium biome shader compilation
-- `npm run check:render-budget` — pass, 58 checks
+- `npm run check:render-budget` — pass, 61 checks
 - `npm run check:particles` — pass, `512/1536/4096`, one shared draw
 - `npm run verify:particles` — pass, eight stations
 - `npm run verify:station-mechanisms` — pass, seven stations unscoped at medium
 - focused low Manifold verifier — pass
 - `npm run verify:render` — pass, 20 viewports
 - `git diff --check` — pass
+
+## Review hardening RED/GREEN
+
+The Task 3 review identified two Important verifier gaps and one Minor lifecycle issue. All three were first encoded as static contracts. `npm run check:render-budget` then failed with exactly these three RED checks:
+
+- cinematic results did not fail on captured fatal browser diagnostics;
+- mobile rail proof did not require completed S2 docking/focus;
+- observatory dataset updates shared the WebGL lifecycle listener effect.
+
+Commit `8d1a437` resolves all three:
+
+- `fatalBrowserLog` now treats page exceptions, JavaScript exceptions, shader compilation failures, WebGL program/context failures, React Three Fiber errors, and reported window errors as fatal. Known Chromium `ReadPixels`/driver performance notices are explicitly non-fatal. Every safe-gate, world, and section result appends fatal-log failures before the aggregate 20-view decision.
+- Mobile proof retains immediate destination, readout, and `moving` assertions, then waits up to 25 seconds for `data-docked-station="s2-kernel-core"`. It additionally requires the S2 chip to be active, pressed/focused, current location, and the readout owner after arrival.
+- Observatory distance/visibility, quality, and reduced-motion dataset syncing now lives in a dedicated effect. Context loss/restoration listener registration depends only on the stable renderer and callback, so traversal updates cannot churn listeners or repeat the listener-ready event.
+
+GREEN evidence:
+
+- `npm run check:render-budget` — 61 checks passed.
+- `npm run check:hud-accessibility` — passed.
+- `npm run check:polar-traversal` — passed.
+- `npm run check:station-world-integration` — passed.
+- `npm run lint` — passed.
+- `npm run verify:render` — all 20 viewports passed.
+- Mobile report records both `EN ROUTE → S2 Core` and final `ARRIVED • S2 Core`; `pendingDestination`, `pendingReadoutUpdated`, `routeMoving`, `arrivedDocked`, `arrivalActive`, `arrivalFocused`, `arrivalCurrent`, and `arrivalReadout` are all `true`.
+- Final report contains zero fatal failures, zero console errors, and zero page errors across all 20 results. The one safe-gate warning is the existing non-fatal GPU probe timeout.
 
 ## Read-only publication audit
 
