@@ -12,6 +12,7 @@ const splashShader = read("components/AntarcticSplashShader.jsx");
 const blackHole = read("components/BlackHoleTransition.jsx");
 const biome = read("components/PolarBiomeWorld.jsx");
 const dome = read("components/PolarObservatoryDome.jsx");
+const scene = read("components/IglooScene.jsx");
 const capabilityProbe = splash.slice(
   splash.indexOf("function probeWebglCapability"),
   splash.indexOf("export default function SdfSealSplash"),
@@ -122,6 +123,68 @@ contract("dome demolition allocates no per-hit GPU resources", () => {
     dome,
     /function (knockBlocksNearContact|collapseRemainingBlocks|stepDetachedBlocks)[\s\S]*?new THREE\.(Instanced)?(Mesh|BufferGeometry|Material)/,
     "brick knock-off must reuse the existing instance pool instead of allocating",
+  );
+});
+
+// Point-light count is a shader program define: three.js relinks every lit material
+// in the scene when it changes. A light that mounts, unmounts, or drops out of the
+// lights array because an ancestor group toggled `visible` therefore costs a full
+// relink storm. Measured regression: 70-71 links after webgl-scene-ready with the
+// station light inside the reveal-toggled group, 46 with it hoisted. Every point
+// light that can exist must exist for the whole session at intensity zero when unused.
+contract("scene point-light topology is invariant for the whole session", () => {
+  const artifacts = read("components/IglooArtifacts.jsx");
+  const mascot = read("components/TopologicalSealMascot.jsx");
+
+  expectMatch(
+    scene,
+    /observatory-light-topology-stabilizer[\s\S]*<pointLight intensity=\{0\} \/>[\s\S]*<pointLight intensity=\{0\} \/>[\s\S]*<pointLight intensity=\{0\} \/>/,
+    "the dome's three point lights need intensity-zero placeholders while the dome is unmounted",
+  );
+  assert.equal(
+    (dome.match(/<pointLight/g) || []).length,
+    3,
+    "the dome must keep exactly the three point lights the stabilizer group mirrors",
+  );
+  assert.doesNotMatch(
+    dome,
+    /\{[^}]*&&\s*<pointLight/,
+    "no dome point light may be conditionally rendered",
+  );
+  assert.equal(
+    (mascot.match(/<pointLight/g) || []).length,
+    1,
+    "the seal must keep exactly one unconditional guide light",
+  );
+  assert.equal(
+    (artifacts.match(/<pointLight/g) || []).length,
+    1,
+    "stations must share one hoisted accent light, never one per rendered station",
+  );
+  expectMatch(
+    artifacts,
+    /<group name="IglooArtifacts[^"]*">[\s\S]{0,400}<HomePlaqueAccentLight/,
+    "the station accent light must sit in the always-mounted artifacts root, outside the reveal-toggled station groups",
+  );
+  expectMatch(
+    artifacts,
+    /light\.current\.intensity = homeRendered \? peakIntensity \* revealProgress : 0/,
+    "the hoisted accent light must be driven to intensity zero instead of unmounting",
+  );
+  const artifactMesh = artifacts.slice(
+    artifacts.indexOf("function ArtifactMesh("),
+    artifacts.indexOf("function HomePlaqueAccentLight("),
+  );
+  assert.ok(artifactMesh.length > 1000, "ArtifactMesh body must stay locatable");
+  assert.doesNotMatch(
+    artifactMesh,
+    /<pointLight/,
+    "the per-station body must hold no point light: its group's reveal visibility toggles",
+  );
+  expectMatch(
+    artifactMesh,
+    /group\.current\.visible =/,
+    "the station group must still be the thing whose visibility toggles, which is why the light left it",
   );
 });
 

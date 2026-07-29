@@ -108,10 +108,25 @@ assert.ok(artifacts.includes("StationSurfaceMaterial"));
 assert.ok(artifacts.includes("quality={quality}"));
 assert.ok(artifacts.includes("const stationZoneOrigin"));
 assert.ok(artifacts.includes("zoneOrigin={stationZoneOrigin}"));
+// Two loops exactly: the station reveal/motion loop, plus the hoisted home-plaque
+// accent light. The light's ramp used to live inside the station loop, but the light
+// had to leave the visibility-toggled station group so the scene's point-light count
+// (a shader program define) stops oscillating and relinking every lit material. Same
+// per-frame work, one more callback — and no licence for a third loop.
 assert.equal(
   (artifacts.match(/useFrame\(/g) || []).length,
-  1,
-  "monument art must not add per-frame React/R3F update loops",
+  2,
+  "monument art must not add per-frame React/R3F update loops beyond the station loop and the invariant accent light",
+);
+assert.match(
+  artifacts,
+  /function HomePlaqueAccentLight\([\s\S]*?useFrame\(\(\{ clock \}\) => \{[\s\S]*?light\.current\.intensity = homeRendered \? peakIntensity \* revealProgress : 0;/,
+  "the second loop must be the always-mounted home-plaque accent light driven to zero when unused",
+);
+assert.doesNotMatch(
+  artifacts,
+  /stationLight/,
+  "the per-station proxy light must not come back inside the reveal-toggled station group",
 );
 
 const scene = readSource("components/IglooScene.jsx");

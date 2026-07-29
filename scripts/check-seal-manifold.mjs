@@ -21,30 +21,47 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const component = readFileSync(join(root, "components", "TopologicalSealMascot.jsx"), "utf8");
 const scene = readFileSync(join(root, "components", "IglooScene.jsx"), "utf8");
 
-const haloPresentations = STATION_PERSONALITY_ORDER.map((stationId) => {
+// The seal's floating crown halo is gone: the per-station anime hairstyles and
+// costumes carry station identity on the body now. What survives of the station
+// palette is the guide point light and the shader rim accent, so the canonical
+// personality resolver still has to be the single source for that colour.
+for (const stationId of STATION_PERSONALITY_ORDER) {
   const presentation = resolveStationHaloPresentation(stationId);
   const profile = STATION_PERSONALITY_PROFILES[stationId];
   assert.equal(presentation.stationId, stationId);
   assert.equal(presentation.base, profile.halo.colors[0]);
   assert.equal(presentation.edge, profile.halo.colors[1]);
-  assert.ok(Number.isFinite(presentation.tiltRadians));
   assert.ok(presentation.pulseHz >= 0);
-  return presentation;
-});
-assert.equal(
-  new Set(haloPresentations.map(({ base, edge }) => `${base}:${edge}`)).size,
-  STATION_PERSONALITY_ORDER.length,
-  "all eight stations need a distinct two-color seal halo",
-);
+}
 assert.match(
   component,
   /resolveStationHaloPresentation\(activeArtifact\?\.id\)/,
-  "the mascot must resolve every station halo from canonical personality authority",
+  "the mascot must resolve the station guide accent from canonical personality authority",
 );
 assert.doesNotMatch(
   component,
   /const STATION_HALO_(?:PAIRS|AXES)/,
-  "the mascot must not keep a partial hard-coded station halo table",
+  "the mascot must not keep a partial hard-coded station accent table",
+);
+// The halo must not creep back: no ring geometry, no crown mesh, no opacity table.
+for (const forbidden of [
+  /torusGeometry/,
+  /seal-crown-halo/,
+  /seal-accent-guide-halo/,
+  /HALO_(?:MINIMUM_OPACITY|STATE_OPACITY)/,
+  /SEAL_CROWN_HALO_PROFILE/,
+  /haloMesh|haloMaterial/,
+]) {
+  assert.doesNotMatch(
+    component,
+    forbidden,
+    `the retired crown halo must stay retired: ${forbidden}`,
+  );
+}
+assert.match(
+  component,
+  /SEAL_STATION_IDENTITY_PROFILE[\s\S]*per-station anime hairstyle plus costume wardrobe[\s\S]*no floating ring geometry/,
+  "the mascot must declare that hairstyles and costumes carry station identity now",
 );
 
 assert.equal(SEAL_MANIFOLD_BASELINE, "46-mesh primitive assembly");
@@ -138,6 +155,39 @@ const hairEntries = Object.fromEntries(
     entry[2],
   ]),
 );
+// Identity replacement for the retired distinct-halo-pair check: the seven
+// docked hairstyles must stay mutually distinguishable on their own, both as
+// silhouettes and by their root-to-tip tip colour.
+const hairSignatures = Object.entries(hairEntries).map(([station, body]) => {
+  const field = (pattern) => pattern.exec(body)?.[1] ?? "-";
+  return {
+    signature: [
+      field(/count:\s*(\d+)/),
+      field(/feature: "([^"]*)"/),
+      field(/(flame): true/),
+      field(/(ponytail): true/),
+      field(/rake: \[([^\]]*)\]/),
+      field(/curl: \[([^\]]*)\]/),
+      field(/anchorBias: "([^"]*)"/),
+    ].join("|"),
+    station,
+    tipColor: field(/tipColor: "([^"]*)"/),
+  };
+});
+assert.equal(hairSignatures.length, 7, "all seven docked stations need a hairstyle signature");
+assert.equal(
+  new Set(hairSignatures.map((entry) => entry.signature)).size,
+  7,
+  "all seven docked stations need a distinct hairstyle silhouette: the hair is the station identity now that the halo is gone",
+);
+assert.equal(
+  new Set(hairSignatures.map((entry) => entry.tipColor)).size,
+  7,
+  "all seven docked hairstyles need a distinct tip colour so station identity still reads by colour without a halo",
+);
+for (const { station, tipColor } of hairSignatures) {
+  assert.match(tipColor, /^#[0-9A-F]{6}$/i, `station ${station} hairstyle needs a real tip colour`);
+}
 for (const [station, marker, read] of [
   ["2", 'feature: "fringe"', "manifold-reactor raven rival needs face-framing bangs"],
   ["2", '"#0A0E16"', "manifold-reactor raven rival stays blue-black"],
@@ -203,16 +253,15 @@ for (const token of [
   "uHairCurl",
   "uHairTipColor",
   "uHairTipBias",
-  "COSTUME_DEMON_HALO",
+  "COSTUME_DEMON_ACCENT",
   "COSTUME_EYE_STYLE",
-  "seal-accent-guide-halo",
-  "haloMaterial.current.color.lerp",
+  "SEAL_STATION_IDENTITY_PROFILE",
+  "guideLight.current.color.copy",
   "sealFrontToBack",
   "sealGlumphWave",
   "uSpeed",
   "resolveStationHaloPresentation",
-  "HALO_MINIMUM_OPACITY",
-  "haloBreath",
+  "accentBreath",
 ]) {
   assert.ok(component.includes(token), `TopologicalSealMascot must include ${token}`);
 }
@@ -239,18 +288,8 @@ assert.match(
 );
 assert.match(
   component,
-  /const HALO_MINIMUM_OPACITY = 0\.58;/,
-  "station halos must remain clearly visible in their quietest state",
-);
-assert.match(
-  component,
-  /name="[^"]*seal-accent-guide-halo[^"]*"[\s\S]{0,220}position=\{\[0\.58, 1\.02, -0\.16\]\}/,
-  "the station halo must crown the seal above its head instead of falling around its feet",
-);
-assert.match(
-  component,
-  /torusGeometry args=\{\[0\.38, 0\.026, 8, 64\]\}/,
-  "the single crown halo must remain readable without becoming a ground navigation ring",
+  /accentBreath[\s\S]{0,200}stationPresentation\.pulseHz/,
+  "the station pulse the halo used to show must survive on the guide light",
 );
 
 assert.equal(
@@ -294,5 +333,5 @@ for (const token of [
 }
 
 console.log(
-  "seal manifold contract: 3 quality tiers, closed beta=(1,0,1), one primary draw, deterministic crown-only station hairstyles (observatory bald), topological scene primary",
+  "seal manifold contract: 3 quality tiers, closed beta=(1,0,1), one primary draw, deterministic crown-only station hairstyles (observatory bald) carrying station identity with no crown halo, topological scene primary",
 );

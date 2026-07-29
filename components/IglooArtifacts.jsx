@@ -37,6 +37,9 @@ export const MECHANISM_ACTIVE_BASE_SCALE = Object.freeze({
 });
 
 const FEATURED_STATION_IDS = new Set(Object.keys(MONUMENT_ART_DIRECTION));
+// The home plaque is the only station whose visible body IglooArtifacts still
+// owns; every other station returns the transparent mechanism proxy.
+const HOME_STATION_ID = "observatory-plaque";
 const MECHANISM_STATION_IDS = new Set(
   MECHANISM_BASE_MOTION_CONFLICTS.stationIds,
 );
@@ -255,7 +258,6 @@ function ArtifactMesh({
 }) {
   const group = useRef(null);
   const pulse = useRef(0);
-  const stationLight = useRef(null);
   const [hovered, setHovered] = useState(false);
   const stationPalette = STATION_PALETTE[artifact.id];
   const stationAccent = stationPalette?.accent || artifact.accent;
@@ -293,15 +295,6 @@ function ArtifactMesh({
   const revealStartMs =
     WORLD_STREAM_TIMINGS.stationStartMs +
     revealIndex * WORLD_STREAM_TIMINGS.stationStaggerMs;
-  const stationLightIntensity = active
-    ? 2.25
-    : heroProtected
-      ? featured
-        ? 0.24
-        : 0.16
-      : featured
-        ? 0.55
-        : 0.32;
   const stationZoneOrigin = useMemo(
     () => [worldPosition[0], worldPosition[2]],
     [worldPosition],
@@ -321,9 +314,6 @@ function ArtifactMesh({
     pulse.current = Math.max(0, pulse.current - 0.025);
     group.current.visible =
       !homeSuppressed && (reducedMotion || streamElapsedMs >= revealStartMs);
-    if (stationLight.current) {
-      stationLight.current.intensity = stationLightIntensity * revealProgress;
-    }
     const idleBob = mechanismMotionOwned ? 0 : Math.sin(t * 0.8 + worldPosition[0]) * 0.035;
     group.current.position.y = displayPosition[1] + idleBob + pulse.current * 0.06;
     if (mechanismMotionOwned) group.current.rotation.y = 0;
@@ -447,13 +437,60 @@ function ArtifactMesh({
         <ringGeometry args={[0.46, 0.48, 52]} />
         <meshBasicMaterial color={accent} transparent opacity={active ? 0.52 : 0.18} />
       </mesh>
-      <pointLight
-        color={artifact.accent}
-        distance={active ? 5.2 : 2.9}
-        intensity={reducedMotion ? stationLightIntensity : 0}
-        ref={stationLight}
-      />
     </group>
+  );
+}
+
+/**
+ * Home plaque accent light, deliberately hoisted out of ArtifactMesh.
+ *
+ * Point-light count is a shader program define, so three.js relinks every lit
+ * material in the scene whenever it changes. Inside ArtifactMesh this light both
+ * unmounted with the exclusive-station filter and dropped out of the lights
+ * array every time the station group's staged-reveal `visible` flag toggled, so
+ * NUM_POINT_LIGHTS oscillated 4 -> 5 -> 4 and paid a full relink storm (measured
+ * ~40 late links about a second after webgl-scene-ready). It now lives in the
+ * always-mounted, always-visible artifacts root and is driven to intensity zero
+ * when the plaque is unrevealed or not rendered at all: same light, invariant
+ * program topology.
+ */
+function HomePlaqueAccentLight({
+  active,
+  heroProtected,
+  homeArtifact,
+  homeRendered,
+  reducedMotion,
+  streamEpochMsRef,
+}) {
+  const light = useRef(null);
+  const peakIntensity = active ? 2.25 : heroProtected ? 0.16 : 0.32;
+
+  useFrame(({ clock }) => {
+    if (!light.current) return;
+    const nowMs = clock.elapsedTime * 1000;
+    if (streamEpochMsRef.current === null) streamEpochMsRef.current = nowMs;
+    const revealProgress = reducedMotion
+      ? 1
+      : easeWorldStream(
+          (nowMs - streamEpochMsRef.current - WORLD_STREAM_TIMINGS.stationStartMs) /
+            WORLD_STREAM_TIMINGS.stationRevealMs,
+        );
+    light.current.intensity = homeRendered ? peakIntensity * revealProgress : 0;
+  });
+
+  return (
+    <pointLight
+      color={homeArtifact.accent}
+      distance={active ? 5.2 : 2.9}
+      intensity={reducedMotion && homeRendered ? peakIntensity : 0}
+      name="home-plaque-accent-light session-invariant-light-topology"
+      position={[
+        homeArtifact.world.center.x,
+        homeArtifact.position[1],
+        homeArtifact.world.center.z,
+      ]}
+      ref={light}
+    />
   );
 }
 
@@ -476,9 +513,25 @@ export default function IglooArtifacts({
         : artifacts,
     [artifacts, exclusiveStationId],
   );
+  const homeArtifact = useMemo(
+    () =>
+      artifacts.find((artifact) => artifact.id === HOME_STATION_ID) ||
+      IGLOO_ARTIFACTS.find((artifact) => artifact.id === HOME_STATION_ID),
+    [artifacts],
+  );
 
   return (
     <group name="IglooArtifacts / 200ms station groups / 120ms stagger">
+      {/* Mounted for the whole session so the scene's point-light count — and
+          therefore every lit material's shader program — never changes. */}
+      <HomePlaqueAccentLight
+        active={activeArtifactId === HOME_STATION_ID}
+        heroProtected={heroProtected}
+        homeArtifact={homeArtifact}
+        homeRendered={!exclusiveStationId || exclusiveStationId === HOME_STATION_ID}
+        reducedMotion={reducedMotion}
+        streamEpochMsRef={resolvedStreamEpochMsRef}
+      />
       {artifactsToRender.map((artifact, index) => (
         <ArtifactMesh
           active={artifact.id === activeArtifactId}

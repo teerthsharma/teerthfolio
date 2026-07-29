@@ -30,7 +30,7 @@ import {
 export const MAX_TRANSLATION_SPEED = 4.2;
 export const SEAL_MANIFOLD_DRAW_BUDGET = "one primary surface draw";
 export const SEAL_MASCOT_ACCESSORY_DRAW_BUDGET =
-  "four accessory draws: instanced eye-and-costume-gloss pool, instanced highlight-and-costume-beacon pool, instanced deterministic anime hairstyle pool, one mesh halo";
+  "three accessory draws: instanced eye-and-costume-gloss pool, instanced highlight-and-costume-beacon pool, instanced deterministic anime hairstyle pool";
 export const SEAL_FUR_COAT_PROFILE = Object.freeze({
   sampling: "deterministic hash-seeded crown-zone anchor sampling; no Math.random",
   tierCounts: SEAL_FUR_TIER_COUNT,
@@ -43,10 +43,13 @@ export const SEAL_MANIFOLD_MOTION_PROFILE =
   "canonical acceleration-limited translation with permanent breathing, speed-gated face-to-tail glumph wave, critically damped lift, and no second position filter";
 export const SEAL_MANIFOLD_TEXTURE_PROFILE =
   "seal-zone-xz pearl sage ivory asymmetric spots and indigo face markings";
-export const SEAL_CROWN_HALO_PROFILE = Object.freeze({
-  placement: "above and behind seal head",
-  stationColor: "resolved from the active station halo palette",
-  depthFrame: "rendered behind the seal head with depth testing",
+// Station identity used to ride a floating crown halo ring. The per-station
+// anime hairstyles and costumes now carry it on the seal's own body, so the
+// station palette only survives as the guide light and rim accent.
+export const SEAL_STATION_IDENTITY_PROFILE = Object.freeze({
+  carriedBy: "per-station anime hairstyle plus costume wardrobe",
+  stationColor: "resolved from the canonical station personality palette",
+  accentSurface: "guide point light and shader rim, no floating ring geometry",
 });
 
 const GUIDE_HEIGHT = 0.45;
@@ -65,14 +68,6 @@ const SEAL_EYE_HIGHLIGHT_POSITIONS = Object.freeze([
   Object.freeze([1.03, 0.405, 0.105]),
   Object.freeze([1.03, 0.405, -0.105]),
 ]);
-const HALO_MINIMUM_OPACITY = 0.58;
-const HALO_STATE_OPACITY = Object.freeze({
-  idle: HALO_MINIMUM_OPACITY,
-  probing: 0.66,
-  moving: 0.62,
-  docking: 0.64,
-  error: 0.7,
-});
 
 /**
  * Aggressive per-station dock wardrobe. Costume 0 is the pure plain seal
@@ -101,17 +96,10 @@ const SEAL_COSTUME_INDEX = Object.freeze({
 const EYE_INSTANCE_COUNT = 2;
 const GLOSS_ACCESSORY_SLOTS = 6;
 const BRIGHT_ACCESSORY_SLOTS = 12;
-const COSTUME_GOLD_HALO = Object.freeze({ base: "#FFD700", edge: "#FFF3C0" });
-// Demonic archive halo: dark violet-magenta, tilted far steeper than any
-// station personality halo so the possession read is unmistakable.
-export const COSTUME_DEMON_HALO = Object.freeze({
-  base: "#5B0E86",
-  edge: "#C11884",
-  tiltRadians: 2.4,
-  // Yaw swings the ring normal off the seal's view axis so the steep demonic
-  // tilt reads as a slanted ring instead of an edge-on sliver from the front.
-  yawRadians: 0.9,
-});
+const COSTUME_GOLD_ACCENT = Object.freeze({ base: "#FFD700", edge: "#FFF3C0" });
+// Demonic archive accent: dark violet-magenta, far off the station palette so
+// the possession read is unmistakable in the guide light and rim.
+export const COSTUME_DEMON_ACCENT = Object.freeze({ base: "#5B0E86", edge: "#C11884" });
 // Costume-driven eye recolors written into the existing eye instance slots.
 const COSTUME_EYE_STYLE = Object.freeze({
   default: Object.freeze({ iris: "#171A2D", glint: "#FFFFFF" }),
@@ -1014,9 +1002,6 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
   const poseRef = useRef(null);
   const eyes = useRef(null);
   const eyeHighlights = useRef(null);
-  const haloMaterial = useRef(null);
-  const haloMesh = useRef(null);
-  const haloInitialized = useRef(false);
   const guideLight = useRef(null);
   const furCoat = useRef(null);
   const hairBakedCostume = useRef(-1);
@@ -1026,18 +1011,18 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
   const velocity = useRef(new THREE.Vector3());
   const movementLift = useRef({ position: 0, velocity: 0 });
   const accessoryTransform = useMemo(() => new THREE.Object3D(), []);
-  const costumeGoldHalo = useMemo(
+  const costumeGoldAccent = useMemo(
     () =>
-      new THREE.Color(COSTUME_GOLD_HALO.base).lerp(
-        new THREE.Color(COSTUME_GOLD_HALO.edge),
+      new THREE.Color(COSTUME_GOLD_ACCENT.base).lerp(
+        new THREE.Color(COSTUME_GOLD_ACCENT.edge),
         0.28,
       ),
     [],
   );
-  const costumeDemonHalo = useMemo(
+  const costumeDemonAccent = useMemo(
     () =>
-      new THREE.Color(COSTUME_DEMON_HALO.base).lerp(
-        new THREE.Color(COSTUME_DEMON_HALO.edge),
+      new THREE.Color(COSTUME_DEMON_ACCENT.base).lerp(
+        new THREE.Color(COSTUME_DEMON_ACCENT.edge),
         0.35,
       ),
     [],
@@ -1070,27 +1055,16 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
     return strand;
   }, []);
   const resources = useMemo(() => createToonResources(accent), [accent]);
-  const haloPresentation = useMemo(
+  const stationPresentation = useMemo(
     () => resolveStationHaloPresentation(activeArtifact?.id),
     [activeArtifact?.id],
   );
-  const haloAccent = useMemo(() => {
-    return new THREE.Color(haloPresentation.base).lerp(
-      new THREE.Color(haloPresentation.edge),
-      haloPresentation.mix,
+  const guideAccent = useMemo(() => {
+    return new THREE.Color(stationPresentation.base).lerp(
+      new THREE.Color(stationPresentation.edge),
+      stationPresentation.mix,
     );
-  }, [haloPresentation]);
-  const haloColors = useMemo(() => {
-    const base = haloAccent.clone();
-    const tint = (color, amount) => base.clone().lerp(new THREE.Color(color), amount);
-    return {
-      idle: tint("#F2D3A8", 0.08),
-      probing: tint("#A8F0E8", 0.24),
-      moving: base.clone(),
-      docking: tint("#93DFD4", 0.16),
-      error: tint("#F2B96B", 0.56),
-    };
-  }, [haloAccent]);
+  }, [stationPresentation]);
   const targetPosition = useMemo(() => new THREE.Vector3(), []);
 
   useImperativeHandle(forwardedRef, () => root.current, []);
@@ -1273,71 +1247,27 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
       if (!accessoriesAnimating) accessoryState.current.settled = true;
     }
 
-    const demonHaloActive = transition.to === 6 && costumeBlend > 0.4;
-    if (haloMaterial.current) {
-      const costumeHaloActive =
-        (transition.to === 1 || transition.to === 6) && costumeBlend > 0.4;
-      const haloTarget = !costumeHaloActive
-        ? haloColors[state] || haloColors.idle
-        : demonHaloActive
-          ? costumeDemonHalo
-          : costumeGoldHalo;
-      const haloBreath = reducedMotion
-        ? 0
-        : (0.5 + 0.5 * Math.sin(clock.elapsedTime * Math.PI * 2 * haloPresentation.pulseHz)) * 0.08;
-      const haloBlink = radioBlinkOn && costumeProgress >= 1 ? 0.12 : 0;
-      const haloOpacity = Math.min(0.78, HALO_STATE_OPACITY[state] + haloBreath + haloBlink);
-      if (!haloInitialized.current || reducedMotion) {
-        haloMaterial.current.color.copy(haloTarget);
-        haloMaterial.current.opacity = haloOpacity;
-        haloInitialized.current = true;
-      } else {
-        const haloBlend = 1 - Math.exp(-6.5 * frameStep);
-        haloMaterial.current.color.lerp(haloTarget, haloBlend);
-        haloMaterial.current.opacity = THREE.MathUtils.lerp(
-          haloMaterial.current.opacity,
-          haloOpacity,
-          haloBlend,
-        );
-      }
-    }
-    if (haloMesh.current) {
-      // The demonic archive halo tilts far steeper than the station default.
-      const haloAxis = demonHaloActive
-        ? COSTUME_DEMON_HALO.tiltRadians
-        : haloPresentation.tiltRadians;
-      haloMesh.current.rotation.x = reducedMotion
-        ? haloAxis
-        : THREE.MathUtils.lerp(
-            haloMesh.current.rotation.x,
-            haloAxis,
-            1 - Math.exp(-6.5 * frameStep),
-          );
-      const demonYaw = demonHaloActive ? COSTUME_DEMON_HALO.yawRadians : 0;
-      haloMesh.current.rotation.y = reducedMotion
-        ? demonYaw
-        : THREE.MathUtils.lerp(
-            haloMesh.current.rotation.y,
-            demonYaw,
-            1 - Math.exp(-6.5 * frameStep),
-          );
-      haloMesh.current.rotation.z = reducedMotion
-        ? 0
-        : clock.elapsedTime * haloPresentation.pulseHz * 0.16;
-      haloMesh.current.scale.setScalar(reducedMotion ? 1 : 1 + costumeFlash * 0.38);
-    }
+    const demonAccentActive = transition.to === 6 && costumeBlend > 0.4;
     if (guideLight.current) {
       const baseIntensity = moving ? 0.72 : 0.36;
+      // The guide light carries the station pulse the crown halo used to show.
+      const accentBreath = reducedMotion
+        ? 0
+        : (0.5 + 0.5 * Math.sin(clock.elapsedTime * Math.PI * 2 * stationPresentation.pulseHz)) *
+          0.08;
       guideLight.current.intensity =
-        baseIntensity + costumeFlash * 1.5 + (transition.to === 1 ? 0.5 * costumeBlend : 0);
+        baseIntensity +
+        accentBreath +
+        costumeFlash * 1.5 +
+        (transition.to === 1 ? 0.5 * costumeBlend : 0);
       guideLight.current.color.copy(
         transition.to === 1 && costumeBlend > 0.4
-          ? costumeGoldHalo
-          : demonHaloActive
-            ? costumeDemonHalo
+          ? costumeGoldAccent
+          : demonAccentActive
+            ? costumeDemonAccent
             : guideState === "error"
               ? errorLightColor
-              : haloAccent,
+              : guideAccent,
       );
     }
     const resolvedAxisX = traversalPose?.x ?? axisX;
@@ -1519,30 +1449,8 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
           <meshBasicMaterial color="#F9FFFF" toneMapped={false} />
         </instancedMesh>
       </group>
-      <mesh
-        name="seal-crown-halo seal-accent-guide-halo"
-        position={[0.58, 1.02, -0.16]}
-        ref={haloMesh}
-        rotation={[Math.PI / 2, 0, 0]}
-        renderOrder={8}
-        userData={{
-          className: "seal-crown-halo",
-          profile: SEAL_CROWN_HALO_PROFILE,
-        }}
-      >
-        <torusGeometry args={[0.38, 0.026, 8, 64]} />
-        <meshBasicMaterial
-          color="#5CC9C2"
-          depthTest
-          depthWrite={false}
-          opacity={HALO_STATE_OPACITY.idle}
-          ref={haloMaterial}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
       <pointLight
-        color={guideState === "error" ? "#F2B96B" : haloAccent}
+        color={guideState === "error" ? "#F2B96B" : guideAccent}
         distance={3.4}
         intensity={moving ? 0.72 : 0.36}
         position={[0.2, 0.42, 0]}

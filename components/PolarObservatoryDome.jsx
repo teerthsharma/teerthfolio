@@ -239,6 +239,23 @@ export const OBSERVATORY_HOME_LIGHT_PROFILE = Object.freeze({
   distance: 2.4,
   intensity: Object.freeze({ high: 2.1, medium: 1.55, low: 0.9 }),
 });
+/**
+ * Interior hearth, not a blue cave. Everything the viewer sees THROUGH the brick
+ * suspension gaps and the doorway is the continuous inner shell, so that shell
+ * carries the warm read: a dark warm-neutral body lit by a low sunrise-gold
+ * self-glow. It used to be slate blue (#3D5680) with a 0.5 subsurface-cyan
+ * emissive, which turned every gap into a cold blue lamp and made the dome read
+ * as blue inside the bricks. The cold blue now lives only on the outer ice —
+ * shell shader, brick instances, and the cyan key light — while the inside is
+ * amber. Emissive, not another point light: the scene's point-light count is a
+ * shader define and must stay invariant for the whole session.
+ */
+export const OBSERVATORY_INTERIOR_HEARTH_PROFILE = Object.freeze({
+  hearthColor: OBSERVATORY_PERSONALITY.palette.glow,
+  hearthIntensity: Object.freeze({ high: 0.72, medium: 0.64 }),
+  read: "warm amber hearth seen through the brick gaps and the doorway",
+  shellColor: "#2E2620",
+});
 export const OBSERVATORY_HOME_DRESSING_PROFILE = Object.freeze({
   surface: "wind-carved sastrugi radiating from a grounded frost shelf",
   accents: "three cyan expedition stakes with sunrise-gold survey bands",
@@ -832,9 +849,12 @@ function useInnerShellMaterial(quality) {
       new THREE.MeshPhysicalMaterial({
         clearcoat: quality === "high" ? 0.18 : 0.1,
         clearcoatRoughness: 0.76,
-        color: "#3D5680",
-        emissive: DOME_CRYSTAL_PALETTE.subsurfaceCyan,
-        emissiveIntensity: quality === "high" ? 0.52 : 0.46,
+        color: OBSERVATORY_INTERIOR_HEARTH_PROFILE.shellColor,
+        emissive: OBSERVATORY_INTERIOR_HEARTH_PROFILE.hearthColor,
+        emissiveIntensity:
+          quality === "high"
+            ? OBSERVATORY_INTERIOR_HEARTH_PROFILE.hearthIntensity.high
+            : OBSERVATORY_INTERIOR_HEARTH_PROFILE.hearthIntensity.medium,
         metalness: 0,
         roughness: 0.9,
       }),

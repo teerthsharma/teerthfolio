@@ -18,6 +18,33 @@ requires(
   /DOME_CRYSTAL_PALETTE[\s\S]*iceBlue[\s\S]*frostIvory[\s\S]*seamBlueGrey[\s\S]*subsurfaceCyan/,
   "dome must expose separated ice, frost, seam, and subsurface colors",
 );
+// Warm hearth inside, cold ice outside. Everything visible through the brick
+// suspension gaps and the doorway is the continuous inner shell, so it must be a dark
+// warm-neutral body with a sunrise-gold self-glow. The old slate-blue body plus
+// subsurface-cyan emissive turned every gap into a cold blue lamp.
+requires(
+  /OBSERVATORY_INTERIOR_HEARTH_PROFILE[\s\S]*hearthColor: OBSERVATORY_PERSONALITY\.palette\.glow[\s\S]*hearthIntensity[\s\S]*high: 0\.72[\s\S]*medium: 0\.64[\s\S]*shellColor: "#2E2620"/,
+  "the dome interior must publish a warm-neutral hearth profile lit by the sunrise-gold glow",
+);
+requires(
+  /function useInnerShellMaterial[\s\S]{0,600}color: OBSERVATORY_INTERIOR_HEARTH_PROFILE\.shellColor[\s\S]{0,120}emissive: OBSERVATORY_INTERIOR_HEARTH_PROFILE\.hearthColor/,
+  "the inner continuous shell must take both its body and its glow from the hearth profile",
+);
+{
+  const innerShell = /function useInnerShellMaterial[\s\S]*?\n}/.exec(source)?.[0] || "";
+  assert.ok(innerShell, "the inner shell material factory must stay reviewable");
+  for (const cold of [/subsurfaceCyan/, /iceBlue/, /#3D5680/, /windCap/]) {
+    assert.doesNotMatch(
+      innerShell,
+      cold,
+      `inward-facing dome surfaces must carry no cold blue tint: ${cold}`,
+    );
+  }
+  // Warm means warm: R > B on the hearth body colour, not a neutral grey.
+  const shellHex = /shellColor: "(#[0-9A-Fa-f]{6})"/.exec(source)[1];
+  const [red, , blue] = [1, 3, 5].map((offset) => parseInt(shellHex.slice(offset, offset + 2), 16));
+  assert.ok(red > blue, `inner shell body ${shellHex} must be warm-neutral, never blue`);
+}
 // Professional glacial register: the brick face family must stay desaturated pale
 // white-blue. A saturated primary/cornflower face color is the exact regression that
 // made the hero dome read as a toy block set.
