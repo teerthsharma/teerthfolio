@@ -156,7 +156,7 @@ function describeError(error) {
   return error.message || error.reason?.message || String(error);
 }
 
-function DiagnosticPanel({ events, rendererMode }) {
+function DiagnosticPanel({ events, onReloadWorld, rendererMode }) {
   const visibleEvents =
     rendererMode === "safe" || rendererMode === "probe"
       ? events
@@ -167,6 +167,18 @@ function DiagnosticPanel({ events, rendererMode }) {
   return (
     <div className="igloo-diagnostics" role="status" aria-live="polite">
       <span>renderer diagnostics / {rendererMode}</span>
+      {/* Probe recovery: a wedged probe (e.g. a killed R3F loop before
+          scene-ready) never resolves on its own, so the strip offers a clean
+          canvas remount instead of demanding a manual page reload. */}
+      {rendererMode === "probe" && onReloadWorld && (
+        <button
+          className="igloo-diagnostics-reload"
+          onClick={onReloadWorld}
+          type="button"
+        >
+          reload world
+        </button>
+      )}
       <ol>
         {visibleEvents.map((event) => (
           <li data-severity={event.severity} key={event.id}>
@@ -278,6 +290,14 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const sealRouteHintTimeoutRef = useRef(0);
   const sealRouteHintDirectionRef = useRef(1);
   const pressedKeysRef = useRef(new Set());
+  // Camera yaw in radians, written by the scene's CameraRig each frame so WASD
+  // stays camera-relative under the chase camera: W is away-from-camera,
+  // A/D strafe against the camera heading. Null until the rig runs.
+  const cameraYawRef = useRef(null);
+  // Input frame latch: the yaw captured at the first keydown of a hold. Keeping
+  // the frame fixed while keys are held prevents the pursuit feedback loop
+  // where a swinging chase camera re-rotates the very input that steers it.
+  const inputYawRef = useRef(null);
   const worldRef = useRef(null);
   const archiveOfferDismissedArrivalRef = useRef(null);
   const initialSafeMode = Boolean(initialQuery.initialSafeMode);
@@ -319,6 +339,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const [stationProximity, setStationProximity] = useState(0);
   const [worldInView, setWorldInView] = useState(true);
   const [gpuStageMounted, setGpuStageMounted] = useState(true);
+  const [worldRunId, setWorldRunId] = useState(0);
   const renderEnabledRef = useRef(false);
   const artifacts = useMemo(() => IGLOO_ARTIFACTS, []);
   const evidenceArtifact =
@@ -437,12 +458,13 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         STATION_WORLD_SCHEMA.order.length;
       const nextId = STATION_WORLD_SCHEMA.order[nextIndex];
       const nextArtifact = artifacts.find((artifact) => artifact.id === nextId);
+      // Heading-neutral copy: under the chase camera no fixed key maps to a
+      // fixed world bearing, so the hint names the destination, not a key.
       const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-      const directionMark = direction > 0 ? "D →" : "A ←";
       setSealRouteHint(
         coarsePointer
           ? `Tap the ${nextArtifact?.shortLabel || "next station"} beacon`
-          : `${directionMark} ${nextArtifact?.shortLabel || "next station"}`,
+          : `Swim to ${nextArtifact?.shortLabel || "the next station"}`,
       );
       sealRouteHintDirectionRef.current = direction * -1;
       window.clearTimeout(sealRouteHintTimeoutRef.current);
@@ -630,6 +652,19 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     setSealAwake(true);
   }, [reportGpuEvent, safeMode]);
 
+  const reloadWorld = useCallback(() => {
+    reportGpuEvent({
+      severity: "info",
+      type: "world-reload",
+      message: "User remounted the world canvas from the diagnostics strip.",
+    });
+    setWorldRunId((id) => id + 1);
+    setSceneReady(false);
+    setWorldLoadBridgeActive(true);
+    setSdfRenderEnabled(true);
+    setSealAwake(true);
+  }, [reportGpuEvent]);
+
   const startExplorationRender = useCallback(() => {
     if (safeMode) setQuality("low");
     if (!sdfRenderEnabled) setSceneReady(false);
@@ -795,10 +830,28 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       const visible = isWorldVisible(worldRef.current);
       const hasManualDirection =
         visible && (direction !== 0 || depthDirection !== 0);
+      // Rotate the raw WASD vector by the camera yaw latched at the start of
+      // this hold, so W reads as away-from-camera and A/D as camera strafes
+      // without the swinging chase camera re-steering a held key mid-travel.
+      // Identity until the rig has published a yaw.
+      if (direction === 0 && depthDirection === 0) {
+        inputYawRef.current = null;
+      } else if (inputYawRef.current === null) {
+        inputYawRef.current = cameraYawRef.current;
+      }
+      const yaw = inputYawRef.current;
+      let inputX = direction;
+      let inputZ = depthDirection;
+      if (yaw !== null) {
+        const cosYaw = Math.cos(yaw);
+        const sinYaw = Math.sin(yaw);
+        inputX = direction * cosYaw + depthDirection * sinYaw;
+        inputZ = depthDirection * cosYaw - direction * sinYaw;
+      }
       advanceTraversalFrame(traversal, {
         colliders: STATION_COLLIDERS,
         dt,
-        input: visible ? { x: direction, z: depthDirection } : { x: 0, z: 0 },
+        input: visible ? { x: inputX, z: inputZ } : { x: 0, z: 0 },
         stations: STATION_TARGETS,
       });
 
@@ -953,12 +1006,14 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       {!effectiveSafeMode && sdfRenderEnabled && gpuStageMounted && (
         <GpuErrorBoundary
           onGpuEvent={reportGpuEvent}
-          resetKey={`${intentArtifact.id}-${quality}-${safeMode ? "safe" : "live"}`}
+          resetKey={`${intentArtifact.id}-${quality}-${safeMode ? "safe" : "live"}-${worldRunId}`}
         >
           <IglooScene
+            key={worldRunId}
             activeArtifactId={intentArtifact.id}
             axisVelocity={axisVelocity}
             axisX={axisX}
+            cameraYawRef={cameraYawRef}
             depthVelocity={depthVelocity}
             depthZ={depthZ}
             dockedStationId={exclusiveStationId}
@@ -993,7 +1048,11 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
           <strong>{sealRouteHint}</strong>
         </div>
       )}
-      <DiagnosticPanel events={gpuDiagnostics} rendererMode={rendererMode} />
+      <DiagnosticPanel
+        events={gpuDiagnostics}
+        onReloadWorld={reloadWorld}
+        rendererMode={rendererMode}
+      />
       {!sdfRenderEnabled && (
         <SdfSealSplash
           active={worldInView}

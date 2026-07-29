@@ -22,10 +22,10 @@ export const SEAL_LEGACY_SKIN_NORMAL_SOURCE =
   "/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_normal-ogl.png";
 
 export const SEAL_TOON_BANDS = Object.freeze({
-  shadow: "#71839B",
-  mid: "#AEBAB7",
-  highlight: "#D8E1DC",
-  ink: "#34384F",
+  shadow: "#4C5C7E",
+  mid: "#96A6B8",
+  highlight: "#F2E3C8",
+  ink: "#1C2135",
 });
 
 const SEAL_BODY_SCALE = 0.88;
@@ -49,9 +49,9 @@ function useSealMaterial() {
   const resources = useMemo(() => {
     const gradientMap = new THREE.DataTexture(
       new Uint8Array([
-        0x71, 0x83, 0x9b, 0xff,
-        0xae, 0xba, 0xb7, 0xff,
-        0xd8, 0xe1, 0xdc, 0xff,
+        0x4c, 0x5c, 0x7e, 0xff,
+        0x96, 0xa6, 0xb8, 0xff,
+        0xf2, 0xe3, 0xc8, 0xff,
       ]),
       3,
       1,
@@ -98,11 +98,11 @@ function useSealMaterial() {
 }
 
 function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFlipperRef, poseRef }) {
-  const dark = useMemo(() => new THREE.MeshBasicMaterial({ color: "#34384F" }), []);
+  const dark = useMemo(() => new THREE.MeshBasicMaterial({ color: "#1C2135" }), []);
   const cheekMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: "#F6F1E7",
+        color: "#EED9B4",
         roughness: 0.9,
         clearcoat: 0.04,
       }),
@@ -121,7 +121,7 @@ function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFli
   const shadowLineMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: "#34384F",
+        color: "#1C2135",
         transparent: true,
         opacity: 0.64,
         depthWrite: false,
@@ -131,7 +131,7 @@ function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFli
   const rimMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: "#34384F",
+        color: "#1C2135",
         transparent: true,
         opacity: 0.7,
         depthWrite: false,
@@ -152,7 +152,7 @@ function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFli
   const faceplateMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: "#34384F",
+        color: "#1C2135",
         emissive: accent,
         emissiveIntensity: 0.06,
         metalness: 0,
@@ -177,7 +177,7 @@ function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFli
   const finMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: "#71839B",
+        color: "#4C5C7E",
         emissive: accent,
         emissiveIntensity: 0.0,
         roughness: 0.9,
@@ -188,7 +188,7 @@ function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFli
   const instrumentMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: "#34384F",
+        color: "#1C2135",
         transparent: true,
         opacity: 0.05,
         depthWrite: false,
@@ -198,14 +198,14 @@ function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFli
   const scarfMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: "#C4D64B",
+        color: "#BBD348",
         roughness: 0.92,
         metalness: 0,
       }),
     [],
   );
   const eyelidMaterial = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: "#AEBAB7" }),
+    () => new THREE.MeshBasicMaterial({ color: "#96A6B8" }),
     [],
   );
 
@@ -248,7 +248,7 @@ function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFli
     >
       <mesh position={[-0.12, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.02, 0.42, 1]}>
         <circleGeometry args={[1, 64]} />
-        <meshBasicMaterial color="#33406E" depthWrite={false} />
+        <meshBasicMaterial color="#232E52" depthWrite={false} />
       </mesh>
       <mesh material={rimMaterial} position={[-0.14, -0.028, 0]} scale={[0.98, 0.43, 0.51]}>
         <sphereGeometry args={[1, 34, 20]} />
@@ -443,7 +443,7 @@ function SealBody({ accent, eyelidRef, farFlipperRef, headRef, material, nearFli
 
 const SealAvatar = forwardRef(function SealAvatar(
   {
-    accent = "#5ff8e7",
+    accent = "#6FE7C8",
     activeArtifact,
     axisVelocity = 0,
     axisX = 0,
@@ -473,7 +473,7 @@ const SealAvatar = forwardRef(function SealAvatar(
   const guideRingMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: "#65C1BC",
+        color: "#5CC9C2",
         transparent: true,
         opacity: 0.1,
         depthWrite: false,
@@ -502,7 +502,7 @@ const SealAvatar = forwardRef(function SealAvatar(
 
   useEffect(() => {
     guideRingMaterial.color.set(
-      guideState === "error" ? "#E2B86A" : guideState === "probing" ? "#65C1BC" : accent,
+      guideState === "error" ? "#F2B96B" : guideState === "probing" ? "#5CC9C2" : accent,
     );
   }, [accent, guideRingMaterial, guideState]);
 
@@ -770,7 +770,7 @@ const SealAvatar = forwardRef(function SealAvatar(
         poseRef={poseRef}
       />
       <pointLight
-        color={guideState === "error" ? "#E2B86A" : accent}
+        color={guideState === "error" ? "#F2B96B" : accent}
         distance={3.8}
         intensity={moving ? 1.05 : 0.5}
         position={[0, 0.45, 0]}

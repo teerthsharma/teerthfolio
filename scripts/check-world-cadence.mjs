@@ -231,8 +231,13 @@ const [dressingSource, cadenceSource, sceneSource, sealSource, postSource] = awa
 
 assert.equal(
   dressingSource.match(/<instancedMesh/g)?.length,
-  3,
-  "dressing must use exactly three Three.js instanced draws",
+  4,
+  "dressing must use exactly four instanced draw sites: three sastrugi bands plus one pooled horizon-theatre ring",
+);
+assert.match(
+  dressingSource,
+  /HORIZON_THEATRE_POLICY = Object\.freeze\(\{ low: 1, medium: 2, high: 3 \}\)/,
+  "horizon theatre must stay tier-bounded to at most three extra draws",
 );
 assert.doesNotMatch(dressingSource, /useState/, "dressing cannot allocate React state per object or frame");
 assert.match(dressingSource, /bands\.near/);

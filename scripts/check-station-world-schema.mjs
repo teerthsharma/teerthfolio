@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { POLAR_DOME_DOCK_LOCAL_XZ } from "../lib/polar-dome-lattice.js";
+
 const schemaPath = path.resolve("lib/polar-station-world.js");
 
 assert.ok(
@@ -27,8 +29,11 @@ const EXPECTED_ORDER = [
 
 const EXPECTED = {
   "observatory-plaque": {
-    center: { x: -15, z: 7 },
-    dock: { x: -19.26, z: 8.99 },
+    center: { x: -3, z: 1 },
+    dock: {
+      x: -3 + POLAR_DOME_DOCK_LOCAL_XZ[0],
+      z: 1 + POLAR_DOME_DOCK_LOCAL_XZ[1],
+    },
     collider: { radiusX: 4.4, radiusZ: 3.2, rotationDegrees: 12 },
     proximity: { far: 10.5, approach: 7, dock: 2.6 },
     camera: {
@@ -40,8 +45,8 @@ const EXPECTED = {
     },
   },
   "s2-kernel-core": {
-    center: { x: -5, z: 13 },
-    dock: { x: -6.01, z: 15.61 },
+    center: { x: 3, z: 8 },
+    dock: { x: 1.99, z: 10.61 },
     collider: { radiusX: 2, radiusZ: 1.8, rotationDegrees: 38 },
     proximity: { far: 8.5, approach: 5.5, dock: 1.8 },
     camera: {
@@ -53,8 +58,8 @@ const EXPECTED = {
     },
   },
   "manifold-reactor": {
-    center: { x: 8, z: 12 },
-    dock: { x: 9.55, z: 14.33 },
+    center: { x: -14, z: -6 },
+    dock: { x: -12.45, z: -3.67 },
     collider: { radiusX: 1.8, radiusZ: 2.35, rotationDegrees: -27 },
     proximity: { far: 8.8, approach: 5.8, dock: 1.9 },
     camera: {
@@ -66,8 +71,8 @@ const EXPECTED = {
     },
   },
   "field-chamber-coils": {
-    center: { x: 17, z: 4 },
-    dock: { x: 20.21, z: 4.76 },
+    center: { x: -10, z: -9 },
+    dock: { x: -6.79, z: -8.24 },
     collider: { radiusX: 2.8, radiusZ: 1.75, rotationDegrees: 74 },
     proximity: { far: 9.2, approach: 6.2, dock: 2.2 },
     camera: {
@@ -79,8 +84,8 @@ const EXPECTED = {
     },
   },
   "qpu-ice-bridge": {
-    center: { x: 15, z: -8 },
-    dock: { x: 18, z: -9.6 },
+    center: { x: 17, z: -13 },
+    dock: { x: 20, z: -14.6 },
     collider: { radiusX: 3.05, radiusZ: 1.65, rotationDegrees: -48 },
     proximity: { far: 9.4, approach: 6.4, dock: 2.4 },
     camera: {
@@ -92,8 +97,8 @@ const EXPECTED = {
     },
   },
   "upstream-radio-mast": {
-    center: { x: 3, z: -14 },
-    dock: { x: 3.59, z: -16.74 },
+    center: { x: 14, z: 12 },
+    dock: { x: 14.59, z: 9.26 },
     collider: { radiusX: 1.75, radiusZ: 2.15, rotationDegrees: 19 },
     proximity: { far: 9, approach: 6, dock: 2 },
     camera: {
@@ -105,8 +110,8 @@ const EXPECTED = {
     },
   },
   "topology-archive-wall": {
-    center: { x: -11, z: -11 },
-    dock: { x: -13.47, z: -13.47 },
+    center: { x: 11, z: -8 },
+    dock: { x: 8.53, z: -10.47 },
     collider: { radiusX: 3.1, radiusZ: 1.55, rotationDegrees: 61 },
     proximity: { far: 9.4, approach: 6.3, dock: 2.3 },
     camera: {
@@ -118,8 +123,8 @@ const EXPECTED = {
     },
   },
   "assembly-tool-locker": {
-    center: { x: -18, z: -2 },
-    dock: { x: -20.98, z: -2.33 },
+    center: { x: -16, z: 2 },
+    dock: { x: -18.98, z: 1.67 },
     collider: { radiusX: 2.15, radiusZ: 1.9, rotationDegrees: 83.68091167100431 },
     proximity: { far: 8.7, approach: 5.8, dock: 2.1 },
     camera: {
@@ -217,39 +222,92 @@ assertNoCollinearTriples(docks, "station docks");
 
 assert.deepEqual(STATION_WORLD_SCHEMA.edges, EXPECTED_EDGES, "guided graph must be the approved C8");
 const degrees = Object.fromEntries(EXPECTED_ORDER.map((id) => [id, 0]));
-let perimeter = 0;
 for (const { from, to } of STATION_WORLD_SCHEMA.edges) {
   degrees[from] += 1;
   degrees[to] += 1;
-  const source = STATION_WORLD_SCHEMA.stations[from];
-  const target = STATION_WORLD_SCHEMA.stations[to];
-  const centerDistance = Math.hypot(
-    source.center.x - target.center.x,
-    source.center.z - target.center.z,
-  );
-  const conservativeClearance =
-    centerDistance -
-    Math.max(source.collider.radiusX, source.collider.radiusZ) -
-    Math.max(target.collider.radiusX, target.collider.radiusZ);
-  assert.ok(centerDistance >= 9.48 && centerDistance <= 14.32, `${from} -> ${to} spacing is out of contract`);
-  assert.ok(conservativeClearance >= 2.9, `${from} -> ${to} hard shells lack safe separation`);
-  perimeter += centerDistance;
 }
 assert.ok(Object.values(degrees).every((degree) => degree === 2), "every C8 node must have degree two");
-assert.ok(Math.abs(perimeter - 97.53) <= 0.01, "C8 perimeter must match the approved 97.530 units");
+
+// CAMP-ERA LAYOUT INVARIANTS. The ring-era perimeter/edge-spacing contract
+// (97.530 perimeter, 9.48-14.32 uniform hops) is retired: the camp reads as
+// functional zones with deliberately unequal hops, so we pin zone logic instead.
+function centerDistanceBetween(a, b) {
+  return Math.hypot(a.center.x - b.center.x, a.center.z - b.center.z);
+}
+
+/** Extent of a station's hard ellipse along a world-space unit direction. */
+function ellipseSupport(station, unitX, unitZ) {
+  const radians = (-station.collider.rotationDegrees * Math.PI) / 180;
+  const localX = unitX * Math.cos(radians) - unitZ * Math.sin(radians);
+  const localZ = unitX * Math.sin(radians) + unitZ * Math.cos(radians);
+  return Math.hypot(station.collider.radiusX * localX, station.collider.radiusZ * localZ);
+}
+
+const ENERGY_PAIR = ["manifold-reactor", "field-chamber-coils"];
+const isEnergyPair = (a, b) =>
+  ENERGY_PAIR.includes(a.id) && ENERGY_PAIR.includes(b.id) && a.id !== b.id;
 
 for (let first = 0; first < stations.length - 1; first += 1) {
   for (let second = first + 1; second < stations.length; second += 1) {
     const a = stations[first];
     const b = stations[second];
-    const centerDistance = Math.hypot(a.center.x - b.center.x, a.center.z - b.center.z);
-    const conservativeClearance =
-      centerDistance -
-      Math.max(a.collider.radiusX, a.collider.radiusZ) -
-      Math.max(b.collider.radiusX, b.collider.radiusZ);
-    assert.ok(conservativeClearance >= 2.9, `${a.id}/${b.id} violate minimum world clearance`);
+    const centerDistance = centerDistanceBetween(a, b);
+    // Clearance is the true directional shell gap along the pair axis
+    // (ellipse support function), not the ring-era max-radius bound: camp
+    // zoning intentionally angles narrow colliders toward near neighbors.
+    const unitX = (b.center.x - a.center.x) / centerDistance;
+    const unitZ = (b.center.z - a.center.z) / centerDistance;
+    const directionalClearance =
+      centerDistance - ellipseSupport(a, unitX, unitZ) - ellipseSupport(b, unitX, unitZ);
+    if (isEnergyPair(a, b)) {
+      // The generator hall and heat plant are a deliberately clustered energy
+      // pair; at ~5 apart they cannot carry the full 2.9 corridor, so pin no
+      // overlap plus at least one full walk gap between hard shells.
+      assert.ok(
+        directionalClearance >= 1,
+        `${a.id}/${b.id} energy pair must keep a walkable shell gap of at least 1`,
+      );
+      continue;
+    }
+    assert.ok(directionalClearance >= 2.9, `${a.id}/${b.id} violate minimum world clearance`);
   }
 }
+
+for (const station of stations) {
+  const nearest = Math.min(
+    ...stations
+      .filter((other) => other.id !== station.id)
+      .map((other) => centerDistanceBetween(station, other)),
+  );
+  assert.ok(nearest >= 4.5, `${station.id} nearest-neighbor distance must stay >= 4.5`);
+  assert.ok(
+    Math.abs(station.center.x) <= 18 && Math.abs(station.center.z) <= 15,
+    `${station.id} center must stay inside the camp bounds |x|<=18 |z|<=15`,
+  );
+}
+
+const observatory = STATION_WORLD_SCHEMA.stations["observatory-plaque"];
+const farthestFromHousing = stations
+  .filter(({ id }) => id !== "observatory-plaque")
+  .reduce((farthest, station) =>
+    centerDistanceBetween(observatory, station) > centerDistanceBetween(observatory, farthest)
+      ? station
+      : farthest,
+  );
+assert.equal(
+  farthestFromHousing.id,
+  "qpu-ice-bridge",
+  "the drill rig must remain the farthest station from housing (safety separation)",
+);
+
+const energyPairDistance = centerDistanceBetween(
+  STATION_WORLD_SCHEMA.stations["manifold-reactor"],
+  STATION_WORLD_SCHEMA.stations["field-chamber-coils"],
+);
+assert.ok(
+  energyPairDistance >= 4 && energyPairDistance <= 7,
+  "generator hall and heat plant must remain a paired energy cluster (4-7 apart)",
+);
 
 const source = readFileSync(schemaPath, "utf8");
 assert.doesNotMatch(

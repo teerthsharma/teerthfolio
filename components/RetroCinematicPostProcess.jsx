@@ -7,11 +7,24 @@ import { POST_PROCESS_BUDGET } from "../lib/polar-art-direction";
 import { motionWarpFromVelocity } from "../lib/polar-world-cadence";
 
 export const GLOBAL_ANIME_POST_PROFILE =
-  "anime-soft depth pixel fog: camera-motion fisheye, linear depth, bounded luma/depth edge confidence, chromatic edge AA, toon quantization, stable dither, indigo ink, static scanline, wide vignette, tiered paper contrast grade";
+  "anime-soft depth pixel fog: camera-motion fisheye, linear depth, bounded luma/depth edge confidence, chromatic edge AA, toon quantization, stable dither, indigo ink, static scanline, wide vignette, tiered paper contrast grade; polar-dusk cinematic finish: thresholded highlight glow, filmic S-curve, teal-shadow warm-highlight split tone, warm-lifted vignette, luminance-weighted grain";
 export const GLOBAL_RETRO_POST_PROFILE = GLOBAL_ANIME_POST_PROFILE;
 export const POINTER_VISUAL_EFFECTS = "none";
 
 const qualityBudget = POST_PROCESS_BUDGET;
+
+// Local cinematic layer tuned per quality tier, stacked on top of the frozen
+// POST_PROCESS_BUDGET without changing how that budget is consumed.
+// SHADER LAW 1: the camera-space layer is a whisper. Everything that reads as
+// dirt on the glass (grain, screen snow, heavy vignette) is floored so the
+// frame looks like a place, not a filtered image. Only bloom and the colour
+// grade survive at strength, and bloom is threshold-gated to real highlights.
+// Liveliness belongs to the world (sky aurora sector + cloud drift), not here.
+const CINEMATIC_GRADE = Object.freeze({
+  low: Object.freeze({ vignette: 0.05, grain: 0, bloom: 0, sCurve: 0.06, splitTone: 0.08, snow: 0 }),
+  medium: Object.freeze({ vignette: 0.06, grain: 0.01, bloom: 0.38, sCurve: 0.06, splitTone: 0.09, snow: 0 }),
+  high: Object.freeze({ vignette: 0.07, grain: 0.012, bloom: 0.5, sCurve: 0.06, splitTone: 0.1, snow: 0 }),
+});
 
 const VERTEX_SHADER = `
 varying vec2 vUv;
@@ -40,6 +53,13 @@ uniform float uQuantizeStrength;
 uniform float uGradeBase;
 uniform float uGradeCurve;
 uniform float uShadowSeparation;
+uniform float uVignetteStrength;
+uniform float uGrainStrength;
+uniform float uBloomStrength;
+uniform float uSCurveStrength;
+uniform float uSplitToneStrength;
+uniform float uSnowStrength;
+uniform float uExposureBreath;
 
 varying vec2 vUv;
 
@@ -141,6 +161,77 @@ vec3 toonQuantize(vec3 color) {
   return mix(color, channelQuantized, uQuantizeStrength);
 }
 
+vec3 filmicSCurve(vec3 color) {
+  // Gentle smoothstep S-curve blended in at low strength keeps the toe and
+  // shoulder soft instead of crushing the dusk shadows.
+  vec3 curved = color * color * (3.0 - 2.0 * color);
+  return mix(color, curved, uSCurveStrength);
+}
+
+vec3 duskSplitTone(vec3 color) {
+  // Shadows drift toward #2C3F66 twilight blue, highlights toward #F5C98A
+  // low-sun amber. Tint ratios are luma-normalized so exposure holds steady.
+  float splitLuma = animeLuminance(color);
+  float splitShadowMask = 1.0 - smoothstep(0.08, 0.5, splitLuma);
+  float splitHighlightMask = smoothstep(0.55, 0.92, splitLuma);
+  vec3 shadowTinted = color * vec3(0.712, 1.02, 1.651);
+  vec3 highlightTinted = color * vec3(1.19, 0.977, 0.671);
+  color = mix(color, shadowTinted, splitShadowMask * uSplitToneStrength);
+  return mix(color, highlightTinted, splitHighlightMask * uSplitToneStrength);
+}
+
+vec3 highlightGlow(vec2 uv, vec2 texel) {
+  // Cheap in-pass bloom approximation: eight thresholded ring taps. Callers
+  // only invoke this when uBloomStrength > 0 (medium/high tiers), so the low
+  // tier never pays for the extra texture reads.
+  vec2 spread = texel * 2.4;
+  vec2 diagonal = spread * 0.7071;
+  // Threshold sits high so only genuine highlights (window glass, indicator
+  // lights, sun kiss) bloom. Lower thresholds smear the whole frame into haze.
+  vec3 glowThreshold = vec3(0.80);
+  vec3 accum = vec3(0.0);
+  accum += max(texture2D(tDiffuse, clamp(uv + vec2(spread.x, 0.0), 0.001, 0.999)).rgb - glowThreshold, 0.0);
+  accum += max(texture2D(tDiffuse, clamp(uv - vec2(spread.x, 0.0), 0.001, 0.999)).rgb - glowThreshold, 0.0);
+  accum += max(texture2D(tDiffuse, clamp(uv + vec2(0.0, spread.y), 0.001, 0.999)).rgb - glowThreshold, 0.0);
+  accum += max(texture2D(tDiffuse, clamp(uv - vec2(0.0, spread.y), 0.001, 0.999)).rgb - glowThreshold, 0.0);
+  accum += max(texture2D(tDiffuse, clamp(uv + diagonal, 0.001, 0.999)).rgb - glowThreshold, 0.0);
+  accum += max(texture2D(tDiffuse, clamp(uv - diagonal, 0.001, 0.999)).rgb - glowThreshold, 0.0);
+  accum += max(texture2D(tDiffuse, clamp(uv + vec2(diagonal.x, -diagonal.y), 0.001, 0.999)).rgb - glowThreshold, 0.0);
+  accum += max(texture2D(tDiffuse, clamp(uv - vec2(diagonal.x, -diagonal.y), 0.001, 0.999)).rgb - glowThreshold, 0.0);
+  return accum * 0.125;
+}
+
+float snowCellHash(vec2 cell) {
+  return fract(sin(dot(cell, vec2(41.3, 289.1))) * 43758.5453);
+}
+
+// One drifting screen-space snow layer. Cells are hashed to a flake centre so
+// the field costs no texture reads; uTime is pinned to 0 under reduced motion,
+// which freezes the drift in place exactly like the grain field above.
+float snowLayer(vec2 uv, float density, float fallSpeed, float sway) {
+  vec2 drifted = uv * density;
+  drifted.y += uTime * fallSpeed;
+  drifted.x += sin(uTime * 0.31 + uv.y * 5.4) * sway;
+  vec2 cell = floor(drifted);
+  vec2 inCell = fract(drifted) - 0.5;
+  float presence = snowCellHash(cell);
+  // Only a sparse subset of cells carry a flake, so the field reads as weather
+  // rather than static.
+  if (presence < 0.72) return 0.0;
+  vec2 jitter = vec2(snowCellHash(cell + 17.0), snowCellHash(cell + 51.0)) - 0.5;
+  float flake = length((inCell - jitter * 0.6) * vec2(1.0, 0.85));
+  return smoothstep(0.34, 0.03, flake) * (0.55 + presence * 0.45);
+}
+
+vec3 ambientSnow(vec2 uv) {
+  float aspect = uResolution.x / max(uResolution.y, 1.0);
+  vec2 snowUv = vec2(uv.x * aspect, uv.y);
+  // Near layer is sparser, larger, and falls faster than the hazy far layer.
+  float far = snowLayer(snowUv, 46.0, 0.085, 0.010) * 0.55;
+  float near = snowLayer(snowUv + vec2(0.37, 0.19), 22.0, 0.16, 0.018);
+  return vec3(0.92, 0.96, 1.0) * (far + near);
+}
+
 void main() {
   vec2 texel = 1.0 / max(uResolution, vec2(1.0));
 
@@ -153,7 +244,7 @@ void main() {
   float depthFogMask = smoothstep(0.54, 0.96, linearDepth);
   float pixelSize = max(1.0, uPixelSize);
   vec2 pixelUv = (floor(clampedUv * uResolution / pixelSize) + 0.5) * pixelSize / uResolution;
-  vec2 sampleUv = mix(clampedUv, clamp(pixelUv, 0.001, 0.999), depthFogMask * 0.10);
+  vec2 sampleUv = mix(clampedUv, clamp(pixelUv, 0.001, 0.999), depthFogMask * 0.04);
 
   // 4. Four cardinal luma taps and four depth taps share one bounded line-confidence field.
   float lumaEdge = lumaEdgeConfidence(sampleUv, texel);
@@ -165,7 +256,7 @@ void main() {
   vec2 normalizedScreen = vUv * 2.0 - 1.0;
   float outerScreenMask = smoothstep(0.18, 1.12, dot(normalizedScreen, normalizedScreen));
   vec3 color = chromaticEdgeAA(sampleUv, texel, edgeConfidence, outerScreenMask);
-  color = mix(color, vec3(0.7216, 0.8863, 0.8745), depthFogMask * 0.08);
+  color = mix(color, vec3(0.2902, 0.3725, 0.5333), depthFogMask * 0.08);
 
   // 6-7. Ten luminance bands, 24 channel levels, then stable 0.0025 dither.
   color = toonQuantize(color);
@@ -173,17 +264,48 @@ void main() {
   float dither = interleavedGradientNoise(gl_FragCoord.xy, temporalSeed) - 0.5;
   color += vec3(dither * 0.0025);
 
-  // 8-10. Indigo ink, static scanlines, and an 8% maximum wide vignette finish the pass.
+  // 8-10. Indigo ink, faint static scanlines, and an 8% maximum wide vignette finish the pass.
   vec3 animeInk = vec3(0.2, 0.2510, 0.4314);
   color = mix(color, animeInk, edgeConfidence * uInkStrength);
   float scanline = 0.5 + 0.5 * sin(gl_FragCoord.y * 3.14159265);
-  color *= 1.0 - scanline * uScanlineStrength;
+  color *= 1.0 - scanline * uScanlineStrength * 0.45;
   float vignette = smoothstep(0.50, 1.45, dot(normalizedScreen, normalizedScreen));
-  color = mix(color, animeInk, vignette * 0.08);
+  color = mix(color, animeInk, vignette * 0.025);
 
   // 11. A tiered paper-grade curve restores ink structure; medium/high retain brighter snow.
   color *= (uGradeBase + uGradeCurve * color);
   color = paperShadowSeparation(color);
+
+  // 12. Polar-dusk cinematic finish. Highlight glow only samples on medium/high.
+  if (uBloomStrength > 0.0005) {
+    vec3 glow = highlightGlow(sampleUv, texel);
+    color += glow * uBloomStrength * vec3(1.06, 0.98, 0.88);
+  }
+  color = filmicSCurve(color);
+  color = duskSplitTone(color);
+
+  // 13. Smooth cinematic vignette with a slightly warm-lifted center.
+  float cineRadial = dot(normalizedScreen, normalizedScreen);
+  float cineVignette = smoothstep(0.24, 1.7, cineRadial);
+  color *= 1.0 - cineVignette * uVignetteStrength;
+  color += vec3(0.028, 0.02, 0.01) * (1.0 - cineVignette) * uVignetteStrength;
+
+  // 14. Filmic grain, luminance-weighted toward shadows. uTime is pinned to 0
+  // under reduced motion, which freezes the grain field in place.
+  float grainSeed = floor(uTime * 24.0);
+  float grain = interleavedGradientNoise(gl_FragCoord.xy + vec2(7.0, 113.0), grainSeed) - 0.5;
+  float grainWeight = 1.0 - smoothstep(0.25, 0.85, animeLuminance(color));
+  color += vec3(grain * uGrainStrength * (0.4 + 0.6 * grainWeight));
+
+  // 15. Ambient two-layer screen-space snow drift, additive so it never
+  // darkens the polar grade. Frozen under reduced motion with uTime.
+  if (uSnowStrength > 0.0005) {
+    color += ambientSnow(vUv) * uSnowStrength;
+  }
+
+  // 16. Slow exposure breathing keeps the settled frame alive without moving
+  // any geometry; the CPU pins this to 1.0 under reduced motion.
+  color *= uExposureBreath;
 
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
@@ -239,6 +361,13 @@ export default function RetroCinematicPostProcess({
           uResolution: { value: new THREE.Vector2(1, 1) },
           uScanlineStrength: { value: qualityBudget.high.scanline },
           uTime: { value: 0 },
+          uVignetteStrength: { value: CINEMATIC_GRADE.high.vignette },
+          uGrainStrength: { value: CINEMATIC_GRADE.high.grain },
+          uBloomStrength: { value: CINEMATIC_GRADE.high.bloom },
+          uSCurveStrength: { value: CINEMATIC_GRADE.high.sCurve },
+          uSplitToneStrength: { value: CINEMATIC_GRADE.high.splitTone },
+          uSnowStrength: { value: CINEMATIC_GRADE.high.snow },
+          uExposureBreath: { value: 1 },
         },
         vertexShader: VERTEX_SHADER,
       }),
@@ -271,13 +400,24 @@ export default function RetroCinematicPostProcess({
     material.uniforms.uScanlineStrength.value = budget.scanline;
     material.uniforms.uPixelSize.value = budget.pixel;
     material.uniforms.uQuantizeStrength.value = budget.quantize;
-  }, [gl, material, quality, size.height, size.width, target]);
+    const cinematic = CINEMATIC_GRADE[quality] || CINEMATIC_GRADE.high;
+    material.uniforms.uVignetteStrength.value = cinematic.vignette;
+    material.uniforms.uGrainStrength.value = reducedMotion ? cinematic.grain * 0.6 : cinematic.grain;
+    material.uniforms.uBloomStrength.value = cinematic.bloom;
+    material.uniforms.uSCurveStrength.value = cinematic.sCurve;
+    material.uniforms.uSplitToneStrength.value = cinematic.splitTone;
+    material.uniforms.uSnowStrength.value = cinematic.snow;
+  }, [gl, material, quality, reducedMotion, size.height, size.width, target]);
 
   useEffect(() => () => material.dispose(), [material]);
   useEffect(() => () => target.dispose(), [target]);
 
   useFrame(({ clock }, delta) => {
     material.uniforms.uTime.value = reducedMotion ? 0 : clock.elapsedTime;
+    // +-0.5% exposure breathing at 0.08Hz; flat under reduced motion.
+    material.uniforms.uExposureBreath.value = reducedMotion
+      ? 1
+      : 1 + Math.sin(clock.elapsedTime * Math.PI * 2 * 0.08) * 0.005;
     material.uniforms.uCameraNear.value = camera.near;
     material.uniforms.uCameraFar.value = camera.far;
     const motionPose = motionPoseRef?.current;

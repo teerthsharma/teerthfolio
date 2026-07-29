@@ -88,14 +88,14 @@ assert.equal(NE_MECHANISM_PROFILES[IDS[3]].verifySeconds, 0.7);
 
 assert.deepEqual(Object.keys(NE_MONUMENT_CONTRACTS), IDS);
 assert.deepEqual(NE_MONUMENT_CONTRACTS[IDS[0]].silhouette, [
-  "CERN antimatter cryostat",
-  "Penning trap coil rings",
-  "vacuum diagnostic beamline",
+  "stilted server and data hut",
+  "cooling louvre and fan bank",
+  "rack indicator window strip",
 ]);
 assert.deepEqual(NE_MONUMENT_CONTRACTS[IDS[1]].silhouette, [
-  "separated shield hemispheres",
-  "single primordial energy seed",
-  "restrained upward holy rays",
+  "long low generator hall",
+  "plumed exhaust stack and day tanks",
+  "roller door over a contained burner",
 ]);
 assert.deepEqual(NE_MONUMENT_CONTRACTS[IDS[2]].silhouette, [
   "contained field chamber",
@@ -103,18 +103,28 @@ assert.deepEqual(NE_MONUMENT_CONTRACTS[IDS[2]].silhouette, [
   "flux skin",
 ]);
 assert.deepEqual(NE_MONUMENT_CONTRACTS[IDS[3]].silhouette, [
-  "continuous sampled Riemann-manifold pavilion",
-  "stable dock band and slender abutments",
-  "contiguous floor shell and ribs",
-  "verification beam",
+  "braced ice-core drill derrick",
+  "borehole platform and slender abutments",
+  "catwalk to the drill shack",
+  "winch cable telemetry run",
 ]);
-assert.equal(NE_MONUMENT_CONTRACTS[IDS[0]].topology, "antimatter is measured inside a controlled Penning trap");
-assert.equal(NE_MONUMENT_CONTRACTS[IDS[1]].topology, "first energy is shielded between two open cradles");
+// LAW 2: every northeast monument is the real Antarctic camp facility that
+// would house its evidence, not a sci-fi abstraction of it.
+assert.equal(NE_MONUMENT_CONTRACTS[IDS[0]].topology, "compute runs inside an insulated box the camp keeps cold");
+assert.equal(NE_MONUMENT_CONTRACTS[IDS[1]].topology, "power is made inside a hall and let out through one door");
+assert.match(NE_MONUMENT_CONTRACTS[IDS[0]].materialSignature, /stilt legs[\s\S]*cooling fan[\s\S]*rack indicator/i);
 assert.match(NE_MONUMENT_CONTRACTS[IDS[1]].materialSignature, /abyss-blue[\s\S]*living gold/i);
+assert.match(NE_MONUMENT_CONTRACTS[IDS[1]].materialSignature, /machine hall[\s\S]*exhaust stack[\s\S]*burner/i);
 assert.equal(NE_MONUMENT_CONTRACTS[IDS[2]].topology, "field compresses inside a boundary");
 assert.match(NE_MONUMENT_CONTRACTS[IDS[2]].materialSignature, /graphite[\s\S]*copper[\s\S]*orange-white plasma/i);
-assert.equal(NE_MONUMENT_CONTRACTS[IDS[3]].topology, "coherence closes continuously from both endpoints toward the center");
-assert.match(NE_MONUMENT_CONTRACTS[IDS[3]].materialSignature, /alien jade[\s\S]*iridescent cyan[\s\S]*interference/i);
+assert.equal(
+  NE_MONUMENT_CONTRACTS[IDS[3]].topology,
+  "the core is verified by going down the hole and coming back up the cable",
+);
+assert.match(
+  NE_MONUMENT_CONTRACTS[IDS[3]].materialSignature,
+  /graphite steel drill derrick[\s\S]*borehole collar[\s\S]*panel drill shack[\s\S]*mint telemetry/i,
+);
 assert.deepEqual(
   IDS.map((id) => NE_MONUMENT_CONTRACTS[id].heroSpanSealWidths),
   [5, 4.6, 5.2, 6.5],
@@ -261,7 +271,7 @@ function advanceChunks(system, inputs, chunks, options = {}) {
     "S2 tangent coordinates must remain projected onto the authored manifold bound",
   );
   assert.equal(state.ritual.breathingMultiplier, 1);
-  assert.equal(state.ritual.haloColor, "#3E5BC7");
+  assert.equal(state.ritual.haloColor, "#5573E0");
   const firstDiagnosticPhase = state.proofBitPhase;
   advanceFor(system, inputs, 0.2);
   assert.ok(state.proofBitPhase > firstDiagnosticPhase, "S2 diagnostic pulse must travel axially while approaching");
@@ -529,34 +539,357 @@ function hexLuminance(hex) {
   return red * 0.2126 + green * 0.7152 + blue * 0.0722;
 }
 
+function paletteValue(key) {
+  const match = source.match(new RegExp(`\\n  ${key}: "(#[0-9A-Fa-f]{6})",`));
+  assert.ok(match, `STATION_PALETTE must define ${key}`);
+  return match[1];
+}
+
+// LAW 3 - lit, not glowing. Every station must resolve into three separated
+// value zones: graphite structure, mid-value panel cladding, and bright
+// hardware/glass, with at least 0.2 luma (51/255) between neighbouring zones.
+function assertValueLadder(label, claddingKey, hardwareHex) {
+  const structure = hexLuminance(paletteValue("steel"));
+  const cladding = hexLuminance(paletteValue(claddingKey));
+  const hardware = hexLuminance(hardwareHex);
+  assert.ok(structure <= 64, `${label} structure zone must stay graphite dark (${structure})`);
+  assert.ok(
+    cladding >= 92 && cladding <= 145,
+    `${label} cladding zone must sit mid-value between structure and hardware (${cladding})`,
+  );
+  assert.ok(hardware >= 191, `${label} hardware/glass zone must top the ladder (${hardware})`);
+  assert.ok(
+    cladding - structure >= 51 && hardware - cladding >= 51,
+    `${label} value ladder needs >= 0.2 luma between neighbouring zones`,
+  );
+}
+
+assertValueLadder("S2 server hut", "s2Cladding", materialValue("s2Signal", "color"));
+assertValueLadder("Aether generator hall", "aetherCladding", materialValue("aetherBead", "color"));
+assertValueLadder("QPU ice-core drill rig", "qpuCladding", materialValue("qpuSignal", "color"));
+
+// Body emissive ceiling: the frame pools are lit by the scene, never lamps.
+assert.match(source, /const BODY_EMISSIVE_CEILING = 0\.06;/);
+assert.match(
+  source,
+  /function bodyEmissive[\s\S]*Math\.min\(BODY_EMISSIVE_CEILING/,
+  "station bodies must clamp their emissive against the shared ceiling",
+);
+for (const clamped of [
+  "pools.frame.material.emissiveIntensity = bodyEmissive(0.03, closure)",
+  "pools.frame.material.emissiveIntensity = bodyEmissive(0.03, bloom)",
+  "pools.ribbons.material.emissiveIntensity = bodyEmissive(0.02, aperture)",
+  "pools.frame.material.emissiveIntensity = bodyEmissive(0.03, trafficBlend)",
+  "pools.plates.material.emissiveIntensity = bodyEmissive(0.02, trafficBlend)",
+]) {
+  assert.ok(source.includes(clamped), `rebuilt facility body is not emissive-clamped: ${clamped}`);
+}
+
 // Focused visual hotfix contracts: palette checks fail before the material fix;
 // span checks lock the authored geometry/scale against future shrinkage.
 const s2FrameColor = materialValue("s2Frame", "color");
-assert.ok(
-  Number.parseInt(s2FrameColor.slice(5, 7), 16) >= 140 && hexLuminance(s2FrameColor) >= 58,
-  `S2 frame must read as cobalt rather than a near-black silhouette (${s2FrameColor})`,
+assert.equal(
+  s2FrameColor,
+  "#FFFFFF",
+  "the server hut body must be a white base multiplied by the per-vertex camp palette",
+);
+assert.match(
+  source,
+  /s2Frame: makeArchitecturalSurface\(\{[\s\S]*?vertexColors: true,[\s\S]*?windowGain: 1\.15,/,
+  "the server hut body must carry vertex cladding zones and shared ember window gain",
 );
 const aetherFrameColor = materialValue("aetherFrame", "color");
-assert.ok(
-  Number.parseInt(aetherFrameColor.slice(5, 7), 16) >= 100 && hexLuminance(aetherFrameColor) >= 32,
-  `Aether holder must remain a dominant abyss-blue volume (${aetherFrameColor})`,
+assert.equal(
+  aetherFrameColor,
+  "#FFFFFF",
+  "the generator hall body must be a white base multiplied by the per-vertex camp palette",
+);
+assert.match(
+  source,
+  /aetherFrame: makeArchitecturalSurface\(\{[\s\S]*?vertexColors: true,[\s\S]*?windowGain: 1\.15,/,
+  "the generator hall body must carry vertex cladding zones and shared ember window gain",
 );
 const qpuFrameColor = materialValue("qpuFrame", "color");
+assert.equal(
+  qpuFrameColor,
+  "#FFFFFF",
+  "the drill-rig body must be a white base multiplied by the per-vertex camp palette",
+);
+assert.match(
+  source,
+  /qpuFrame: makeArchitecturalSurface\(\{[\s\S]*?vertexColors: true,[\s\S]*?windowGain: 1\.15,/,
+  "the drill-rig body must carry vertex cladding zones and shared ember window gain",
+);
+// The base still has to sit above the black floor so the rig never collapses
+// into a silhouette, and the identity mint must survive as an emissive tell.
 assert.ok(
   Number.parseInt(qpuFrameColor.slice(2, 4), 16) >= 100 && hexLuminance(qpuFrameColor) >= 38,
-  `QPU bridge support must read as luminous teal rather than black (${qpuFrameColor})`,
+  `QPU rig body must stay a luminous base rather than black (${qpuFrameColor})`,
+);
+const qpuSignalEmissive = materialValue("qpuSignal", "emissive");
+assert.equal(
+  qpuSignalEmissive,
+  "#55CE85",
+  "QPU telemetry lights must carry the station's mint identity",
+);
+assert.ok(
+  Number.parseInt(qpuSignalEmissive.slice(3, 5), 16) >= 100 && hexLuminance(qpuSignalEmissive) >= 38,
+  `QPU telemetry emissive must read as luminous mint rather than black (${qpuSignalEmissive})`,
+);
+assert.equal(
+  materialValue("qpuPlate", "color"),
+  "#4A5464",
+  "QPU catwalk handrail bays must read as steel hardware, not saturated teal",
+);
+// S2 cooling-fan contract: the bearing that used to spin a rotor citadel now
+// drives the fan bank — slow idle turn, docked spin-up, and a deterministic
+// frozen angle under reduced motion.
+const s2RotorIdleRate = Number(source.match(/const S2_ROTOR_IDLE_RATE = ([0-9.]+);/)?.[1]);
+const s2RotorDockedRate = Number(source.match(/const S2_ROTOR_DOCKED_RATE = ([0-9.]+);/)?.[1]);
+const s2RotorResponse = Number(source.match(/const S2_ROTOR_SPIN_RESPONSE = ([0-9.]+);/)?.[1]);
+assert.ok(
+  s2RotorIdleRate >= 0.06 && s2RotorIdleRate <= 0.1,
+  `S2 rotor idle spin must stay ambient at 0.06-0.1 rad/s (${s2RotorIdleRate})`,
+);
+assert.ok(
+  s2RotorDockedRate >= 0.5 && s2RotorDockedRate <= 0.8,
+  `S2 docked rotor spin must reach a ceremonial 0.5-0.8 rad/s (${s2RotorDockedRate})`,
+);
+assert.ok(
+  s2RotorResponse > 0 && s2RotorResponse <= 0.6,
+  `S2 rotor spin-up must settle within roughly 1.5 seconds (${s2RotorResponse})`,
+);
+assert.match(
+  source,
+  /simulationTime - rotor\.simTime[\s\S]*S2_ROTOR_REDUCED_ANGLE[\s\S]*rotor\.rate \* rotorSimDelta/,
+  "S2 rotor must integrate against the fixed-step simulation clock and pin a fixed reduced-motion angle",
+);
+assert.match(
+  source,
+  /function facetedPart[\s\S]*deleteAttribute\("normal"\)[\s\S]*computeVertexNormals\(\)/,
+  "faceted parts must carry flat machined facets rather than smooth anonymous cylinders",
+);
+assert.match(
+  source,
+  /applyS2Instances\(system\.states\["s2-kernel-core"\], pools\.s2, scratch, rotor\.angle\)/,
+  "S2 instance matrices must consume the deterministic rotor angle",
+);
+const s2FanGearRatio = Number(source.match(/const S2_FAN_GEAR_RATIO = ([0-9.]+);/)?.[1]);
+assert.ok(
+  s2FanGearRatio >= 6,
+  `S2 cooling fans must be geared well above the rotor bearing rate so idle reads as a lazy extract (${s2FanGearRatio})`,
+);
+assert.match(
+  source,
+  /const fanAngle = rotorAngle \* S2_FAN_GEAR_RATIO/,
+  "the S2 dock ritual must spin the cooling fans, not a rotor citadel",
+);
+assert.match(
+  source,
+  /const blink = 0\.5 \+ 0\.5 \* Math\.sin\(bitPhase \* \(3 \+ index \* 2\) \+ index \* 2\.17\)/,
+  "S2 rack indicator banks must blink on a deterministic incommensurate pattern",
+);
+// LAW 2 construction grammar: the S2 evidence lives in a real server & data hut.
+for (const token of [
+  "s2-panel-seam",
+  "s2-cooling-louvre",
+  "s2-calibration-collars",
+  "s2-machined-axial-rails",
+  "s2-rack-window-strip",
+  "s2-ember-window",
+  "s2-snow-drift",
+  "S2_HUT_HALF_WIDTH",
+  "S2_FAN_CENTERS_Z",
+  "S2_RACK_BANK_Z",
+]) {
+  assert.ok(
+    source.includes(token),
+    `S2 server-hut construction grammar is missing ${JSON.stringify(token)}`,
+  );
+}
+// LAW 2 construction grammar: the reactor evidence lives in a real generator hall.
+for (const token of [
+  "aether-panel-seam",
+  "aether-vent-stack",
+  "aether-stack-condensate-plume",
+  "aether-hall-window",
+  "aether-snow-drift",
+  "AETHER_DOOR_SLATS",
+  "AETHER_INDICATOR_LAMPS",
+  "AETHER_STACK_TOP_Y",
+]) {
+  assert.ok(
+    source.includes(token),
+    `Aether generator-hall construction grammar is missing ${JSON.stringify(token)}`,
+  );
+}
+assert.match(
+  source,
+  /AETHER_DOOR_SLATS[\s\S]*closedY \+ \(openY - closedY\) \* aperture/,
+  "the reactor dock ritual must roll the door slats up instead of parting a shield",
+);
+assert.match(
+  source,
+  /awardPlumeGate[\s\S]*awardMotionActivity[\s\S]*AETHER_PLUME_DISPLACEMENT_LIMIT[\s\S]*awardAetherMask/,
+  "the exhaust plume must shimmer in world space with bounded activity-driven displacement",
 );
 const fieldHeaterHalfLength = Number(source.match(/const FIELD_HEATER_HALF_LENGTH = ([0-9.]+);/)?.[1]);
 const qpuAbutmentRadius = Number(source.match(/const QPU_ABUTMENT_RADIUS = ([0-9.]+);/)?.[1]);
 const qpuAbutmentHeight = Number(source.match(/const QPU_ABUTMENT_HEIGHT = ([0-9.]+);/)?.[1]);
 assert.ok(fieldHeaterHalfLength >= 0.9, "Field heater must retain its authored thermal-land span");
-assert.ok(qpuAbutmentRadius <= 0.1, "QPU endpoint abutments must stay slender rather than reading as blocks");
-assert.ok(qpuAbutmentHeight <= 0.55, "QPU endpoint abutments must stay subordinate to the shell");
+// Field possessed-heater contract: the heat gradient anchors the heater read
+// (white-hot firebox core -> amber glowing elements -> dark graphite steel
+// chassis), boot-camp construction grammar keeps it plant equipment, and the
+// symbiote nano-flux crawl integrates on the fixed-step simulation clock,
+// roughly doubling its cadence while the seal is docked.
+// The heater chassis is a white base multiplied by the per-vertex camp palette,
+// so the bottom of its heat gradient is the painted graphite steel, not the
+// material's base color.
+assert.equal(materialValue("fieldFrame", "color"), "#FFFFFF");
+const fieldChassisColor = paletteValue("steel");
+assert.ok(
+  hexLuminance(fieldChassisColor) <= 78,
+  `Field heater chassis must stay dark graphite steel at the bottom of the heat gradient (${fieldChassisColor})`,
+);
+const fieldCoilEmissive = materialValue("fieldCoil", "emissive");
+assert.ok(
+  hexLuminance(fieldCoilEmissive) >= 120 && hexLuminance(fieldCoilEmissive) <= 230,
+  `Field heating elements must glow amber between chassis and core (${fieldCoilEmissive})`,
+);
+const fieldPacketColor = materialValue("fieldPacket", "color");
+assert.ok(
+  hexLuminance(fieldPacketColor) >= 225,
+  `Field flux packets and firebox must stay white-hot at the top of the heat gradient (${fieldPacketColor})`,
+);
+assert.ok(
+  hexLuminance(fieldPacketColor) > hexLuminance(fieldCoilEmissive) &&
+    hexLuminance(fieldCoilEmissive) > hexLuminance(fieldChassisColor),
+  "Field heat gradient must descend white-hot core -> amber elements -> dark steel",
+);
+for (const token of [
+  "field-steel-skid-frame",
+  "field-panel-seam",
+  "field-vent-stack",
+  "field-snow-drift-skirt",
+  "FIELD_PORTHOLE_WINDOWS",
+]) {
+  assert.ok(
+    source.includes(token),
+    `Field boot-camp construction grammar is missing ${JSON.stringify(token)}`,
+  );
+}
+const fieldSymbioteIdleRate = Number(source.match(/const FIELD_SYMBIOTE_IDLE_RATE = ([0-9.]+);/)?.[1]);
+const fieldSymbioteDockedRate = Number(source.match(/const FIELD_SYMBIOTE_DOCKED_RATE = ([0-9.]+);/)?.[1]);
+assert.ok(
+  fieldSymbioteIdleRate > 0 && fieldSymbioteDockedRate >= fieldSymbioteIdleRate * 1.8,
+  `Field symbiote crawl must roughly double its cadence at dock (${fieldSymbioteIdleRate} -> ${fieldSymbioteDockedRate})`,
+);
+assert.match(
+  source,
+  /simulationTime - symbiote\.simTime[\s\S]*symbiote\.crawl \+ crawlRate \* symbioteSimDelta/,
+  "Field symbiote must integrate against the fixed-step simulation clock",
+);
+assert.match(
+  source,
+  /reducedMotion\) \{[\s\S]*symbiote\.excite = 1;[\s\S]*FIELD_SYMBIOTE_REDUCED_CRAWL/,
+  "reduced motion must pin the possessed heater frozen but fully incandescent",
+);
+assert.match(
+  source,
+  /Math\.sin\(livingTime \* 0\.83 \+ index \* 2\.39\)[\s\S]*Math\.sin\(livingTime \* 1\.71 \+ index \* 1\.13\)/,
+  "Field flux packets must ride stacked incommensurate sinusoids, never a linear-mechanical march",
+);
+// The two "abutments" are now the slender end posts the catwalk lands on
+// between the drill shack and the borehole platform, and the same radius sizes
+// the borehole casing head. Both bounds are unchanged.
+assert.ok(qpuAbutmentRadius <= 0.1, "QPU catwalk abutments must stay slender rather than reading as blocks");
+assert.ok(qpuAbutmentHeight <= 0.55, "QPU catwalk abutments must stay subordinate to the rig");
+// QPU ice-core-drill-rig contract: a boundary-safe walkable camber on the
+// catwalk plate, a real drill-camp construction kit, and cable telemetry that
+// integrates on the fixed-step simulation clock and roughly doubles its cadence
+// when the winch spins up at dock.
+const qpuCrestBoost = Number(source.match(/const QPU_CREST_BOOST = ([0-9.]+);/)?.[1]);
+assert.ok(
+  qpuCrestBoost >= 0.02 && qpuCrestBoost <= 0.09,
+  `QPU catwalk crown must stay a walkable camber, not a ceremonial arch (${qpuCrestBoost})`,
+);
+assert.match(
+  source,
+  /function qpuCrestLift[\s\S]*QPU_CREST_BOOST \* \(1 - normalizedX \* normalizedX\)/,
+  "QPU crest must depend only on the normalized span position so construction-band boundaries stay closed",
+);
+// LAW 2 construction grammar: the QPU evidence lives in a real ice-core drill rig.
+for (const token of [
+  "qpu-derrick-leg",
+  "qpu-derrick-brace",
+  "qpu-derrick-hazard-sleeve",
+  "qpu-crown-block",
+  "qpu-borehole-collar",
+  "qpu-winch-drum",
+  "qpu-winch-cable",
+  "qpu-catwalk-handrail-bay",
+  "qpu-panel-seam",
+  "qpu-shack-window",
+  "qpu-indicator-panel",
+  "qpu-core-crate",
+  "qpu-drill-rod-rack",
+  "qpu-cable-tray",
+  "qpu-snow-drift",
+  "QPU_GROUND_Y",
+  "QPU_CROWN_Y",
+  "QPU_CABLE_DRUM",
+  "QPU_CABLE_CROWN",
+  "QPU_CABLE_HOLE",
+  "QPU_IDENTITY_MINT",
+]) {
+  assert.ok(
+    source.includes(token),
+    `QPU drill-rig construction grammar is missing ${JSON.stringify(token)}`,
+  );
+}
+// The rig stands on the snow. It used to float on QPU_INVERSE_BRIDGE_LIFT and
+// was excluded from contact-plane scaling; both are now gone.
+assert.match(
+  source,
+  /const STATION_LOWEST_LOCAL_Y = Object\.freeze\(\{[\s\S]*?"qpu-ice-bridge": QPU_GROUND_Y,/,
+  "the drill rig must publish a ground-contact plane like every other grounded monument",
+);
+assert.match(
+  source,
+  /applyQpuInstances[\s\S]*setIdentityInstance\(pools\.frame, scratch\)/,
+  "the drill-rig frame pool must sit at its authored contact height, not on a bridge lift",
+);
+assert.match(
+  source,
+  /const QPU_GROUND_Y = (-0\.[0-9]+);/,
+  "the drill rig must author one explicit ground plane constant",
+);
+assert.match(
+  source,
+  /sampleQpuCable[\s\S]*QPU_CABLE_SEGMENTS\[0\]\.length/,
+  "telemetry lights must ride the same authored winch-cable polyline the static cable is built from",
+);
+const qpuTrafficIdleRate = Number(source.match(/const QPU_TRAFFIC_IDLE_RATE = ([0-9.]+);/)?.[1]);
+const qpuTrafficDockedRate = Number(source.match(/const QPU_TRAFFIC_DOCKED_RATE = ([0-9.]+);/)?.[1]);
+assert.ok(
+  qpuTrafficIdleRate > 0 && qpuTrafficDockedRate >= qpuTrafficIdleRate * 1.8,
+  `QPU docked cable telemetry must run at roughly double the idle cadence (${qpuTrafficIdleRate} -> ${qpuTrafficDockedRate})`,
+);
+assert.match(
+  source,
+  /simulationTime - traffic\.simTime[\s\S]*traffic\.phase \+ trafficRate \* trafficSimDelta/,
+  "QPU cable telemetry must integrate against the fixed-step simulation clock",
+);
+assert.match(
+  source,
+  /reducedMotion[\s\S]*\(index \+ 0\.5\) \/ QPU_PULSE_COUNT/,
+  "reduced motion must pin QPU telemetry lights to a static node pattern along the cable",
+);
 
 assert.match(
   source,
-  /S2_CRYOGENIC_LAB_PROFILE[\s\S]*CERN Penning-trap cryogenic laboratory[\s\S]*cobalt shell[\s\S]*machined pale metal[\s\S]*cyan diagnostics[\s\S]*axial halo/,
-  "S2 must publish the complete CERN/Penning-trap laboratory identity",
+  /S2_CRYOGENIC_LAB_PROFILE[\s\S]*server and data hut[\s\S]*stilt legs[\s\S]*cooling louvre[\s\S]*machined pale metal[\s\S]*rack window strip[\s\S]*windward drift[\s\S]*axial halo/,
+  "S2 must publish the complete server-and-data-hut facility identity",
 );
 assert.match(
   source,
@@ -571,7 +904,7 @@ assert.match(
 assert.match(
   source,
   /AETHER_DOMINANT_SEED_RADIUS[\s\S]*SphereGeometry/,
-  "Aether must suspend a dominant spherical golden first-energy seed",
+  "the generator hall must contain one spherical golden burner glow",
 );
 assert.match(
   source,
@@ -610,8 +943,8 @@ assert.match(
 );
 assert.match(
   source,
-  /AETHER_ABYSS_PROFILE[\s\S]*abyss-blue[\s\S]*golden seed[\s\S]*golden deterministic motes[\s\S]*caustic arcs/,
-  "Aether must publish a readable abyss-blue and living-gold identity",
+  /AETHER_ABYSS_PROFILE[\s\S]*generator hall[\s\S]*abyss-blue[\s\S]*panel seams[\s\S]*day tanks[\s\S]*exhaust stack[\s\S]*living gold burner[\s\S]*door slats/,
+  "the reactor must publish a generator-hall facility identity in abyss-blue and living gold",
 );
 assert.match(
   source,
@@ -620,8 +953,8 @@ assert.match(
 );
 assert.match(
   source,
-  /QPU_ALIEN_COHERENCE_PROFILE[\s\S]*Riemann-manifold ice pavilion[\s\S]*alien jade dock band[\s\S]*contiguous floor shell and ribs[\s\S]*verification beam/,
-  "QPU must publish a continuous alien-jade/cyan manifold pavilion identity",
+  /QPU_ICE_CORE_DRILL_PROFILE[\s\S]*ice-core drill rig standing on the snow[\s\S]*derrick[\s\S]*borehole collar[\s\S]*drawworks winch[\s\S]*drill shack[\s\S]*catwalk[\s\S]*telemetry lights/,
+  "QPU must publish a grounded ice-core drill-rig facility identity",
 );
 assert.match(
   source,
@@ -698,10 +1031,10 @@ for (const token of [
   "field-graphite-copper-contained-thermal-chamber",
   "field-compressing-helical-coils",
   "field-graphite-copper-orange-white-plasma",
-  "qpu-continuous-riemann-manifold-pavilion",
-  "qpu-contiguous-floor-shell-and-ribs",
+  "qpu-ice-core-drill-rig",
+  "qpu-contiguous-catwalk-plate-and-hoops",
   "qpu-stable-visitor-dock-band-and-slender-abutments",
-  "qpu-manifold-verification-beam",
+  "qpu-wireline-verification-sonde",
   "new THREE.BufferGeometry()",
   "geometry.setAttribute(\"position\"",
   "constructionStepEndVertexCounts",
@@ -730,6 +1063,12 @@ for (const forbidden of [
   "qpu-stepped-coherence-span",
   "paired-sanctums",
   "createQpuSampledRiemannStripGeometry",
+  // Deleted sci-fi abstraction: the floating jade crystal causeway.
+  "qpu-crystal-pylon-cluster",
+  "qpu-floating-coherence-stabilizer-ring",
+  "qpu-alien-iridescent-interference-fins",
+  "QPU_INVERSE_BRIDGE_LIFT",
+  "qpuGlass",
 ]) {
   assert.ok(!source.includes(forbidden), `mechanism renderer must not include ${JSON.stringify(forbidden)}`);
 }
@@ -745,6 +1084,12 @@ for (const forbidden of [
   "field-opposed-coils",
   "qpu-stepped-ice-coherence-span",
   "new THREE.BoxGeometry(0.48, 0.105, 0.78)",
+  // Deleted sci-fi abstractions: the rotor citadel and the floating caged star.
+  "S2_CROWN_BEACON_Y",
+  "S2_PORT_RAIL_Z",
+  "AETHER_ORBITAL_ARCS",
+  "AETHER_ORBITAL_RADIUS",
+  "aetherShieldYaw",
 ]) {
   assert.ok(!source.includes(forbidden), `old primitive mechanism is still present: ${forbidden}`);
 }

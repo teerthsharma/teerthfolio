@@ -11,12 +11,47 @@ const requires = (pattern, message) => {
 };
 
 requires(
-  /DOME_CRYSTAL_MATERIAL_CONTRACT[\s\S]*bright anime-soft crystalline ice[\s\S]*recessed blue-grey frost[\s\S]*bounded contact-weight optics/,
+  /DOME_CRYSTAL_MATERIAL_CONTRACT[\s\S]*bright anime-soft crystalline ice[\s\S]*recessed blue-grey frost[\s\S]*hairline seam recesses[\s\S]*near-zero base emissive[\s\S]*bounded contact-weight optics/,
   "dome must publish the bright crystalline material contract",
 );
 requires(
   /DOME_CRYSTAL_PALETTE[\s\S]*iceBlue[\s\S]*frostIvory[\s\S]*seamBlueGrey[\s\S]*subsurfaceCyan/,
   "dome must expose separated ice, frost, seam, and subsurface colors",
+);
+// Professional glacial register: the brick face family must stay desaturated pale
+// white-blue. A saturated primary/cornflower face color is the exact regression that
+// made the hero dome read as a toy block set.
+const faceFamily = { frostIvory: "#D9E6F5", iceBlue: "#B7C9E2", windCap: "#F0F5FA" };
+for (const [name, hex] of Object.entries(faceFamily)) {
+  assert.match(
+    source,
+    new RegExp(`${name}: "${hex}"`),
+    `dome ${name} must stay on the desaturated glacial face band (${hex})`,
+  );
+  const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255);
+  const max = Math.max(...channels);
+  const saturation = (max - Math.min(...channels)) / max;
+  // HSV saturation. The old toy-blue face family sat at 0.4-0.7 here; the glacial band
+  // caps at 0.19 (#B7C9E2, the darkest face tone), so 0.2 is the regression ceiling.
+  assert.ok(saturation <= 0.2, `dome ${name} must stay in the desaturated glacial band`);
+  assert.ok(max > 0.7, `dome ${name} must stay a high-value ice tone`);
+}
+requires(
+  /brickSeamCore = 1\.0 - smoothstep\(brickSeamAa, brickBevelWidth \* 0\.42/,
+  "seams must read as a hairline cut with a separate deep-recess core",
+);
+requires(
+  /brickBevelWidth = mix\(0\.0[0-4]\d*, 0\.0[0-5]\d*, clamp\(vBrickBevel/,
+  "the brick bevel band must stay hairline rather than chunky toy rounding",
+);
+requires(
+  /Body emissive is effectively off[\s\S]*emissiveIntensity: quality === "high" \? 0\.0\d+ : 0\.0\d+/,
+  "the brick body must be scene-lit rather than self-glowing",
+);
+assert.doesNotMatch(
+  source,
+  /totalEmissiveRadiance\s*\+=\s*brickSurface\s*\*\s*(\(0\.[1-9]|0\.[1-9])/,
+  "the brick body emissive must stay near zero so the value ladder survives",
 );
 requires(
   /attribute float instanceBevel[\s\S]*varying float vBrickBevel[\s\S]*instanceBevel/,
@@ -99,6 +134,58 @@ requires(
   "one inertial attribute-update path must animate lift and spring recovery",
 );
 requires(
+  /DOME_FLOAT_PROFILE[\s\S]*courseWeight:\s*"smoothstep\(0\.08, 0\.85, normalizedBrickHeight\)"[\s\S]*proximityStirGain:\s*0\.5[\s\S]*suspensionGapRadiusRatio:\s*0\.015/,
+  "the shell must publish the suspended ice-block float contract",
+);
+requires(
+  /materialize:\s*Object\.freeze\(\{[\s\S]*margin:\s*0\.55[\s\S]*scaleFrom:\s*0\.62[\s\S]*slideInLocal:\s*0\.55[\s\S]*window:\s*0\.45/,
+  "the float contract must publish the bottom-up staggered materialize sub-profile",
+);
+requires(
+  /wake:\s*Object\.freeze\(\{[\s\S]*amplitudeRangeLocal:\s*Object\.freeze\(\[0\.03, 0\.1\]\)[\s\S]*decayTauSeconds:\s*0\.9[\s\S]*minSplatDistanceLocal:\s*0\.25[\s\S]*minSplatIntervalMs:\s*90[\s\S]*sigmaLocal:\s*0\.55[\s\S]*splatCount:\s*8/,
+  "the float contract must publish the dissipating pointer splat wake sub-profile",
+);
+requires(
+  /wave:\s*Object\.freeze\(\{[\s\S]*amplitudes:\s*Object\.freeze\(\[0\.02, 0\.007\]\)[\s\S]*angularWavenumber:\s*3[\s\S]*frequenciesHz:\s*Object\.freeze\(\[0\.09, 0\.178\]\)/,
+  "the float contract must publish the coherent traveling azimuthal wave sub-profile",
+);
+requires(
+  /attribute vec3 instanceFloat[\s\S]*new THREE\.InstancedBufferAttribute\(floatData, 3\)/,
+  "normalized course height, drift phase, and centroid azimuth must upload once as one vec3 instanced attribute",
+);
+requires(
+  /brickFloatWeight\s*=\s*smoothstep\(0\.08, 0\.85, instanceFloat\.x\)[\s\S]*uBrickFloatMotion\s*\*\s*\(1\.0\s*\+\s*0\.5\s*\*\s*uBrickProximity\)[\s\S]*transformed\.z\s*\+=\s*\(brickSuspensionGap \+ brickFloatDrift\)/,
+  "suspension gap and temporal drift must displace outward along the hover-lift axis with proximity stir and a reduced-motion pin",
+);
+requires(
+  /sin\(\$\{DOME_FLOAT_PROFILE\.wave\.angularWavenumber\.toFixed\(1\)\} \* instanceFloat\.z - 6\.28318530718 \* \$\{DOME_FLOAT_PROFILE\.wave\.frequenciesHz\[0\]\.toFixed\(3\)\} \* uBrickTime \+ instanceFloat\.x/,
+  "idle drift must be one coherent traveling azimuthal wave rather than independent per-brick sinusoids",
+);
+requires(
+  /uniform vec4 uSplatCoords\[\$\{DOME_FLOAT_PROFILE\.wake\.splatCount\}\];[\s\S]*uniform float uSplatAmps\[\$\{DOME_FLOAT_PROFILE\.wake\.splatCount\}\];[\s\S]*uniform float uSplatRadius;/,
+  "the pointer wake must ride an eight-splat uniform ring buffer with a shared radius, never a texture",
+);
+requires(
+  /brickWake\s*\+=\s*uSplatAmps\[splat\][\s\S]*exp\(-\(splatDistance \* splatDistance\)[\s\S]*exp\(-max\(splatAge, 0\.0\)[\s\S]*brickWake\s*=\s*min\(brickWake, 0\.16\)\s*\*\s*uBrickFloatMotion[\s\S]*transformed\.z\s*\+=\s*brickWake/,
+  "wake displacement must sum gaussian-falloff exponentially-decaying splats, stay bounded, respect reduced motion, and push outward only",
+);
+requires(
+  /function writePointerWakeSplat[\s\S]*minSplatDistanceLocal \* worldScale[\s\S]*minSplatIntervalMs[\s\S]*uSplatCoords\.value\[index\]\.set\(point\.x, point\.y, point\.z, uniforms\.uBrickTime\.value\)/,
+  "pointer moves must append speed-scaled splats to the ring buffer with distance and interval gating",
+);
+requires(
+  /onPointerMove=\{\(event\) => \{[\s\S]*writePointerWakeSplat\(assets\.material, event\)/,
+  "the existing raycast pointer-move handlers must feed the wake splat writer",
+);
+requires(
+  /brickReveal = smoothstep\(\s*instanceFloat\.x \* \$\{DOME_FLOAT_PROFILE\.materialize\.margin\.toFixed\(2\)\},[\s\S]*\+ \$\{DOME_FLOAT_PROFILE\.materialize\.window\.toFixed\(2\)\},\s*uBrickReveal[\s\S]*transformed \*= mix\(\$\{DOME_FLOAT_PROFILE\.materialize\.scaleFrom\.toFixed\(2\)\}, 1\.0, brickReveal\)[\s\S]*transformed\.z \+= \(brickReveal - 1\.0\) \* \$\{DOME_FLOAT_PROFILE\.materialize\.slideInLocal\.toFixed\(2\)\}/,
+  "bricks must materialize bottom-up on stream reveal, scaling and sliding from slightly inward to seated",
+);
+requires(
+  /updateInstancedIceUniforms\([\s\S]*reducedMotion \? 0 : 1,[\s\S]*reducedMotion \? 1 : THREE\.MathUtils\.clamp\(reveal, 0, 1\),/,
+  "the existing per-frame uniform path must thread reveal progress with the reduced-motion materialize pin",
+);
+requires(
   /DOME_TILE_FALL_PROFILE[\s\S]*gravity[\s\S]*settle[\s\S]*detach/,
   "docked Observatory tiles must publish damped gravity detachment and soft settle",
 );
@@ -108,8 +195,8 @@ requires(
 );
 assert.match(
   sceneSource,
-  /<PolarObservatoryDome[\s\S]*pointerInteractionEnabled=\{dockedStationId === "observatory-plaque"\}/,
-  "brick pointer lift must only be enabled while docked at Observatory",
+  /<PolarObservatoryDome[\s\S]*pointerInteractionEnabled=\{dockedStationId === "observatory-plaque" \|\| observatoryDistance <= 4\.6\}/,
+  "brick pointer lift must be enabled while docked at Observatory or during close approach",
 );
 
 assert.doesNotMatch(

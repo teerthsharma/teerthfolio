@@ -16,6 +16,7 @@ const devErrLog = path.join(outDir, "next-dev.err.log");
 const viewports = [
   { name: "desktop", width: 1440, height: 900, query: "qa-sdf=1&qa=verify-desktop" },
   { name: "field-docking-desktop", width: 1440, height: 900, query: "qa-sdf=1&qa-low=1&qa-artifact=field-chamber-coils&qa=verify-field-docking" },
+  { name: "upstream-evidence-desktop", width: 1440, height: 900, query: "qa-sdf=1&qa-low=1&qa-artifact=upstream-radio-mast&qa=verify-upstream-evidence" },
   { name: "ipad", width: 768, height: 1024, query: "qa-sdf=1&qa-low=1&qa=verify-ipad" },
   { name: "ipad-landscape", width: 1024, height: 768, query: "qa-sdf=1&qa-low=1&qa=verify-ipad-landscape" },
   { name: "mobile", width: 375, height: 667, query: "qa-sdf=1&qa-low=1&qa=verify-mobile" },
@@ -276,6 +277,11 @@ async function collectMetrics(page) {
         topnav: topnavRect,
       },
       railButtonCount: document.querySelectorAll(".station-profile-rail .station-profile-chip").length,
+      liveStrip: {
+        dockedStation: world?.dataset.dockedStation || "none",
+        proximityStation: world?.dataset.proximityStation || "none",
+        signalState: live?.getAttribute("data-signal-state") || "missing",
+      },
       highContrast: world?.dataset.highContrast,
       contrastTogglePressed: contrastToggle?.getAttribute("aria-pressed") || "",
       reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -510,7 +516,7 @@ async function verifyMovement(page) {
       const world = document.querySelector("#world");
       const x = Number(world?.dataset.worldX);
       const z = Number(world?.dataset.worldZ);
-      return Math.hypot(x - -15, z - 7) > 7.4;
+      return Math.hypot(x - -3, z - 1) > 7.4;
     },
     null,
     { timeout: 12000 },
@@ -570,8 +576,19 @@ async function verifyRailTap(page) {
     { timeout: 10000 },
   );
   const arrivalReadoutText = await readoutText();
+  const liveStripStillHidden = await page.evaluate(() => {
+    const strip = document.querySelector(".igloo-live-strip");
+    if (!strip) return false;
+    const rect = strip.getBoundingClientRect();
+    return (
+      strip.getAttribute("data-signal-state") === "hidden" &&
+      rect.width === 0 &&
+      rect.height === 0
+    );
+  });
   return {
     after,
+    liveStripStillHidden,
     arrivalActive: (await target.getAttribute("data-active")) === "true",
     arrivalCurrent: (await target.getAttribute("aria-current")) === "location",
     arrivalFocused: (await target.getAttribute("aria-pressed")) === "true",
@@ -683,7 +700,30 @@ function assertViewport(result) {
   if (!metrics.visibleHud.brand) failures.push(`brand block is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.brand)}`);
   if (!metrics.visibleHud.rail) failures.push(`station rail is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.rail)}`);
   if (!metrics.visibleHud.readout) failures.push(`active station readout is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.readout)}`);
-  if (!metrics.visibleHud.live) failures.push(`live evidence strip is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.live)}`);
+  const upstreamRadarContact =
+    metrics.liveStrip?.dockedStation === "upstream-radio-mast" ||
+    metrics.liveStrip?.proximityStation === "upstream-radio-mast";
+  if (upstreamRadarContact) {
+    if (!metrics.visibleHud.live) {
+      failures.push(`live evidence strip did not pop at the upstream radio mast radar: ${JSON.stringify(metrics.hudBounds.live)}`);
+    }
+    if (metrics.liveStrip?.signalState !== "received") {
+      failures.push(`live evidence strip is not in the received message state at upstream: ${JSON.stringify(metrics.liveStrip)}`);
+    }
+    if (!/live GitHub API|live upstream radar|snapshot radar|research snapshot/i.test(metrics.contentText.latestEvidence)) {
+      failures.push(`upstream radar strip lacks source evidence: ${metrics.contentText.latestEvidence}`);
+    }
+  } else {
+    if (metrics.visibleHud.live) {
+      failures.push(`live evidence strip is visible before upstream radar contact: ${JSON.stringify(metrics.hudBounds.live)}`);
+    }
+    if (metrics.liveStrip?.signalState !== "hidden") {
+      failures.push(`live evidence strip is not hidden away from the upstream radar: ${JSON.stringify(metrics.liveStrip)}`);
+    }
+  }
+  if (name === "upstream-evidence-desktop" && !upstreamRadarContact) {
+    failures.push(`upstream evidence viewport never reached the radio mast radar: ${JSON.stringify(metrics.liveStrip)}`);
+  }
   if (!metrics.visibleHud.controls) failures.push(`quality controls are not visibly in viewport: ${JSON.stringify(metrics.hudBounds.controls)}`);
   if (!/contrast/i.test(metrics.contentText.controls)) {
     failures.push(`quality controls lack contrast toggle: ${metrics.contentText.controls}`);
@@ -696,9 +736,6 @@ function assertViewport(result) {
   }
   if (name === "desktop" && !metrics.visibleHud.controlsHint) {
     failures.push(`desktop WASD hint is not visibly in viewport: ${JSON.stringify(metrics.hudBounds.controlsHint)}`);
-  }
-  if (!/live GitHub API|live upstream radar|snapshot radar|research snapshot/i.test(metrics.contentText.latestEvidence)) {
-    failures.push(`first viewport lacks source evidence: ${metrics.contentText.latestEvidence}`);
   }
   if (!/topology|manifold|homology/i.test(metrics.contentText.manifesto) || !/ml|kernel|qpu|upstream/i.test(metrics.contentText.manifesto)) {
     failures.push(`manifesto lacks Teerth-specific topology/ML systems language: ${metrics.contentText.manifesto}`);
@@ -739,6 +776,9 @@ function assertViewport(result) {
       !/S2 Kernel Core/i.test(railTap.arrivalReadoutText || ""))
   ) {
     failures.push(`mobile station rail did not initiate and complete S2 navigation: ${JSON.stringify(railTap)}`);
+  }
+  if (name === "mobile" && railTap.liveStripStillHidden !== true) {
+    failures.push(`live evidence strip leaked outside upstream radar during S2 arrival: ${JSON.stringify(railTap.liveStripStillHidden)}`);
   }
   if (name === "reduced-motion") {
     if (!metrics.reducedMotion) failures.push("reduced-motion viewport did not emulate reduced motion");

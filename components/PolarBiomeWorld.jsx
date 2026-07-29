@@ -41,12 +41,39 @@ const TERRAIN_SIZE = 58;
 const SKY_RADIUS = 44;
 const TERRAIN_RECENTER_STEP = 8;
 const DEG_TO_RAD = Math.PI / 180;
-const NEUTRAL_FOG_COLOR = "#C2D6D9";
-const NEUTRAL_KEY_COLOR = "#FFF8EC";
-const NEUTRAL_FILL_COLOR = "#A7CBD4";
-const NEUTRAL_RIM_COLOR = "#A8B4D0";
-const NEUTRAL_FOG_DENSITY = 0.0065;
+const NEUTRAL_FOG_COLOR = "#697CA6";
+const NEUTRAL_KEY_COLOR = "#FFEFD8";
+const NEUTRAL_FILL_COLOR = "#B8C6DC";
+const NEUTRAL_RIM_COLOR = "#DCE8FF";
+const NEUTRAL_FOG_DENSITY = 0.0085;
 const LOCAL_ENVIRONMENT_CAP = 0.42;
+
+/**
+ * Rig neutrality. Station identity may TINT the rig, it may never DYE it.
+ * A docked station drives key/fill/rim from its own identity hue at full weight
+ * (`environmentCap` is 1 when exclusive), so an unclamped rig paints e.g. a violet
+ * key light over every material in the machine shop and eight albedos collapse into
+ * one wash. Capping saturation and flooring lightness keeps the hue as a hint while
+ * the light stays bright and near-neutral, which is what lets albedo read.
+ * The twilight mood is carried by the sky and fog, not by dyeing every surface.
+ */
+const RIG_NEUTRALITY = Object.freeze({
+  key: { saturationCap: 0.16, lightnessFloor: 0.76 },
+  fill: { saturationCap: 0.24, lightnessFloor: 0.62 },
+  rim: { saturationCap: 0.34, lightnessFloor: 0.68 },
+});
+
+const rigHslScratch = { h: 0, s: 0, l: 0 };
+
+function neutralizeRigColor(color, { saturationCap, lightnessFloor }) {
+  color.getHSL(rigHslScratch);
+  if (rigHslScratch.s <= saturationCap && rigHslScratch.l >= lightnessFloor) return color;
+  return color.setHSL(
+    rigHslScratch.h,
+    Math.min(rigHslScratch.s, saturationCap),
+    Math.max(rigHslScratch.l, lightnessFloor),
+  );
+}
 
 function addBiomeRole(geometry, role) {
   const roles = new Float32Array(geometry.getAttribute("position").count);
@@ -171,6 +198,7 @@ export function populateGeographyInstances(mesh, profile, instanceCount) {
     let scaleY = 0.1;
     let scaleZ = 0.2;
     let positionY = -0.14;
+    let roll = 0;
 
     if (kind === 0) {
       const theta = progress * Math.PI * 2 + (seedA - 0.5) * 0.18;
@@ -204,22 +232,30 @@ export function populateGeographyInstances(mesh, profile, instanceCount) {
       const columns = 6;
       const row = Math.floor(index / columns);
       const column = index % columns;
-      localX = (column - 2.5) * 1.75 + (row % 2) * 0.84;
-      localZ = (row - 1.5) * 1.62;
-      yaw = -angle + (index % 3) * (Math.PI / 3);
-      scaleX = 0.62 + seedA * 0.34;
-      scaleY = 0.035 + seedB * 0.035;
-      scaleZ = 0.54 + seedB * 0.3;
-      positionY = -0.16;
+      // Salt-crust ridges, not a tiled floor: a regular 6-column grid of flat
+      // 1.1-wide hexagons is paving, whatever colour it is. Jittered off the grid,
+      // elongated along the wind, given real thickness and a heave tilt, the same
+      // instances read as wind-broken crust shoved out of the pan.
+      localX = (column - 2.5) * 1.75 + (row % 2) * 0.84 + (seedA - 0.5) * 1.15;
+      localZ = (row - 1.5) * 1.62 + (seedB - 0.5) * 1.05;
+      yaw = -angle + (seedA - 0.5) * 0.9;
+      scaleX = 0.52 + seedA * 0.86;
+      scaleY = 0.24 + seedB * 0.30;
+      scaleZ = 0.26 + seedB * 0.32;
+      positionY = -0.24;
+      roll = (seedA - 0.5) * 0.34;
     } else if (kind === 4) {
       localX = -7.2 + progress * 14.4;
       const leadAxis = 0.24 * Math.sin(localX * 0.31);
       localZ = leadAxis + (index % 2 === 0 ? -0.88 : 0.88) + (seedB - 0.5) * 0.28;
       yaw = -angle + (seedA - 0.5) * 0.42;
-      scaleX = 0.62 + seedA * 0.64;
-      scaleY = 0.045 + seedB * 0.06;
-      scaleZ = 0.44 + seedB * 0.42;
-      positionY = -0.16;
+      // Floe blocks either side of the lead. Same pad problem, same fix: the slab
+      // gets thickness and a heave tilt so it reads as ice shoved out of a crack.
+      scaleX = 0.54 + seedA * 0.78;
+      scaleY = 0.32 + seedB * 0.40;
+      scaleZ = 0.30 + seedB * 0.46;
+      positionY = -0.17;
+      roll = (seedB - 0.5) * 0.44;
     } else if (kind === 5) {
       const lane = index % 3;
       localX = -4.8 + progress * 9.6;
@@ -253,7 +289,7 @@ export function populateGeographyInstances(mesh, profile, instanceCount) {
       positionY,
       profile.centerXZ[1] + worldOffsetZ,
     );
-    transform.rotation.set(0, yaw, kind === 2 ? (seedA - 0.5) * 0.16 : 0);
+    transform.rotation.set(0, yaw, kind === 2 ? (seedA - 0.5) * 0.16 : roll);
     transform.scale.set(scaleX, scaleY, scaleZ);
     transform.updateMatrix();
     mesh.setMatrixAt(index, transform.matrix);
@@ -294,24 +330,24 @@ function makeUniforms(shaderDetail) {
     uTravelerXZ: { value: new THREE.Vector2() },
     uPrimaryLightDirection: { value: new THREE.Vector3(-0.42, 0.84, 0.34) },
     uSecondaryLightDirection: { value: new THREE.Vector3(-0.42, 0.84, 0.34) },
-    uPrimaryBaseColor: { value: new THREE.Color("#F6F1E7") },
-    uPrimarySecondaryColor: { value: new THREE.Color("#D7EFE8") },
-    uPrimaryAccentColor: { value: new THREE.Color("#65C1BC") },
-    uPrimaryGlowColor: { value: new THREE.Color("#F2C98B") },
-    uPrimaryFogColor: { value: new THREE.Color("#B8E2DF") },
-    uPrimaryInkColor: { value: new THREE.Color("#33406E") },
-    uPrimaryShadowColor: { value: new THREE.Color("#A6D7E4") },
-    uPrimaryAtmosphereColor: { value: new THREE.Color("#F7FFFF") },
-    uPrimaryAtmosphereGlow: { value: new THREE.Color("#8FD0E0") },
-    uSecondaryBaseColor: { value: new THREE.Color("#E2F5FF") },
-    uSecondarySecondaryColor: { value: new THREE.Color("#A6DFF4") },
-    uSecondaryAccentColor: { value: new THREE.Color("#3E5BC7") },
-    uSecondaryGlowColor: { value: new THREE.Color("#B9F5FF") },
-    uSecondaryFogColor: { value: new THREE.Color("#CDEAF5") },
-    uSecondaryInkColor: { value: new THREE.Color("#33406E") },
-    uSecondaryShadowColor: { value: new THREE.Color("#91BED4") },
-    uSecondaryAtmosphereColor: { value: new THREE.Color("#EAFBFF") },
-    uSecondaryAtmosphereGlow: { value: new THREE.Color("#3E5BC7") },
+    uPrimaryBaseColor: { value: new THREE.Color("#C9D5D9") },
+    uPrimarySecondaryColor: { value: new THREE.Color("#A9C9C4") },
+    uPrimaryAccentColor: { value: new THREE.Color("#5CC9C2") },
+    uPrimaryGlowColor: { value: new THREE.Color("#F2B96B") },
+    uPrimaryFogColor: { value: new THREE.Color("#3C5B60") },
+    uPrimaryInkColor: { value: new THREE.Color("#232E52") },
+    uPrimaryShadowColor: { value: new THREE.Color("#33475E") },
+    uPrimaryAtmosphereColor: { value: new THREE.Color("#22354F") },
+    uPrimaryAtmosphereGlow: { value: new THREE.Color("#5A93A8") },
+    uSecondaryBaseColor: { value: new THREE.Color("#B4C7D4") },
+    uSecondarySecondaryColor: { value: new THREE.Color("#8CA6BB") },
+    uSecondaryAccentColor: { value: new THREE.Color("#5573E0") },
+    uSecondaryGlowColor: { value: new THREE.Color("#A5E9FF") },
+    uSecondaryFogColor: { value: new THREE.Color("#364F5E") },
+    uSecondaryInkColor: { value: new THREE.Color("#232E52") },
+    uSecondaryShadowColor: { value: new THREE.Color("#3A5570") },
+    uSecondaryAtmosphereColor: { value: new THREE.Color("#1E3252") },
+    uSecondaryAtmosphereGlow: { value: new THREE.Color("#5573E0") },
   };
 }
 
@@ -608,7 +644,10 @@ function PolarBiomeWorldStage({
             .set(secondaryProfile.light.rim)
             .multiplyScalar(secondaryEnvironmentWeight),
         );
+      neutralizeRigColor(environmentScratch.keyColor, RIG_NEUTRALITY.key);
+      neutralizeRigColor(environmentScratch.rimColor, RIG_NEUTRALITY.rim);
       environmentScratch.fillColor.lerp(environmentScratch.rimColor, 0.32);
+      neutralizeRigColor(environmentScratch.fillColor, RIG_NEUTRALITY.fill);
       keyLightRef.current.color.lerp(environmentScratch.keyColor, environmentAlpha);
       fillLightRef.current.color.lerp(environmentScratch.fillColor, environmentAlpha);
 
@@ -702,7 +741,7 @@ function PolarBiomeWorldStage({
       <primitive object={fillLightTarget} />
       <directionalLight
         castShadow
-        color="#FFFDF7"
+        color={NEUTRAL_KEY_COLOR}
         intensity={1.68}
         name="polar-biome-key-light"
         ref={keyLightRef}
@@ -716,7 +755,7 @@ function PolarBiomeWorldStage({
         target={keyLightTarget}
       />
       <directionalLight
-        color="#8FD0E0"
+        color={NEUTRAL_FILL_COLOR}
         intensity={0.7}
         name="polar-biome-fill-rim-light"
         ref={fillLightRef}

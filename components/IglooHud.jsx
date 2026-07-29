@@ -1,7 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const QUIET_BRIGHT_HUD_PROFILE =
   "quiet bright paper glass with identity, archive access, station evidence, and graphics controls";
+
+const UPSTREAM_EVIDENCE_STATION_ID = "upstream-radio-mast";
 
 function formatDate(value) {
   if (!value) return "time unknown";
@@ -30,6 +32,11 @@ export default function IglooHud({
 }) {
   const stationButtonsRef = useRef(new Map());
   const stationRailRef = useRef(null);
+  const hudRef = useRef(null);
+  const [radioContact, setRadioContact] = useState({
+    docked: "none",
+    proximity: "none",
+  });
   const latest = liveSummary?.latest?.[0];
   const moving = ["moving", "docking"].includes(presentation.phase);
   const worldActive = renderEnabled && sealAwake;
@@ -49,6 +56,37 @@ export default function IglooHud({
       : `EXPLORING → ${destinationArtifact.shortLabel}`;
   const showDockedEvidence = presentation.isArrived;
   const readoutArtifact = showDockedEvidence ? activeArtifact : destinationArtifact;
+
+  useEffect(() => {
+    const world =
+      hudRef.current?.closest("section.igloo-world") ||
+      document.getElementById("world");
+    if (!world) return undefined;
+    const readRadioContact = () => {
+      setRadioContact((current) => {
+        const next = {
+          docked: world.getAttribute("data-docked-station") || "none",
+          proximity: world.getAttribute("data-proximity-station") || "none",
+        };
+        return current.docked === next.docked &&
+          current.proximity === next.proximity
+          ? current
+          : next;
+      });
+    };
+    readRadioContact();
+    const observer = new MutationObserver(readRadioContact);
+    observer.observe(world, {
+      attributeFilter: ["data-docked-station", "data-proximity-station"],
+      attributes: true,
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const upstreamSignalReceived =
+    radioContact.proximity === UPSTREAM_EVIDENCE_STATION_ID ||
+    radioContact.docked === UPSTREAM_EVIDENCE_STATION_ID ||
+    presentation.dockedStationId === UPSTREAM_EVIDENCE_STATION_ID;
 
   useEffect(() => {
     const rail = stationRailRef.current;
@@ -84,7 +122,7 @@ export default function IglooHud({
   };
 
   return (
-    <div className="igloo-hud">
+    <div className="igloo-hud" ref={hudRef}>
       <div className="igloo-brand">
         <span className="hud-technical">bright polar field / source-backed research stations</span>
         <strong>{"Seal's Topology Land"}</strong>
@@ -241,8 +279,11 @@ export default function IglooHud({
 
       <a
         aria-label={`Public source ${latest ? `evidence from ${latest.repo}` : "profile"}`}
+        aria-live="polite"
+        aria-atomic="true"
         className="igloo-live-strip"
         data-evidence-signal={liveSummary?.sourceMode || "research-snapshot"}
+        data-signal-state={upstreamSignalReceived ? "received" : "hidden"}
         href={latest?.url || content.profile.github}
         target="_blank"
         rel="noreferrer"

@@ -49,6 +49,13 @@ requires(styles, /\.igloo-portal-offer-actions[\s\S]{0,500}min-height:\s*44px/, 
 requires(hud, /const showDockedEvidence = presentation\.isArrived/, "plaque evidence must be gated by earned arrival");
 requires(hud, /showDockedEvidence \? \([\s\S]*activeArtifact\.description/, "docked metadata must not persist while routing");
 assert.doesNotMatch(hud, /className="igloo-axis-meter/, "hero HUD must not carry a traverse-progress meter");
+requires(hud, /const UPSTREAM_EVIDENCE_STATION_ID = "upstream-radio-mast";/, "live evidence strip must key off the upstream radio mast radar");
+requires(hud, /data-signal-state=\{upstreamSignalReceived \? "received" : "hidden"\}/, "live evidence strip must stay hidden until upstream radar contact");
+requires(hud, /aria-live="polite"[\s\S]{0,120}className="igloo-live-strip"/, "live evidence strip must announce as a polite received message");
+requires(hud, /attributeFilter: \["data-docked-station", "data-proximity-station"\]/, "upstream radar contact must be read from the canonical world data attributes");
+requires(styles, /\.igloo-live-strip\[data-signal-state="hidden"\]\s*\{\s*display:\s*none;/, "hidden evidence strip must leave layout and the accessibility tree");
+requires(styles, /@keyframes igloo-live-strip-pop/, "evidence strip must pop in like a received message");
+requires(styles, /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.igloo-live-strip\[data-signal-state="received"\]\s*\{\s*animation:\s*none;/, "evidence strip pop must appear instantly under reduced motion");
 
 requires(world, /deriveTraversalPresentation/, "world must derive one canonical presentation snapshot");
 requires(world, /data-presentation-destination/, "destination semantics must remain browser-inspectable");
@@ -80,7 +87,7 @@ requires(
 requires(world, /setInterval\([\s\S]{0,120}showHint[\s\S]{0,120}SEAL_ROUTE_HINT_INTERVAL_MS/, "seal route hint cadence must use the named interval budget");
 requires(world, /setTimeout\([\s\S]{0,120}setSealRouteHint\(""\)[\s\S]{0,120}SEAL_ROUTE_HINT_VISIBLE_MS/, "seal route hint cleanup must use the named visibility budget");
 requires(world, /sealRouteHintDirectionRef\.current = direction \* -1;/, "seal route hints must alternate neighboring directions");
-requires(world, /direction > 0 \? "D →" : "A ←"/, "desktop route hints must teach the neighboring A/D controls");
+requires(world, /`Swim to \$\{nextArtifact/, "desktop route hints must stay heading-neutral under the chase camera");
 requires(world, /\(pointer: coarse\)[\s\S]{0,180}`Tap the \$\{nextArtifact/, "coarse-pointer hints must use composed tap language");
 requires(world, /className="seal-navigation-bubble" role="status" aria-live="polite"/, "seal route hints must be exposed as a polite status without stealing focus");
 

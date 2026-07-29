@@ -44,6 +44,47 @@ export const DOME_POINTER_LIFT_PROFILE = Object.freeze({
   approachResponse: 18,
   recoveryResponse: 12,
 });
+// igloo.inc-style suspension: shell courses hover off the inner weather shell with
+// visible gaps. Motion follows the mined igloo.inc model: a coherent traveling
+// azimuthal wave (one breathing shell, not independent jitter), a dissipating
+// pointer splat wake (uSplatCoords ring buffer, gaussian falloff, exponential
+// decay), and a bottom-up staggered materialize on world-stream reveal. All
+// displacement is additive along the same local +Z (outward normal) axis as the
+// pointer hover lift; the base course (weight ~= 0) stays seated on the plinth
+// and reduced motion pins wave and wake amplitudes to zero while the static
+// suspension gaps remain and the materialize is pinned complete.
+export const DOME_FLOAT_PROFILE = Object.freeze({
+  axis: "local outward normal (+Z), additive with brickHoverLift",
+  courseWeight: "smoothstep(0.08, 0.85, normalizedBrickHeight)",
+  materialize: Object.freeze({
+    margin: 0.55,
+    order: "normalizedBrickHeight bottom-up; base course lands first, crown last",
+    scaleFrom: 0.62,
+    slideInLocal: 0.55,
+    window: 0.45,
+  }),
+  proximityStirGain: 0.5,
+  reducedMotion:
+    "wave and wake amplitudes pinned to zero, materialize pinned complete; static suspension gaps remain",
+  // Tight igloo.inc lay: courses nearly touch with thin dark seams; the old 0.045
+  // read as separate floating boxes.
+  suspensionGapRadiusRatio: 0.015,
+  wake: Object.freeze({
+    amplitudeRangeLocal: Object.freeze([0.03, 0.1]),
+    decayTauSeconds: 0.9,
+    minSplatDistanceLocal: 0.25,
+    minSplatIntervalMs: 90,
+    sigmaLocal: 0.55,
+    splatCount: 8,
+  }),
+  wave: Object.freeze({
+    amplitudes: Object.freeze([0.02, 0.007]),
+    angularWavenumber: 3,
+    frequenciesHz: Object.freeze([0.09, 0.178]),
+    model:
+      "traveling azimuthal wave (k crests around the dome Y axis) plus a small deterministic hash shimmer; one cohesive breathing shell",
+  }),
+});
 export const DOME_TILE_FALL_PROFILE = Object.freeze({
   detachThreshold: 0.68,
   damping: 1.8,
@@ -69,7 +110,7 @@ export const DOME_LOW_XZ_FRAGMENT_PROFILE =
 export const DOME_CRYSTAL_GROWTH_PROFILE =
   "four-octave low-pass macro ice growth at gain 0.35 plus subtle micro frost on medium and high";
 export const DOME_BRICK_SHADER_PROFILE =
-  "deterministic staggered lattice cells, tangent-frame block instances, recessed seams, bevel light, and per-cell frost variation";
+  "deterministic staggered lattice cells, tangent-frame block instances, recessed seams, bevel light, per-cell frost variation, and weight-ramped suspended float courses driven by one traveling azimuthal wave, a dissipating pointer splat wake, and a bottom-up stream materialize";
 export const DOME_TEXTURE_POLICY =
   "zero image textures: geometry, masonry, frost, tint, and optics are generated from math";
 export const DOME_INSPIRATION_CREDIT =
@@ -116,22 +157,30 @@ export const DOME_AWARD_ICE_PROFILE = Object.freeze({
   tunnel: "recessed cyan shell, warm-neutral block surround, separated inner door",
 });
 const OBSERVATORY_PERSONALITY = STATION_PERSONALITY_PROFILES["observatory-plaque"];
+// Glacial ice-glass override: the observatory personality surface family (#CBDCD2 /
+// #A9C9C4) reads sage-olive once multiplied under the warm dusk key, so the hero dome
+// authors its own desaturated pale glacial white-blue family instead of inheriting
+// station upholstery. The world grade amplifies saturation downstream, so the face
+// band stays near-monochrome (#D9E6F5 / #C4D6EC / #B7C9E2) to land as serious frosted
+// glass rather than toy primary blue.
 export const DOME_CRYSTAL_PALETTE = Object.freeze({
-  contactBlueGrey: OBSERVATORY_PERSONALITY.palette.world.shadow,
-  frostIvory: OBSERVATORY_PERSONALITY.palette.surface,
-  iceBlue: OBSERVATORY_PERSONALITY.palette.secondary,
-  seamBlueGrey: OBSERVATORY_PERSONALITY.palette.ink,
-  subsurfaceCyan: OBSERVATORY_PERSONALITY.palette.accent,
-  windCap: OBSERVATORY_PERSONALITY.lighting.key,
+  contactBlueGrey: "#4B5665",
+  frostIvory: "#D9E6F5",
+  iceBlue: "#B7C9E2",
+  seamBlueGrey: "#6C7D91",
+  subsurfaceCyan: "#AFD6D0",
+  windCap: "#F0F5FA",
 });
 export const DOME_CRYSTAL_MATERIAL_CONTRACT =
-  "bright anime-soft crystalline ice; recessed blue-grey frost seams; bounded contact-weight optics";
+  "bright anime-soft crystalline ice; recessed blue-grey frost seams; hairline seam recesses; scene-lit body with near-zero base emissive; bounded contact-weight optics";
 export const OBSERVATORY_HOME_WORLD_PROFILE =
   "crystalline-articulated-observatory in a cyan-white Antarctic frost sanctuary with sunrise-gold entrance/contact light";
 export const OBSERVATORY_HOME_LIGHT_PROFILE = Object.freeze({
   color: OBSERVATORY_PERSONALITY.palette.glow,
   contactColor: OBSERVATORY_PERSONALITY.palette.accent,
-  distance: 3.8,
+  // Short throw keeps the amber inside the tunnel; 3.8 leaked orange dots through
+  // the dome shell seams from the interior threshold position.
+  distance: 2.4,
   intensity: Object.freeze({ high: 2.1, medium: 1.55, low: 0.9 }),
 });
 export const OBSERVATORY_HOME_DRESSING_PROFILE = Object.freeze({
@@ -192,7 +241,13 @@ function makeDomeUniforms(quality, surface) {
   return {
     uDomeAccentColor: { value: new THREE.Color(DOME_XZ_COLOR_ZONES.teal) },
     uDomeBevelColor: { value: new THREE.Color(POLAR_PALETTE.dawnCyan) },
-    uDomeCreamColor: { value: new THREE.Color(DOME_XZ_COLOR_ZONES.cream) },
+    // Cool the beige XZ cream toward glacier white so the shader courses stay ice.
+    uDomeCreamColor: {
+      value: new THREE.Color(DOME_XZ_COLOR_ZONES.cream).lerp(
+        new THREE.Color(POLAR_PALETTE.glacierWhite),
+        0.86,
+      ),
+    },
     uDomeDisplacementStrength: {
       value: surface === "shell" ? tier.vertexDisplacement : tier.vertexDisplacement * 0.32,
     },
@@ -210,19 +265,21 @@ function createAnimeIceMaterial(quality, surface = "shell") {
   const isFull = quality !== "low";
   const uniforms = makeDomeUniforms(quality, surface);
   const material = new THREE.MeshPhysicalMaterial({
-    clearcoat: quality === "high" ? 0.42 : 0.28,
-    clearcoatRoughness: 0.54,
-    color: DOME_XZ_COLOR_ZONES.frost,
-    emissive: quality === "low" ? OBSERVATORY_PERSONALITY.lighting.fill : DOME_XZ_COLOR_ZONES.teal,
-    emissiveIntensity: quality === "low" ? 0.14 : 0.018,
+    clearcoat: quality === "high" ? 0.42 : 0.3,
+    clearcoatRoughness: 0.44,
+    color: "#DEE7F1",
+    // Low tier draws this shader shell as the whole dome, so its emissive is pulled
+    // down to a floor lift only: the low dome is lit by the scene rig too.
+    emissive: quality === "low" ? "#C9D6E6" : DOME_XZ_COLOR_ZONES.teal,
+    emissiveIntensity: quality === "low" ? 0.34 : 0.018,
     metalness: 0,
-    roughness: quality === "low" ? 0.76 : 0.7,
+    roughness: quality === "low" ? 0.62 : 0.7,
     side: THREE.FrontSide,
   });
 
   material.userData.domeUniforms = uniforms;
   material.customProgramCacheKey = () =>
-    `continuous-anime-igloo-${surface}-${isFull ? "full" : "low"}-v5`;
+    `continuous-anime-igloo-${surface}-${isFull ? "full" : "low"}-v7-glacial`;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     material.userData.shader = shader;
@@ -311,22 +368,24 @@ vec2 domeCellUv = fract(vec2(domeColumn, domeCourse));
 vec2 domeCellEdge = min(domeCellUv, 1.0 - domeCellUv);
 float domeJointDistance = min(domeCellEdge.x * 0.9, domeCellEdge.y);
 float domeJointAa = max(fwidth(domeJointDistance), 0.0015);
-float domeMortar = 1.0 - smoothstep(0.052 - domeJointAa, 0.052 + domeJointAa, domeJointDistance);
-float domeBevelBand = smoothstep(0.052 + domeJointAa, 0.095, domeJointDistance)
-  * (1.0 - smoothstep(0.095, 0.18, domeJointDistance));
-float domeBevelDirection = mix(0.78, 1.18, step(0.5, domeCellUv.x) * 0.55 + step(0.5, domeCellUv.y) * 0.45);
+// Hairline course joints: a precise cut line, not a chunky moulded mortar band.
+float domeMortar = 1.0 - smoothstep(0.018 - domeJointAa, 0.018 + domeJointAa, domeJointDistance);
+float domeBevelBand = smoothstep(0.018 + domeJointAa, 0.038, domeJointDistance)
+  * (1.0 - smoothstep(0.038, 0.072, domeJointDistance));
+float domeBevelDirection = mix(0.88, 1.1, step(0.5, domeCellUv.x) * 0.55 + step(0.5, domeCellUv.y) * 0.45);
 
 vec2 domeWorldXZ = vDomeWorldPosition.xz;
 float domeTealZone = exp(-dot(domeWorldXZ - vec2(-0.55, 0.42), domeWorldXZ - vec2(-0.55, 0.42)) * 0.34);
 float domeSageZone = exp(-dot(domeWorldXZ - vec2(0.82, -0.34), domeWorldXZ - vec2(0.82, -0.34)) * 0.28);
 float domeWarmZone = exp(-dot(domeWorldXZ - vec2(0.96, 0.84), domeWorldXZ - vec2(0.96, 0.84)) * 0.46);
 vec3 domeZoneColor = mix(uDomeFrostColor, uDomeCreamColor, 0.34 + domeTheta01 * 0.08);
-domeZoneColor = mix(domeZoneColor, uDomeTealColor, domeTealZone * 0.14);
-domeZoneColor = mix(domeZoneColor, uDomeSageColor, domeSageZone * 0.09);
-domeZoneColor = mix(domeZoneColor, uDomeWarmColor, domeWarmZone * 0.065);
+domeZoneColor = mix(domeZoneColor, uDomeTealColor, domeTealZone * 0.055);
+domeZoneColor = mix(domeZoneColor, uDomeSageColor, domeSageZone * 0.035);
+domeZoneColor = mix(domeZoneColor, uDomeWarmColor, domeWarmZone * 0.03);
 
 vec2 domeCellId = floor(vec2(domeColumn, domeCourse));
-float domeCellVariation = (domeCellHash(domeCellId) - 0.5) * 0.075;
+// Wider per-cell frost value variation (+/-6%) off the same deterministic cell hash.
+float domeCellVariation = (domeCellHash(domeCellId) - 0.5) * 0.12;
 float domeFrost = 0.5;
 #ifdef DOME_FULL_QUALITY
   float domeFrostA = domeIceNoise3(vec3(domeWorldXZ * 4.8, 1.7));
@@ -334,10 +393,11 @@ float domeFrost = 0.5;
   domeFrost = domeFrostA * 0.68 + domeFrostB * 0.32;
 #endif
 
-vec3 domeJointColor = mix(vec3(0.43, 0.53, 0.61), ${`vec3(${new THREE.Color(POLAR_PALETTE.horizonIndigo).r.toFixed(5)}, ${new THREE.Color(POLAR_PALETTE.horizonIndigo).g.toFixed(5)}, ${new THREE.Color(POLAR_PALETTE.horizonIndigo).b.toFixed(5)})`}, 0.14);
+vec3 domeJointColor = mix(vec3(0.35, 0.45, 0.62), ${`vec3(${new THREE.Color(POLAR_PALETTE.horizonIndigo).r.toFixed(5)}, ${new THREE.Color(POLAR_PALETTE.horizonIndigo).g.toFixed(5)}, ${new THREE.Color(POLAR_PALETTE.horizonIndigo).b.toFixed(5)})`}, 0.12);
 vec3 domeSurfaceColor = domeZoneColor * (1.0 + domeCellVariation + (domeFrost - 0.5) * 0.075);
-domeSurfaceColor += uDomeBevelColor * domeBevelBand * domeBevelDirection * 0.17;
-domeSurfaceColor = mix(domeSurfaceColor, domeJointColor, domeMortar * 0.78);
+domeSurfaceColor *= 1.0 + (1.0 - domeTheta01) * 0.09;
+domeSurfaceColor += uDomeBevelColor * domeBevelBand * domeBevelDirection * 0.06;
+domeSurfaceColor = mix(domeSurfaceColor, domeJointColor, domeMortar * 0.86);
 domeSurfaceColor += uDomeAccentColor * domeBevelBand * (0.025 + uDomeImpact * 0.055);
 diffuseColor.rgb *= domeSurfaceColor;`,
       )
@@ -366,7 +426,10 @@ function createCurvedBlockGeometry(quality) {
     let z = position.getZ(index);
     const faceX = Math.max(0, 1 - x * x * 3.6);
     const faceY = Math.max(0, 1 - y * y * 3.6);
-    if (z > 0.28) z += faceX * faceY * 0.012;
+    // Near-flat face. The old 0.012 centre bulge turned every block into a pillowed
+    // gem: once the shell is lit rather than self-glowing, that dome shades as a dark
+    // diagonal X across the face triangulation and reads as a plastic toy brick.
+    if (z > 0.28) z += faceX * faceY * 0.0015;
     const wedge = 1 + z * 0.055;
     x *= wedge * (1 - (y + 0.5) * 0.018);
     y *= 1 + z * 0.026;
@@ -374,6 +437,20 @@ function createCurvedBlockGeometry(quality) {
   }
   position.needsUpdate = true;
   geometry.computeVertexNormals();
+  // Bright crystalline vertex colors: unbound color attributes read as black in WebGL,
+  // so the instanced ice must carry its own near-white per-vertex frost field that the
+  // authored instance colors can multiply against. Crown faces read slightly whiter,
+  // recessed bases slightly cooler, keeping the anime ice luminous instead of void-dark.
+  const colors = new Float32Array(position.count * 3);
+  for (let index = 0; index < position.count; index += 1) {
+    const crown = Math.min(1, Math.max(0, position.getY(index) + 0.5));
+    const face = Math.min(1, Math.max(0, position.getZ(index) + 0.5));
+    const lift = 0.93 + crown * 0.05 + face * 0.02;
+    colors[index * 3] = Math.min(1, lift - 0.004);
+    colors[index * 3 + 1] = Math.min(1, lift + 0.002);
+    colors[index * 3 + 2] = Math.min(1, lift + 0.01);
+  }
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   return geometry;
 }
 
@@ -382,31 +459,62 @@ function createInstancedIceMaterial(quality) {
     uBrickAccent: { value: new THREE.Color(DOME_XZ_COLOR_ZONES.teal) },
     uBrickCompression: { value: 0 },
     uBrickContactBlueGrey: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.contactBlueGrey) },
+    uBrickFloatMotion: { value: 1 },
     uBrickFrostIvory: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.frostIvory) },
     uBrickImpact: { value: 0 },
     uBrickIceBlue: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.iceBlue) },
+    uBrickProximity: { value: 0 },
+    uBrickReveal: { value: 1 },
     uBrickSeamBlueGrey: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.seamBlueGrey) },
     uBrickSubsurfaceCyan: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.subsurfaceCyan) },
+    uBrickTime: { value: 0 },
     uBrickWindCap: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap) },
+    // Pointer wake ring buffer (igloo.inc fluid-splat vocabulary): world-space hit
+    // xyz + spawn time per vec4, with a parallel speed-scaled amplitude array. All
+    // splats start expired (spawn time far in the past, amplitude zero).
+    uSplatCoords: {
+      value: Array.from(
+        { length: DOME_FLOAT_PROFILE.wake.splatCount },
+        () => new THREE.Vector4(0, -999, 0, -1000),
+      ),
+    },
+    uSplatAmps: { value: new Array(DOME_FLOAT_PROFILE.wake.splatCount).fill(0) },
+    uSplatRadius: {
+      value: DOME_FLOAT_PROFILE.wake.sigmaLocal * OBSERVATORY_MACRO_SCALE_PROFILE.worldScale,
+    },
   };
   const material = new THREE.MeshPhysicalMaterial({
-    clearcoat: quality === "high" ? 0.28 : 0.22,
-    clearcoatRoughness: 0.56,
-    color: OBSERVATORY_PERSONALITY.lighting.key,
+    clearcoat: quality === "high" ? 0.34 : 0.26,
+    // Tighter coat lobe: glass-frost specular, never a wide plastic sheen.
+    clearcoatRoughness: 0.36,
+    // Cool near-neutral base: multiplying the warm personality key (#FFD9A3) against the
+    // sage instance colors was the exact product that produced the olive brick read.
+    color: "#E1E9F2",
+    // Body emissive is effectively off. The shell must be LIT by the scene rig so the
+    // seam/face/crown value ladder survives; glow stays in the airlock, the seam
+    // recesses, and the interior spill, never on the brick faces.
     emissive: DOME_CRYSTAL_PALETTE.subsurfaceCyan,
-    emissiveIntensity: quality === "high" ? 0.075 : 0.065,
+    emissiveIntensity: quality === "high" ? 0.012 : 0.01,
     ior: 1.31,
     metalness: 0,
-    roughness: quality === "high" ? 0.48 : 0.54,
-    sheen: quality === "high" ? 0.12 : 0.08,
-    sheenColor: new THREE.Color(DOME_CRYSTAL_PALETTE.frostIvory),
-    sheenRoughness: 0.72,
-    specularColor: new THREE.Color(OBSERVATORY_PERSONALITY.lighting.rim),
-    specularIntensity: quality === "high" ? 0.46 : 0.4,
+    roughness: quality === "high" ? 0.34 : 0.42,
+    sheen: quality === "high" ? 0.06 : 0.04,
+    sheenColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
+    sheenRoughness: 0.62,
+    specularColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
+    specularIntensity: quality === "high" ? 0.58 : 0.5,
     vertexColors: true,
   });
   material.userData.brickUniforms = uniforms;
-  material.customProgramCacheKey = () => `instanced-curved-ice-blocks-${quality}-crystal-v10`;
+  // Shared CPU-side splat writer state for every mesh drawing this material, so the
+  // dome shell and airlock arch feed one coherent wake trail.
+  material.userData.wakeState = {
+    hasLast: false,
+    index: 0,
+    lastPoint: new THREE.Vector3(),
+    lastStampMs: 0,
+  };
+  material.customProgramCacheKey = () => `instanced-curved-ice-blocks-${quality}-glacial-v14-wake`;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     material.userData.shader = shader;
@@ -417,11 +525,19 @@ function createInstancedIceMaterial(quality) {
 attribute float instanceDelay;
 attribute float instanceBevel;
 attribute float instanceFacet;
+attribute vec3 instanceFloat;
 attribute float instanceFrost;
 attribute float instanceHover;
 attribute float instanceMass;
 uniform float uBrickCompression;
+uniform float uBrickFloatMotion;
 uniform float uBrickImpact;
+uniform float uBrickProximity;
+uniform float uBrickReveal;
+uniform float uBrickTime;
+uniform vec4 uSplatCoords[${DOME_FLOAT_PROFILE.wake.splatCount}];
+uniform float uSplatAmps[${DOME_FLOAT_PROFILE.wake.splatCount}];
+uniform float uSplatRadius;
 varying float vBrickBevel;
 varying float vBrickFacet;
 varying float vBrickFrost;
@@ -435,10 +551,58 @@ varying vec3 vBrickWorldPosition;`,
       .replace(
         "#include <begin_vertex>",
         `vec3 transformed = vec3(position);
+// Staggered assembly (igloo.inc uIntroMaterialize/uAnimationOrder register): each
+// brick arrives bottom-up on world-stream reveal, scaling and sliding from slightly
+// inward (below seated, along -Z) to its seated pose. Reduced motion pins
+// uBrickReveal at 1 so the shell is fully materialized instantly.
+float brickReveal = smoothstep(
+  instanceFloat.x * ${DOME_FLOAT_PROFILE.materialize.margin.toFixed(2)},
+  instanceFloat.x * ${DOME_FLOAT_PROFILE.materialize.margin.toFixed(2)} + ${DOME_FLOAT_PROFILE.materialize.window.toFixed(2)},
+  uBrickReveal
+);
+transformed *= mix(${DOME_FLOAT_PROFILE.materialize.scaleFrom.toFixed(2)}, 1.0, brickReveal);
 float brickArrival = smoothstep(instanceDelay, min(1.0, instanceDelay + 0.22), uBrickImpact);
 float brickCollisionCompression = uBrickCompression * brickArrival / max(instanceMass, 0.75);
 float brickHoverLift = instanceHover * 0.15;
 transformed.z += brickHoverLift - brickCollisionCompression;
+// Suspended-course float: weight ramps 0 at the seated base course to 1 near the
+// crown; every term is an additive outward (+Z) displacement in dome-local metres,
+// converted to block-local units by the per-instance thickness scale. The temporal
+// drift is one coherent traveling azimuthal wave (k crests marching around the dome
+// Y axis, neighbours in phase) plus a small deterministic per-brick hash shimmer.
+float brickFloatWeight = smoothstep(0.08, 0.85, instanceFloat.x);
+#ifdef USE_INSTANCING
+  float brickFloatAxisScale = max(length(instanceMatrix[2].xyz), 0.05);
+#else
+  float brickFloatAxisScale = 1.0;
+#endif
+float brickSuspensionGap = ${DOME_FLOAT_PROFILE.suspensionGapRadiusRatio.toFixed(3)} * ${DOME_RADIUS.y.toFixed(4)} * brickFloatWeight;
+float brickFloatDrift = brickFloatWeight * uBrickFloatMotion * (1.0 + 0.5 * uBrickProximity)
+  * (${DOME_FLOAT_PROFILE.wave.amplitudes[0].toFixed(3)} * sin(${DOME_FLOAT_PROFILE.wave.angularWavenumber.toFixed(1)} * instanceFloat.z - 6.28318530718 * ${DOME_FLOAT_PROFILE.wave.frequenciesHz[0].toFixed(3)} * uBrickTime + instanceFloat.x * 2.4)
+    + ${DOME_FLOAT_PROFILE.wave.amplitudes[1].toFixed(3)} * sin(6.28318530718 * ${DOME_FLOAT_PROFILE.wave.frequenciesHz[1].toFixed(3)} * uBrickTime + 1.7 * instanceFloat.y));
+transformed.z += (brickSuspensionGap + brickFloatDrift) / brickFloatAxisScale;
+// Pointer splat wake (igloo.inc uSplatCoords/uSplatRadius/dissipation register):
+// sum gaussian-falloff, exponentially-decaying splats against the rigid brick
+// centroid so cursor drags leave a dissipating displaced trail. Strictly additive
+// outward; never below the seated pose. uBrickFloatMotion pins it for reduced motion.
+#ifdef USE_INSTANCING
+  vec3 brickCentroidWorld = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+#else
+  vec3 brickCentroidWorld = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+#endif
+float brickWake = 0.0;
+for (int splat = 0; splat < ${DOME_FLOAT_PROFILE.wake.splatCount}; splat += 1) {
+  vec4 splatData = uSplatCoords[splat];
+  float splatAge = uBrickTime - splatData.w;
+  float splatDistance = distance(brickCentroidWorld, splatData.xyz);
+  brickWake += uSplatAmps[splat]
+    * exp(-(splatDistance * splatDistance) / max(uSplatRadius * uSplatRadius, 0.0001))
+    * exp(-max(splatAge, 0.0) / ${DOME_FLOAT_PROFILE.wake.decayTauSeconds.toFixed(2)})
+    * step(0.0, splatAge);
+}
+brickWake = min(brickWake, 0.16) * uBrickFloatMotion * brickReveal;
+transformed.z += brickWake / brickFloatAxisScale;
+transformed.z += (brickReveal - 1.0) * ${DOME_FLOAT_PROFILE.materialize.slideInLocal.toFixed(2)};
 vBrickBevel = instanceBevel;
 vBrickFacet = instanceFacet;
 vBrickFrost = instanceFrost;
@@ -469,6 +633,7 @@ uniform vec3 uBrickSeamBlueGrey;
 uniform vec3 uBrickSubsurfaceCyan;
 uniform vec3 uBrickWindCap;
 uniform float uBrickImpact;
+uniform float uBrickProximity;
 varying float vBrickBevel;
 varying float vBrickFacet;
 varying float vBrickFrost;
@@ -512,11 +677,21 @@ float brickTransmission = pow(max(dot(-brickNormal, brickKeyDirection), 0.0), 1.
 float brickMacroFrost = polarXZNoise(vBrickWorldPosition.xz * 4.2 + vBrickFrost * 7.0);
 float brickFrost = brickMacroFrost * 0.42 + brickAnisotropicFrost * 0.58;
 
+// Hairline seams: the bevel band is a fraction of its old width so the joint reads as
+// a precise cut line between blocks instead of a chunky rounded toy edge. Screen-space
+// derivative width keeps it at least one pixel wide at any distance without fattening.
 float brickEdgeDistance = 0.5 - max(abs(vBrickLocalPosition.x), abs(vBrickLocalPosition.y));
-float brickBevelWidth = mix(0.07, 0.125, clamp(vBrickBevel, 0.0, 1.0));
-float brickRecess = 1.0 - smoothstep(0.012, brickBevelWidth * 0.72, brickEdgeDistance);
-float brickBevelLight = smoothstep(0.008, brickBevelWidth * 0.56, brickEdgeDistance)
-  * (1.0 - smoothstep(brickBevelWidth * 0.56, brickBevelWidth, brickEdgeDistance));
+// The seam field 0.5 - max(|x|,|y|) flips its gradient axis across the face
+// diagonals; raw fwidth() therefore jumps discontinuously there, and under
+// foreshortening it exceeded brickBevelWidth, degenerating the recess
+// smoothsteps over whole triangle regions (the dark bow-tie X on every face).
+// Keep the pixel-width AA but cap it safely below the narrowest seam edge.
+float brickSeamAa = clamp(fwidth(brickEdgeDistance), 0.0012, 0.006);
+float brickBevelWidth = mix(0.022, 0.036, clamp(vBrickBevel, 0.0, 1.0));
+float brickRecess = 1.0 - smoothstep(brickSeamAa, brickBevelWidth, brickEdgeDistance);
+float brickSeamCore = 1.0 - smoothstep(brickSeamAa, brickBevelWidth * 0.42, brickEdgeDistance);
+float brickBevelLight = smoothstep(brickBevelWidth, brickBevelWidth * 1.7, brickEdgeDistance)
+  * (1.0 - smoothstep(brickBevelWidth * 1.7, brickBevelWidth * 3.1, brickEdgeDistance));
 float brickWindCap = smoothstep(0.14, 0.46, vBrickLocalPosition.y)
   * (0.72 + brickFrost * 0.28);
 float brickCrownHighlight = clamp(
@@ -526,38 +701,51 @@ float brickCrownHighlight = clamp(
 );
 float brickContactOcclusion = (1.0 - smoothstep(0.12, 0.62, vBrickWorldPosition.y))
   * (0.72 + (1.0 - brickWrappedDiffuse) * 0.28);
+float brickCrownGradient = clamp(vBrickWorldPosition.y * 0.28, 0.0, 0.55);
 
 vec2 brickWorldXZ = vBrickWorldPosition.xz;
 float brickCyanZone = exp(-dot(brickWorldXZ - vec2(-0.55, 0.42), brickWorldXZ - vec2(-0.55, 0.42)) * 0.3);
 float brickIvoryZone = exp(-dot(brickWorldXZ - vec2(0.82, -0.34), brickWorldXZ - vec2(0.82, -0.34)) * 0.26);
-vec3 brickXzTint = mix(uBrickIceBlue, uBrickSubsurfaceCyan, brickCyanZone * 0.16);
-brickXzTint = mix(brickXzTint, uBrickFrostIvory, brickIvoryZone * 0.18);
+vec3 brickXzTint = mix(uBrickIceBlue, uBrickSubsurfaceCyan, brickCyanZone * 0.06);
+brickXzTint = mix(brickXzTint, uBrickFrostIvory, brickIvoryZone * 0.14);
 
-vec3 brickSurface = mix(diffuseColor.rgb, brickXzTint, 0.34);
-brickSurface *= 0.88 + brickWrappedDiffuse * 0.17 + (brickFrost - 0.5) * 0.055;
-brickSurface = mix(brickSurface, uBrickWindCap, brickWindCap * 0.18 + brickCrownHighlight * 0.08);
-brickSurface = mix(brickSurface, uBrickSeamBlueGrey, brickRecess * 0.24);
-brickSurface += uBrickFrostIvory * brickBevelLight * (0.075 + vBrickFacet * 0.025);
-brickSurface = mix(brickSurface, uBrickContactBlueGrey, brickContactOcclusion * 0.08);
+// Value ladder (dark seam recess / mid ice face / bright crown specular). Chroma is
+// carried almost entirely by value here; the XZ tint is a whisper so the shell stays
+// near-monochrome glacial glass.
+vec3 brickSurface = mix(diffuseColor.rgb, brickXzTint, 0.1);
+brickSurface *= 0.96 + brickWrappedDiffuse * 0.2 + (brickFrost - 0.5) * 0.08;
+brickSurface *= 1.0 + brickCrownGradient * 0.24;
+brickSurface = mix(brickSurface, uBrickWindCap, brickWindCap * 0.14 + brickCrownHighlight * 0.16);
+brickSurface = mix(brickSurface, uBrickSeamBlueGrey, brickRecess * 0.62);
+// Cool grey-blue seam by default; the subtle cyan-mint only lives in the deep cut.
+brickSurface = mix(brickSurface, uBrickSubsurfaceCyan, brickSeamCore * 0.12);
+brickSurface *= 1.0 - brickSeamCore * 0.34;
+brickSurface += uBrickFrostIvory * brickBevelLight * (0.028 + vBrickFacet * 0.012);
+brickSurface = mix(brickSurface, uBrickContactBlueGrey, brickContactOcclusion * 0.12);
 diffuseColor.rgb = brickSurface;`,
       )
       .replace(
         "#include <roughnessmap_fragment>",
         `#include <roughnessmap_fragment>
 roughnessFactor = clamp(
-  roughnessFactor + (brickAnisotropicFrost - 0.5) * 0.12 + brickWindCap * 0.08 - brickBevelLight * 0.06,
-  0.3,
-  0.68
+  roughnessFactor + (brickAnisotropicFrost - 0.5) * 0.1 + brickWindCap * 0.1 - brickBevelLight * 0.05,
+  0.24,
+  0.58
 );`,
       )
       .replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
 float brickContactSignal = uBrickImpact * (0.012 + brickBevelLight * 0.026);
-totalEmissiveRadiance += brickSurface * (0.075 + brickWrappedDiffuse * 0.025);
-totalEmissiveRadiance += uBrickIceBlue * 0.018;
-totalEmissiveRadiance += uBrickSubsurfaceCyan * brickTransmission * 0.19;
-totalEmissiveRadiance += uBrickFrostIvory * (brickFresnel * 0.11 + brickCrownHighlight * 0.09);
+// Near-zero body emissive: only enough lift to keep the shadow side off black. The
+// dome is lit by the scene rig, so the seam/face/crown ladder is not washed flat.
+totalEmissiveRadiance += brickSurface * 0.06;
+totalEmissiveRadiance += uBrickIceBlue * 0.012;
+totalEmissiveRadiance += uBrickSubsurfaceCyan * brickTransmission * 0.1;
+totalEmissiveRadiance += uBrickFrostIvory * (brickFresnel * 0.07 + brickCrownHighlight * 0.075);
+// Interior spill through the seam cuts stays: this is the lab-lit-from-within read.
+totalEmissiveRadiance += uBrickSubsurfaceCyan * brickSeamCore * (0.05 + uBrickProximity * 0.16);
+totalEmissiveRadiance += uBrickFrostIvory * brickFresnel * uBrickProximity * 0.07;
 totalEmissiveRadiance += uBrickSubsurfaceCyan * vBrickHover * (0.12 + brickFresnel * 0.08);
 totalEmissiveRadiance += uBrickAccent * brickContactSignal;`,
       );
@@ -588,7 +776,7 @@ function useInnerShellMaterial(quality) {
       new THREE.MeshPhysicalMaterial({
         clearcoat: quality === "high" ? 0.18 : 0.1,
         clearcoatRoughness: 0.76,
-        color: OBSERVATORY_PERSONALITY.palette.world.shadow,
+        color: "#3D5680",
         emissive: DOME_CRYSTAL_PALETTE.subsurfaceCyan,
         emissiveIntensity: quality === "high" ? 0.52 : 0.46,
         metalness: 0,
@@ -600,49 +788,81 @@ function useInnerShellMaterial(quality) {
   return material;
 }
 
-function useAirlockTunnelMaterial(quality) {
-  const material = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        clearcoat: 0.28,
-        clearcoatRoughness: 0.48,
-        color: OBSERVATORY_PERSONALITY.palette.world.shadow,
-        emissive: OBSERVATORY_PERSONALITY.palette.accent,
-        emissiveIntensity: quality === "high" ? 0.36 : 0.3,
-        metalness: 0,
-        roughness: 0.56,
-        side: THREE.DoubleSide,
-      }),
-    [quality],
-  );
-  useEffect(() => () => material.dispose(), [material]);
-  return material;
-}
-
+// Near-monochrome glacial band: the face family walks #B7C9E2 -> #D9E6F5 by frost seed
+// with only a whisper of dawn cyan. The saturated cornflower wash and the teal/sage XZ
+// zone lerps are gone; per-instance identity is carried by value, not hue.
 function colorForDomeBlock(position, seed) {
   const iceBlue = new THREE.Color(DOME_CRYSTAL_PALETTE.iceBlue);
   const ivory = new THREE.Color(DOME_CRYSTAL_PALETTE.frostIvory);
   const cyan = new THREE.Color(POLAR_PALETTE.dawnCyan);
-  const teal = new THREE.Color(DOME_XZ_COLOR_ZONES.teal);
-  const sage = new THREE.Color(DOME_XZ_COLOR_ZONES.sage);
-  const color = iceBlue
-    .clone()
-    .lerp(ivory, 0.22 + seed * 0.26)
-    .lerp(cyan, 0.055 + (1 - seed) * 0.045);
-  const tealZone = Math.exp(-((position.x + 0.55) ** 2 + (position.z - 0.42) ** 2) * 0.34);
-  const sageZone = Math.exp(-((position.x - 0.82) ** 2 + (position.z + 0.34) ** 2) * 0.28);
-  color.lerp(teal, tealZone * 0.055).lerp(sage, sageZone * 0.032);
-  color.offsetHSL(0, seed < 0.5 ? 0.018 : -0.012, (seed - 0.5) * 0.035);
+  const windCap = new THREE.Color(DOME_CRYSTAL_PALETTE.windCap);
+  const color = iceBlue.clone().lerp(ivory, 0.3 + seed * 0.46).lerp(cyan, 0.012);
+  // Occasional near-white wind-packed frost block (~7% of the shell) breaks the uniform
+  // toy read without adding hue. Deterministic: same frost seed the lattice already has.
+  if (seed > 0.93) color.lerp(windCap, 0.6);
+  // +/-6% per-instance value variation, saturation pulled down hard.
+  color.offsetHSL(0, -0.07, (seed - 0.5) * 0.12);
   return color;
 }
 
+// The airlock arch sits a value step below the shell so the entrance trim reads as a
+// separate built element rather than more of the same ice.
 function colorForAirlockBlock(position, seed) {
   const frost = new THREE.Color(DOME_CRYSTAL_PALETTE.iceBlue);
   const cream = new THREE.Color(DOME_CRYSTAL_PALETTE.frostIvory);
   const cyan = new THREE.Color(POLAR_PALETTE.dawnCyan);
-  const color = cream.clone().lerp(frost, 0.4 + seed * 0.22).lerp(cyan, 0.045 + position.y * 0.025);
-  color.offsetHSL(0, 0, (seed - 0.5) * 0.028);
+  // Same ice-block family as the dome shell (a half value-step cooler), so the
+  // arch reads as built from the same blocks rather than a dark separate trim.
+  const color = cream.clone().lerp(frost, 0.45 + seed * 0.2).lerp(cyan, 0.02 + position.y * 0.012);
+  color.offsetHSL(0, -0.06, (seed - 0.5) * 0.05 - 0.02);
   return color;
+}
+
+// Deterministic per-brick drift phase from the brick centroid, computed once at
+// build time (GLSL-equivalent of TWO_PI * fract(43758.5453 * sin(dot(centroid.xz,
+// vec2(12.9898, 78.233))))). No per-frame CPU work.
+function suspensionPhaseFor(position) {
+  const raw = 43758.5453 * Math.sin(position.x * 12.9898 + position.z * 78.233);
+  return Math.PI * 2 * (raw - Math.floor(raw));
+}
+
+// Pointer wake splat writer: on raycast pointer-move, append a world-space splat
+// (hit xyz + spawn time on the shared uBrickTime clock) to the uSplatCoords ring
+// buffer when the hit moved far enough from the last splat or enough time elapsed.
+// Amplitude scales with pointer speed (slow drag ~0.03, fast flick ~0.10 dome-local
+// units). Zero textures, zero draws, zero per-frame CPU: dissipation happens in the
+// vertex shader.
+function writePointerWakeSplat(material, event) {
+  const uniforms = material?.userData?.brickUniforms;
+  const state = material?.userData?.wakeState;
+  const point = event?.point;
+  if (!uniforms?.uSplatCoords || !state || !point) return;
+  const wake = DOME_FLOAT_PROFILE.wake;
+  const worldScale = OBSERVATORY_MACRO_SCALE_PROFILE.worldScale;
+  const stampMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const movedWorld = state.hasLast ? point.distanceTo(state.lastPoint) : Infinity;
+  const elapsedMs = stampMs - state.lastStampMs;
+  if (
+    state.hasLast &&
+    movedWorld < wake.minSplatDistanceLocal * worldScale &&
+    elapsedMs < wake.minSplatIntervalMs
+  ) {
+    return;
+  }
+  const speedLocal =
+    state.hasLast && elapsedMs > 0 ? movedWorld / worldScale / (elapsedMs / 1000) : 0;
+  const amplitude = THREE.MathUtils.clamp(
+    0.018 + speedLocal * 0.02,
+    wake.amplitudeRangeLocal[0],
+    wake.amplitudeRangeLocal[1],
+  );
+  const index = state.index;
+  uniforms.uSplatCoords.value[index].set(point.x, point.y, point.z, uniforms.uBrickTime.value);
+  uniforms.uSplatAmps.value[index] = amplitude;
+  state.index = (index + 1) % wake.splatCount;
+  state.lastPoint.copy(point);
+  state.lastStampMs = stampMs;
+  state.hasLast = true;
 }
 
 function buildDomeBlockInstances(lattice) {
@@ -669,6 +889,10 @@ function buildDomeBlockInstances(lattice) {
       cell,
       delay: Math.min(0.76, cell.ringIndex * 0.06 + (cell.cellIndex % 5) * 0.024),
       facet: cell.facetSeed,
+      // Centroid angle around the dome Y axis feeds the coherent traveling wave.
+      floatAzimuth: Math.atan2(position.z, position.x),
+      floatHeight: cell.height01,
+      floatPhase: suspensionPhaseFor(position),
       frost: cell.frostSeed,
       mass: Math.min(3.2, 1.05 + cell.mass * 0.46),
       matrix: matrix.clone(),
@@ -703,6 +927,11 @@ function buildAirlockBlockInstances() {
       color: colorForAirlockBlock(position, frost),
       delay: index * 0.045,
       facet: (index * 0.41421356237) % 1,
+      // The airlock arch stays mortared (float weight 0) so the always-on amber
+      // threshold keeps a seated masonry frame under the suspended shell.
+      floatAzimuth: Math.atan2(position.z, position.x),
+      floatHeight: 0,
+      floatPhase: suspensionPhaseFor(position),
       frost,
       mass: 1.3 + frost,
       matrix: matrix.clone(),
@@ -725,6 +954,9 @@ function buildAirlockBlockInstances() {
         color: colorForAirlockBlock(position, frost),
         delay: 0.18 + row * 0.08,
         facet: ((row + 1) * (side < 0 ? 0.382 : 0.618)) % 1,
+        floatAzimuth: Math.atan2(position.z, position.x),
+        floatHeight: 0,
+        floatPhase: suspensionPhaseFor(position),
         frost,
         mass: 1.4 + frost,
         matrix: matrix.clone(),
@@ -742,6 +974,7 @@ function buildAirlockBlockInstances() {
 function applyInstances(mesh, blocks, geometry) {
   const bevel = new Float32Array(blocks.length);
   const facet = new Float32Array(blocks.length);
+  const floatData = new Float32Array(blocks.length * 3);
   const frost = new Float32Array(blocks.length);
   const hover = new Float32Array(blocks.length);
   const mass = new Float32Array(blocks.length);
@@ -752,12 +985,16 @@ function applyInstances(mesh, blocks, geometry) {
     mesh.setColorAt(index, block.color);
     bevel[index] = block.bevel;
     facet[index] = block.facet;
+    floatData[index * 3] = block.floatHeight ?? 0;
+    floatData[index * 3 + 1] = block.floatPhase ?? 0;
+    floatData[index * 3 + 2] = block.floatAzimuth ?? 0;
     frost[index] = block.frost;
     mass[index] = block.mass;
     delay[index] = block.delay;
   }
   geometry.setAttribute("instanceBevel", new THREE.InstancedBufferAttribute(bevel, 1));
   geometry.setAttribute("instanceFacet", new THREE.InstancedBufferAttribute(facet, 1));
+  geometry.setAttribute("instanceFloat", new THREE.InstancedBufferAttribute(floatData, 3));
   geometry.setAttribute("instanceFrost", new THREE.InstancedBufferAttribute(frost, 1));
   geometry.setAttribute("instanceHover", new THREE.InstancedBufferAttribute(hover, 1));
   geometry.setAttribute("instanceMass", new THREE.InstancedBufferAttribute(mass, 1));
@@ -767,6 +1004,7 @@ function applyInstances(mesh, blocks, geometry) {
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   geometry.attributes.instanceBevel.needsUpdate = true;
   geometry.attributes.instanceFacet.needsUpdate = true;
+  geometry.attributes.instanceFloat.needsUpdate = true;
   geometry.attributes.instanceFrost.needsUpdate = true;
   geometry.attributes.instanceHover.needsUpdate = true;
   geometry.attributes.instanceMass.needsUpdate = true;
@@ -913,6 +1151,7 @@ function InstancedDomeBlocks({ assets, lattice, pointerInteractionEnabled, reduc
       onPointerMove={(event) => {
         if (!pointerInteractionEnabled) return;
         event.stopPropagation();
+        writePointerWakeSplat(assets.material, event);
         const nextIndex = Number.isInteger(event.instanceId) ? event.instanceId : -1;
         if (hoveredRef.current === nextIndex) return;
         updateHoverTargets(hoverTargetsRef.current, blocks, nextIndex);
@@ -953,6 +1192,7 @@ function InstancedAirlockBlocks({ assets, pointerInteractionEnabled, reducedMoti
       onPointerMove={(event) => {
         if (!pointerInteractionEnabled) return;
         event.stopPropagation();
+        writePointerWakeSplat(assets.material, event);
         const nextIndex = Number.isInteger(event.instanceId) ? event.instanceId : -1;
         if (hoveredRef.current === nextIndex) return;
         updateHoverTargets(hoverTargetsRef.current, blocks, nextIndex);
@@ -1122,8 +1362,16 @@ function ContinuousDomeTopology({ castShadow = true, material, quality }) {
   );
 }
 
-function MergedLatticeSkeleton({ accent, lattice, quality }) {
+function MergedLatticeSkeleton({ accent, lattice, proximityRef, quality }) {
   const geometry = useLatticeSkeletonGeometry(lattice, quality);
+  const materialRef = useRef(null);
+  const baseOpacity = quality === "low" ? 0.075 : 0.065;
+  // Rim ribs breathe brighter as the seal approaches the observatory.
+  useFrame(() => {
+    if (!materialRef.current) return;
+    const proximity = proximityRef?.current ?? 0;
+    materialRef.current.opacity = baseOpacity + proximity * 0.1;
+  });
   return (
     <mesh
       geometry={geometry}
@@ -1138,12 +1386,16 @@ function MergedLatticeSkeleton({ accent, lattice, quality }) {
       <meshBasicMaterial
         color={quality === "low" ? accent : OBSERVATORY_PERSONALITY.lighting.rim}
         depthWrite={false}
-        opacity={quality === "low" ? 0.075 : 0.065}
+        opacity={baseOpacity}
+        ref={materialRef}
         transparent
       />
     </mesh>
   );
 }
+
+const DOOR_GLOW_DIM = new THREE.Color("#D89A55");
+const DOOR_GLOW_BRIGHT = new THREE.Color("#FFCF8F");
 
 function IntegratedAirlock({
   assets,
@@ -1154,6 +1406,24 @@ function IntegratedAirlock({
   showBlocks,
 }) {
   const geometries = useAirlockGeometries(quality);
+  const doorGlowRef = useRef(null);
+  const thresholdLightRef = useRef(null);
+  const baseThresholdIntensity = OBSERVATORY_HOME_LIGHT_PROFILE.intensity[quality];
+
+  // Standing warm interior glow: always on (idle and undocked), gently breathing.
+  // Reduced motion holds the constant mid-glow instead of pulsing.
+  useFrame(({ clock }) => {
+    const glowPulse = reducedMotion
+      ? 0.78
+      : 0.78 + Math.sin(clock.elapsedTime * 1.4) * 0.22;
+    if (doorGlowRef.current) {
+      doorGlowRef.current.color.lerpColors(DOOR_GLOW_DIM, DOOR_GLOW_BRIGHT, glowPulse);
+    }
+    if (thresholdLightRef.current) {
+      thresholdLightRef.current.intensity =
+        baseThresholdIntensity * (0.72 + glowPulse * 0.42);
+    }
+  });
 
   return (
     <group
@@ -1173,8 +1443,15 @@ function IntegratedAirlock({
           reducedMotion={reducedMotion}
         />
       )}
-      <mesh geometry={geometries.door} position={[0, 0, 0.46]}>
-        <meshBasicMaterial color={OBSERVATORY_PERSONALITY.palette.ink} side={THREE.DoubleSide} toneMapped />
+      {/* Glow door sits deep in the tunnel so the opening reads as depth with warm
+          light inside, not a flat warm wall at the threshold. */}
+      <mesh geometry={geometries.door} position={[0, 0, 0.3]}>
+        <meshBasicMaterial
+          color={OBSERVATORY_HOME_LIGHT_PROFILE.color}
+          ref={doorGlowRef}
+          side={THREE.DoubleSide}
+          toneMapped={false}
+        />
       </mesh>
       <pointLight
         color={OBSERVATORY_HOME_LIGHT_PROFILE.color}
@@ -1182,7 +1459,10 @@ function IntegratedAirlock({
         distance={OBSERVATORY_HOME_LIGHT_PROFILE.distance}
         intensity={OBSERVATORY_HOME_LIGHT_PROFILE.intensity[quality]}
         name="sunrise-gold-observatory-threshold-light"
-        position={[0, 0.34, 0.72]}
+        // Inside the tunnel: amber spills out through the arch as interior depth
+        // light instead of staining the exterior arch bricks warm.
+        position={[0, 0.3, 0.34]}
+        ref={thresholdLightRef}
       />
     </group>
   );
@@ -1303,7 +1583,7 @@ function NeutralContactPlinth({ impact, quality }) {
         <meshBasicMaterial
           color={DOME_CRYSTAL_PALETTE.contactBlueGrey}
           depthWrite={false}
-          opacity={0.12 + impact * 0.0175}
+          opacity={0.19 + impact * 0.0175}
           transparent
         />
       </mesh>
@@ -1334,12 +1614,36 @@ function updateDomeUniforms(material, { accent, impact, reveal, time }) {
   uniforms.uDomeTime.value = time;
 }
 
-function updateInstancedIceUniforms(material, accent, impact, compression) {
+function updateInstancedIceUniforms(
+  material,
+  accent,
+  impact,
+  compression,
+  proximity = 0,
+  time = 0,
+  floatMotion = 1,
+  reveal = 1,
+) {
   const uniforms = material.userData.brickUniforms;
   if (!uniforms) return;
   uniforms.uBrickAccent.value.set(accent);
   uniforms.uBrickCompression.value = Math.min(0.012, Math.abs(compression));
   uniforms.uBrickImpact.value = impact;
+  if (uniforms.uBrickProximity) uniforms.uBrickProximity.value = proximity;
+  if (uniforms.uBrickTime) uniforms.uBrickTime.value = time;
+  // Reduced motion pins the temporal wave and pointer wake to zero while the
+  // static suspension gaps (weight-scaled outward offsets) remain.
+  if (uniforms.uBrickFloatMotion) uniforms.uBrickFloatMotion.value = floatMotion;
+  // World-stream materialize progress; pinned to 1 for reduced motion by the caller.
+  if (uniforms.uBrickReveal) uniforms.uBrickReveal.value = reveal;
+  // Proximity stir now widens the wake footprint slightly (approach makes drags
+  // stir a broader patch of shell) instead of amplifying the idle wave further.
+  if (uniforms.uSplatRadius) {
+    uniforms.uSplatRadius.value =
+      DOME_FLOAT_PROFILE.wake.sigmaLocal *
+      OBSERVATORY_MACRO_SCALE_PROFILE.worldScale *
+      (1 + 0.18 * proximity);
+  }
 }
 
 function stepWeightedContact(state, delta, impact, axisVelocity, reducedMotion) {
@@ -1413,7 +1717,6 @@ export default function PolarObservatoryDome({
   const shellMaterial = useAnimeIceMaterial(tier, "shell");
   const airlockMaterial = useAnimeIceMaterial(tier, "airlock");
   const innerShellMaterial = useInnerShellMaterial(tier);
-  const airlockTunnelMaterial = useAirlockTunnelMaterial(tier);
   const instancedAssets = useInstancedIceAssets(tier);
   const accent = activeArtifact?.accent || DOME_XZ_COLOR_ZONES.teal;
   const resolvedHomeX = Number.isFinite(homePosition?.[0]) ? homePosition[0] : homeX;
@@ -1428,10 +1731,18 @@ export default function PolarObservatoryDome({
     Math.max(0, 1 - contactDistance / 0.34) *
     Math.min(1, Math.max(0, Math.abs(axisVelocity) - 0.72) * 2.1);
   const impact = Math.max(collisionImpact, Math.max(0, Math.min(1, impactPulse)));
+  // Approach reactivity: 0 far from the observatory, 1 at the shell. Reused for the
+  // seam/rim emissive breath and the lattice rib glow; no new RAF loops.
+  const approachProximity = THREE.MathUtils.clamp(1 - contactDistance / 5.4, 0, 1);
+  const proximityBreathRef = useRef(0);
 
   useFrame(({ clock }, delta) => {
     const elapsed = reducedMotion ? 0 : clock.elapsedTime;
     const reveal = streamRevealProgressRef?.current ?? initialStreamRevealProgress;
+    const proximityBreath = reducedMotion
+      ? approachProximity
+      : approachProximity * (0.78 + 0.22 * Math.sin(clock.elapsedTime * 1.5));
+    proximityBreathRef.current = proximityBreath;
     updateDomeUniforms(shellMaterial, { accent, impact, reveal, time: elapsed });
     updateDomeUniforms(airlockMaterial, { accent, impact, reveal, time: elapsed });
     if (!rootRef.current) return;
@@ -1442,6 +1753,10 @@ export default function PolarObservatoryDome({
       accent,
       impact,
       contactState.displacement,
+      proximityBreath,
+      elapsed,
+      reducedMotion ? 0 : 1,
+      reducedMotion ? 1 : THREE.MathUtils.clamp(reveal, 0, 1),
     );
     rootRef.current.position.x = resolvedHomeX + contactState.displacement;
     rootRef.current.position.y = 0.035;
@@ -1473,12 +1788,25 @@ export default function PolarObservatoryDome({
       }}
     >
       <pointLight
-        color={OBSERVATORY_HOME_LIGHT_PROFILE.contactColor}
+        // Cold near-white key, not the saturated station accent: the shell carries
+        // almost no body emissive now, so this local light IS the dome's colour. A
+        // teal key stained every ice face cyan and read as toy plastic.
+        color={DOME_CRYSTAL_PALETTE.windCap}
         decay={2}
-        distance={7.2}
-        intensity={tier === "high" ? 2.35 : tier === "medium" ? 1.7 : 0.85}
+        distance={8.5}
+        intensity={tier === "high" ? 34 : tier === "medium" ? 28 : 14}
         name="cyan-white-observatory-key-light"
-        position={[-1.65, 2.25, 1.35]}
+        position={[-2.1, 2.9, 1.7]}
+      />
+      <pointLight
+        color={DOME_CRYSTAL_PALETTE.frostIvory}
+        decay={2}
+        // Short range so the grazing fill stays on the shell instead of spilling onto
+        // the seal and the surrounding snow.
+        distance={6.5}
+        intensity={tier === "high" ? 11 : tier === "medium" ? 9 : 4.5}
+        name="cold-observatory-fill-light"
+        position={[2.6, 2.3, 1.5]}
       />
       <NeutralContactPlinth impact={impact} quality={tier} />
       <ContinuousDomeTopology
@@ -1497,11 +1825,14 @@ export default function PolarObservatoryDome({
       <MergedLatticeSkeleton
         accent={accent}
         lattice={lattice}
+        proximityRef={proximityBreathRef}
         quality={tier}
       />
+      {/* All tiers use the airlock course shader so the tunnel reads as built from
+          the same ice blocks as the shell, never a flat raw material. */}
       <IntegratedAirlock
         assets={instancedAssets}
-        material={tier === "low" ? airlockMaterial : airlockTunnelMaterial}
+        material={airlockMaterial}
         pointerInteractionEnabled={pointerInteractionEnabled}
         quality={tier}
         reducedMotion={reducedMotion}

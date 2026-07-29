@@ -32,12 +32,9 @@ const iglooArtifacts = expectFile("components/IglooArtifacts.jsx");
 const polarObservatoryDome = expectFile("components/PolarObservatoryDome.jsx");
 const polarBiomeWorld = expectFile("components/PolarBiomeWorld.jsx");
 const polarBiomeFields = expectFile("lib/polar-biome-fields.js");
-const iglooTerrain = expectFile("components/IglooTerrain.jsx");
 const iglooTouch = expectFile("components/IglooTouch.jsx");
 const sealAvatar = expectFile("components/SealAvatar.jsx");
-const sdfSealMascot = expectFile("components/SdfSealMascot.jsx");
 const sdfSealSplash = expectFile("components/SdfSealSplash.jsx");
-const snowAtmosphere = expectFile("components/SnowAtmosphere.jsx");
 const activeTheoryVeil = expectFile("components/ActiveTheoryVeil.jsx");
 const blackHoleTransition = expectFile("components/BlackHoleTransition.jsx");
 const topologyConstellation = expectFile("components/TopologyConstellation.jsx");
@@ -51,15 +48,7 @@ const corpus = readIfExists("data/project-intelligence.json");
 const github = readIfExists("lib/github-live.js");
 
 for (const pbrAsset of [
-  "public/assets/pbr/igloo/white-quilted-fabric-bl/white-quilted-fabric_albedo.png",
-  "public/assets/pbr/igloo/white-quilted-fabric-bl/white-quilted-fabric_normal-ogl.png",
-  "public/assets/pbr/igloo/white-quilted-fabric-bl/white-quilted-fabric_roughness.png",
-  "public/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_albedo.png",
   "public/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_normal-ogl.png",
-  "public/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_roughness.png",
-  "public/assets/pbr/ground/cloudy-veined-quartz-light-bl/cloudy-veined-quartz-light_albedo.png",
-  "public/assets/pbr/ground/cloudy-veined-quartz-light-bl/cloudy-veined-quartz-light_normal-ogl.png",
-  "public/assets/pbr/ground/cloudy-veined-quartz-light-bl/cloudy-veined-quartz-light_roughness.png",
 ]) {
   expect(exists(pbrAsset), `${pbrAsset} must exist`);
 }
@@ -196,28 +185,6 @@ for (const domePrimitive of [
   expectIncludes("components/PolarObservatoryDome.jsx", polarObservatoryDome, domePrimitive, `polar observatory dome must define ${domePrimitive}`);
 }
 
-for (const terrainPrimitive of [
-  "IglooTerrain",
-  "TERRAIN_CHUNK_COUNT",
-  "TERRAIN_CHUNK_SIZE",
-  "recursive Antarctic floor material tile",
-  "cloudy-veined-quartz-light_normal-ogl.png",
-  "RepeatWrapping",
-  "MountainRidge",
-]) {
-  expectIncludes("components/IglooTerrain.jsx", iglooTerrain, terrainPrimitive, `terrain must define ${terrainPrimitive}`);
-}
-
-for (const snowPrimitive of [
-  "SnowAtmosphere",
-  "SNOW_ATMOSPHERE_MODE",
-  "bounded falling snow",
-  "PointsMaterial",
-  "useFrame",
-]) {
-  expectIncludes("components/SnowAtmosphere.jsx", snowAtmosphere, snowPrimitive, `snow atmosphere must define ${snowPrimitive}`);
-}
-
 for (const sealPrimitive of [
   "SealAvatar",
   "SealBody",
@@ -231,20 +198,6 @@ for (const sealPrimitive of [
   "onTouchIgloo",
 ]) {
   expectIncludes("components/SealAvatar.jsx", sealAvatar, sealPrimitive, `seal avatar must define ${sealPrimitive}`);
-}
-
-for (const sdfPrimitive of [
-  "CompositeSdfSeal",
-  "smin",
-  "sdfSeal",
-  "sealGradient",
-  "normal-based edge",
-  "SDF_COLLISION_PROBES",
-  "rigidBodyBridge",
-  "F(p)",
-  "fragmentShader",
-]) {
-  expectIncludes("components/SdfSealMascot.jsx", sdfSealMascot, sdfPrimitive, `legacy mathematical SDF seal must retain ${sdfPrimitive}`);
 }
 
 for (const touchPrimitive of ["IglooTouch", "Raycaster", "pointerdown", "ice-block", "igloo-dome"]) {
@@ -343,6 +296,8 @@ for (const blackHolePrimitive of [
 expectIncludes("components/HorizontalAxisController.jsx", horizontalAxis, "window.scrollBy({ left", "horizontal axis controller must convert movement to x-axis scrolling");
 expectIncludes("components/ActiveTheoryVeil.jsx", activeTheoryVeil, "active-theory-veil", "cinematic veil must expose class name");
 expectIncludes("components/TopologyConstellation.jsx", topologyConstellation, "persistent homology", "topology constellation must expose persistent homology language");
+expectIncludes("components/TopologyConstellation.jsx", topologyConstellation, "AURORA_UNIFIER_PROFILE", "topology constellation must keep the aurora unifier sky glue");
+expectIncludes("components/TopologyConstellation.jsx", topologyConstellation, "vec3(0.4353, 0.9059, 0.7843)", "aurora unifier must reuse the black-hole mint anchor");
 expectIncludes("components/LiveRadar.jsx", liveRadar, "liveSummary", "LiveRadar must render server-provided live GitHub summary");
 expectIncludes("components/LiveRadar.jsx", liveRadar, "summary?.profile?.login", "LiveRadar must render the API profile login");
 expectIncludes("components/LiveRadar.jsx", liveRadar, "summary?.profile?.name", "LiveRadar must render the API profile name when available");

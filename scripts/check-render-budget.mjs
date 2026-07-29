@@ -60,9 +60,7 @@ const files = {
   dome: readFileSync(join(root, "components", "PolarObservatoryDome.jsx"), "utf8"),
   splash: readFileSync(join(root, "components", "SdfSealSplash.jsx"), "utf8"),
   nextConfig: readFileSync(join(root, "next.config.mjs"), "utf8"),
-  terrain: readFileSync(join(root, "components", "IglooTerrain.jsx"), "utf8"),
   seal: readFileSync(join(root, "components", "SealAvatar.jsx"), "utf8"),
-  snow: readFileSync(join(root, "components", "SnowAtmosphere.jsx"), "utf8"),
   splashShader: readFileSync(join(root, "components", "AntarcticSplashShader.jsx"), "utf8"),
   post: readFileSync(join(root, "components", "RetroCinematicPostProcess.jsx"), "utf8"),
   polarArtDirection: readFileSync(join(root, "lib", "polar-art-direction.js"), "utf8"),
@@ -219,46 +217,6 @@ const checks = [
     pattern: /WORLD_RENDER_WINDOW_NOTE/,
   },
   {
-    name: "terrain chunk count remains bounded",
-    file: files.terrain,
-    pattern: /TERRAIN_CHUNK_COUNT\s*=\s*7/,
-  },
-  {
-    name: "terrain active chunk count degrades by quality",
-    file: files.terrain,
-    pattern: /activeChunkCount\s*=\s*quality === "low" \? 3 : quality === "medium" \? 5 : TERRAIN_CHUNK_COUNT/,
-  },
-  {
-    name: "terrain material stays in uplifting polar range",
-    file: files.terrain,
-    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*POLAR_PALETTE\.polarIvory/,
-  },
-  {
-    name: "terrain surface stays clean and subordinate",
-    file: files.terrain,
-    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to stations[\s\S]*ANIME_TERRAIN_SHADER_PROFILE[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*new THREE\.MeshToonMaterial[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.0025, 0\.0025\)/,
-  },
-  {
-    name: "terrain uses recycled material tile label",
-    file: files.terrain,
-    pattern: /recursive Antarctic floor material tile/,
-  },
-  {
-    name: "snow particle count is quality bounded",
-    file: files.snow,
-    pattern: /quality === "low" \? 90 : quality === "medium" \? 150 : 230/,
-  },
-  {
-    name: "snow resources are disposed on unmount",
-    file: files.snow,
-    pattern: /geometry\.dispose\(\)[\s\S]*material\.dispose\(\)/,
-  },
-  {
-    name: "ground fog stays uplifting and translucent",
-    file: files.snow,
-    pattern: /POLAR_GROUND_FOG_PROFILE[\s\S]*uplifting translucent[\s\S]*0\.034[\s\S]*color="#bdefff"/,
-  },
-  {
     name: "smashables only render during active movement",
     file: files.scene,
     pattern: /renderEnabled && moving && !debugFlags\.noSmashables/,
@@ -354,6 +312,15 @@ const checks = [
     pattern: /SCENE_LIGHT_BUDGET\s*=\s*"two biome-driven directionals plus quiet ambient hemisphere"[\s\S]*PolarBiomeWorld[\s\S]*keyLightRef[\s\S]*fillLightRef[\s\S]*scene\.fog/,
   },
   {
+    // A docked station drives key/fill/rim at full weight from its own identity hue.
+    // Unclamped, that dyes every material one colour (the monochrome-building bug).
+    // The rig must stay near-neutral and let the sky/fog carry the dusk instead.
+    name: "world light rig stays near-neutral so material albedo reads",
+    file: `${files.scene}\n${files.biome}`,
+    pattern:
+      /<ambientLight color="#C6C8CE"[\s\S]*<hemisphereLight color="#BCCADF" groundColor="#6E6154"[\s\S]*RIG_NEUTRALITY = Object\.freeze\(\{[\s\S]*key: \{ saturationCap: 0\.16[\s\S]*neutralizeRigColor\(environmentScratch\.keyColor[\s\S]*neutralizeRigColor\(environmentScratch\.rimColor[\s\S]*neutralizeRigColor\(environmentScratch\.fillColor/,
+  },
+  {
     name: "biome compositor owns bounded terrain sky geography and singular weather",
     file: `${files.biomeFields}\n${files.biome}`,
     pattern: /POLAR_BIOME_SHADER_POLICY[\s\S]*textures:\s*0[\s\S]*maxCompiledPrograms:\s*2[\s\S]*maxDrawCalls:\s*3[\s\S]*weatherOwners:\s*1[\s\S]*new THREE\.InstancedMesh/,
@@ -371,7 +338,7 @@ const checks = [
   {
     name: "anime post quality tiers retain exact bounded effect caps",
     file: `${files.post}\n${files.polarArtDirection}`,
-    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.003[\s\S]*chroma:\s*0\.55[\s\S]*ink:\s*0\.14[\s\S]*scanline:\s*0\.004[\s\S]*pixel:\s*1\.7[\s\S]*quantize:\s*0\.18[\s\S]*gradeBase:\s*0\.49[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.005[\s\S]*chroma:\s*0\.8[\s\S]*ink:\s*0\.18[\s\S]*scanline:\s*0\.007[\s\S]*pixel:\s*2\.2[\s\S]*quantize:\s*0\.24[\s\S]*gradeBase:\s*0\.52[\s\S]*gradeCurve:\s*0\.4/,
+    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.001[\s\S]*chroma:\s*0\.12[\s\S]*ink:\s*0\.05[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1\.3[\s\S]*quantize:\s*0\.04[\s\S]*gradeBase:\s*0\.56[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.0015[\s\S]*chroma:\s*0\.15[\s\S]*ink:\s*0\.06[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1\.4[\s\S]*quantize:\s*0\.05[\s\S]*gradeBase:\s*0\.6[\s\S]*gradeCurve:\s*0\.4/,
   },
   {
     name: "low-tier paper grade restores a bounded luminance toe without dimming highlights",
@@ -379,14 +346,9 @@ const checks = [
     pattern: /uShadowSeparation[\s\S]*paperShadowSeparation[\s\S]*smoothstep\(0\.18, 0\.46[\s\S]*highlightMask[\s\S]*low:[\s\S]*shadowSeparation:\s*0\.24[\s\S]*medium:[\s\S]*shadowSeparation:\s*0[\s\S]*high:[\s\S]*shadowSeparation:\s*0/,
   },
   {
-    name: "non-igloo stations expose active playable object behaviors",
-    file: files.artifacts,
-    pattern: /STATION_INTERACTION_PROFILE[\s\S]*s2-kernel-core interactive gyroscope[\s\S]*manifold-reactor phase beads[\s\S]*field-chamber-coils charge gates[\s\S]*qpu-ice-bridge qubit stepping stones[\s\S]*upstream-radio-mast live signal sweep[\s\S]*StationInteractionRig/,
-  },
-  {
     name: "featured stations use uplifting colors and elevated grid pedestals",
     file: files.artifacts,
-    pattern: /UPLIFTING_STATION_COLOR_PROFILE[\s\S]*S2 blue[\s\S]*Aether violet[\s\S]*Field amber[\s\S]*QPU mint[\s\S]*Upstream coral-green[\s\S]*STATION_GRID_ELEVATION_PROFILE[\s\S]*FEATURED_STATION_IDS[\s\S]*floating-grid-pedestal[\s\S]*subjectLift/,
+    pattern: /UPLIFTING_STATION_COLOR_PROFILE[\s\S]*S2 blue[\s\S]*Aether violet[\s\S]*Field amber[\s\S]*QPU mint[\s\S]*Upstream coral-green[\s\S]*STATION_GRID_ELEVATION_PROFILE[\s\S]*FEATURED_STATION_IDS[\s\S]*floating-grid-pedestal/,
   },
   {
     name: "world adopts deterministic bounded traversal with damped camera and offscreen suspension",

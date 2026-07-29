@@ -39,6 +39,11 @@ assert.equal(
   0.35,
   "portrait dome plus seal must occupy at least 35% of the vertical field",
 );
+assert.equal(
+  POLAR_CAMERA_COMPOSITION_CONTRACT.maximumHeroSpanRatio,
+  0.56,
+  "#34: docked heroes must leave breathing room — ground, horizon, and place context",
+);
 
 function insideAzimuthRanges(value, ranges) {
   const normalized = ((value % 360) + 360) % 360;
@@ -71,11 +76,33 @@ function assertComposition(result, viewport, station, label) {
       result.camera.elevationDegrees <= station.camera.elevationRange[1],
     `${label} elevation escaped authored cone`,
   );
+  // #34: landscape must fit the whole rendered facility inside the inset;
+  // portrait fits the mechanism core horizontally (wide outbuildings may crop
+  // at phone edges by design) while the full build height stays inset-safe.
+  const portraitViewport = viewport.width < 900;
+  const heroFitBounds = portraitViewport
+    ? {
+        ...result.metrics.heroCoreBounds,
+        bottom: result.metrics.heroBounds.bottom,
+        top: result.metrics.heroBounds.top,
+      }
+    : result.metrics.heroBounds;
   assertBoundsInside(
-    result.metrics.heroBounds,
+    heroFitBounds,
     viewport,
     POLAR_CAMERA_COMPOSITION_CONTRACT.heroInsetPixels,
     `${label} hero`,
+  );
+  const heroWidthRatio =
+    (result.metrics.heroBounds.right - result.metrics.heroBounds.left) / viewport.width;
+  const heroHeightRatio =
+    (result.metrics.heroBounds.bottom - result.metrics.heroBounds.top) / viewport.height;
+  const heroOccupancy = portraitViewport
+    ? heroHeightRatio
+    : Math.max(heroWidthRatio, heroHeightRatio);
+  assert.ok(
+    heroOccupancy <= POLAR_CAMERA_COMPOSITION_CONTRACT.maximumHeroSpanRatio + 0.001,
+    `${label} hero fills the frame (${heroOccupancy.toFixed(3)}) — no breathing room`,
   );
   assertBoundsInside(
     result.metrics.sealBounds,
@@ -162,9 +189,14 @@ for (const stationId of STATION_WORLD_SCHEMA.order) {
     station.camera.verticalFovDegrees + 7,
     `${stationId} portrait must use the authored +7 degree rule`,
   );
+  // #34 deliberate supersession: the old "portrait >= desktop + 1.2" distance
+  // proxy assumed both orientations framed the same envelope. Desktop is now
+  // pushed back by the honest facility width (maximumHeroSpanRatio), which
+  // portrait cannot and need not match — its anti-clipping guarantee is the
+  // vertical occupancy cap plus the explicit 9.75 portrait distance floor.
   assert.ok(
-    portrait.camera.distance >= desktop.camera.distance + 1.2,
-    `${stationId} portrait must add camera distance instead of clipping`,
+    portrait.camera.distance >= 9.75,
+    `${stationId} portrait must respect the portrait distance floor`,
   );
   if (stationId === "observatory-plaque") {
     assert.ok(
@@ -208,14 +240,15 @@ const travel = resolvePolarTravelComposition({
   height: DESKTOP.height,
   quality: "high",
   reducedMotion: false,
-  sealPosition: { x: 3.2, z: 6.4 },
+  // Mid-route probe: outside the departed S2 far radius in the camp layout.
+  sealPosition: { x: 10, z: -3 },
   station: s2,
   velocity: { x: 3.4, z: -1.2 },
   width: DESKTOP.width,
 });
 assert.ok(travel.stationInfluence < 0.08, "travel camera must release the departed monument");
 assert.ok(
-  Math.hypot(travel.look.x - 3.2, travel.look.z - 6.4) <= 1.25,
+  Math.hypot(travel.look.x - 10, travel.look.z - -3) <= 1.25,
   "travel camera must follow the seal instead of showing an empty oversized world",
 );
 assert.ok(travel.motionFisheye > 0, "travel must retain bounded motion fisheye");

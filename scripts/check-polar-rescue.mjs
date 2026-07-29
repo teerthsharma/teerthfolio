@@ -25,32 +25,32 @@ function expectIncludes(relativePath, needles) {
 }
 
 assert.deepEqual(POLAR_PALETTE, {
-  polarIvory: "#F6F1E7",
-  glacierWhite: "#EDF6F9",
-  abetoTeal: "#65C1BC",
-  dawnCyan: "#8FD0E0",
-  skyMint: "#A7E5DF",
-  horizonBlue: "#78C9D2",
-  horizonIndigo: "#33406E",
-  animeInk: "#34384F",
-  animeShadow: "#71839B",
-  emberAmber: "#E2B86A",
-  evidenceMagenta: "#D8478F",
-  kelpChartreuse: "#C4D64B",
-  signalCobalt: "#3E5BC7",
+  polarIvory: "#F2D3A8",
+  glacierWhite: "#D7E6F5",
+  abetoTeal: "#57C7BE",
+  dawnCyan: "#7FB9DE",
+  skyMint: "#93DFD4",
+  horizonBlue: "#6FB4C9",
+  horizonIndigo: "#232E52",
+  animeInk: "#1C2135",
+  animeShadow: "#4C5C7E",
+  emberAmber: "#F2B96B",
+  evidenceMagenta: "#E25AA0",
+  kelpChartreuse: "#BBD348",
+  signalCobalt: "#5573E0",
   aetherViolet: "#8D69D6",
-  fieldYellow: "#F4C84E",
-  qpuMint: "#4BC076",
-  upstreamCoral: "#F47D69",
-  fog: "#B8E2DF",
+  fieldYellow: "#F5C044",
+  qpuMint: "#55CE85",
+  upstreamCoral: "#E8705E",
+  fog: "#697CA6",
 });
 
 assert.deepEqual(DOME_XZ_COLOR_ZONES, {
-  frost: "#EDF6F9",
-  cream: "#F6F1E7",
-  teal: "#65C1BC",
-  sage: "#B9D8B1",
-  warm: "#F2C98B",
+  frost: "#C6D9EE",
+  cream: "#E7D9BE",
+  teal: "#6FA9B5",
+  sage: "#94B3A4",
+  warm: "#EFB27C",
 });
 assert.equal(POLAR_XZ_SHADER_POLICY.coordinateSpace, "world-xz");
 assert.equal(POLAR_XZ_SHADER_POLICY.derivativeNormals, true);
@@ -62,13 +62,13 @@ assert.deepEqual(POLAR_XZ_SHADER_POLICY.quality, {
 });
 
 assert.deepEqual(STATION_PALETTE, {
-  "observatory-plaque": { surface: "#F4F8ED", accent: "#65C1BC" },
-  "s2-kernel-core": { surface: "#A6DFF4", accent: "#3E5BC7" },
+  "observatory-plaque": { surface: "#CBDCD2", accent: "#5CC9C2" },
+  "s2-kernel-core": { surface: "#7FB9DE", accent: "#5573E0" },
   "manifold-reactor": { surface: "#0B2A56", accent: "#2D6FA3" },
-  "field-chamber-coils": { surface: "#FFE37A", accent: "#F29C46" },
-  "qpu-ice-bridge": { surface: "#BFF4D9", accent: "#4BC076" },
-  "upstream-radio-mast": { surface: "#FFB0AF", accent: "#4BC076" },
-  "topology-archive-wall": { surface: "#F2D4E8", accent: "#D8478F" },
+  "field-chamber-coils": { surface: "#EFC15C", accent: "#EE9440" },
+  "qpu-ice-bridge": { surface: "#8FCDB2", accent: "#55CE85" },
+  "upstream-radio-mast": { surface: "#E08A87", accent: "#55CE85" },
+  "topology-archive-wall": { surface: "#C9A3BF", accent: "#E25AA0" },
   "assembly-tool-locker": { surface: "#2A1B4A", accent: "#6D4BE8" },
 });
 
@@ -104,8 +104,8 @@ assert.deepEqual(WORLD_STREAM_TIMINGS, {
 
 assert.deepEqual(POST_PROCESS_BUDGET, {
   low: { scale: 0.82, fisheye: 0, chroma: 0, ink: 0.08, scanline: 0, pixel: 1, quantize: 0.12, gradeBase: 0.04, gradeCurve: 0.9, shadowSeparation: 0.24 },
-  medium: { scale: 0.94, fisheye: 0.003, chroma: 0.55, ink: 0.14, scanline: 0.004, pixel: 1.7, quantize: 0.18, gradeBase: 0.49, gradeCurve: 0.4, shadowSeparation: 0 },
-  high: { scale: 1, fisheye: 0.005, chroma: 0.8, ink: 0.18, scanline: 0.007, pixel: 2.2, quantize: 0.24, gradeBase: 0.52, gradeCurve: 0.4, shadowSeparation: 0 },
+  medium: { scale: 0.94, fisheye: 0.001, chroma: 0.12, ink: 0.05, scanline: 0, pixel: 1.3, quantize: 0.04, gradeBase: 0.56, gradeCurve: 0.4, shadowSeparation: 0 },
+  high: { scale: 1, fisheye: 0.0015, chroma: 0.15, ink: 0.06, scanline: 0, pixel: 1.4, quantize: 0.05, gradeBase: 0.6, gradeCurve: 0.4, shadowSeparation: 0 },
 });
 
 assert.ok(Object.isFrozen(POLAR_PALETTE), "POLAR_PALETTE must be frozen");
@@ -188,7 +188,6 @@ expectIncludes("components/PolarBiomeWorld.jsx", [
   "simulationPaused",
   "safeMode",
 ]);
-expectIncludes("components/IglooTerrain.jsx", ["ANIME_TERRAIN_SHADER_PROFILE", "MeshToonMaterial"]);
 expectIncludes("components/PolarObservatoryDome.jsx", [
   "DOME_ANIME_ICE_PROFILE",
   "DOME_XZ_SHADER_PROFILE",
@@ -268,7 +267,6 @@ for (const relativePath of [
   "app/globals.css",
   "components/IglooWorld.jsx",
   "components/IglooScene.jsx",
-  "components/IglooTerrain.jsx",
   "components/PolarObservatoryDome.jsx",
   "components/SealAvatar.jsx",
   "components/RetroCinematicPostProcess.jsx",

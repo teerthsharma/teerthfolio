@@ -77,13 +77,13 @@ assert.deepEqual(SW_MECHANISM_BUDGET, {
 });
 
 const stationDocks = {
-  "s2-kernel-core": [-6.01, 15.61],
-  "manifold-reactor": [9.55, 14.33],
-  "field-chamber-coils": [20.21, 4.76],
-  "qpu-ice-bridge": [18, -9.6],
-  "upstream-radio-mast": [3.59, -16.74],
-  "topology-archive-wall": [-13.47, -13.47],
-  "assembly-tool-locker": [-20.98, -2.33],
+  "s2-kernel-core": [1.99, 10.61],
+  "manifold-reactor": [-12.45, -3.67],
+  "field-chamber-coils": [-6.79, -8.24],
+  "qpu-ice-bridge": [20, -14.6],
+  "upstream-radio-mast": [14.59, 9.26],
+  "topology-archive-wall": [8.53, -10.47],
+  "assembly-tool-locker": [-18.98, 1.67],
 };
 
 for (const [stationId, [x, z]] of Object.entries(stationDocks)) {
@@ -101,14 +101,41 @@ for (const [stationId, [x, z]] of Object.entries(stationDocks)) {
   assert.ok(selection.withinFarRadius);
 }
 
-for (const [x, z] of [[-15, 7], [-19.26, 8.99]]) {
+// The Plaque itself never owns a mechanism family: docked-at-home renders no
+// mechanism architecture.
+assert.equal(
+  resolveMechanismLayerSelection(
+    { x: -3, z: 1 },
+    "observatory-plaque",
+    { exclusiveStationId: "observatory-plaque" },
+  ).family,
+  null,
+  "docked Plaque must never allocate a station mechanism family",
+);
+// Roaming at the Plaque spawn center, no mechanism dock is inside its far
+// radius; at the airlock the camp layout legitimately shows the neighboring
+// generator hall at a faint edge-fade, never a strong mount.
+assert.equal(
+  resolveMechanismLayerSelection(
+    { dockedId: "observatory-plaque", proximityStationId: "observatory-plaque", x: -3, z: 1 },
+    "observatory-plaque",
+  ).family,
+  null,
+  "Plaque spawn center must not allocate a station mechanism family",
+);
+{
+  const airlock = resolveMechanismLayerSelection(
+    { dockedId: "observatory-plaque", proximityStationId: "observatory-plaque", x: -7.26, z: 2.99 },
+    "observatory-plaque",
+  );
   assert.equal(
-    resolveMechanismLayerSelection(
-      { dockedId: "observatory-plaque", proximityStationId: "observatory-plaque", x, z },
-      "observatory-plaque",
-    ).family,
-    null,
-    "Plaque must never allocate a station mechanism family",
+    airlock.stationId,
+    "manifold-reactor",
+    "the Plaque airlock may only see its nearest camp neighbor, the generator hall",
+  );
+  assert.ok(
+    airlock.visibility < 0.3,
+    "a neighbor mechanism at the Plaque airlock must stay a faint edge-fade presence",
   );
 }
 
@@ -331,7 +358,6 @@ for (const token of [
   "s2-cern-antimatter-cryostat",
   "aether-primordial-first-energy-sanctuary",
   "field-graphite-copper-contained-thermal-chamber",
-  "qpu-jade-cyan-coherence-causeway",
   "materials.s2Frame",
   "materials.aetherFrame",
   "materials.fieldFrame",

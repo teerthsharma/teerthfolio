@@ -52,6 +52,25 @@ export const CAMERA_DAMPING_PROFILE = "Abeto-style frame-rate independent camera
 
 const EMPTY_PROJECTS = Object.freeze([]);
 
+// Local camera-rig idle life. These are rig-only breathing terms layered on top
+// of the pinned CAMERA_COMPOSITION solve; all of them read zero under reduced
+// motion so the frozen frame stays byte-stable.
+const RIG_IDLE_YAW_DEGREES = 0.15;
+const RIG_IDLE_YAW_HZ = 0.09;
+const RIG_IDLE_HEIGHT = 0.012;
+const RIG_IDLE_HEIGHT_HZ = 0.13;
+
+// Bruno-style chase heading. During free travel the camera swings behind the
+// seal's smoothed velocity heading; near a station the rig blends back into the
+// authored dock composition on the existing stationInfluence arrival term.
+const CHASE_HEADING_DAMPING = 3.2;
+const CHASE_MIN_SPEED = 0.35;
+
+function shortestArc(angle) {
+  const tau = Math.PI * 2;
+  return ((angle + Math.PI) % tau + tau) % tau - Math.PI;
+}
+
 function WorldStreamReveal({
   children,
   durationMs,
@@ -161,6 +180,7 @@ function ForegroundExpeditionKit() {
 function CameraRig({
   activeArtifact,
   axisX,
+  cameraYawRef,
   depthZ,
   quality,
   reducedMotion,
@@ -180,6 +200,30 @@ function CameraRig({
     sealPosition: { x: 0, z: 0 },
     velocity: { x: 0, z: 0 },
   });
+  // Normalised cursor position (-1..1) and its damped follower. The rig alone
+  // consumes this; the post pass stays pointer-free by contract.
+  const pointerTarget = useRef({ x: 0, y: 0 });
+  const pointerCurrent = useRef({ x: 0, y: 0 });
+  // Smoothed travel heading in radians; null until the first frame seeds it
+  // from the dock azimuth so the chase blend starts without a swing.
+  const headingRef = useRef(null);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      pointerTarget.current.x = 0;
+      pointerTarget.current.y = 0;
+      return undefined;
+    }
+    const canvas = gl.domElement;
+    const onMove = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      pointerTarget.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerTarget.current.y = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+    };
+    canvas.addEventListener("pointermove", onMove, { passive: true });
+    return () => canvas.removeEventListener("pointermove", onMove);
+  }, [gl, reducedMotion]);
   const dockComposition = useMemo(
     () =>
       solvePolarCameraComposition({
@@ -243,7 +287,16 @@ function CameraRig({
       velocity: travelScratch.current.velocity,
       width: Math.max(1, size.width),
     });
-    const travelBlend = 1 - travel.stationInfluence;
+    // Arrival strength drives the chase/dock blend. The traversal's damped
+    // stationProximity (1 while docked, tight 6-unit falloff, pinned to routed
+    // destinations) releases the dock composition much sooner than the wide
+    // travel stationInfluence field, so free roaming reads as a chase camera.
+    const arrivalStrength = THREE.MathUtils.clamp(
+      traversalPose?.stationProximity ?? travel.stationInfluence,
+      0,
+      1,
+    );
+    const travelBlend = 1 - arrivalStrength;
     const focusY = THREE.MathUtils.lerp(
       dockComposition.camera.look.y,
       travel.look.y,
@@ -255,17 +308,60 @@ function CameraRig({
       travel.cameraDistance,
       travelBlend,
     );
-    const cameraAzimuthDegrees = dockComposition.camera.azimuthDegrees;
-    const azimuth = THREE.MathUtils.degToRad(cameraAzimuthDegrees);
+    // Travel mode is a third-person chase: the camera sits behind the seal's
+    // smoothed velocity heading and looks ahead of it. The dock composition
+    // keeps full authority as stationInfluence rises toward arrival.
+    const dockAzimuth = THREE.MathUtils.degToRad(dockComposition.camera.azimuthDegrees);
+    if (headingRef.current === null) headingRef.current = dockAzimuth - Math.PI;
+    if (speed > CHASE_MIN_SPEED) {
+      const targetHeading = Math.atan2(velocityX, velocityZ);
+      const headingDamping = reducedMotion
+        ? 1
+        : 1 - Math.exp(-delta * CHASE_HEADING_DAMPING);
+      headingRef.current = shortestArc(
+        headingRef.current +
+          shortestArc(targetHeading - headingRef.current) * headingDamping,
+      );
+    }
+    const chaseAzimuth = headingRef.current + Math.PI;
+    const azimuth = shortestArc(
+      dockAzimuth + shortestArc(chaseAzimuth - dockAzimuth) * travelBlend,
+    );
+    if (cameraYawRef) cameraYawRef.current = azimuth;
+    const cameraAzimuthDegrees = THREE.MathUtils.radToDeg(azimuth);
     const elevation = THREE.MathUtils.degToRad(dockComposition.camera.elevationDegrees);
     const horizontalDistance = Math.cos(elevation) * distance;
     const drift = reducedMotion ? 0 : THREE.MathUtils.smoothstep(speed, 0.08, 3.8);
+    // Idle life: a sub-degree yaw sway and a small height breath keep a settled
+    // frame from reading as a still image. Both collapse to zero when the user
+    // asks for reduced motion.
+    const idleYaw = reducedMotion
+      ? 0
+      : THREE.MathUtils.degToRad(RIG_IDLE_YAW_DEGREES) *
+        Math.sin(t * Math.PI * 2 * RIG_IDLE_YAW_HZ);
+    const idleHeight = reducedMotion
+      ? 0
+      : RIG_IDLE_HEIGHT * Math.sin(t * Math.PI * 2 * RIG_IDLE_HEIGHT_HZ);
+    const swayedAzimuth = azimuth + idleYaw;
     desired.set(
-      target.x + Math.sin(azimuth) * horizontalDistance + Math.sin(t * 0.1) * 0.045 * drift,
-      target.y + Math.sin(elevation) * distance,
-      target.z + Math.cos(azimuth) * horizontalDistance + Math.cos(t * 0.09) * 0.065 * drift,
+      target.x + Math.sin(swayedAzimuth) * horizontalDistance + Math.sin(t * 0.1) * 0.045 * drift,
+      target.y + Math.sin(elevation) * distance + idleHeight,
+      target.z + Math.cos(swayedAzimuth) * horizontalDistance + Math.cos(t * 0.09) * 0.065 * drift,
     );
     desiredLook.copy(target);
+    // Pointer reactivity lives on the look target only, capped below half a
+    // degree so the authored composition never leaves its solved envelope.
+    if (!reducedMotion) {
+      const pointerDamping = 1 - Math.exp(-Math.min(delta, 0.05) * 4);
+      pointerCurrent.current.x +=
+        (pointerTarget.current.x - pointerCurrent.current.x) * pointerDamping;
+      pointerCurrent.current.y +=
+        (pointerTarget.current.y - pointerCurrent.current.y) * pointerDamping;
+      const pointerReach = distance * Math.tan(THREE.MathUtils.degToRad(0.4));
+      desiredLook.x += Math.cos(azimuth) * pointerCurrent.current.x * pointerReach;
+      desiredLook.z += -Math.sin(azimuth) * pointerCurrent.current.x * pointerReach;
+      desiredLook.y += -pointerCurrent.current.y * pointerReach;
+    }
     const cameraDamping = reducedMotion
       ? 1
       : 1 - Math.exp(-delta * CAMERA_COMPOSITION.positionDamping);
@@ -338,6 +434,7 @@ function SceneDiagnostics({
   onGpuEvent,
   quality,
   reducedMotion,
+  streamEpochMsRef,
 }) {
   const { gl } = useThree();
   const readyFrames = useRef(0);
@@ -386,9 +483,15 @@ function SceneDiagnostics({
     };
   }, [gl, onGpuEvent]);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (readyFrames.current >= 2) return;
     readyFrames.current += 1;
+    // Re-pin the world-stream reveal epoch through the warm-up frames. Those
+    // frames run behind the splash hand-off while shaders compile, so an epoch
+    // seeded there would finish the whole materialize choreography (terrain,
+    // stations, dome courses) before the first visible paint. Stamping until
+    // the scene-ready frame starts the choreography at real visibility.
+    if (streamEpochMsRef) streamEpochMsRef.current = clock.elapsedTime * 1000;
     if (readyFrames.current === 2) {
       onGpuEvent?.({
         detail: `canvas=${gl.domElement.width}x${gl.domElement.height} dpr=${gl.getPixelRatio().toFixed(2)}`,
@@ -517,6 +620,7 @@ export default function IglooScene({
   activeArtifactId,
   axisVelocity = 0,
   axisX = 0,
+  cameraYawRef = null,
   debugFlags = {},
   depthVelocity = 0,
   depthZ = 0,
@@ -573,7 +677,7 @@ export default function IglooScene({
       gl.shadowMap.enabled = true;
       gl.shadowMap.type = THREE.PCFSoftShadowMap;
       gl.toneMapping = THREE.ACESFilmicToneMapping;
-      gl.toneMappingExposure = 1.08;
+      gl.toneMappingExposure = 1.12;
       onGpuEvent?.({
         detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
         message: `WebGL renderer ready at ${quality} quality.`,
@@ -620,10 +724,13 @@ export default function IglooScene({
       }}
       onCreated={onCanvasCreated}
     >
-      <color attach="background" args={[POLAR_PALETTE.glacierWhite]} />
-      <fogExp2 attach="fog" args={[POLAR_PALETTE.fog, 0.018]} />
-      <ambientLight intensity={0.44} />
-      <hemisphereLight color="#FFFDF7" groundColor="#9BB5C1" intensity={1} />
+      <color attach="background" args={["#5A6E9C"]} />
+      <fogExp2 attach="fog" args={[POLAR_PALETTE.fog, 0.0085]} />
+      {/* Near-neutral ambient: a strongly blue ambient is the main hue-collapsing term,
+          it clips the blue channel and every albedo converges on the light. Dusk mood
+          comes from the sky dome and fog, not from dyeing every surface. */}
+      <ambientLight color="#C6C8CE" intensity={0.42} />
+      <hemisphereLight color="#BCCADF" groundColor="#6E6154" intensity={1.02} />
       <Suspense fallback={null}>
         <SceneDiagnostics
           observatoryDistance={observatoryDistance}
@@ -631,11 +738,13 @@ export default function IglooScene({
           onGpuEvent={onGpuEvent}
           quality={quality}
           reducedMotion={reducedMotion}
+          streamEpochMsRef={streamEpochMsRef}
         />
         <ForceCanvasResize />
         <CameraRig
           activeArtifact={activeArtifact}
           axisX={axisX}
+          cameraYawRef={cameraYawRef}
           depthZ={depthZ}
           quality={quality}
           reducedMotion={reducedMotion}
@@ -715,17 +824,18 @@ export default function IglooScene({
             startMs={WORLD_STREAM_TIMINGS.stationStartMs}
             streamEpochMsRef={streamEpochMsRef}
           >
-            {!dockedStationId ? (
-              <TopologyConstellation
-                activeArtifact={activeArtifact}
-                artifacts={artifacts}
-                axisX={axisX}
-                depthZ={depthZ}
-                quality={quality}
-                reducedMotion={reducedMotion}
-                showLabels={renderEnabled}
-              />
-            ) : null}
+            {/* The aurora shell stays mounted while docked so the sky does not
+                die at stations; with a docked activeArtifact the junni guide
+                threads keep leaning toward the owned station azimuth. */}
+            <TopologyConstellation
+              activeArtifact={activeArtifact}
+              artifacts={artifacts}
+              axisX={axisX}
+              depthZ={depthZ}
+              quality={quality}
+              reducedMotion={reducedMotion}
+              showLabels={renderEnabled}
+            />
           </WorldStreamReveal>
         )}
         {renderEnabled && sealAwake && !debugFlags.noSeal && (
@@ -779,7 +889,7 @@ export default function IglooScene({
               ]}
               impactPulse={iglooPulse}
               initialStreamRevealProgress={reducedMotion ? 1 : 0}
-              pointerInteractionEnabled={dockedStationId === "observatory-plaque"}
+              pointerInteractionEnabled={dockedStationId === "observatory-plaque" || observatoryDistance <= 4.6}
               quality={quality}
               reducedMotion={reducedMotion}
               streamRevealProgressRef={domeRevealProgressRef}

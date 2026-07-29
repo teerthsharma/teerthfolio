@@ -423,8 +423,13 @@ assert.match(
 );
 assert.match(
   sceneSource,
+  /<TopologyConstellation\s[\s\S]*?activeArtifact=\{activeArtifact\}/,
+  "the aurora/constellation shell must stay mounted while docked so the sky survives station focus",
+);
+assert.doesNotMatch(
+  sceneSource,
   /!dockedStationId \? \(\s*<TopologyConstellation/,
-  "released travel ownership must restore topology context",
+  "docking must not unmount the aurora sky shell",
 );
 assert.match(
   sceneSource,

@@ -22,10 +22,6 @@ import {
 
 const root = process.cwd();
 const source = readFileSync(join(root, "components", "PolarBiomeWorld.jsx"), "utf8");
-const atmosphereSource = readFileSync(
-  join(root, "components", "PolarAtmosphereField.jsx"),
-  "utf8",
-);
 const dressingSource = readFileSync(
   join(root, "components", "AdaptivePolarWorldDressing.jsx"),
   "utf8",
@@ -39,10 +35,6 @@ assert.match(
   dressingSource,
   /placementAllowedForStation[\s\S]*STATION_DRESSING_BAND_POLICY[\s\S]*visiblePlacements = placements\.filter/,
   "station dressing policy must be enforced before instance upload",
-);
-const legacyTerrainSource = readFileSync(
-  join(root, "components", "IglooTerrain.jsx"),
-  "utf8",
 );
 const artifactsSource = readFileSync(
   join(root, "components", "IglooArtifacts.jsx"),
@@ -156,66 +148,66 @@ assert.equal(
 const exactProfiles = {
   "observatory-plaque": {
     angle: 12,
-    center: [-15, 7],
-    dock: [-19.26, 8.99],
+    center: [-3, 1],
+    dock: [-7.26, 2.99],
     radii: [10.5, 7, 2.6],
-    palette: ["#F6F1E7", "#EDF6F9", "#D7EFE8", "#65C1BC", "#B9D8B1", "#F2C98B", "#33406E"],
+    palette: ["#F2D3A8", "#D7E6F5", "#A9C9C4", "#5CC9C2", "#93B4A6", "#F2B96B", "#232E52"],
     geography: "sastrugi-melt-ribbon",
   },
   "s2-kernel-core": {
     angle: 38,
-    center: [-5, 13],
-    dock: [-6.01, 15.61],
+    center: [3, 8],
+    dock: [1.99, 10.61],
     radii: [8.5, 5.5, 1.8],
-    palette: ["#E2F5FF", "#A6DFF4", "#8FD0E0", "#3E5BC7", "#B9F5FF", "#33406E"],
+    palette: ["#B7D6EC", "#7FB9DE", "#6FA8C9", "#5573E0", "#A5E9FF", "#232E52"],
     geography: "voronoi-pressure-ridge-parhelion",
   },
   "manifold-reactor": {
     angle: -27,
-    center: [8, 12],
-    dock: [9.55, 14.33],
+    center: [-14, -6],
+    dock: [-12.45, -3.67],
     radii: [8.8, 5.8, 1.9],
     palette: ["#020711", "#07152F", "#0B2A56", "#2D6FA3", "#FFD05A", "#FFF1B8"],
     geography: "ribbon-cavern-isocontours",
   },
   "field-chamber-coils": {
     angle: 74,
-    center: [17, 4],
-    dock: [20.21, 4.76],
+    center: [-10, -9],
+    dock: [-6.79, -8.24],
     radii: [9.2, 6.2, 2.2],
-    palette: ["#FFF6CE", "#FFE37A", "#F4C84E", "#F29C46", "#A6D7E4", "#5A4A48"],
+    palette: ["#F5E3B0", "#EFC15C", "#F5C044", "#EE9440", "#7FA8C0", "#40312F"],
     geography: "salt-pan-field-lines",
   },
   "qpu-ice-bridge": {
     angle: -48,
-    center: [15, -8],
-    dock: [18, -9.6],
+    center: [17, -13],
+    dock: [20, -14.6],
     radii: [9.4, 6.4, 2.4],
-    palette: ["#E4FFF2", "#BFF4D9", "#4BC076", "#36D8FF", "#8FD0E0", "#345C57"],
+    palette: ["#BCE4D4", "#8FCDB2", "#55CE85", "#36D8FF", "#6FA8C9", "#24443F"],
     geography: "sea-ice-lead-interference",
   },
   "upstream-radio-mast": {
     angle: 19,
-    center: [3, -14],
-    dock: [3.59, -16.74],
+    center: [14, 12],
+    dock: [14.59, 9.26],
     radii: [9, 6, 2],
-    palette: ["#FFE0D7", "#FFB0AF", "#F47D69", "#4BC076", "#A7E5DF", "#594C61"],
+    palette: ["#E5B9AC", "#E08A87", "#E8705E", "#55CE85", "#6FB0A9", "#3F3547"],
     geography: "aurora-signal-ridge",
   },
   "topology-archive-wall": {
     angle: 61,
-    center: [-11, -11],
-    dock: [-13.47, -13.47],
+    center: [11, -8],
+    dock: [8.53, -10.47],
     radii: [9.4, 6.3, 2.3],
-    palette: ["#FFF0F7", "#F2D4E8", "#D8478F", "#8D69D6", "#B8E2DF", "#61445F"],
+    palette: ["#E3C6D6", "#C9A3BF", "#E25AA0", "#8D69D6", "#7FB3AF", "#453043"],
     geography: "strata-barcode-cliff",
   },
   "assembly-tool-locker": {
     angle: -9,
-    center: [-18, -2],
-    dock: [-20.98, -2.33],
+    center: [-16, 2],
+    dock: [-18.98, 1.67],
     radii: [8.7, 5.8, 2.1],
-    palette: ["#080713", "#151024", "#2A1B4A", "#6D4BE8", "#A78BFA", "#F2C98B", "#F2ECFF"],
+    palette: ["#080713", "#151024", "#2A1B4A", "#6D4BE8", "#A78BFA", "#F2B96B", "#F2ECFF"],
     geography: "runway-knurl-yard",
   },
 };
@@ -345,7 +337,7 @@ for (const id of stationIds) {
   assert.equal(exclusive.blend.neutralWeight, 0);
 }
 
-const exactTie = resolveTwoNearestBiomes([-12.5, 10]);
+const exactTie = resolveTwoNearestBiomes([0, 4.5]);
 assert.ok(
   Math.abs(
     exactTie.primary.weight + exactTie.secondary.weight - exactTie.totalInfluence,
@@ -363,7 +355,7 @@ assert.equal(remoteOwnership.current, null, "remote terrain must not invent a cu
 assert.equal(remoteOwnership.framedNeighbor, null, "remote terrain must not frame a distant monument");
 assert.deepEqual(remoteOwnership.visibleStationIds, []);
 
-const overlappingFields = resolveTwoNearestBiomes([-10, 10]);
+const overlappingFields = resolveTwoNearestBiomes([-12, -7.5]);
 assert.ok(overlappingFields.totalInfluence <= 1, "overlapping local fields must remain clamped");
 assert.ok(overlappingFields.neutralWeight >= 0, "overlap must not create negative neutral energy");
 
@@ -419,6 +411,96 @@ for (const shader of [POLAR_BIOME_VERTEX_SHADER, POLAR_BIOME_FRAGMENT_SHADER]) {
   assert.ok(shader.includes("void main()"));
   assert.equal((shader.match(/{/g) || []).length, (shader.match(/}/g) || []).length);
 }
+// GROUND NEUTRALITY. The mirror of RIG_NEUTRALITY (see check-render-budget.mjs):
+// station identity may TINT the snow, it may never DYE it. The regression this
+// locks out is a docked station driving the terrain palette at full weight, which
+// painted olive ground under the generator hall and mint lily pads under the drill
+// rig. Every identity colour that reaches the ground must pass the saturation cap
+// and lightness floor first, and no field may author more than a third of it.
+assert.match(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /const float GROUND_SATURATION_CAP = 0\.10;[\s\S]*vec3 neutralizeGroundColor\(vec3 color, float saturationCap, float lightnessFloor\)[\s\S]*vec3 groundPrimaryBase = neutralizeGroundColor\(primaryBase, GROUND_SATURATION_CAP, GROUND_LIGHTNESS_FLOOR\)[\s\S]*vec3 groundPrimaryAccent = neutralizeGroundColor\(primaryAccent, GROUND_ACCENT_SATURATION_CAP, GROUND_ACCENT_LIGHTNESS_FLOOR\)/,
+  "the ground must neutralize station identity colour before it reaches the snow",
+);
+for (const dyeSource of [
+  "groundPrimaryBase",
+  "groundPrimarySecondary",
+  "groundPrimaryAccent",
+  "groundPrimaryGlow",
+  "groundSecondaryBase",
+  "groundSecondarySecondary",
+  "groundSecondaryAccent",
+  "groundSecondaryGlow",
+]) {
+  assert.ok(
+    POLAR_BIOME_FRAGMENT_SHADER.includes(dyeSource),
+    `ground colour path bypasses the neutrality gate for ${dyeSource}`,
+  );
+}
+assert.doesNotMatch(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /authoredTerrainColor\(\s*u(?:Primary|Secondary)FieldKind,\s*v(?:Primary|Secondary)Field,\s*(?:primary|secondary)Base,/,
+  "authored terrain colour must be fed neutralized identity, never the raw station palette",
+);
+const readFieldShares = (functionName) => {
+  const start = POLAR_BIOME_FRAGMENT_SHADER.indexOf(`float ${functionName}(`);
+  assert.ok(start >= 0, `${functionName} is missing from the biome fragment shader`);
+  const body = POLAR_BIOME_FRAGMENT_SHADER.slice(start);
+  return body
+    .slice(0, body.indexOf("\n}"))
+    .match(/return (\d*\.?\d+);/g)
+    .map((entry) => Number.parseFloat(entry.replace(/[^\d.]/g, "")));
+};
+{
+  const authorship = readFieldShares("biomeTerrainAuthorship");
+  assert.equal(authorship.length, 8, "every field must declare a terrain authorship share");
+  assert.ok(
+    authorship.every((share) => share <= 0.34),
+    `no station may author more than a third of the ground albedo: ${authorship.join(", ")}`,
+  );
+  const geographyAccent = readFieldShares("biomeLocalGeographyAccent");
+  assert.equal(geographyAccent.length, 8, "every field must declare an ice-prop accent whisper");
+  assert.ok(
+    geographyAccent.every((share) => share <= 0.08),
+    `ice props take a whisper of station hue, not a dye: ${geographyAccent.join(", ")}`,
+  );
+}
+assert.ok(
+  POLAR_BIOME_FRAGMENT_SHADER.includes("vec3 iceSlab = mix(shadowIce, sunCrust,"),
+  "local geography props must read as snow/ice slabs, not station-coloured pads",
+);
+// Colour alone does not un-pad a pad: a 0.04-tall disc on a 1.1-wide polygon is a
+// lily pad whatever it is painted. The salt-crust and floe instances must keep
+// real slab thickness and a heave tilt.
+for (const [label, minimumThickness] of [
+  ["scaleY = 0.24 + seedB * 0.30", 0.24],
+  ["scaleY = 0.32 + seedB * 0.40", 0.32],
+]) {
+  assert.ok(
+    source.includes(label),
+    `ice slab instances lost their thickness (expected a >= ${minimumThickness} base scaleY)`,
+  );
+}
+assert.ok(
+  /transform\.rotation\.set\(0, yaw, kind === 2 \? \(seedA - 0\.5\) \* 0\.16 : roll\)/.test(source),
+  "ice slabs must keep their deterministic heave tilt",
+);
+// The terrain plane ships a constant up normal, so the toon ramp alone leaves the
+// ground a dead sheet. Relief has to come from the displaced surface height.
+assert.ok(
+  POLAR_BIOME_FRAGMENT_SHADER.includes(
+    "float groundRelief = clamp((vWorldPosition.y + 0.42) / 0.42, 0.0, 1.0);",
+  ),
+  "snow must take cool shadow in the hollows and warm bounce on the crests",
+);
+// Derivatives are not available in the WebGL1 compile-verify context; the ground
+// shading must stay inside the ES 1.00 core so verify:biome-shaders keeps passing.
+assert.doesNotMatch(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /dFdx\(|dFdy\(|fwidth\(/,
+  "biome shaders must not depend on GL_OES_standard_derivatives",
+);
+
 for (const shaderIdentity of [
   "plaqueField",
   "s2PressureField",
@@ -527,22 +609,6 @@ for (const needle of [
     `AdaptivePolarWorldDressing.jsx is missing local ownership ${JSON.stringify(needle)}`,
   );
 }
-for (const needle of [
-  "uBiomeCenterXZ",
-  "uBiomeRadius",
-  "vWorldXZ",
-  "continuousAtmosphereXZEnvelope",
-  "POLAR_ATMOSPHERE_BUDGET",
-  "reducedMotion",
-]) {
-  assert.ok(
-    atmosphereSource.includes(needle),
-    `PolarAtmosphereField.jsx is missing bounded XZ atmosphere ${JSON.stringify(needle)}`,
-  );
-}
-assert.ok(!atmosphereSource.includes("Y_ONLY_TINT"));
-assert.ok(!legacyTerrainSource.includes("distant-monument"));
-
 for (const needle of [
   'import PolarBiomeWorld from "./PolarBiomeWorld"',
   "<PolarBiomeWorld",
