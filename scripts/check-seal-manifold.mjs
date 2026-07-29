@@ -75,9 +75,9 @@ for (const [quality, profile] of Object.entries(SEAL_MANIFOLD_QUALITY)) {
   assert.equal(geometry.getAttribute("canonical").count, geometry.getAttribute("position").count);
 
   // Hairstyle anchors: deterministic hash-seeded crown sampling, tier-capped.
-  // Strand budget math: each strand is one open 5x4-segment cone = 40
-  // triangles, so the pool adds at most 40 * 40 = 1600 triangles at high tier
-  // on top of the manifold budget above; low adds at most 1120.
+  // Strand budget math: each strand is one capped 5x4-segment cone (<= 45
+  // triangles), so the pool adds at most 45 * 40 = 1800 triangles at high
+  // tier on top of the manifold budget above; low adds at most 1260.
   const furA = createSealFurPlacements(geometry, quality);
   const furB = createSealFurPlacements(geometry, quality);
   assert.equal(furA.length, SEAL_FUR_TIER_COUNT[quality], `${quality}: anchor pool must match its tier cap`);
@@ -130,6 +130,29 @@ assert.match(
   hairTable,
   /tipColor: "#FFE96B", tipBias: 1/,
   "the s2 flame crown must keep its deep-amber-to-bright-gold tip gradient",
+);
+// Station identity map: each remapped archetype must stay pinned to its dock.
+const hairEntries = Object.fromEntries(
+  [...hairTable.matchAll(/(\d+): Object\.freeze\(\{([\s\S]*?)\}\),/g)].map((entry) => [
+    entry[1],
+    entry[2],
+  ]),
+);
+for (const [station, marker, read] of [
+  ["2", 'feature: "fringe"', "manifold-reactor raven rival needs face-framing bangs"],
+  ["2", '"#0A0E16"', "manifold-reactor raven rival stays blue-black"],
+  ["3", 'feature: "antenna"', "field-chamber needs the twin gold antenna v-tufts"],
+  ["3", '"#FFD75E"', "field-chamber antenna tufts stay gold-blond"],
+  ["5", "ponytail: true", "upstream-radio-mast needs the violet high ponytail"],
+  ["6", 'feature: "horns"', "archive demon lord needs front-hairline horn spikes"],
+  ["6", 'anchorBias: "back"', "archive mane must bias back so it never tentacles the face"],
+]) {
+  assert.ok(hairEntries[station]?.includes(marker), `station ${station} hairstyle: ${read}`);
+}
+assert.match(
+  component,
+  /PONYTAIL_TAIL_STRANDS/,
+  "the ponytail must bake a deterministic gather-point tail column",
 );
 assert.match(
   component,

@@ -35,7 +35,7 @@ export const SEAL_FUR_COAT_PROFILE = Object.freeze({
   sampling: "deterministic hash-seeded crown-zone anchor sampling; no Math.random",
   tierCounts: SEAL_FUR_TIER_COUNT,
   strand:
-    "few large shaped strands: open 5x4-segment tapered cones styled per docked station; body stays sleek",
+    "few large shaped strands: capped 5x4-segment tapered cones styled per docked station, roots sunk below the scalp; body stays sleek",
   motion:
     "per-style gust sway and curl with speed flatten; grows in with the costume crossfade; static under reduced motion",
 });
@@ -129,7 +129,10 @@ const COSTUME_EYE_STYLE = Object.freeze({
  * Base radii are sized so strand roots overlap into one continuous hair mass:
  * no bald scalp shows between strands on any style. flame styles route
  * through the crown-apex centrality branch (tall vertical core, short fat
- * raked under-layer); tipColor/tipBias drive the root-to-tip shader gradient.
+ * raked under-layer); ponytail styles sweep every crown strand toward a high
+ * gather point and drop a deterministic tail column down the back; "horns"
+ * features spike the front hairline; tipColor/tipBias drive the root-to-tip
+ * shader gradient.
  */
 export const SEAL_COSTUME_HAIR = Object.freeze({
   1: Object.freeze({
@@ -142,42 +145,53 @@ export const SEAL_COSTUME_HAIR = Object.freeze({
     tipColor: "#FFE96B", tipBias: 1,
   }),
   2: Object.freeze({
-    // manifold-reactor: two tall forward antenna tufts over swept-back silver.
-    count: 40, length: [0.2, 0.3], radius: [0.052, 0.075],
-    rake: [-0.95, 0.2], normalWeight: 0.5, flat: 1, feature: "antenna",
-    curl: [0.05, 0], sway: 0.15, colors: ["#C7CBD8", "#FFFFFF"],
+    // manifold-reactor: raven rival — blue-black rear spike fan swept up and
+    // back, two long forward bangs framing the face, steel-blue sheen tips.
+    count: 40, length: [0.3, 0.46], radius: [0.075, 0.095],
+    rake: [-0.95, 1.05], normalWeight: 0.35, flat: 1, feature: "fringe",
+    curl: [0.08, 0], sway: 0.15, colors: ["#0A0E16", "#25304A"],
+    tipColor: "#4C68B8", tipBias: 0.55,
   }),
   3: Object.freeze({
-    // field-chamber-coils: amber shaggy swept-back mane of medium clumps.
-    count: 40, length: [0.2, 0.34], radius: [0.06, 0.085],
-    rake: [-0.75, 0.3], normalWeight: 0.55, flat: 1,
-    curl: [0.12, 0.1], sway: 0.5, colors: ["#8A4A16", "#E8A24A"],
+    // field-chamber-coils: bright gold-blond — two proud antenna v-tufts over
+    // a swept-back mass, molten tips to match the coil station.
+    count: 40, length: [0.2, 0.3], radius: [0.065, 0.085],
+    rake: [-0.85, 0.45], normalWeight: 0.4, flat: 1, feature: "antenna",
+    curl: [0.05, 0], sway: 0.2, colors: ["#C8860B", "#FFD75E"],
+    tipColor: "#FFE98A", tipBias: 0.45,
   }),
   4: Object.freeze({
-    // qpu-ice-bridge: dark-green curly messy mop — short fat rounded clumps.
-    count: 40, length: [0.13, 0.2], radius: [0.065, 0.09],
-    rake: [0.15, 0.3], normalWeight: 0.95, flat: 1,
-    curl: [0.18, 0.14], sway: 0.25, colors: ["#14532D", "#2E9E57"],
+    // qpu-ice-bridge: dark-green curly messy mop — short fat rounded clumps
+    // tilted up-and-back so no strand ever points down the camera axis.
+    count: 40, length: [0.15, 0.24], radius: [0.07, 0.095],
+    rake: [-0.85, 0.7], normalWeight: 0.35, flat: 1,
+    curl: [0.18, 0.14], sway: 0.25, colors: ["#1B5E38", "#2E8F52"],
+    tipColor: "#8FE6B0", tipBias: 0.2,
   }),
   5: Object.freeze({
-    // upstream-radio-mast: raven back-swept spikes, two forward fringe strands.
-    count: 40, length: [0.3, 0.44], radius: [0.055, 0.075],
-    rake: [-1.15, 0.7], normalWeight: 0.45, flat: 1, feature: "fringe",
-    curl: [0.06, 0], sway: 0.15, colors: ["#0A0E16", "#25304A"],
+    // upstream-radio-mast: regal violet high ponytail — crown hair gathers up
+    // to a high point, one long tail falls down the back, short brow fringe.
+    count: 40, length: [0.85, 1.15], radius: [0.065, 0.09],
+    flat: 1, feature: "fringe", ponytail: true,
+    curl: [0.12, 0.1], sway: 0.45, colors: ["#6D28D9", "#A78BFA"],
+    tipColor: "#C4B5FD", tipBias: 0.6,
   }),
   6: Object.freeze({
-    // topology-archive-wall: long flowing violet ribbons cascading wide so
-    // they stay readable past the body silhouette from any camera side.
-    count: 36, length: [0.7, 1.05], radius: [0.042, 0.06],
-    rake: [-1.1, -0.05], normalWeight: 0.35, flat: 1, anchorBias: "back",
-    spread: 1.0, curl: [0.15, 0.5], sway: 1, colors: ["#7C3AED", "#C084FC"],
+    // topology-archive-wall: demon lord — long heavy near-black mane with a
+    // violet sheen cascading down the back, two horn spikes at the hairline.
+    count: 34, length: [0.62, 0.95], radius: [0.055, 0.075],
+    rake: [-1.05, -0.25], normalWeight: 0.35, flat: 1, anchorBias: "back",
+    feature: "horns", spread: 1.0, curl: [0.12, 0.42], sway: 0.55,
+    colors: ["#14101E", "#3A2B52"], tipColor: "#7C3AED", tipBias: 0.4,
   }),
   7: Object.freeze({
     // assembly-tool-locker: pale combed-back vampire crest — wide overlapping
-    // strands sweep up-and-back tall enough to read over the head silhouette.
-    count: 40, length: [0.3, 0.42], radius: [0.085, 0.11],
-    rake: [-0.9, 0.75], normalWeight: 0.55, flat: 0.7,
-    curl: [0.1, 0.25], sway: 0, colors: ["#CFC6BE", "#F0EAE4"],
+    // strands sweep up-and-back tall enough to read over the head silhouette;
+    // shadowed roots keep the pale crest separated from the pale scalp.
+    count: 40, length: [0.34, 0.5], radius: [0.085, 0.11],
+    rake: [-0.85, 1.0], normalWeight: 0.55, flat: 0.7,
+    curl: [0.1, 0.25], sway: 0, colors: ["#8E8377", "#F2ECE5"],
+    tipColor: "#FFFFFF", tipBias: 0.3,
   }),
 });
 const RADIO_BEACON_BLINK_HZ = 1.6;
@@ -234,11 +248,13 @@ const SEAL_COSTUME_WARDROBE = deepFreezeStationPersonality({
   4: {
     stationId: "qpu-ice-bridge",
     bright: [
-      { position: [1.05, 0.36, -0.24], scale: [0.9, 5.2, 3.2], color: "#2FBF71" },
-      { position: [1.07, 0.36, -0.12], scale: [0.9, 5.8, 3.4], color: "#7FE8B0" },
-      { position: [1.08, 0.36, 0], scale: [1.0, 6.4, 3.6], color: "#2FBF71" },
-      { position: [1.07, 0.36, 0.12], scale: [0.9, 5.8, 3.4], color: "#7FE8B0" },
-      { position: [1.05, 0.36, 0.24], scale: [0.9, 5.2, 3.2], color: "#2FBF71" },
+      // Brow visor dots stay small and low so they never read as hair from
+      // the docked camera; the green mop above them owns the crown.
+      { position: [1.05, 0.3, -0.24], scale: [0.9, 2.4, 1.6], color: "#2FBF71" },
+      { position: [1.07, 0.3, -0.12], scale: [0.9, 2.7, 1.7], color: "#7FE8B0" },
+      { position: [1.08, 0.3, 0], scale: [1.0, 3.0, 1.8], color: "#2FBF71" },
+      { position: [1.07, 0.3, 0.12], scale: [0.9, 2.7, 1.7], color: "#7FE8B0" },
+      { position: [1.05, 0.3, 0.24], scale: [0.9, 2.4, 1.6], color: "#2FBF71" },
       { position: [-0.05, 0.46, 0.14], scale: [1.4, 3.6, 1.4], color: "#7FE8B0" },
       { position: [-0.3, 0.42, -0.16], scale: [1.3, 3.2, 1.3], color: "#2FBF71" },
       { position: [0.2, 0.48, -0.1], scale: [1.3, 3.4, 1.3], color: "#7FE8B0" },
@@ -336,6 +352,9 @@ function writeAccessoryMatrices(mesh, transform, offset, slots, entries, progres
 }
 
 const HAIR_STRAND_UP = new THREE.Vector3(0, 1, 0);
+// Ponytail styles: how many pool strands root at the gather point and fall
+// down the back as one overlapping tail column.
+const PONYTAIL_TAIL_STRANDS = 9;
 
 /**
  * Bake one station hairstyle into the instanced strand pool. Runs once per
@@ -350,6 +369,24 @@ function writeHairStyle(mesh, placements, style) {
   const direction = new THREE.Vector3();
   const color = new THREE.Color();
   const strands = [];
+  let gather = null;
+  if (style?.ponytail) {
+    // Gather point: mean of the top-back crown anchors lifted above the
+    // scalp, z forced to 0 so the tail hangs straight down the spine.
+    let gatherX = 0;
+    let gatherY = 0;
+    let gatherCount = 0;
+    for (const anchor of placements) {
+      if (anchor.canonicalX < 0.52 && Math.abs(anchor.position[2]) < 0.24) {
+        gatherX += anchor.position[0];
+        gatherY += anchor.position[1];
+        gatherCount += 1;
+      }
+    }
+    gather = gatherCount
+      ? [gatherX / gatherCount - 0.02, gatherY / gatherCount + 0.34, 0]
+      : [0.35, 0.9, 0];
+  }
   if (style) {
     if (style.feature) {
       const bySide = [null, null];
@@ -365,17 +402,27 @@ function writeHairStyle(mesh, placements, style) {
         }
       }
     }
-    const ordered =
-      style.anchorBias === "back"
+    // Ponytail ordering pulls the anchors nearest the gather point first so
+    // the tail column steals the roots whose scalp patch is already covered
+    // by its converging neighbours.
+    const ordered = gather
+      ? [...placements].sort(
+          (a, b) =>
+            Math.hypot(a.position[0] - gather[0], a.position[1] - gather[1], a.position[2]) -
+            Math.hypot(b.position[0] - gather[0], b.position[1] - gather[1], b.position[2]),
+        )
+      : style.anchorBias === "back"
         ? [...placements].sort((a, b) => a.canonicalX - b.canonicalX)
         : placements;
     const total = Math.min(style.count, placements.length);
+    let poolCursor = 0;
     for (const anchor of ordered) {
       if (strands.length >= total) break;
       if (style.feature && strands.some((strand) => strand.feature && strand.anchor === anchor)) {
         continue;
       }
-      strands.push({ anchor });
+      strands.push({ anchor, tail: !!gather && poolCursor < PONYTAIL_TAIL_STRANDS });
+      poolCursor += 1;
     }
   }
   const colorRoot = new THREE.Color(style?.colors?.[0] || "#FFFFFF");
@@ -390,17 +437,38 @@ function writeHairStyle(mesh, placements, style) {
       const anchor = strand.anchor;
       let length;
       let radius;
+      let rootX = anchor.position[0];
+      let rootY = anchor.position[1];
+      let rootZ = anchor.position[2];
       if (strand.feature && style.feature === "antenna") {
         // The two proud forward v-tufts ARE the read: far taller and thicker
         // than the swept-back mass behind them.
         direction.set(0.6, 1, strand.sideSign * 0.15);
-        length = style.length[1] * 3.2;
+        length = style.length[1] * 2.8;
         radius = style.radius[1] * 1.25;
+      } else if (strand.feature && style.feature === "horns") {
+        // Two oni horns angled up-and-out so they silhouette as spikes from
+        // the front camera instead of foreshortening into dots.
+        direction.set(0.1, 1.2, strand.sideSign * 0.75);
+        length = style.length[0] * 0.75;
+        radius = style.radius[1] * 0.9;
       } else if (strand.feature) {
-        // Flame fringe flicks up over the brow; the raven fringe droops.
-        direction.set(0.85, style.flame ? 0.35 : -0.1, strand.sideSign * 0.3);
-        length = style.length[1] * (style.flame ? 0.62 : 1.15);
-        radius = style.radius[0];
+        // Brow fringe: flame flicks up over the brow, the ponytail keeps a
+        // short swept fringe, and the raven rival hangs two long bangs that
+        // frame the face.
+        if (style.flame) {
+          direction.set(0.85, 0.35, strand.sideSign * 0.3);
+          length = style.length[1] * 0.62;
+          radius = style.radius[0];
+        } else if (style.ponytail) {
+          direction.set(0.85, 0.15, strand.sideSign * 0.32);
+          length = style.length[0] * 0.4;
+          radius = style.radius[1];
+        } else {
+          direction.set(0.7, -0.4, strand.sideSign * 0.4);
+          length = style.length[1] * 1.4;
+          radius = style.radius[0] * 1.5;
+        }
       } else if (style.flame) {
         // Flame crown: centrality is 1 at the crown apex and falls toward the
         // edges. Core spikes stand tall and near-vertical; surrounding spikes
@@ -416,12 +484,38 @@ function writeHairStyle(mesh, placements, style) {
         direction.set(
           style.rake[0] - (1 - core) * 0.85 + (anchor.lean - 0.5) * 0.25,
           style.rake[1] * (0.6 + core * 0.4),
-          anchor.normal[2] * (0.25 + (1 - core) * 0.45),
+          anchor.normal[2] * (0.25 + (1 - core) * 0.28),
         );
         length =
           style.length[0] +
           (style.length[1] - style.length[0]) * (core * 0.72 + anchor.lengthJitter * 0.28);
         radius = style.radius[1] - core * (style.radius[1] - style.radius[0]);
+      } else if (strand.tail) {
+        // Ponytail tail: strands root at the gather point and fall down the
+        // back as one overlapping column, thick at the tie, pointed at tips.
+        rootX = gather[0] - 0.04 + (anchor.shade - 0.5) * 0.05;
+        rootY = gather[1] + (anchor.lengthJitter - 0.5) * 0.05;
+        rootZ = gather[2] + (anchor.lean - 0.5) * 0.09;
+        // Constant +z bias sweeps the tail to the seal's side and steeply
+        // down so it hangs past the head silhouette from the front camera.
+        direction.set(
+          -0.35 + (anchor.lean - 0.5) * 0.2,
+          -0.7 - anchor.shade * 0.25,
+          0.55 + (anchor.lean - 0.5) * 0.25,
+        );
+        length = style.length[0] + anchor.lengthJitter * (style.length[1] - style.length[0]);
+        radius = style.radius[0] + anchor.shade * (style.radius[1] - style.radius[0]);
+      } else if (gather) {
+        // Ponytail base: every crown strand sweeps toward the gather point so
+        // the scalp reads as one gathered mass with no part-line gaps.
+        direction.set(
+          gather[0] - anchor.position[0],
+          gather[1] - anchor.position[1],
+          gather[2] - anchor.position[2],
+        );
+        const reach = direction.length() || 1;
+        length = Math.min(0.5, reach * 1.6 + 0.05);
+        radius = style.radius[0] + anchor.shade * (style.radius[1] - style.radius[0]);
       } else {
         direction.set(
           anchor.normal[0] * style.normalWeight + style.rake[0] + (anchor.lean - 0.5) * 0.5,
@@ -432,10 +526,22 @@ function writeHairStyle(mesh, placements, style) {
         radius = style.radius[0] + anchor.shade * (style.radius[1] - style.radius[0]);
       }
       direction.normalize();
-      transform.position.set(anchor.position[0], anchor.position[1], anchor.position[2]);
+      if (!strand.tail) {
+        // Sink every scalp root below the surface so the capped strand base
+        // never floats over the head or shows a seam at the hairline.
+        rootX -= anchor.normal[0] * radius * 0.4;
+        rootY -= anchor.normal[1] * radius * 0.4;
+        rootZ -= anchor.normal[2] * radius * 0.4;
+      }
+      transform.position.set(rootX, rootY, rootZ);
       transform.quaternion.setFromUnitVectors(HAIR_STRAND_UP, direction);
       transform.scale.set(radius, length, radius * (style.flat ?? 1));
-      color.copy(colorRoot).lerp(colorTip, strand.feature ? 1 : anchor.shade);
+      if (strand.feature && style.feature === "horns" && style.tipColor) {
+        // Horns read as bone-bright accents, not more mane.
+        color.set(style.tipColor);
+      } else {
+        color.copy(colorRoot).lerp(colorTip, strand.feature ? 1 : anchor.shade);
+      }
     }
     transform.updateMatrix();
     mesh.setMatrixAt(index, transform.matrix);
@@ -585,8 +691,10 @@ vec3 sealCostumeAlbedo(float id, vec3 albedo, vec3 c, float t) {
     return mix(dressed, gold, sigil * 0.8);
   }
   if (id < 2.5) {
-    // manifold-reactor: eclipse acolyte indigo cloak with violet hem.
-    vec3 indigo = vec3(0.078, 0.055, 0.22);
+    // manifold-reactor: eclipse acolyte dusk cloak with violet hem. The cloak
+    // stays well above the black station platform value so the seal never
+    // vanishes into the dock (figure-ground guarantee).
+    vec3 indigo = vec3(0.20, 0.17, 0.42);
     vec3 violet = vec3(0.553, 0.412, 0.839);
     vec3 duskLilac = vec3(0.73, 0.64, 0.92);
     float cloak = smoothstep(-0.12, 0.08, c.y) * (1.0 - smoothstep(0.6, 0.78, c.x));
@@ -607,7 +715,9 @@ vec3 sealCostumeAlbedo(float id, vec3 albedo, vec3 c, float t) {
     vec3 amber = vec3(0.933, 0.58, 0.25);
     vec3 molten = vec3(1.0, 0.85, 0.44);
     float host = 0.5 + 0.5 * sin(c.x * 2.1 + c.y * 1.4 + 1.7);
-    vec3 dressed = mix(albedo, charcoal, 0.52 + host * 0.22);
+    // Lighter charcoal coverage keeps the pearl seal body reading through
+    // the symbiote instead of collapsing into a muddy brown mass.
+    vec3 dressed = mix(albedo, charcoal, 0.34 + host * 0.18);
     float veinField = sin(
       c.x * 7.0
         + sin(c.y * 9.0 + c.z * 6.0) * 1.35
@@ -620,8 +730,9 @@ vec3 sealCostumeAlbedo(float id, vec3 albedo, vec3 c, float t) {
     return mix(dressed, molten, veinCore);
   }
   if (id < 4.5) {
-    // qpu-ice-bridge: young-hero teal-green suit with cheek freckle dots.
-    vec3 heroGreen = vec3(0.13, 0.62, 0.42);
+    // qpu-ice-bridge: young-hero teal-green suit with cheek freckle dots,
+    // brightened away from the deep-green station crates.
+    vec3 heroGreen = vec3(0.17, 0.72, 0.5);
     vec3 heroTeal = vec3(0.22, 0.78, 0.58);
     vec3 heroCream = vec3(0.95, 0.92, 0.80);
     float suit = 1.0 - smoothstep(0.55, 0.75, c.x);
@@ -635,9 +746,10 @@ vec3 sealCostumeAlbedo(float id, vec3 albedo, vec3 c, float t) {
     return mix(dressed, vec3(0.55, 0.36, 0.24), freckleField * clamp(cheeks, 0.0, 1.0) * 0.85);
   }
   if (id < 5.5) {
-    // upstream-radio-mast: navy-black night avenger with a high-collar read.
-    vec3 navyInk = vec3(0.05, 0.07, 0.14);
-    vec3 navyBlue = vec3(0.10, 0.16, 0.30);
+    // upstream-radio-mast: night avenger lifted to steel-navy so the dark
+    // suit still separates from the dark mast platform.
+    vec3 navyInk = vec3(0.13, 0.17, 0.30);
+    vec3 navyBlue = vec3(0.22, 0.30, 0.50);
     vec3 steel = vec3(0.42, 0.50, 0.64);
     float suit = 1.0 - smoothstep(0.72, 0.9, c.x);
     float panel = 0.5 + 0.5 * sin((c.x + c.y) * 5.0);
@@ -787,6 +899,11 @@ diffuseColor.rgb = sealAlbedo;`,
   float sealFresnel = pow(1.0 - clamp(dot(normal, sealViewDir), 0.0, 1.0), 2.3);
   vec3 sealAuraFrom = sealCostumeAura(uCostumeA, uTime);
   vec3 sealAuraTo = sealCostumeAura(uCostumeB, uTime);
+  // Figure-ground guarantee: every dressed costume keeps a minimum cool rim
+  // backlight so the seal silhouette separates from any station backdrop.
+  vec3 sealRimFloor = vec3(0.34, 0.38, 0.5);
+  if (uCostumeA > 0.5) sealAuraFrom = max(sealAuraFrom, sealRimFloor);
+  if (uCostumeB > 0.5) sealAuraTo = max(sealAuraTo, sealRimFloor);
   vec3 sealAura = mix(sealAuraFrom, sealAuraTo, clamp(uCostumeBlend, 0.0, 1.0));
   totalEmissiveRadiance += sealAura * sealFresnel * (1.0 + uCostumeFlash * 2.6);
   totalEmissiveRadiance += sealAura * uCostumeFlash * 0.22;
@@ -798,7 +915,7 @@ diffuseColor.rgb = sealAlbedo;`,
       );
     material.userData.shader = shader;
   };
-  material.customProgramCacheKey = () => "topological-seal-anime-xz-glumph-costume-v5";
+  material.customProgramCacheKey = () => "topological-seal-anime-xz-glumph-costume-v6";
 
   // Instanced hairstyle material: shares the ramp and runtime uniforms so
   // strand sway, growth, and per-style curl stay phase-locked with the body.
@@ -944,9 +1061,10 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
     [geometry, quality],
   );
   const furGeometry = useMemo(() => {
-    // 5 radial x 4 height open segments = 40 triangles per strand, enough
-    // resolution for the shader tip curl on few large shaped strands.
-    const strand = new THREE.ConeGeometry(1, 1, 5, 4, true);
+    // 5 radial x 4 height segments with a capped base (<=45 triangles per
+    // strand): enough resolution for the shader tip curl, and the cap stops
+    // back-raked strands from exposing a glowing open-cone interior.
+    const strand = new THREE.ConeGeometry(1, 1, 5, 4, false);
     strand.translate(0, 0.5, 0);
     strand.name = "TopologicalSealHairStrand";
     return strand;
