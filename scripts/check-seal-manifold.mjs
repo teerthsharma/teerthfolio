@@ -122,6 +122,16 @@ for (const styleCount of hairCounts) {
   );
 }
 assert.match(
+  hairTable,
+  /count: 40, length: \[0\.2, 0\.6\], radius: \[0\.075, 0\.12\],\s*\n\s*rake: \[-0\.1, 1\.6\], flat: 1, feature: "fringe", flame: true/,
+  "the s2 flame crown must use the full anchor pool with overlapping bases, never a sparse spike ring",
+);
+assert.match(
+  hairTable,
+  /tipColor: "#FFE96B", tipBias: 1/,
+  "the s2 flame crown must keep its deep-amber-to-bright-gold tip gradient",
+);
+assert.match(
   component,
   /writeHairStyle\(furCoat\.current, furPlacements, null\)/,
   "the strand pool must bake to zero scale (bald) as its baseline",
@@ -168,6 +178,8 @@ for (const token of [
   "writeHairStyle",
   "uHairGrow",
   "uHairCurl",
+  "uHairTipColor",
+  "uHairTipBias",
   "COSTUME_DEMON_HALO",
   "COSTUME_EYE_STYLE",
   "seal-accent-guide-halo",
