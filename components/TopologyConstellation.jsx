@@ -1,9 +1,10 @@
 "use client";
 
-import { Html, Line } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
 
 /**
@@ -91,6 +92,13 @@ void main() {
   vec3 horizonTint = mix(auroraMint, auroraViolet, 0.5 + 0.5 * sin(horizonPhase));
 
   float edgeFade = smoothstep(0.04, 0.12, elevation) * (1.0 - smoothstep(0.8, 0.97, elevation));
+  // Fill-rate guard: below the curtain foot and above the shell rim the fade
+  // is exactly 0, so the ribbon fbm and thread lattice would be shaded and
+  // then multiplied away. Skip those fragments outright.
+  if (edgeFade <= 0.0) {
+    gl_FragColor = vec4(0.0);
+    return;
+  }
 
   // One-end sector window. Flat-topped (4th power) so the middle of the sector
   // is a solid curtain wall and both flanks fade out well before wrapping.
@@ -106,19 +114,24 @@ void main() {
   float ribbonCount = uQualityTier < 0.5 ? 1.0 : (uQualityTier < 1.5 ? 2.0 : 3.0);
   float alpha = 0.0;
   vec3 col = vec3(0.0);
-  for (int i = 0; i < 3; i++) {
-    if (float(i) >= ribbonCount) break;
-    float fi = float(i);
-    float layerAzimuth = azimuth * (7.0 + fi * 4.5) + uWorldTime * (0.05 + fi * 0.022) + fi * 4.7;
-    float fold = pn_fbm(vec2(layerAzimuth, elevation * 0.85 + uWorldTime * 0.018 + fi * 2.3));
-    fold = smoothstep(0.40, 0.80, fold);
-    float footFade = smoothstep(0.03, 0.24 + fi * 0.06, elevation);
-    float riseFade = 1.0 - smoothstep(0.30 + fi * 0.18, 0.98, elevation);
-    float weight = (0.92 - fi * 0.2) * (uQualityTier < 0.5 ? 0.72 : 1.0);
-    float ribbonAlpha = fold * footFade * riseFade * weight * sector;
-    vec3 ribbonTint = mix(auroraMint, auroraViolet, 0.5 + 0.5 * sin(horizonPhase + fi * 2.1));
-    col += mix(ribbonTint, deepCore, 0.1) * ribbonAlpha;
-    alpha += ribbonAlpha;
+  // Fill-rate guard: outside the sector flanks every ribbon term is scaled by
+  // a sector below 1e-3 (invisible under the 0.66 alpha cap), so the fbm
+  // stack only runs inside the authored ~90 degree aurora sector.
+  if (sector > 0.001) {
+    for (int i = 0; i < 3; i++) {
+      if (float(i) >= ribbonCount) break;
+      float fi = float(i);
+      float layerAzimuth = azimuth * (7.0 + fi * 4.5) + uWorldTime * (0.05 + fi * 0.022) + fi * 4.7;
+      float fold = pn_fbm(vec2(layerAzimuth, elevation * 0.85 + uWorldTime * 0.018 + fi * 2.3));
+      fold = smoothstep(0.40, 0.80, fold);
+      float footFade = smoothstep(0.03, 0.24 + fi * 0.06, elevation);
+      float riseFade = 1.0 - smoothstep(0.30 + fi * 0.18, 0.98, elevation);
+      float weight = (0.92 - fi * 0.2) * (uQualityTier < 0.5 ? 0.72 : 1.0);
+      float ribbonAlpha = fold * footFade * riseFade * weight * sector;
+      vec3 ribbonTint = mix(auroraMint, auroraViolet, 0.5 + 0.5 * sin(horizonPhase + fi * 2.1));
+      col += mix(ribbonTint, deepCore, 0.1) * ribbonAlpha;
+      alpha += ribbonAlpha;
+    }
   }
 
   // junni guide threads: the sky leans toward the active station azimuth
@@ -126,27 +139,32 @@ void main() {
     float deltaAz = azimuth - uStationAzimuth;
     deltaAz = atan(sin(deltaAz), cos(deltaAz));
     float guideWindow = exp(-deltaAz * deltaAz * 1.35);
-    vec2 threadSpace = vec2(deltaAz * 2.0, elevation * 3.2 + 3.0);
-    vec2 cell = floor(threadSpace);
-    vec2 local = fract(threadSpace) - 0.5;
-    vec2 node = vec2(pn_hash(cell) - 0.5, pn_hash(cell + 7.7) - 0.5) * 0.58;
-    vec2 q = local - node;
-    float leanSign = deltaAz >= 0.0 ? -1.0 : 1.0;
-    vec2 lean = normalize(vec2(leanSign * (0.28 + min(abs(deltaAz), 1.6) * 0.62), 0.55));
-    float across = abs(dot(q, vec2(-lean.y, lean.x)));
-    float along = dot(q, lean);
-    float threadSegment = smoothstep(0.5, 0.08, abs(along));
-    float thread = exp(-across * across * 220.0) * threadSegment;
-    float glintPulse = mix(0.55 + 0.45 * sin(uWorldTime * 1.7 + pn_hash(cell) * 6.2831), 0.8, uReducedMotion);
-    float glint = exp(-dot(q, q) * 80.0) * glintPulse;
-    float threadStrength = uQualityTier > 1.5 ? 1.0 : 0.62;
-    // Threads are navigation, not decoration: kept faint so the sky outside the
-    // aurora sector still reads as clean open air.
-    float threadAlpha = thread * 0.26 * guideWindow * threadStrength;
-    float glintAlpha = glint * 0.34 * guideWindow * threadStrength;
-    col += mix(horizonTint, uStationAccent, 0.4) * threadAlpha;
-    col += uStationAccent * glintAlpha;
-    alpha += threadAlpha + glintAlpha;
+    // Fill-rate guard: beyond ~2 radians from the station bearing the window
+    // scales every thread and glint term below 2e-3 alpha (sub-quantization),
+    // so the thread lattice only runs where it can read.
+    if (guideWindow > 0.002) {
+      vec2 threadSpace = vec2(deltaAz * 2.0, elevation * 3.2 + 3.0);
+      vec2 cell = floor(threadSpace);
+      vec2 local = fract(threadSpace) - 0.5;
+      vec2 node = vec2(pn_hash(cell) - 0.5, pn_hash(cell + 7.7) - 0.5) * 0.58;
+      vec2 q = local - node;
+      float leanSign = deltaAz >= 0.0 ? -1.0 : 1.0;
+      vec2 lean = normalize(vec2(leanSign * (0.28 + min(abs(deltaAz), 1.6) * 0.62), 0.55));
+      float across = abs(dot(q, vec2(-lean.y, lean.x)));
+      float along = dot(q, lean);
+      float threadSegment = smoothstep(0.5, 0.08, abs(along));
+      float thread = exp(-across * across * 220.0) * threadSegment;
+      float glintPulse = mix(0.55 + 0.45 * sin(uWorldTime * 1.7 + pn_hash(cell) * 6.2831), 0.8, uReducedMotion);
+      float glint = exp(-dot(q, q) * 80.0) * glintPulse;
+      float threadStrength = uQualityTier > 1.5 ? 1.0 : 0.62;
+      // Threads are navigation, not decoration: kept faint so the sky outside the
+      // aurora sector still reads as clean open air.
+      float threadAlpha = thread * 0.26 * guideWindow * threadStrength;
+      float glintAlpha = glint * 0.34 * guideWindow * threadStrength;
+      col += mix(horizonTint, uStationAccent, 0.4) * threadAlpha;
+      col += uStationAccent * glintAlpha;
+      alpha += threadAlpha + glintAlpha;
+    }
   }
 
   col /= max(alpha, 0.001);
@@ -158,6 +176,68 @@ void main() {
   gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.66) * edgeFade);
 }
 `;
+
+// makeManifoldCurve getPoints(42) always yields 43 points -> 42 fat-line segments.
+const MANIFOLD_LINK_POINT_COUNT = 43;
+// Shared fat-line materials for the manifold links, one per station accent.
+// Same law as IglooScene's ROUTE_LINE_MATERIALS: module singletons are never
+// disposed, so the fat-line program compiles once and survives every
+// visibility remount of a link. The previous drei <Line> disposed its
+// LineMaterial whenever a link unmounted, deleting and relinking the fat-line
+// program mid-travel (~6 relinks per journey, the measured link residual).
+const MANIFOLD_LINK_MATERIALS = new Map();
+
+function manifoldLinkMaterial(accent) {
+  let material = MANIFOLD_LINK_MATERIALS.get(accent);
+  if (!material) {
+    material = new LineMaterial({ color: accent, transparent: true });
+    MANIFOLD_LINK_MATERIALS.set(accent, material);
+  }
+  return material;
+}
+
+function ConstellationLink({ accent, lineWidth, opacity, points }) {
+  const size = useThree((state) => state.size);
+  const material = manifoldLinkMaterial(accent);
+  const line = useMemo(() => {
+    const geometry = new LineGeometry();
+    geometry.setPositions(new Float32Array(MANIFOLD_LINK_POINT_COUNT * 3));
+    const manifoldLine = new Line2(geometry, material);
+    // Station-to-station ribbon: skip bounding-volume upkeep entirely.
+    manifoldLine.frustumCulled = false;
+    return manifoldLine;
+  }, [material]);
+
+  useEffect(() => () => line.geometry.dispose(), [line]);
+
+  useLayoutEffect(() => {
+    // Rewrite the segment pairs in place (RouteLeadLine pattern). Rebuilding
+    // the geometry or the material on points change is what forced the
+    // fat-line shader to relink during travel.
+    const segments = line.geometry.attributes.instanceStart.data;
+    const array = segments.array;
+    for (let index = 0; index < MANIFOLD_LINK_POINT_COUNT - 1; index += 1) {
+      const start = points[index];
+      const end = points[index + 1];
+      const offset = index * 6;
+      array[offset] = start.x;
+      array[offset + 1] = start.y;
+      array[offset + 2] = start.z;
+      array[offset + 3] = end.x;
+      array[offset + 4] = end.y;
+      array[offset + 5] = end.z;
+    }
+    segments.needsUpdate = true;
+  }, [line, points]);
+
+  useLayoutEffect(() => {
+    material.linewidth = lineWidth;
+    material.opacity = opacity;
+    material.resolution.set(size.width, size.height);
+  }, [lineWidth, material, opacity, size]);
+
+  return <primitive object={line} />;
+}
 
 function shortestArc(from, to) {
   let arc = (to - from) % TWO_PI;
@@ -355,13 +435,12 @@ export default function TopologyConstellation({
       />
 
       {links.filter((link) => visibleIds.has(link.from) && visibleIds.has(link.to)).map((link) => (
-        <Line
-          color={link.accent}
+        <ConstellationLink
+          accent={link.accent}
           key={link.id}
           lineWidth={quality === "high" ? 1.25 : 0.75}
           opacity={quality === "low" ? 0.1 : 0.18}
           points={link.points}
-          transparent
         />
       ))}
 

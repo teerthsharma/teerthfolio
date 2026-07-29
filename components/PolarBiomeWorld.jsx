@@ -762,13 +762,18 @@ function PolarBiomeWorldStage({
         target={fillLightTarget}
       />
       <primitive dispose={null} object={terrainMesh} />
+      {/* Early-z fill guard: the sky dome is opaque, depth-tested, and never
+          writes depth, so drawing it AFTER the terrain (-19 vs -20) lets the
+          depth buffer reject every heavy sky fragment the terrain already
+          covers. Both meshes are opaque, so the final image is identical to
+          the old sky-first order — only the overdraw is gone. */}
       <mesh
         frustumCulled={false}
         geometry={skyGeometry}
         material={skyMaterial}
         name="polar-biome-authored-sky"
         ref={skyRef}
-        renderOrder={-30}
+        renderOrder={-19}
       />
       {geographyMesh ? <primitive dispose={null} object={geographyMesh} /> : null}
     </group>
