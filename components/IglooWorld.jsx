@@ -278,6 +278,14 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const sealRouteHintTimeoutRef = useRef(0);
   const sealRouteHintDirectionRef = useRef(1);
   const pressedKeysRef = useRef(new Set());
+  // Camera yaw in radians, written by the scene's CameraRig each frame so WASD
+  // stays camera-relative under the chase camera: W is away-from-camera,
+  // A/D strafe against the camera heading. Null until the rig runs.
+  const cameraYawRef = useRef(null);
+  // Input frame latch: the yaw captured at the first keydown of a hold. Keeping
+  // the frame fixed while keys are held prevents the pursuit feedback loop
+  // where a swinging chase camera re-rotates the very input that steers it.
+  const inputYawRef = useRef(null);
   const worldRef = useRef(null);
   const archiveOfferDismissedArrivalRef = useRef(null);
   const initialSafeMode = Boolean(initialQuery.initialSafeMode);
@@ -437,12 +445,13 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         STATION_WORLD_SCHEMA.order.length;
       const nextId = STATION_WORLD_SCHEMA.order[nextIndex];
       const nextArtifact = artifacts.find((artifact) => artifact.id === nextId);
+      // Heading-neutral copy: under the chase camera no fixed key maps to a
+      // fixed world bearing, so the hint names the destination, not a key.
       const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-      const directionMark = direction > 0 ? "D →" : "A ←";
       setSealRouteHint(
         coarsePointer
           ? `Tap the ${nextArtifact?.shortLabel || "next station"} beacon`
-          : `${directionMark} ${nextArtifact?.shortLabel || "next station"}`,
+          : `Swim to ${nextArtifact?.shortLabel || "the next station"}`,
       );
       sealRouteHintDirectionRef.current = direction * -1;
       window.clearTimeout(sealRouteHintTimeoutRef.current);
@@ -795,10 +804,28 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       const visible = isWorldVisible(worldRef.current);
       const hasManualDirection =
         visible && (direction !== 0 || depthDirection !== 0);
+      // Rotate the raw WASD vector by the camera yaw latched at the start of
+      // this hold, so W reads as away-from-camera and A/D as camera strafes
+      // without the swinging chase camera re-steering a held key mid-travel.
+      // Identity until the rig has published a yaw.
+      if (direction === 0 && depthDirection === 0) {
+        inputYawRef.current = null;
+      } else if (inputYawRef.current === null) {
+        inputYawRef.current = cameraYawRef.current;
+      }
+      const yaw = inputYawRef.current;
+      let inputX = direction;
+      let inputZ = depthDirection;
+      if (yaw !== null) {
+        const cosYaw = Math.cos(yaw);
+        const sinYaw = Math.sin(yaw);
+        inputX = direction * cosYaw + depthDirection * sinYaw;
+        inputZ = depthDirection * cosYaw - direction * sinYaw;
+      }
       advanceTraversalFrame(traversal, {
         colliders: STATION_COLLIDERS,
         dt,
-        input: visible ? { x: direction, z: depthDirection } : { x: 0, z: 0 },
+        input: visible ? { x: inputX, z: inputZ } : { x: 0, z: 0 },
         stations: STATION_TARGETS,
       });
 
@@ -959,6 +986,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
             activeArtifactId={intentArtifact.id}
             axisVelocity={axisVelocity}
             axisX={axisX}
+            cameraYawRef={cameraYawRef}
             depthVelocity={depthVelocity}
             depthZ={depthZ}
             dockedStationId={exclusiveStationId}

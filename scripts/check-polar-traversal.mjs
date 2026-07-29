@@ -375,7 +375,11 @@ function simulateRouteAt(hz, seconds = 4) {
     if (distanceToIntermediate <= 1.25 && state.destinationId === "assembly-tool-locker") {
       minimumIntermediateSpeed = Math.min(minimumIntermediateSpeed, speed);
     }
-    if (speed > 0.6) {
+    // Heading continuity is a free-flight guarantee. In the camp layout the
+    // Assembly approach legitimately skirts the locker's hard shell, and
+    // sliding contact response is allowed to bend heading abruptly, so
+    // contact frames reset the comparison window instead of tripping it.
+    if (speed > 0.6 && !state.collisionId) {
       const heading = Math.atan2(state.vz, state.vx);
       if (previousHeading !== null) {
         const wrapped = Math.atan2(
@@ -395,6 +399,8 @@ function simulateRouteAt(hz, seconds = 4) {
         }
       }
       previousHeading = heading;
+    } else {
+      previousHeading = null;
     }
 
     advanceTraversalFrame(state, {

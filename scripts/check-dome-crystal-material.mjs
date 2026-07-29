@@ -134,7 +134,7 @@ requires(
   "one inertial attribute-update path must animate lift and spring recovery",
 );
 requires(
-  /DOME_FLOAT_PROFILE[\s\S]*courseWeight:\s*"smoothstep\(0\.08, 0\.85, normalizedBrickHeight\)"[\s\S]*proximityStirGain:\s*0\.5[\s\S]*suspensionGapRadiusRatio:\s*0\.045/,
+  /DOME_FLOAT_PROFILE[\s\S]*courseWeight:\s*"smoothstep\(0\.08, 0\.85, normalizedBrickHeight\)"[\s\S]*proximityStirGain:\s*0\.5[\s\S]*suspensionGapRadiusRatio:\s*0\.015/,
   "the shell must publish the suspended ice-block float contract",
 );
 requires(

@@ -66,7 +66,9 @@ export const DOME_FLOAT_PROFILE = Object.freeze({
   proximityStirGain: 0.5,
   reducedMotion:
     "wave and wake amplitudes pinned to zero, materialize pinned complete; static suspension gaps remain",
-  suspensionGapRadiusRatio: 0.045,
+  // Tight igloo.inc lay: courses nearly touch with thin dark seams; the old 0.045
+  // read as separate floating boxes.
+  suspensionGapRadiusRatio: 0.015,
   wake: Object.freeze({
     amplitudeRangeLocal: Object.freeze([0.03, 0.1]),
     decayTauSeconds: 0.9,
@@ -176,7 +178,9 @@ export const OBSERVATORY_HOME_WORLD_PROFILE =
 export const OBSERVATORY_HOME_LIGHT_PROFILE = Object.freeze({
   color: OBSERVATORY_PERSONALITY.palette.glow,
   contactColor: OBSERVATORY_PERSONALITY.palette.accent,
-  distance: 3.8,
+  // Short throw keeps the amber inside the tunnel; 3.8 leaked orange dots through
+  // the dome shell seams from the interior threshold position.
+  distance: 2.4,
   intensity: Object.freeze({ high: 2.1, medium: 1.55, low: 0.9 }),
 });
 export const OBSERVATORY_HOME_DRESSING_PROFILE = Object.freeze({
@@ -677,7 +681,12 @@ float brickFrost = brickMacroFrost * 0.42 + brickAnisotropicFrost * 0.58;
 // a precise cut line between blocks instead of a chunky rounded toy edge. Screen-space
 // derivative width keeps it at least one pixel wide at any distance without fattening.
 float brickEdgeDistance = 0.5 - max(abs(vBrickLocalPosition.x), abs(vBrickLocalPosition.y));
-float brickSeamAa = max(fwidth(brickEdgeDistance), 0.0012);
+// The seam field 0.5 - max(|x|,|y|) flips its gradient axis across the face
+// diagonals; raw fwidth() therefore jumps discontinuously there, and under
+// foreshortening it exceeded brickBevelWidth, degenerating the recess
+// smoothsteps over whole triangle regions (the dark bow-tie X on every face).
+// Keep the pixel-width AA but cap it safely below the narrowest seam edge.
+float brickSeamAa = clamp(fwidth(brickEdgeDistance), 0.0012, 0.006);
 float brickBevelWidth = mix(0.022, 0.036, clamp(vBrickBevel, 0.0, 1.0));
 float brickRecess = 1.0 - smoothstep(brickSeamAa, brickBevelWidth, brickEdgeDistance);
 float brickSeamCore = 1.0 - smoothstep(brickSeamAa, brickBevelWidth * 0.42, brickEdgeDistance);
@@ -779,25 +788,6 @@ function useInnerShellMaterial(quality) {
   return material;
 }
 
-function useAirlockTunnelMaterial(quality) {
-  const material = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        clearcoat: 0.28,
-        clearcoatRoughness: 0.48,
-        color: "#54628C",
-        emissive: OBSERVATORY_PERSONALITY.palette.glow,
-        emissiveIntensity: quality === "high" ? 0.14 : 0.12,
-        metalness: 0,
-        roughness: 0.56,
-        side: THREE.DoubleSide,
-      }),
-    [quality],
-  );
-  useEffect(() => () => material.dispose(), [material]);
-  return material;
-}
-
 // Near-monochrome glacial band: the face family walks #B7C9E2 -> #D9E6F5 by frost seed
 // with only a whisper of dawn cyan. The saturated cornflower wash and the teal/sage XZ
 // zone lerps are gone; per-instance identity is carried by value, not hue.
@@ -821,8 +811,10 @@ function colorForAirlockBlock(position, seed) {
   const frost = new THREE.Color(DOME_CRYSTAL_PALETTE.iceBlue);
   const cream = new THREE.Color(DOME_CRYSTAL_PALETTE.frostIvory);
   const cyan = new THREE.Color(POLAR_PALETTE.dawnCyan);
-  const color = cream.clone().lerp(frost, 0.62 + seed * 0.2).lerp(cyan, 0.02 + position.y * 0.012);
-  color.offsetHSL(0, -0.06, (seed - 0.5) * 0.05 - 0.07);
+  // Same ice-block family as the dome shell (a half value-step cooler), so the
+  // arch reads as built from the same blocks rather than a dark separate trim.
+  const color = cream.clone().lerp(frost, 0.45 + seed * 0.2).lerp(cyan, 0.02 + position.y * 0.012);
+  color.offsetHSL(0, -0.06, (seed - 0.5) * 0.05 - 0.02);
   return color;
 }
 
@@ -1451,7 +1443,9 @@ function IntegratedAirlock({
           reducedMotion={reducedMotion}
         />
       )}
-      <mesh geometry={geometries.door} position={[0, 0, 0.46]}>
+      {/* Glow door sits deep in the tunnel so the opening reads as depth with warm
+          light inside, not a flat warm wall at the threshold. */}
+      <mesh geometry={geometries.door} position={[0, 0, 0.3]}>
         <meshBasicMaterial
           color={OBSERVATORY_HOME_LIGHT_PROFILE.color}
           ref={doorGlowRef}
@@ -1465,7 +1459,9 @@ function IntegratedAirlock({
         distance={OBSERVATORY_HOME_LIGHT_PROFILE.distance}
         intensity={OBSERVATORY_HOME_LIGHT_PROFILE.intensity[quality]}
         name="sunrise-gold-observatory-threshold-light"
-        position={[0, 0.34, 0.72]}
+        // Inside the tunnel: amber spills out through the arch as interior depth
+        // light instead of staining the exterior arch bricks warm.
+        position={[0, 0.3, 0.34]}
         ref={thresholdLightRef}
       />
     </group>
@@ -1721,7 +1717,6 @@ export default function PolarObservatoryDome({
   const shellMaterial = useAnimeIceMaterial(tier, "shell");
   const airlockMaterial = useAnimeIceMaterial(tier, "airlock");
   const innerShellMaterial = useInnerShellMaterial(tier);
-  const airlockTunnelMaterial = useAirlockTunnelMaterial(tier);
   const instancedAssets = useInstancedIceAssets(tier);
   const accent = activeArtifact?.accent || DOME_XZ_COLOR_ZONES.teal;
   const resolvedHomeX = Number.isFinite(homePosition?.[0]) ? homePosition[0] : homeX;
@@ -1833,9 +1828,11 @@ export default function PolarObservatoryDome({
         proximityRef={proximityBreathRef}
         quality={tier}
       />
+      {/* All tiers use the airlock course shader so the tunnel reads as built from
+          the same ice blocks as the shell, never a flat raw material. */}
       <IntegratedAirlock
         assets={instancedAssets}
-        material={tier === "low" ? airlockMaterial : airlockTunnelMaterial}
+        material={airlockMaterial}
         pointerInteractionEnabled={pointerInteractionEnabled}
         quality={tier}
         reducedMotion={reducedMotion}

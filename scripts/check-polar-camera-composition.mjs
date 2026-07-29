@@ -208,14 +208,15 @@ const travel = resolvePolarTravelComposition({
   height: DESKTOP.height,
   quality: "high",
   reducedMotion: false,
-  sealPosition: { x: 3.2, z: 6.4 },
+  // Mid-route probe: outside the departed S2 far radius in the camp layout.
+  sealPosition: { x: 10, z: -3 },
   station: s2,
   velocity: { x: 3.4, z: -1.2 },
   width: DESKTOP.width,
 });
 assert.ok(travel.stationInfluence < 0.08, "travel camera must release the departed monument");
 assert.ok(
-  Math.hypot(travel.look.x - 3.2, travel.look.z - 6.4) <= 1.25,
+  Math.hypot(travel.look.x - 10, travel.look.z - -3) <= 1.25,
   "travel camera must follow the seal instead of showing an empty oversized world",
 );
 assert.ok(travel.motionFisheye > 0, "travel must retain bounded motion fisheye");

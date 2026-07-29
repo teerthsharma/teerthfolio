@@ -87,7 +87,7 @@ requires(
 requires(world, /setInterval\([\s\S]{0,120}showHint[\s\S]{0,120}SEAL_ROUTE_HINT_INTERVAL_MS/, "seal route hint cadence must use the named interval budget");
 requires(world, /setTimeout\([\s\S]{0,120}setSealRouteHint\(""\)[\s\S]{0,120}SEAL_ROUTE_HINT_VISIBLE_MS/, "seal route hint cleanup must use the named visibility budget");
 requires(world, /sealRouteHintDirectionRef\.current = direction \* -1;/, "seal route hints must alternate neighboring directions");
-requires(world, /direction > 0 \? "D →" : "A ←"/, "desktop route hints must teach the neighboring A/D controls");
+requires(world, /`Swim to \$\{nextArtifact/, "desktop route hints must stay heading-neutral under the chase camera");
 requires(world, /\(pointer: coarse\)[\s\S]{0,180}`Tap the \$\{nextArtifact/, "coarse-pointer hints must use composed tap language");
 requires(world, /className="seal-navigation-bubble" role="status" aria-live="polite"/, "seal route hints must be exposed as a polite status without stealing focus");
 

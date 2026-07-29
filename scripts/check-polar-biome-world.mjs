@@ -156,64 +156,64 @@ assert.equal(
 const exactProfiles = {
   "observatory-plaque": {
     angle: 12,
-    center: [-15, 7],
-    dock: [-19.26, 8.99],
+    center: [-3, 1],
+    dock: [-7.26, 2.99],
     radii: [10.5, 7, 2.6],
     palette: ["#F2D3A8", "#D7E6F5", "#A9C9C4", "#5CC9C2", "#93B4A6", "#F2B96B", "#232E52"],
     geography: "sastrugi-melt-ribbon",
   },
   "s2-kernel-core": {
     angle: 38,
-    center: [-5, 13],
-    dock: [-6.01, 15.61],
+    center: [3, 8],
+    dock: [1.99, 10.61],
     radii: [8.5, 5.5, 1.8],
     palette: ["#B7D6EC", "#7FB9DE", "#6FA8C9", "#5573E0", "#A5E9FF", "#232E52"],
     geography: "voronoi-pressure-ridge-parhelion",
   },
   "manifold-reactor": {
     angle: -27,
-    center: [8, 12],
-    dock: [9.55, 14.33],
+    center: [-14, -6],
+    dock: [-12.45, -3.67],
     radii: [8.8, 5.8, 1.9],
     palette: ["#020711", "#07152F", "#0B2A56", "#2D6FA3", "#FFD05A", "#FFF1B8"],
     geography: "ribbon-cavern-isocontours",
   },
   "field-chamber-coils": {
     angle: 74,
-    center: [17, 4],
-    dock: [20.21, 4.76],
+    center: [-10, -9],
+    dock: [-6.79, -8.24],
     radii: [9.2, 6.2, 2.2],
     palette: ["#F5E3B0", "#EFC15C", "#F5C044", "#EE9440", "#7FA8C0", "#40312F"],
     geography: "salt-pan-field-lines",
   },
   "qpu-ice-bridge": {
     angle: -48,
-    center: [15, -8],
-    dock: [18, -9.6],
+    center: [17, -13],
+    dock: [20, -14.6],
     radii: [9.4, 6.4, 2.4],
     palette: ["#BCE4D4", "#8FCDB2", "#55CE85", "#36D8FF", "#6FA8C9", "#24443F"],
     geography: "sea-ice-lead-interference",
   },
   "upstream-radio-mast": {
     angle: 19,
-    center: [3, -14],
-    dock: [3.59, -16.74],
+    center: [14, 12],
+    dock: [14.59, 9.26],
     radii: [9, 6, 2],
     palette: ["#E5B9AC", "#E08A87", "#E8705E", "#55CE85", "#6FB0A9", "#3F3547"],
     geography: "aurora-signal-ridge",
   },
   "topology-archive-wall": {
     angle: 61,
-    center: [-11, -11],
-    dock: [-13.47, -13.47],
+    center: [11, -8],
+    dock: [8.53, -10.47],
     radii: [9.4, 6.3, 2.3],
     palette: ["#E3C6D6", "#C9A3BF", "#E25AA0", "#8D69D6", "#7FB3AF", "#453043"],
     geography: "strata-barcode-cliff",
   },
   "assembly-tool-locker": {
     angle: -9,
-    center: [-18, -2],
-    dock: [-20.98, -2.33],
+    center: [-16, 2],
+    dock: [-18.98, 1.67],
     radii: [8.7, 5.8, 2.1],
     palette: ["#080713", "#151024", "#2A1B4A", "#6D4BE8", "#A78BFA", "#F2B96B", "#F2ECFF"],
     geography: "runway-knurl-yard",
@@ -345,7 +345,7 @@ for (const id of stationIds) {
   assert.equal(exclusive.blend.neutralWeight, 0);
 }
 
-const exactTie = resolveTwoNearestBiomes([-12.5, 10]);
+const exactTie = resolveTwoNearestBiomes([0, 4.5]);
 assert.ok(
   Math.abs(
     exactTie.primary.weight + exactTie.secondary.weight - exactTie.totalInfluence,
@@ -363,7 +363,7 @@ assert.equal(remoteOwnership.current, null, "remote terrain must not invent a cu
 assert.equal(remoteOwnership.framedNeighbor, null, "remote terrain must not frame a distant monument");
 assert.deepEqual(remoteOwnership.visibleStationIds, []);
 
-const overlappingFields = resolveTwoNearestBiomes([-10, 10]);
+const overlappingFields = resolveTwoNearestBiomes([-12, -7.5]);
 assert.ok(overlappingFields.totalInfluence <= 1, "overlapping local fields must remain clamped");
 assert.ok(overlappingFields.neutralWeight >= 0, "overlap must not create negative neutral energy");
 

@@ -3,9 +3,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
+  SEAL_FUR_TIER_COUNT,
   SEAL_MANIFOLD_BASELINE,
   SEAL_MANIFOLD_INVARIANT,
   SEAL_MANIFOLD_QUALITY,
+  createSealFurPlacements,
   createSealManifoldGeometry,
   inspectSealManifold,
 } from "../lib/seal-manifold.js";
@@ -71,8 +73,75 @@ for (const [quality, profile] of Object.entries(SEAL_MANIFOLD_QUALITY)) {
   assert.ok(report.bounds.y >= 0.88, `${quality}: raised head and dropped flipper must read at 64px`);
   assert.ok(report.bounds.z >= 0.82, `${quality}: silhouette needs lateral flipper breadth`);
   assert.equal(geometry.getAttribute("canonical").count, geometry.getAttribute("position").count);
+
+  // Hairstyle anchors: deterministic hash-seeded crown sampling, tier-capped.
+  // Strand budget math: each strand is one open 5x4-segment cone = 40
+  // triangles, so the pool adds at most 40 * 40 = 1600 triangles at high tier
+  // on top of the manifold budget above; low adds at most 1120.
+  const furA = createSealFurPlacements(geometry, quality);
+  const furB = createSealFurPlacements(geometry, quality);
+  assert.equal(furA.length, SEAL_FUR_TIER_COUNT[quality], `${quality}: anchor pool must match its tier cap`);
+  assert.ok(furA.length <= 40, `${quality}: anchor pool must stay a few big strands, never a fuzz coat`);
+  assert.deepEqual(furA, furB, `${quality}: hair anchor sampling must be fully deterministic`);
+  for (const hair of furA) {
+    assert.ok(
+      hair.canonicalX >= 0.34 && hair.canonicalX <= 0.8,
+      `${quality}: every strand must root on the crown/back-of-head band, never the body or face`,
+    );
+    assert.ok(hair.canonicalY >= 0.05, `${quality}: strands must root on the upper head only`);
+    assert.ok(
+      hair.lengthJitter >= 0 && hair.lengthJitter < 1,
+      `${quality}: strand length jitter must stay a unit hash for per-style length ranges`,
+    );
+  }
   geometry.dispose();
 }
+assert.deepEqual(
+  SEAL_FUR_TIER_COUNT,
+  { low: 28, medium: 40, high: 40 },
+  "hair anchor counts must stay tier-capped",
+);
+
+// Per-station hairstyle wardrobe: costume 0 (observatory home / undocked
+// travel) must stay bald, and each of the seven docked styles must stay a
+// small count of big shaped strands within the anchor pool.
+const hairTableMatch = component.match(/SEAL_COSTUME_HAIR = Object\.freeze\(\{([\s\S]*?)\n\}\);/);
+assert.ok(hairTableMatch, "the per-station SEAL_COSTUME_HAIR table must stay pinned in the mascot");
+const hairTable = hairTableMatch[1];
+assert.doesNotMatch(
+  hairTable,
+  /^\s*0:\s*Object\.freeze/m,
+  "observatory costume 0 must have no hairstyle entry: sleek plain seal",
+);
+const hairCounts = [...hairTable.matchAll(/count:\s*(\d+)/g)].map((entry) => Number(entry[1]));
+assert.equal(hairCounts.length, 7, "all seven docked stations need a hairstyle entry");
+for (const styleCount of hairCounts) {
+  assert.ok(
+    styleCount >= 12 && styleCount <= 40,
+    "each hairstyle must read as few large strands (12-40), never scattered fuzz",
+  );
+}
+assert.match(
+  component,
+  /writeHairStyle\(furCoat\.current, furPlacements, null\)/,
+  "the strand pool must bake to zero scale (bald) as its baseline",
+);
+assert.match(
+  component,
+  /uHairGrow\.value = !hairStyle \? 0 : toHair \? costumeBlend : 1 - costumeBlend/,
+  "hair must grow in with the dock crossfade and shrink to bald on undock",
+);
+const manifoldLibrary = readFileSync(join(root, "lib", "seal-manifold.js"), "utf8");
+assert.doesNotMatch(
+  manifoldLibrary,
+  /Math\.random\s*\(/,
+  "seal manifold sampling must stay deterministic with no Math.random call",
+);
+assert.doesNotMatch(
+  component,
+  /Math\.random\s*\(/,
+  "the mascot must stay deterministic with no Math.random call",
+);
 
 for (const token of [
   "forwardRef",
@@ -92,6 +161,15 @@ for (const token of [
   "uState",
   "seal-anime-eye-pair",
   "seal-anime-eye-highlights",
+  "seal-anime-hairstyle-pool",
+  "createSealFurPlacements",
+  "SEAL_FUR_COAT_PROFILE",
+  "SEAL_COSTUME_HAIR",
+  "writeHairStyle",
+  "uHairGrow",
+  "uHairCurl",
+  "COSTUME_DEMON_HALO",
+  "COSTUME_EYE_STYLE",
   "seal-accent-guide-halo",
   "haloMaterial.current.color.lerp",
   "sealFrontToBack",
@@ -152,8 +230,8 @@ assert.equal(
 );
 assert.equal(
   (component.match(/<instancedMesh\b/g) || []).length,
-  2,
-  "both eyes and both highlights must use two instanced draws",
+  3,
+  "eyes, highlights, and the deterministic hairstyle pool must use exactly three instanced draws",
 );
 assert.equal(
   (component.match(/<pointLight\b/g) || []).length,
@@ -181,5 +259,5 @@ for (const token of [
 }
 
 console.log(
-  "seal manifold contract: 3 quality tiers, closed beta=(1,0,1), one primary draw, topological scene primary",
+  "seal manifold contract: 3 quality tiers, closed beta=(1,0,1), one primary draw, deterministic crown-only station hairstyles (observatory bald), topological scene primary",
 );

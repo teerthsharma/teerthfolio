@@ -112,6 +112,14 @@ const HORIZON_FRAGMENT_SHADER = `
     float sunSide = clamp(dot(toBerg, sunXZ), 0.0, 1.0);
     float rim = pow(sunSide, 3.0) * smoothstep(0.35, 0.95, vCrest);
     color += vec3(0.910, 0.608, 0.373) * rim * 0.16;
+    // Faint stratification: horizontal compression bands in world Y, the way
+    // tabular bergs carry annual layering. Value-only darkening that fades
+    // into the skirt haze so the horizon still reads clean at a glance.
+    float strata = 0.5 + 0.5 * sin(
+      vWorldPosition.y * 2.9 + vWorldPosition.x * 0.05 + vWorldPosition.z * 0.05
+    );
+    float strataLine = smoothstep(0.80, 0.97, strata) * smoothstep(0.15, 0.45, vCrest);
+    color = mix(color, hazeColor * 0.90, strataLine * 0.16);
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -270,6 +278,13 @@ const FRAGMENT_SHADER = `
     vec3 frost = vec3(0.62, 0.72, 0.84);
     vec3 color = vInstanceColor * (${WORLD_DRESSING_COLOR_PROFILE.ambientFloor.toFixed(2)} + toonDiffuse * 0.28);
     color = mix(color, frost, frostStratum * 0.10 + fresnel * 0.22);
+    // Edge-value definition: a darker contour band just inside the bright
+    // fresnel rim separates prop silhouettes from the snow behind them, and a
+    // tight near-rim lift crisps the outermost edge. Value work only -- no new
+    // draw, no hue, instance color untouched.
+    float edgeBand = smoothstep(0.28, 0.58, fresnel) * (1.0 - smoothstep(0.58, 0.90, fresnel));
+    color = mix(color, vec3(0.33, 0.40, 0.52), edgeBand * 0.12);
+    color += vec3(0.90, 0.94, 0.99) * smoothstep(0.78, 0.98, fresnel) * 0.07;
     // Cairn signal ring: the torus/lens crown sits near y=1.0 in cairn local
     // space, so a height band isolates it without a second draw or attribute.
     float signalRingBand = smoothstep(0.86, 0.98, vLocalPosition.y)

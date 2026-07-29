@@ -516,7 +516,7 @@ async function verifyMovement(page) {
       const world = document.querySelector("#world");
       const x = Number(world?.dataset.worldX);
       const z = Number(world?.dataset.worldZ);
-      return Math.hypot(x - -15, z - 7) > 7.4;
+      return Math.hypot(x - -3, z - 1) > 7.4;
     },
     null,
     { timeout: 12000 },

@@ -204,7 +204,7 @@ export default function PolarAtmosphereField({
               uAccent: { value: new THREE.Color("#5CC9C2") },
               uAtmosphereColor: { value: new THREE.Color("#22354F") },
               uAtmosphereGlow: { value: new THREE.Color("#5A93A8") },
-              uBiomeCenterXZ: { value: new THREE.Vector2(-15, 7) },
+              uBiomeCenterXZ: { value: new THREE.Vector2(-3, 1) },
               uBiomeFalloff: { value: 0.62 },
               uBiomeRadius: { value: 10.5 },
               uOpacity: { value: budget.opacity },

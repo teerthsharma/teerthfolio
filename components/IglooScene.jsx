@@ -60,6 +60,17 @@ const RIG_IDLE_YAW_HZ = 0.09;
 const RIG_IDLE_HEIGHT = 0.012;
 const RIG_IDLE_HEIGHT_HZ = 0.13;
 
+// Bruno-style chase heading. During free travel the camera swings behind the
+// seal's smoothed velocity heading; near a station the rig blends back into the
+// authored dock composition on the existing stationInfluence arrival term.
+const CHASE_HEADING_DAMPING = 3.2;
+const CHASE_MIN_SPEED = 0.35;
+
+function shortestArc(angle) {
+  const tau = Math.PI * 2;
+  return ((angle + Math.PI) % tau + tau) % tau - Math.PI;
+}
+
 function WorldStreamReveal({
   children,
   durationMs,
@@ -169,6 +180,7 @@ function ForegroundExpeditionKit() {
 function CameraRig({
   activeArtifact,
   axisX,
+  cameraYawRef,
   depthZ,
   quality,
   reducedMotion,
@@ -192,6 +204,9 @@ function CameraRig({
   // consumes this; the post pass stays pointer-free by contract.
   const pointerTarget = useRef({ x: 0, y: 0 });
   const pointerCurrent = useRef({ x: 0, y: 0 });
+  // Smoothed travel heading in radians; null until the first frame seeds it
+  // from the dock azimuth so the chase blend starts without a swing.
+  const headingRef = useRef(null);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -272,7 +287,16 @@ function CameraRig({
       velocity: travelScratch.current.velocity,
       width: Math.max(1, size.width),
     });
-    const travelBlend = 1 - travel.stationInfluence;
+    // Arrival strength drives the chase/dock blend. The traversal's damped
+    // stationProximity (1 while docked, tight 6-unit falloff, pinned to routed
+    // destinations) releases the dock composition much sooner than the wide
+    // travel stationInfluence field, so free roaming reads as a chase camera.
+    const arrivalStrength = THREE.MathUtils.clamp(
+      traversalPose?.stationProximity ?? travel.stationInfluence,
+      0,
+      1,
+    );
+    const travelBlend = 1 - arrivalStrength;
     const focusY = THREE.MathUtils.lerp(
       dockComposition.camera.look.y,
       travel.look.y,
@@ -284,8 +308,27 @@ function CameraRig({
       travel.cameraDistance,
       travelBlend,
     );
-    const cameraAzimuthDegrees = dockComposition.camera.azimuthDegrees;
-    const azimuth = THREE.MathUtils.degToRad(cameraAzimuthDegrees);
+    // Travel mode is a third-person chase: the camera sits behind the seal's
+    // smoothed velocity heading and looks ahead of it. The dock composition
+    // keeps full authority as stationInfluence rises toward arrival.
+    const dockAzimuth = THREE.MathUtils.degToRad(dockComposition.camera.azimuthDegrees);
+    if (headingRef.current === null) headingRef.current = dockAzimuth - Math.PI;
+    if (speed > CHASE_MIN_SPEED) {
+      const targetHeading = Math.atan2(velocityX, velocityZ);
+      const headingDamping = reducedMotion
+        ? 1
+        : 1 - Math.exp(-delta * CHASE_HEADING_DAMPING);
+      headingRef.current = shortestArc(
+        headingRef.current +
+          shortestArc(targetHeading - headingRef.current) * headingDamping,
+      );
+    }
+    const chaseAzimuth = headingRef.current + Math.PI;
+    const azimuth = shortestArc(
+      dockAzimuth + shortestArc(chaseAzimuth - dockAzimuth) * travelBlend,
+    );
+    if (cameraYawRef) cameraYawRef.current = azimuth;
+    const cameraAzimuthDegrees = THREE.MathUtils.radToDeg(azimuth);
     const elevation = THREE.MathUtils.degToRad(dockComposition.camera.elevationDegrees);
     const horizontalDistance = Math.cos(elevation) * distance;
     const drift = reducedMotion ? 0 : THREE.MathUtils.smoothstep(speed, 0.08, 3.8);
@@ -570,6 +613,7 @@ export default function IglooScene({
   activeArtifactId,
   axisVelocity = 0,
   axisX = 0,
+  cameraYawRef = null,
   debugFlags = {},
   depthVelocity = 0,
   depthZ = 0,
@@ -692,6 +736,7 @@ export default function IglooScene({
         <CameraRig
           activeArtifact={activeArtifact}
           axisX={axisX}
+          cameraYawRef={cameraYawRef}
           depthZ={depthZ}
           quality={quality}
           reducedMotion={reducedMotion}
