@@ -4192,6 +4192,13 @@ img {
   letter-spacing: 0.08em;
 }
 
+/* Sibling spans are separate lines at every width. Without this the station
+   name and its code run together as one word ("PLAQUE" + "CO_01" reads
+   PLAQUECO_01); the rule used to live only in the <=720px block. */
+.igloo-artifact-readout > span {
+  display: block;
+}
+
 .igloo-artifact-readout h2 {
   margin: 7px 0 8px;
   color: var(--hud-ink);
@@ -5861,7 +5868,12 @@ img {
     bottom: auto;
     left: auto;
     display: grid;
-    width: min(304px, 26vw);
+    /* The rail centres the focused chip, so a flanking chip only keeps every
+       glyph while the rail viewport holds 2*chip + 2*gap + the widest chip line
+       ("Betti 1/0/1" is 80px at 0.75rem): 2*92 + 12 + 80 = 276 <= 284. 26vw
+       collapsed this card to 266px at 1024 wide (246px of rail), which sliced
+       the neighbours' leading glyphs at every station. */
+    width: min(304px, calc(100vw - 56px));
     max-height: calc(100svh - 250px);
     gap: 7px;
     padding: 8px;
@@ -5901,8 +5913,8 @@ img {
 
   .igloo-route-sheet .station-profile-chip,
   .igloo-route-sheet .igloo-artifact.station-profile-chip {
-    flex-basis: 104px;
-    min-width: 104px;
+    flex-basis: 92px;
+    min-width: 92px;
   }
 }
 
@@ -6239,5 +6251,116 @@ img {
 @media (prefers-reduced-motion: reduce) {
   .igloo-live-strip[data-signal-state="received"] {
     animation: none;
+  }
+}
+
+/* ////// DOMAIN MAP DONUT — archive domain distribution as a pie ////// */
+/* Replaces the horizontal .domain-bars rows. Geometry lives in the SVG
+   (pathLength="100" => one dash unit per percent), so this block is layout +
+   palette only. No entrance animation by design: nothing to disable under
+   prefers-reduced-motion. Superseded .domain-bars rules earlier in this file
+   are now dead (append-only ownership; sweep them in a later pass). */
+.domain-map {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: clamp(14px, 2.2vw, 28px);
+  align-items: center;
+  min-width: 0;
+}
+
+.domain-donut {
+  width: clamp(126px, 18vw, 196px);
+  height: auto;
+  overflow: visible;
+}
+
+.domain-donut-track,
+.domain-donut-slice {
+  fill: none;
+  stroke-width: 5.6;
+}
+
+.domain-donut-track {
+  stroke: rgba(230, 238, 248, 0.09);
+}
+
+.domain-donut-slice {
+  stroke-linecap: butt;
+}
+
+.domain-donut-total,
+.domain-donut-caption {
+  fill: var(--ice);
+  font-family: var(--font-pixel), Consolas, monospace;
+  text-anchor: middle;
+}
+
+.domain-donut-total {
+  font-size: 7.4px;
+  font-weight: 700;
+}
+
+.domain-donut-caption {
+  fill: rgba(230, 238, 248, 0.56);
+  font-size: 2.6px;
+  letter-spacing: 0.14em;
+}
+
+.domain-legend {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 400px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.domain-legend li {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+}
+
+.domain-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.domain-legend strong {
+  min-width: 0;
+  color: rgba(230, 238, 248, 0.78);
+  font-family: var(--font-pixel), Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.domain-legend span {
+  color: var(--ice);
+  font-family: var(--font-pixel), Consolas, monospace;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .domain-map {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 14px;
+  }
+
+  .domain-donut {
+    width: min(124px, 36vw);
+  }
+
+  .domain-legend {
+    width: 100%;
+    gap: 5px;
   }
 }

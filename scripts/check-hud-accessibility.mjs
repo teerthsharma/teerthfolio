@@ -96,6 +96,9 @@ requires(archive, /role="tablist"/, "evidence archive must expose an accessible 
 requires(archive, /aria-selected=\{activePanel === panel\.id\}/, "evidence tab selection must be announced");
 requires(archive, /role="tabpanel"/, "only the selected evidence panel must be rendered as a tabpanel");
 requires(archive, /EVIDENCE_PANELS\[activePanel\]/, "archive must render one evidence panel at a time");
+requires(archive, /className="domain-donut"[\s\S]{0,120}role="img"/, "the domain distribution chart must be exposed as a single labelled image");
+requires(archive, /aria-label=\{`Domain distribution donut/, "the domain donut must summarise its distribution for screen readers");
+requires(archive, /<ul className="domain-legend">/, "domain counts must stay readable text in a legend, not colour alone");
 
 requires(radar, /data-source-mode=\{sourceMode\}/, "radar must publish its live or snapshot source mode");
 requires(radar, /Public GitHub activity for/, "radar must state whose public API activity is shown");

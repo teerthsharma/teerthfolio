@@ -13,6 +13,42 @@ const formatDate = (value) => {
   }).format(date);
 };
 
+// Slice ramp walks the site palette mint -> teal -> cyan -> cobalt -> violet -> steel -> coral.
+// Values are existing tokens (--signal, --abeto-teal, --dawn-cyan, --violet, --aurora-violet,
+// --steel, --danger) plus two interpolations to keep nine steps distinct.
+const DOMAIN_SLICE_COLORS = Object.freeze([
+  "#6FE7C8",
+  "#4FB3AE",
+  "#6FB8CE",
+  "#8AA9E6",
+  "#A98FE3",
+  "#8D69D6",
+  "#A9B8D4",
+  "#F0A88C",
+  "#F47D69",
+]);
+
+// Donut geometry: pathLength="100" makes every dash unit exactly one percent,
+// so no arc-path trigonometry is needed. Offset 25 rotates the start to 12 o'clock.
+const DONUT_GAP = 0.5;
+
+const buildDomainSlices = (rows) => {
+  const total = rows.reduce((sum, [, count]) => sum + count, 0) || 1;
+  let cursor = 0;
+  return rows.map(([domain, count], index) => {
+    const percent = (count / total) * 100;
+    const slice = {
+      color: DOMAIN_SLICE_COLORS[index % DOMAIN_SLICE_COLORS.length],
+      count,
+      domain,
+      offset: cursor,
+      percent,
+    };
+    cursor += percent;
+    return slice;
+  });
+};
+
 const EVIDENCE_PANELS = Object.freeze({
   source: { id: "source", label: "Source mode" },
   domains: { id: "domains", label: "Domain map" },
@@ -25,6 +61,9 @@ export default function EvidenceArchive({ content, domainRows, liveSummary, proj
   const upstream = content.upstream || [];
   const panels = Object.values(EVIDENCE_PANELS);
   const selectedPanel = EVIDENCE_PANELS[activePanel];
+  const domainSlices = buildDomainSlices(domainRows);
+  const domainTotal = domainRows.reduce((sum, [, count]) => sum + count, 0);
+  const leadSlice = domainSlices[0];
 
   const handleTabKeyDown = (event, index) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -100,15 +139,46 @@ export default function EvidenceArchive({ content, domainRows, liveSummary, proj
           {activePanel === "domains" ? (
             <>
               <span>Domain map</span>
-              <div className="domain-bars">
-                {domainRows.map(([domain, count]) => (
-                  <div key={domain}>
-                    <strong>{domain}</strong>
-                    <span style={{ "--domain-size": `${Math.min(100, count * 4)}%` }}>
-                      {count}
-                    </span>
-                  </div>
-                ))}
+              <div className="domain-map">
+                <svg
+                  aria-label={`Domain distribution donut: ${domainTotal} repositories across ${domainSlices.length} domains, led by ${leadSlice?.domain} at ${Math.round(leadSlice?.percent || 0)} percent. Every domain and count is listed beside the chart.`}
+                  className="domain-donut"
+                  fill="none"
+                  height="176"
+                  role="img"
+                  viewBox="0 0 42 42"
+                  width="176"
+                >
+                  <circle className="domain-donut-track" cx="21" cy="21" pathLength="100" r="15.9155" />
+                  {domainSlices.map((slice) => (
+                    <circle
+                      className="domain-donut-slice"
+                      cx="21"
+                      cy="21"
+                      key={slice.domain}
+                      pathLength="100"
+                      r="15.9155"
+                      stroke={slice.color}
+                      strokeDasharray={`${Math.max(0.1, slice.percent - DONUT_GAP)} ${100 - Math.max(0.1, slice.percent - DONUT_GAP)}`}
+                      strokeDashoffset={25 - slice.offset}
+                    />
+                  ))}
+                  <text className="domain-donut-total" x="21" y="20.6">
+                    {domainTotal}
+                  </text>
+                  <text className="domain-donut-caption" x="21" y="25">
+                    REPOS
+                  </text>
+                </svg>
+                <ul className="domain-legend">
+                  {domainSlices.map((slice) => (
+                    <li key={slice.domain}>
+                      <i aria-hidden="true" style={{ background: slice.color }} />
+                      <strong>{slice.domain}</strong>
+                      <span>{slice.count}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </>
           ) : null}

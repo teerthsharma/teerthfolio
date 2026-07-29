@@ -269,7 +269,7 @@ function useReducedMotion() {
   return reduced;
 }
 
-export default function IglooWorld({ content, initialQuery = {}, liveSummary, projects, stations }) {
+export default function IglooWorld({ content, initialQuery = {}, liveSummary, projects }) {
   const reduced = useReducedMotion();
   const traversalRef = useRef(null);
   if (!traversalRef.current) {
@@ -964,7 +964,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
           : "false"
       }
       data-project-count={projects?.length || 0}
-      data-station-count={stations?.length || 0}
+      data-station-count={artifacts.length}
       id="world"
       ref={worldRef}
       data-render-enabled={publicRenderEnabled ? "true" : "false"}
