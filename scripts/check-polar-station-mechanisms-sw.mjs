@@ -129,6 +129,9 @@ assert.equal(SW_MECHANISM_PROFILES[IDS[1]].liftThreshold, 0.62);
 assert.deepEqual(SW_MECHANISM_PROFILES[IDS[1]].extrusionRange, [0.04, 0.16]);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].apertureDistance, 0.22);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].refileStaggerSeconds, 0.045);
+assert.equal(SW_MECHANISM_PROFILES[IDS[1]].scanDockedHz, 0.3);
+assert.equal(SW_MECHANISM_PROFILES[IDS[1]].scanSweepHz, 0.09);
+assert.equal(SW_MECHANISM_PROFILES[IDS[1]].scanRestPhase, 0.5);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].naturalFrequency, 7);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].dampingRatio, 0.88);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].orientationToleranceDegrees, 1.5);
@@ -198,12 +201,30 @@ assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].material, /purple metallic ba
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].dishOrientation, "face-on-camera");
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].waveRingMode, "concentric-amplitude");
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].directionalPacketCount, 1);
+assert.equal(SW_MECHANISM_PROFILES[IDS[0]].beaconPeriodSeconds, 2);
+assert.equal(SW_MECHANISM_PROFILES[IDS[0]].reducedMotionBeaconIntensity, 0.7);
+assert.equal(
+  SW_MECHANISM_PROFILES[IDS[0]].tipBeacon,
+  "warm-white-coral-aviation-blink",
+);
+assert.equal(
+  SW_MECHANISM_PROFILES[IDS[0]].palette.trim,
+  STATION_PERSONALITY_PROFILES[IDS[0]].palette.secondary,
+);
+assert.equal(
+  SW_MECHANISM_PROFILES[IDS[0]].palette.packet,
+  STATION_PERSONALITY_PROFILES[IDS[0]].palette.glow,
+);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].silhouette, /aviation-banded lattice/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].material, /warm-ivory aviation paint bands/i);
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].silhouette, /face-on coral\/mint radar/i);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].launchApertureDistance, 0.34);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].countdownSeconds, 3);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].ignitionMotion, "countdown-then-ignition");
-assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /magenta\/cyan rocket launch pad/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /strata barcode canyon/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /sweeping scan gantry/i);
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /open gantry/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /graphite strata/i);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].railCount, 2);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].edgeLighting, "purple-gold-lit");
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].silhouette, /suspended assembly rails/i);
@@ -387,7 +408,18 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.equal(state.receivedPacket.profileLogin, "teerthsharma");
   assert.equal(state.receivedPacket.repository, "google-deepmind/mujoco");
   assert.equal(state.ritual.breathingMultiplier, 1);
-  assert.equal(state.ritual.haloColor, "#F47D69");
+  assert.equal(state.ritual.haloColor, "#E8705E");
+  {
+    // The docked receive ritual keeps the ring phases descending even though
+    // snapshot metadata never claims a live pulse lock.
+    const phasesBefore = Array.from(state.pulsePhases);
+    advanceFor(system, inputs, 0.3);
+    assert.notDeepEqual(
+      Array.from(state.pulsePhases),
+      phasesBefore,
+      "RECEIVE must keep the mast packet rings moving",
+    );
+  }
 
   Object.assign(inputs[IDS[0]], {
     docked: false,
@@ -398,6 +430,31 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.equal(state.isLiveSignal, false);
   assert.equal(state.signalClaim, "research snapshot");
   assert.equal(state.pulsesActive, false, "snapshot lock cannot masquerade as a live pulse");
+}
+
+// Upstream tip beacon: a deterministic 2 s aviation duty cycle that reaches
+// full warm-on and full off; reduced motion holds it steady at 70%.
+{
+  const system = createSouthwestMechanismSystem();
+  const inputs = emptyInputs();
+  let brightest = 0;
+  let darkest = 1;
+  for (let frame = 0; frame < 150; frame += 1) {
+    advanceSouthwestMechanisms(system, inputs, 1 / 60);
+    const intensity = system.states[IDS[0]].beaconIntensity;
+    brightest = Math.max(brightest, intensity);
+    darkest = Math.min(darkest, intensity);
+  }
+  assert.ok(brightest > 0.95, "the tip beacon must reach full warm-on");
+  assert.ok(darkest < 0.05, "the tip beacon must fall fully dark between blinks");
+
+  const steady = createSouthwestMechanismSystem();
+  advanceFor(steady, inputs, 1.3, { reducedMotion: true });
+  assert.equal(
+    steady.states[IDS[0]].beaconIntensity,
+    0.7,
+    "reduced motion holds the beacon steady at 70%",
+  );
 }
 
 // Topology: deterministic connected trace, bounded lifts, 0.22 aperture, reverse 45 ms refile.
@@ -425,6 +482,8 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   }
   assert.equal(state.evidenceReady, false);
   assert.equal(state.ritual.haloTiltDegrees, 61);
+  assert.ok(state.scanPhase > 0, "the scan line must sweep while a visitor approaches");
+  assert.ok(state.scanIntensity > 0.4, "the read line must brighten with proximity");
 
   Object.assign(inputs[IDS[1]], { docked: true, proximity: 1 });
   advanceFor(system, inputs, 0.8);
@@ -433,6 +492,16 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.equal(state.countdown, 3);
   assert.ok(state.ignition > 0);
   assert.equal(state.evidenceReady, true);
+  assert.ok(state.scanIntensity > 0.9, "the docked read line must reach full brightness");
+  {
+    const scanBefore = state.scanPhase;
+    advanceFor(system, inputs, 0.25);
+    const dockedTravel = (state.scanPhase - scanBefore + 1) % 1;
+    assert.ok(
+      Math.abs(dockedTravel - 0.3 * 0.25) < 1e-6,
+      "the docked scan must accelerate to the authored docked sweep rate",
+    );
+  }
 
   Object.assign(inputs[IDS[1]], { docked: false, proximity: 0 });
   advanceFor(system, inputs, 0.07);
@@ -538,6 +607,16 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.equal(reduced.states[IDS[0]].dishAngularVelocity, 0);
   assert.equal(reduced.states[IDS[1]].phase, "OPEN_ARCHIVE");
   assert.ok(Array.from(reduced.states[IDS[1]].barExtrusions).every((depth) => depth === 0));
+  assert.equal(
+    reduced.states[IDS[1]].scanPhase,
+    0.5,
+    "reduced motion freezes the scan mid-wall",
+  );
+  assert.equal(
+    reduced.states[IDS[1]].scanIntensity,
+    1,
+    "the frozen reduced-motion scan line must still glow while docked",
+  );
   assert.equal(reduced.states[IDS[2]].phase, "PROVE");
   assert.ok(Array.from(reduced.states[IDS[2]].partVelocities).every((speed) => speed === 0));
   assert.deepEqual(Array.from(reduced.states[IDS[2]].locatorPinLifts), [1, 1, 1, 1]);
@@ -576,6 +655,10 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   );
   assert.ok(Math.abs(at10.states[IDS[0]].dishBearingRadians - at144.states[IDS[0]].dishBearingRadians) < 1e-5);
   assert.ok(Math.abs(mixed.states[IDS[0]].dishBearingRadians - at144.states[IDS[0]].dishBearingRadians) < 1e-5);
+  assert.ok(
+    Math.abs(at10.states[IDS[0]].beaconIntensity - at144.states[IDS[0]].beaconIntensity) < 1e-6,
+    "the beacon duty cycle must be display-refresh independent",
+  );
 }
 
 // A fractional display remainder survives the largest accepted hitch instead of being pre-clamped away.
@@ -665,7 +748,19 @@ for (const token of [
   "upstream-face-on-coral-mint-radar",
   "upstream-concentric-amplitude-wave-rings",
   "upstream-directional-source-packet",
-  "archive-magenta-cyan-rocket-launch-pad",
+  "upstream-aviation-banded-lattice-mast",
+  "upstream-tip-beacon",
+  "upstream-guy-line-stays",
+  "upstream-warm-white-dish-hardware",
+  "upstream-descending-mast-packets",
+  "upstream-blinking-tip-beacon-halo",
+  "UPSTREAM_TIP_BEACON_RING_INDEX",
+  "UPSTREAM_MAST_BAND_COUNT",
+  "state.beaconIntensity",
+  "upstreamColors",
+  "upstreamPalette.trim",
+  "materials.upstreamDish",
+  "archive-magenta-strata-barcode-scan",
   "archive-open-canyon-gantry",
   "archive-launch-aperture-countdown-ignition",
   "assembly-purple-gold-lit-workshop",
@@ -701,5 +796,5 @@ assert.equal((source.match(/<instancedMesh/g) || []).length, 8, "high/medium use
 assert.equal((source.match(/<lineSegments/g) || []).length, 1, "topology uses one pooled trace line draw");
 
 console.log(
-  "Southwest station mechanisms verified: coral-mint signal harbor, magenta-cyan relational archive canyon, purple-basalt proof gantry, source-backed state, 9/4/0 draw tiers, zero textures.",
+  "Southwest station mechanisms verified: coral-mint signal harbor, scan-read strata barcode canyon, purple-basalt proof gantry, source-backed state, 9/4/0 draw tiers, zero textures.",
 );

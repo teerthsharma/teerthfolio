@@ -343,6 +343,8 @@ for (const blackHolePrimitive of [
 expectIncludes("components/HorizontalAxisController.jsx", horizontalAxis, "window.scrollBy({ left", "horizontal axis controller must convert movement to x-axis scrolling");
 expectIncludes("components/ActiveTheoryVeil.jsx", activeTheoryVeil, "active-theory-veil", "cinematic veil must expose class name");
 expectIncludes("components/TopologyConstellation.jsx", topologyConstellation, "persistent homology", "topology constellation must expose persistent homology language");
+expectIncludes("components/TopologyConstellation.jsx", topologyConstellation, "AURORA_UNIFIER_PROFILE", "topology constellation must keep the aurora unifier sky glue");
+expectIncludes("components/TopologyConstellation.jsx", topologyConstellation, "vec3(0.4353, 0.9059, 0.7843)", "aurora unifier must reuse the black-hole mint anchor");
 expectIncludes("components/LiveRadar.jsx", liveRadar, "liveSummary", "LiveRadar must render server-provided live GitHub summary");
 expectIncludes("components/LiveRadar.jsx", liveRadar, "summary?.profile?.login", "LiveRadar must render the API profile login");
 expectIncludes("components/LiveRadar.jsx", liveRadar, "summary?.profile?.name", "LiveRadar must render the API profile name when available");

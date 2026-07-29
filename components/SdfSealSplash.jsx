@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import AntarcticSplashShader from "./AntarcticSplashShader";
 
-export const SPLASH_GATE_PROFILE = "black stellar threshold with four phase-negating aurora wave families and one devil-lettuce action";
+export const SPLASH_GATE_PROFILE = "deep polar twilight threshold with a six-axis hex phase gate, phase-negating ring collisions, and one night-launch route action";
 export const RENDER_PERMISSION_PROFILE = "Start exploring requests fullscreen, wake lock, and WebGL capability inside the user gesture";
 export const SPLASH_SUPPORT_PROFILE = "Composite SDF. Opening gate is a pure shader threshold with no mascot layer; the seal enters only after renderer hand-off";
 export const OPEN_WORLD_GATE_PROFILE = "best-of-two gate: fullscreen world stream first, horizontal evidence index remains reachable";
@@ -111,7 +111,7 @@ export default function SdfSealSplash({
       <AntarcticSplashShader active={active} />
 
       <header className="sdf-splash-copy">
-        <span>{stationName} / dawn departure</span>
+        <span>{stationName} / dusk departure</span>
         <h2>Seal&apos;s Topology Land</h2>
         <p>Follow the seal through a six-axis topology gate into source-backed systems, kernels, and research.</p>
       </header>

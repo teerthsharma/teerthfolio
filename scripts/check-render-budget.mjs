@@ -231,7 +231,7 @@ const checks = [
   {
     name: "terrain material stays in uplifting polar range",
     file: files.terrain,
-    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*POLAR_PALETTE\.polarIvory/,
+    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*POLAR_PALETTE\.glacierWhite/,
   },
   {
     name: "terrain surface stays clean and subordinate",
@@ -254,9 +254,9 @@ const checks = [
     pattern: /geometry\.dispose\(\)[\s\S]*material\.dispose\(\)/,
   },
   {
-    name: "ground fog stays uplifting and translucent",
+    name: "ground fog stays dusk-graded and translucent",
     file: files.snow,
-    pattern: /POLAR_GROUND_FOG_PROFILE[\s\S]*uplifting translucent[\s\S]*0\.034[\s\S]*color="#bdefff"/,
+    pattern: /POLAR_GROUND_FOG_PROFILE[\s\S]*dusk translucent[\s\S]*0\.045[\s\S]*color="#3A4C73"/,
   },
   {
     name: "smashables only render during active movement",
@@ -371,7 +371,7 @@ const checks = [
   {
     name: "anime post quality tiers retain exact bounded effect caps",
     file: `${files.post}\n${files.polarArtDirection}`,
-    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.003[\s\S]*chroma:\s*0\.55[\s\S]*ink:\s*0\.14[\s\S]*scanline:\s*0\.004[\s\S]*pixel:\s*1\.7[\s\S]*quantize:\s*0\.18[\s\S]*gradeBase:\s*0\.49[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.005[\s\S]*chroma:\s*0\.8[\s\S]*ink:\s*0\.18[\s\S]*scanline:\s*0\.007[\s\S]*pixel:\s*2\.2[\s\S]*quantize:\s*0\.24[\s\S]*gradeBase:\s*0\.52[\s\S]*gradeCurve:\s*0\.4/,
+    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.003[\s\S]*chroma:\s*0\.55[\s\S]*ink:\s*0\.14[\s\S]*scanline:\s*0\.004[\s\S]*pixel:\s*1\.7[\s\S]*quantize:\s*0\.18[\s\S]*gradeBase:\s*0\.56[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.005[\s\S]*chroma:\s*0\.8[\s\S]*ink:\s*0\.18[\s\S]*scanline:\s*0\.007[\s\S]*pixel:\s*2\.2[\s\S]*quantize:\s*0\.24[\s\S]*gradeBase:\s*0\.6[\s\S]*gradeCurve:\s*0\.4/,
   },
   {
     name: "low-tier paper grade restores a bounded luminance toe without dimming highlights",

@@ -159,7 +159,7 @@ const exactProfiles = {
     center: [-15, 7],
     dock: [-19.26, 8.99],
     radii: [10.5, 7, 2.6],
-    palette: ["#F6F1E7", "#EDF6F9", "#D7EFE8", "#65C1BC", "#B9D8B1", "#F2C98B", "#33406E"],
+    palette: ["#F2D3A8", "#D7E6F5", "#A9C9C4", "#5CC9C2", "#93B4A6", "#F2B96B", "#232E52"],
     geography: "sastrugi-melt-ribbon",
   },
   "s2-kernel-core": {
@@ -167,7 +167,7 @@ const exactProfiles = {
     center: [-5, 13],
     dock: [-6.01, 15.61],
     radii: [8.5, 5.5, 1.8],
-    palette: ["#E2F5FF", "#A6DFF4", "#8FD0E0", "#3E5BC7", "#B9F5FF", "#33406E"],
+    palette: ["#B7D6EC", "#7FB9DE", "#6FA8C9", "#5573E0", "#A5E9FF", "#232E52"],
     geography: "voronoi-pressure-ridge-parhelion",
   },
   "manifold-reactor": {
@@ -183,7 +183,7 @@ const exactProfiles = {
     center: [17, 4],
     dock: [20.21, 4.76],
     radii: [9.2, 6.2, 2.2],
-    palette: ["#FFF6CE", "#FFE37A", "#F4C84E", "#F29C46", "#A6D7E4", "#5A4A48"],
+    palette: ["#F5E3B0", "#EFC15C", "#F5C044", "#EE9440", "#7FA8C0", "#40312F"],
     geography: "salt-pan-field-lines",
   },
   "qpu-ice-bridge": {
@@ -191,7 +191,7 @@ const exactProfiles = {
     center: [15, -8],
     dock: [18, -9.6],
     radii: [9.4, 6.4, 2.4],
-    palette: ["#E4FFF2", "#BFF4D9", "#4BC076", "#36D8FF", "#8FD0E0", "#345C57"],
+    palette: ["#BCE4D4", "#8FCDB2", "#55CE85", "#36D8FF", "#6FA8C9", "#24443F"],
     geography: "sea-ice-lead-interference",
   },
   "upstream-radio-mast": {
@@ -199,7 +199,7 @@ const exactProfiles = {
     center: [3, -14],
     dock: [3.59, -16.74],
     radii: [9, 6, 2],
-    palette: ["#FFE0D7", "#FFB0AF", "#F47D69", "#4BC076", "#A7E5DF", "#594C61"],
+    palette: ["#E5B9AC", "#E08A87", "#E8705E", "#55CE85", "#6FB0A9", "#3F3547"],
     geography: "aurora-signal-ridge",
   },
   "topology-archive-wall": {
@@ -207,7 +207,7 @@ const exactProfiles = {
     center: [-11, -11],
     dock: [-13.47, -13.47],
     radii: [9.4, 6.3, 2.3],
-    palette: ["#FFF0F7", "#F2D4E8", "#D8478F", "#8D69D6", "#B8E2DF", "#61445F"],
+    palette: ["#E3C6D6", "#C9A3BF", "#E25AA0", "#8D69D6", "#7FB3AF", "#453043"],
     geography: "strata-barcode-cliff",
   },
   "assembly-tool-locker": {
@@ -215,7 +215,7 @@ const exactProfiles = {
     center: [-18, -2],
     dock: [-20.98, -2.33],
     radii: [8.7, 5.8, 2.1],
-    palette: ["#080713", "#151024", "#2A1B4A", "#6D4BE8", "#A78BFA", "#F2C98B", "#F2ECFF"],
+    palette: ["#080713", "#151024", "#2A1B4A", "#6D4BE8", "#A78BFA", "#F2B96B", "#F2ECFF"],
     geography: "runway-knurl-yard",
   },
 };

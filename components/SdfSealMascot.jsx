@@ -53,7 +53,7 @@ const fragmentShader = `
     float rim = 1.0 - abs(dot(normalize(vNormal), normalize(vViewDir)));
     float edge = smoothstep(0.34, 0.74, rim);
     float field = sin((vWorldPosition.x * 5.0) + (vWorldPosition.y * 7.0) + uTime * 0.8) * 0.5 + 0.5;
-    vec3 whiteBody = mix(vec3(0.78, 0.88, 0.89), vec3(0.98, 1.0, 0.96), 0.82 + field * 0.08);
+    vec3 whiteBody = mix(vec3(0.55, 0.65, 0.78), vec3(0.90, 0.88, 0.80), 0.82 + field * 0.08);
     vec3 cyanWake = uAccent * (0.12 + abs(uVelocity) * 0.2);
     vec3 edgeInk = vec3(0.005, 0.008, 0.01);
     vec3 color = mix(whiteBody + cyanWake, edgeInk, edge);
@@ -199,11 +199,11 @@ function SealQuiltedMaterial({ accent, opacity = 0.96 }) {
       aoMap={maps.aoMap}
       clearcoat={0.96}
       clearcoatRoughness={0.18}
-      color="#f3fffb"
+      color="#DCE9F4"
       displacementMap={maps.displacementMap}
       displacementScale={0.006}
       emissive={accent}
-      emissiveIntensity={0.08}
+      emissiveIntensity={0.14}
       map={maps.map}
       metalness={0.02}
       metalnessMap={maps.metalnessMap}
@@ -219,7 +219,7 @@ function SealQuiltedMaterial({ accent, opacity = 0.96 }) {
 }
 
 function CollisionCrate({ accent, probe }) {
-  const color = probe.active ? accent : "#dffdf7";
+  const color = probe.active ? accent : "#A8F0E8";
   const normalTarget = [
     probe.position[0] + probe.normal.x * 0.34,
     probe.position[1] + probe.normal.y * 0.34,
@@ -311,7 +311,7 @@ function CompositeSdfSeal({ accent, axisVelocity }) {
 }
 
 export default function SdfSealMascot({
-  accent = "#5ff8e7",
+  accent = "#6FE7C8",
   activeArtifact,
   axisVelocity = 0,
   axisX = 0,
@@ -371,7 +371,7 @@ export default function SdfSealMascot({
         {[0.86, 1.14, 1.42, 1.72].map((radius, index) => (
           <mesh key={radius} rotation={[Math.PI / 2, 0, index * 0.42]} scale={[1.3 + index * 0.08, 0.74, 1]}>
             <torusGeometry args={[radius, 0.006, 8, 96]} />
-            <meshBasicMaterial color={index % 2 === 0 ? accent : "#dffdf7"} transparent opacity={0.16 - index * 0.02} />
+            <meshBasicMaterial color={index % 2 === 0 ? accent : "#A8F0E8"} transparent opacity={0.16 - index * 0.02} />
           </mesh>
         ))}
       </group>

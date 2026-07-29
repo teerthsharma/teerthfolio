@@ -41,11 +41,11 @@ const TERRAIN_SIZE = 58;
 const SKY_RADIUS = 44;
 const TERRAIN_RECENTER_STEP = 8;
 const DEG_TO_RAD = Math.PI / 180;
-const NEUTRAL_FOG_COLOR = "#C2D6D9";
-const NEUTRAL_KEY_COLOR = "#FFF8EC";
-const NEUTRAL_FILL_COLOR = "#A7CBD4";
-const NEUTRAL_RIM_COLOR = "#A8B4D0";
-const NEUTRAL_FOG_DENSITY = 0.0065;
+const NEUTRAL_FOG_COLOR = "#697CA6";
+const NEUTRAL_KEY_COLOR = "#FFD9A3";
+const NEUTRAL_FILL_COLOR = "#7FA0C8";
+const NEUTRAL_RIM_COLOR = "#BFD8FF";
+const NEUTRAL_FOG_DENSITY = 0.0085;
 const LOCAL_ENVIRONMENT_CAP = 0.42;
 
 function addBiomeRole(geometry, role) {
@@ -294,24 +294,24 @@ function makeUniforms(shaderDetail) {
     uTravelerXZ: { value: new THREE.Vector2() },
     uPrimaryLightDirection: { value: new THREE.Vector3(-0.42, 0.84, 0.34) },
     uSecondaryLightDirection: { value: new THREE.Vector3(-0.42, 0.84, 0.34) },
-    uPrimaryBaseColor: { value: new THREE.Color("#F6F1E7") },
-    uPrimarySecondaryColor: { value: new THREE.Color("#D7EFE8") },
-    uPrimaryAccentColor: { value: new THREE.Color("#65C1BC") },
-    uPrimaryGlowColor: { value: new THREE.Color("#F2C98B") },
-    uPrimaryFogColor: { value: new THREE.Color("#B8E2DF") },
-    uPrimaryInkColor: { value: new THREE.Color("#33406E") },
-    uPrimaryShadowColor: { value: new THREE.Color("#A6D7E4") },
-    uPrimaryAtmosphereColor: { value: new THREE.Color("#F7FFFF") },
-    uPrimaryAtmosphereGlow: { value: new THREE.Color("#8FD0E0") },
-    uSecondaryBaseColor: { value: new THREE.Color("#E2F5FF") },
-    uSecondarySecondaryColor: { value: new THREE.Color("#A6DFF4") },
-    uSecondaryAccentColor: { value: new THREE.Color("#3E5BC7") },
-    uSecondaryGlowColor: { value: new THREE.Color("#B9F5FF") },
-    uSecondaryFogColor: { value: new THREE.Color("#CDEAF5") },
-    uSecondaryInkColor: { value: new THREE.Color("#33406E") },
-    uSecondaryShadowColor: { value: new THREE.Color("#91BED4") },
-    uSecondaryAtmosphereColor: { value: new THREE.Color("#EAFBFF") },
-    uSecondaryAtmosphereGlow: { value: new THREE.Color("#3E5BC7") },
+    uPrimaryBaseColor: { value: new THREE.Color("#C9D5D9") },
+    uPrimarySecondaryColor: { value: new THREE.Color("#A9C9C4") },
+    uPrimaryAccentColor: { value: new THREE.Color("#5CC9C2") },
+    uPrimaryGlowColor: { value: new THREE.Color("#F2B96B") },
+    uPrimaryFogColor: { value: new THREE.Color("#3C5B60") },
+    uPrimaryInkColor: { value: new THREE.Color("#232E52") },
+    uPrimaryShadowColor: { value: new THREE.Color("#33475E") },
+    uPrimaryAtmosphereColor: { value: new THREE.Color("#22354F") },
+    uPrimaryAtmosphereGlow: { value: new THREE.Color("#5A93A8") },
+    uSecondaryBaseColor: { value: new THREE.Color("#B4C7D4") },
+    uSecondarySecondaryColor: { value: new THREE.Color("#8CA6BB") },
+    uSecondaryAccentColor: { value: new THREE.Color("#5573E0") },
+    uSecondaryGlowColor: { value: new THREE.Color("#A5E9FF") },
+    uSecondaryFogColor: { value: new THREE.Color("#364F5E") },
+    uSecondaryInkColor: { value: new THREE.Color("#232E52") },
+    uSecondaryShadowColor: { value: new THREE.Color("#3A5570") },
+    uSecondaryAtmosphereColor: { value: new THREE.Color("#1E3252") },
+    uSecondaryAtmosphereGlow: { value: new THREE.Color("#5573E0") },
   };
 }
 
@@ -702,7 +702,7 @@ function PolarBiomeWorldStage({
       <primitive object={fillLightTarget} />
       <directionalLight
         castShadow
-        color="#FFFDF7"
+        color="#FFD9A3"
         intensity={1.68}
         name="polar-biome-key-light"
         ref={keyLightRef}
@@ -716,7 +716,7 @@ function PolarBiomeWorldStage({
         target={keyLightTarget}
       />
       <directionalLight
-        color="#8FD0E0"
+        color="#7FA0C8"
         intensity={0.7}
         name="polar-biome-fill-rim-light"
         ref={fillLightRef}

@@ -14,9 +14,9 @@ export const IGLOO_TECHNIQUE = "procedural ice blocks with glowing seam lattice"
 
 const BLOCK_SIZE = [0.76, 0.3, 0.26];
 const ENTRANCE_SEGMENTS = 9;
-const BASE_COLOR = "#c7dce1";
-const GLOW_COLOR = "#ffffff";
-const SEAM_COLOR = "#d8ffff";
+const BASE_COLOR = "#9FBDD4";
+const GLOW_COLOR = "#FFE3B8";
+const SEAM_COLOR = "#A8F0E8";
 const OBSERVATORY_RINGS = [0.18, 0.34, 0.5, 0.66, 0.82];
 const IGLOO_PBR = {
   map: "/assets/pbr/igloo/white-quilted-fabric-bl/white-quilted-fabric_albedo.png",
@@ -94,22 +94,22 @@ function useIglooAssets(accent) {
     const blockMaterial = new THREE.MeshPhysicalMaterial({
       color: BASE_COLOR,
       emissive: accent,
-      emissiveIntensity: 0.1,
+      emissiveIntensity: 0.22,
       emissiveMap: maps.map,
       map: pbr.map,
       metalness: 0.06,
       normalMap: pbr.normalMap,
       normalScale: new THREE.Vector2(0.18, 0.18),
-      roughness: 0.66,
+      roughness: 0.55,
       roughnessMap: pbr.roughnessMap,
-      clearcoat: 0.72,
-      clearcoatRoughness: 0.34,
+      clearcoat: 0.85,
+      clearcoatRoughness: 0.26,
       transmission: 0,
       thickness: 0.24,
     });
     const shadowMaterial = new THREE.MeshPhysicalMaterial({
-      color: "#5f777d",
-      emissive: "#0c2a2d",
+      color: "#3A4C63",
+      emissive: "#0E1E33",
       emissiveIntensity: 0.18,
       metalness: 0.02,
       roughness: 0.88,
@@ -117,12 +117,12 @@ function useIglooAssets(accent) {
       opacity: 0.96,
     });
     const shellMaterial = new THREE.MeshPhysicalMaterial({
-      color: "#7f9ba1",
+      color: "#6E8FB0",
       emissive: accent,
-      emissiveIntensity: 0.1,
+      emissiveIntensity: 0.2,
       metalness: 0.04,
-      roughness: 0.42,
-      clearcoat: 0.54,
+      roughness: 0.38,
+      clearcoat: 0.7,
       clearcoatRoughness: 0.28,
       transparent: true,
       opacity: 0.42,
@@ -132,21 +132,21 @@ function useIglooAssets(accent) {
     const seamMaterial = new THREE.MeshBasicMaterial({
       color: SEAM_COLOR,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.7,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
     const ringMaterial = new THREE.MeshBasicMaterial({
       color: SEAM_COLOR,
       transparent: true,
-      opacity: 0.36,
+      opacity: 0.5,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: GLOW_COLOR,
       transparent: true,
-      opacity: 0.08,
+      opacity: 0.12,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
@@ -213,7 +213,7 @@ function buildSeams(blocks) {
   return seams.slice(0, 150);
 }
 
-export default function IglooDome({ accent = "#5ff8e7", position = [0, 0, 0], pulse = 0 }) {
+export default function IglooDome({ accent = "#6FE7C8", position = [0, 0, 0], pulse = 0 }) {
   const rootRef = useRef(null);
   const blockRefs = useRef([]);
   const innerLight = useRef(null);
@@ -228,7 +228,7 @@ export default function IglooDome({ accent = "#5ff8e7", position = [0, 0, 0], pu
       rootRef.current.position.set(position[0], position[1] + Math.sin(t * 0.24) * 0.012, position[2]);
     }
     if (innerLight.current) {
-      innerLight.current.intensity = 1.35 + Math.sin(t * 1.2) * 0.18 + pulse * 2.6;
+      innerLight.current.intensity = 1.75 + Math.sin(t * 1.2) * 0.18 + pulse * 2.6;
     }
 
     for (const block of blocks) {
@@ -256,7 +256,7 @@ export default function IglooDome({ accent = "#5ff8e7", position = [0, 0, 0], pu
 
   return (
     <group ref={rootRef} name={`IglooDome ${IGLOO_TECHNIQUE}`} position={position} userData={{ className: "igloo-dome" }}>
-      <pointLight ref={innerLight} color={accent} distance={9} intensity={1.65} position={[0, 0.72, 0]} />
+      <pointLight ref={innerLight} color={accent} distance={9} intensity={2} position={[0, 0.72, 0]} />
       <mesh name="observatory-ice-shell" position={[0, 0.1, 0]} scale={[IGLOO_RADIUS * 0.98, IGLOO_HEIGHT * 0.98, IGLOO_RADIUS * 0.7]}>
         <sphereGeometry args={[1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <primitive object={assets.materials.shellMaterial} attach="material" />

@@ -49,6 +49,13 @@ requires(styles, /\.igloo-portal-offer-actions[\s\S]{0,500}min-height:\s*44px/, 
 requires(hud, /const showDockedEvidence = presentation\.isArrived/, "plaque evidence must be gated by earned arrival");
 requires(hud, /showDockedEvidence \? \([\s\S]*activeArtifact\.description/, "docked metadata must not persist while routing");
 assert.doesNotMatch(hud, /className="igloo-axis-meter/, "hero HUD must not carry a traverse-progress meter");
+requires(hud, /const UPSTREAM_EVIDENCE_STATION_ID = "upstream-radio-mast";/, "live evidence strip must key off the upstream radio mast radar");
+requires(hud, /data-signal-state=\{upstreamSignalReceived \? "received" : "hidden"\}/, "live evidence strip must stay hidden until upstream radar contact");
+requires(hud, /aria-live="polite"[\s\S]{0,120}className="igloo-live-strip"/, "live evidence strip must announce as a polite received message");
+requires(hud, /attributeFilter: \["data-docked-station", "data-proximity-station"\]/, "upstream radar contact must be read from the canonical world data attributes");
+requires(styles, /\.igloo-live-strip\[data-signal-state="hidden"\]\s*\{\s*display:\s*none;/, "hidden evidence strip must leave layout and the accessibility tree");
+requires(styles, /@keyframes igloo-live-strip-pop/, "evidence strip must pop in like a received message");
+requires(styles, /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.igloo-live-strip\[data-signal-state="received"\]\s*\{\s*animation:\s*none;/, "evidence strip pop must appear instantly under reduced motion");
 
 requires(world, /deriveTraversalPresentation/, "world must derive one canonical presentation snapshot");
 requires(world, /data-presentation-destination/, "destination semantics must remain browser-inspectable");

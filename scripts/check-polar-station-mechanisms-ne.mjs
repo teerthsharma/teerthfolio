@@ -261,7 +261,7 @@ function advanceChunks(system, inputs, chunks, options = {}) {
     "S2 tangent coordinates must remain projected onto the authored manifold bound",
   );
   assert.equal(state.ritual.breathingMultiplier, 1);
-  assert.equal(state.ritual.haloColor, "#3E5BC7");
+  assert.equal(state.ritual.haloColor, "#5573E0");
   const firstDiagnosticPhase = state.proofBitPhase;
   advanceFor(system, inputs, 0.2);
   assert.ok(state.proofBitPhase > firstDiagnosticPhase, "S2 diagnostic pulse must travel axially while approaching");
@@ -546,12 +546,138 @@ assert.ok(
   Number.parseInt(qpuFrameColor.slice(2, 4), 16) >= 100 && hexLuminance(qpuFrameColor) >= 38,
   `QPU bridge support must read as luminous teal rather than black (${qpuFrameColor})`,
 );
+// S2 kernel-citadel rotor contract: a distinctive faceted silhouette that
+// rotates on its base — slow idle spin, docked ceremonial spin-up, and a
+// deterministic frozen angle under reduced motion.
+const s2RotorIdleRate = Number(source.match(/const S2_ROTOR_IDLE_RATE = ([0-9.]+);/)?.[1]);
+const s2RotorDockedRate = Number(source.match(/const S2_ROTOR_DOCKED_RATE = ([0-9.]+);/)?.[1]);
+const s2RotorResponse = Number(source.match(/const S2_ROTOR_SPIN_RESPONSE = ([0-9.]+);/)?.[1]);
+assert.ok(
+  s2RotorIdleRate >= 0.06 && s2RotorIdleRate <= 0.1,
+  `S2 rotor idle spin must stay ambient at 0.06-0.1 rad/s (${s2RotorIdleRate})`,
+);
+assert.ok(
+  s2RotorDockedRate >= 0.5 && s2RotorDockedRate <= 0.8,
+  `S2 docked rotor spin must reach a ceremonial 0.5-0.8 rad/s (${s2RotorDockedRate})`,
+);
+assert.ok(
+  s2RotorResponse > 0 && s2RotorResponse <= 0.6,
+  `S2 rotor spin-up must settle within roughly 1.5 seconds (${s2RotorResponse})`,
+);
+assert.match(
+  source,
+  /simulationTime - rotor\.simTime[\s\S]*S2_ROTOR_REDUCED_ANGLE[\s\S]*rotor\.rate \* rotorSimDelta/,
+  "S2 rotor must integrate against the fixed-step simulation clock and pin a fixed reduced-motion angle",
+);
+assert.match(
+  source,
+  /function facetedPart[\s\S]*deleteAttribute\("normal"\)[\s\S]*computeVertexNormals\(\)/,
+  "S2 kernel drums must carry flat machined facets rather than smooth anonymous cylinders",
+);
+assert.match(
+  source,
+  /applyS2Instances\(system\.states\["s2-kernel-core"\], pools\.s2, scratch, rotor\.angle\)/,
+  "S2 instance matrices must consume the deterministic rotor angle",
+);
 const fieldHeaterHalfLength = Number(source.match(/const FIELD_HEATER_HALF_LENGTH = ([0-9.]+);/)?.[1]);
 const qpuAbutmentRadius = Number(source.match(/const QPU_ABUTMENT_RADIUS = ([0-9.]+);/)?.[1]);
 const qpuAbutmentHeight = Number(source.match(/const QPU_ABUTMENT_HEIGHT = ([0-9.]+);/)?.[1]);
 assert.ok(fieldHeaterHalfLength >= 0.9, "Field heater must retain its authored thermal-land span");
+// Field possessed-heater contract: the heat gradient anchors the heater read
+// (white-hot firebox core -> amber glowing elements -> dark graphite steel
+// chassis), boot-camp construction grammar keeps it plant equipment, and the
+// symbiote nano-flux crawl integrates on the fixed-step simulation clock,
+// roughly doubling its cadence while the seal is docked.
+const fieldFrameColor = materialValue("fieldFrame", "color");
+assert.ok(
+  hexLuminance(fieldFrameColor) <= 78,
+  `Field heater chassis must stay dark graphite steel at the bottom of the heat gradient (${fieldFrameColor})`,
+);
+const fieldCoilEmissive = materialValue("fieldCoil", "emissive");
+assert.ok(
+  hexLuminance(fieldCoilEmissive) >= 120 && hexLuminance(fieldCoilEmissive) <= 230,
+  `Field heating elements must glow amber between chassis and core (${fieldCoilEmissive})`,
+);
+const fieldPacketColor = materialValue("fieldPacket", "color");
+assert.ok(
+  hexLuminance(fieldPacketColor) >= 225,
+  `Field flux packets and firebox must stay white-hot at the top of the heat gradient (${fieldPacketColor})`,
+);
+assert.ok(
+  hexLuminance(fieldPacketColor) > hexLuminance(fieldCoilEmissive) &&
+    hexLuminance(fieldCoilEmissive) > hexLuminance(fieldFrameColor),
+  "Field heat gradient must descend white-hot core -> amber elements -> dark steel",
+);
+for (const token of [
+  "field-steel-skid-frame",
+  "field-panel-seam",
+  "field-vent-stack",
+  "field-snow-drift-skirt",
+  "FIELD_PORTHOLE_WINDOWS",
+]) {
+  assert.ok(
+    source.includes(token),
+    `Field boot-camp construction grammar is missing ${JSON.stringify(token)}`,
+  );
+}
+const fieldSymbioteIdleRate = Number(source.match(/const FIELD_SYMBIOTE_IDLE_RATE = ([0-9.]+);/)?.[1]);
+const fieldSymbioteDockedRate = Number(source.match(/const FIELD_SYMBIOTE_DOCKED_RATE = ([0-9.]+);/)?.[1]);
+assert.ok(
+  fieldSymbioteIdleRate > 0 && fieldSymbioteDockedRate >= fieldSymbioteIdleRate * 1.8,
+  `Field symbiote crawl must roughly double its cadence at dock (${fieldSymbioteIdleRate} -> ${fieldSymbioteDockedRate})`,
+);
+assert.match(
+  source,
+  /simulationTime - symbiote\.simTime[\s\S]*symbiote\.crawl \+ crawlRate \* symbioteSimDelta/,
+  "Field symbiote must integrate against the fixed-step simulation clock",
+);
+assert.match(
+  source,
+  /reducedMotion\) \{[\s\S]*symbiote\.excite = 1;[\s\S]*FIELD_SYMBIOTE_REDUCED_CRAWL/,
+  "reduced motion must pin the possessed heater frozen but fully incandescent",
+);
+assert.match(
+  source,
+  /Math\.sin\(livingTime \* 0\.83 \+ index \* 2\.39\)[\s\S]*Math\.sin\(livingTime \* 1\.71 \+ index \* 1\.13\)/,
+  "Field flux packets must ride stacked incommensurate sinusoids, never a linear-mechanical march",
+);
 assert.ok(qpuAbutmentRadius <= 0.1, "QPU endpoint abutments must stay slender rather than reading as blocks");
 assert.ok(qpuAbutmentHeight <= 0.55, "QPU endpoint abutments must stay subordinate to the shell");
+// QPU coherent-crystal-causeway contract: a boundary-safe catenary crest on the
+// glass deck, crystal pylon clusters at both abutments, and bidirectional
+// signal traffic that integrates on the fixed-step simulation clock and
+// roughly doubles its cadence at dock.
+const qpuCrestBoost = Number(source.match(/const QPU_CREST_BOOST = ([0-9.]+);/)?.[1]);
+assert.ok(
+  qpuCrestBoost >= 0.25 && qpuCrestBoost <= 0.5,
+  `QPU deck crest must keep a dramatic yet bounded catenary arc (${qpuCrestBoost})`,
+);
+assert.match(
+  source,
+  /function qpuCrestLift[\s\S]*QPU_CREST_BOOST \* \(1 - normalizedX \* normalizedX\)/,
+  "QPU crest must depend only on the normalized span position so construction-band boundaries stay closed",
+);
+assert.match(
+  source,
+  /qpu-crystal-pylon-cluster/,
+  "QPU abutments must carry clustered faceted crystal pylons",
+);
+const qpuTrafficIdleRate = Number(source.match(/const QPU_TRAFFIC_IDLE_RATE = ([0-9.]+);/)?.[1]);
+const qpuTrafficDockedRate = Number(source.match(/const QPU_TRAFFIC_DOCKED_RATE = ([0-9.]+);/)?.[1]);
+assert.ok(
+  qpuTrafficIdleRate > 0 && qpuTrafficDockedRate >= qpuTrafficIdleRate * 1.8,
+  `QPU docked signal traffic must run at roughly double the idle cadence (${qpuTrafficIdleRate} -> ${qpuTrafficDockedRate})`,
+);
+assert.match(
+  source,
+  /simulationTime - traffic\.simTime[\s\S]*traffic\.phase \+ trafficRate \* trafficSimDelta/,
+  "QPU signal traffic must integrate against the fixed-step simulation clock",
+);
+assert.match(
+  source,
+  /reducedMotion[\s\S]*\(index \+ 0\.5\) \/ QPU_PULSE_COUNT/,
+  "reduced motion must pin QPU pulses to a static standing-wave node pattern",
+);
 
 assert.match(
   source,

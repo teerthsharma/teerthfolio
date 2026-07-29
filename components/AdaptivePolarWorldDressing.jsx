@@ -25,6 +25,180 @@ export const STATION_DRESSING_BAND_POLICY = Object.freeze({
   "s2-kernel-core": Object.freeze({ expeditionObjects: false, sastrugi: false }),
 });
 
+export const HORIZON_THEATRE_PROFILE =
+  "bruno-style horizon theatre: instanced parallax ice-ridge silhouettes ringing the world beyond the playable radius";
+/** Layers rendered per quality tier; low keeps one static far ring. */
+export const HORIZON_THEATRE_POLICY = Object.freeze({ low: 1, medium: 2, high: 3 });
+/**
+ * Distant landform rings. Far rings sit deeper, scale bigger, and read hazier
+ * (atmospheric perspective); follow factors < 1 give slow deterministic
+ * parallax as the traveler crosses the playable field. All radii sit outside
+ * the ~30-unit playable radius at spawn and inside the 44-unit sky shell.
+ */
+export const HORIZON_THEATRE_LAYERS = Object.freeze([
+  Object.freeze({
+    id: "far",
+    radius: 40.5,
+    jitter: 2.4,
+    count: 26,
+    follow: 0.965,
+    drift: 0.0016,
+    baseY: -2.2,
+    haze: [0.62, 0.78],
+    width: [7.2, 11.5],
+    height: [4.6, 7.4],
+  }),
+  Object.freeze({
+    id: "mid",
+    radius: 36,
+    jitter: 2.1,
+    count: 19,
+    follow: 0.9,
+    drift: -0.0011,
+    baseY: -1.9,
+    haze: [0.44, 0.58],
+    width: [5.2, 8.4],
+    height: [3.1, 5.2],
+  }),
+  Object.freeze({
+    id: "near",
+    radius: 32,
+    jitter: 1.8,
+    count: 13,
+    follow: 0.82,
+    drift: 0.0007,
+    baseY: -1.7,
+    haze: [0.26, 0.4],
+    width: [3.6, 6.2],
+    height: [2.0, 3.6],
+  }),
+]);
+
+const HORIZON_VERTEX_SHADER = `
+  varying vec3 vInstanceColor;
+  varying float vCrest;
+  varying vec3 vWorldPosition;
+
+  void main() {
+    vec4 localPosition = vec4(position, 1.0);
+    #ifdef USE_INSTANCING
+      localPosition = instanceMatrix * localPosition;
+    #endif
+    vec4 worldPosition = modelMatrix * localPosition;
+    #ifdef USE_INSTANCING_COLOR
+      vInstanceColor = instanceColor;
+    #else
+      vInstanceColor = vec3(0.55, 0.60, 0.74);
+    #endif
+    vCrest = clamp(position.y, 0.0, 1.0);
+    vWorldPosition = worldPosition.xyz;
+    gl_Position = projectionMatrix * viewMatrix * worldPosition;
+  }
+`;
+
+const HORIZON_FRAGMENT_SHADER = `
+  uniform vec2 uTravelerXZ;
+  varying vec3 vInstanceColor;
+  varying float vCrest;
+  varying vec3 vWorldPosition;
+
+  void main() {
+    vec3 hazeColor = vec3(0.740, 0.778, 0.882);
+    // Base color already carries the layer haze mix; the skirt dissolves
+    // further into the horizon haze so bergs never cut a hard ground line.
+    vec3 color = mix(vInstanceColor, hazeColor, (1.0 - vCrest) * 0.42);
+    vec2 toBerg = normalize(vWorldPosition.xz - uTravelerXZ);
+    vec2 sunXZ = normalize(vec2(0.904, -0.426));
+    float sunSide = clamp(dot(toBerg, sunXZ), 0.0, 1.0);
+    float rim = pow(sunSide, 3.0) * smoothstep(0.35, 0.95, vCrest);
+    color += vec3(0.910, 0.608, 0.373) * rim * 0.16;
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+function horizonSeeded(index, salt) {
+  const value = Math.sin((index + 1) * (12.9898 + salt * 37.719)) * 43758.5453123;
+  return value - Math.floor(value);
+}
+
+/** One deterministic jagged pressure-ridge/berg profile shared by every ring. */
+function createHorizonSilhouetteGeometry() {
+  const crest = [
+    [-1.0, 0.0],
+    [-0.85, 0.42],
+    [-0.62, 0.3],
+    [-0.52, 0.68],
+    [-0.3, 0.72],
+    [-0.22, 0.5],
+    [-0.05, 0.55],
+    [0.02, 0.95],
+    [0.18, 0.98],
+    [0.3, 0.62],
+    [0.48, 0.66],
+    [0.62, 0.35],
+    [0.78, 0.45],
+    [1.0, 0.0],
+  ];
+  const shape = new THREE.Shape();
+  shape.moveTo(crest[0][0], crest[0][1]);
+  for (let index = 1; index < crest.length; index += 1) {
+    shape.lineTo(crest[index][0], crest[index][1]);
+  }
+  shape.lineTo(1.0, -0.25);
+  shape.lineTo(-1.0, -0.25);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    bevelEnabled: false,
+    depth: 0.3,
+    steps: 1,
+  });
+  geometry.translate(0, 0, -0.15);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function populateHorizonLayer(mesh, layer, layerIndex, hazeBoost = 0) {
+  if (!mesh || !layer) return;
+  const transform = new THREE.Object3D();
+  const color = new THREE.Color();
+  const indigo = new THREE.Color("#8290AE");
+  const violet = new THREE.Color("#8A8FB5");
+  const hazeTint = new THREE.Color("#C2CBE2");
+  for (let index = 0; index < layer.count; index += 1) {
+    const seedA = horizonSeeded(index, layerIndex * 7.31 + 1.7);
+    const seedB = horizonSeeded(index, layerIndex * 3.97 + 9.2);
+    const seedC = horizonSeeded(index, layerIndex * 5.53 + 4.4);
+    const angle =
+      ((index + (seedA - 0.5) * 0.82) / layer.count) * Math.PI * 2 +
+      layerIndex * 0.9;
+    const radius = layer.radius + (seedB - 0.5) * 2 * layer.jitter;
+    const width = layer.width[0] + seedA * (layer.width[1] - layer.width[0]);
+    const height = layer.height[0] + seedC * (layer.height[1] - layer.height[0]);
+    const mirror = seedB > 0.5 ? 1 : -1;
+    transform.position.set(
+      Math.cos(angle) * radius,
+      layer.baseY,
+      Math.sin(angle) * radius,
+    );
+    transform.rotation.set(0, -angle - Math.PI / 2 + (seedC - 0.5) * 0.5, 0);
+    transform.scale.set(width * mirror, height, Math.max(width * 0.16, 1.1));
+    transform.updateMatrix();
+    mesh.setMatrixAt(index, transform.matrix);
+    const hazeMix = Math.min(
+      1,
+      layer.haze[0] + seedB * (layer.haze[1] - layer.haze[0]) + hazeBoost,
+    );
+    color.copy(indigo).lerp(violet, seedC).lerp(hazeTint, hazeMix);
+    mesh.setColorAt(index, color);
+  }
+  mesh.count = layer.count;
+  mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.computeBoundingSphere();
+}
+
 const VERTEX_SHADER = `
   attribute float instanceMorphology;
   varying vec3 vInstanceColor;
@@ -61,7 +235,7 @@ const VERTEX_SHADER = `
     #ifdef USE_INSTANCING_COLOR
       vInstanceColor = instanceColor;
     #else
-      vInstanceColor = vec3(0.72, 0.88, 0.90);
+      vInstanceColor = vec3(0.42, 0.52, 0.64);
     #endif
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
@@ -93,12 +267,18 @@ const FRAGMENT_SHADER = `
     float contourWidth = max(fwidth(contourDistance), 0.012);
     float frostStratum = 1.0 - smoothstep(0.40 - contourWidth, 0.49, contourDistance);
     float slowGlint = 0.5 + 0.5 * sin(uTime * 0.32 + vLocalPosition.x * 2.1 + vLocalPosition.z * 1.7);
-    vec3 frost = vec3(0.955, 0.985, 0.965);
+    vec3 frost = vec3(0.62, 0.72, 0.84);
     vec3 color = vInstanceColor * (${WORLD_DRESSING_COLOR_PROFILE.ambientFloor.toFixed(2)} + toonDiffuse * 0.28);
     color = mix(color, frost, frostStratum * 0.10 + fresnel * 0.22);
+    // Cairn signal ring: the torus/lens crown sits near y=1.0 in cairn local
+    // space, so a height band isolates it without a second draw or attribute.
+    float signalRingBand = smoothstep(0.86, 0.98, vLocalPosition.y)
+      * (1.0 - smoothstep(1.24, 1.44, vLocalPosition.y));
+    float signalPulse = 0.5 + 0.5 * sin(uTime * 6.2831853 * 0.25 + vMorphology * 6.2831853);
+    color += vec3(0.42, 0.86, 0.80) * signalRingBand * signalPulse * 0.34;
     float terrainContact = 1.0 - smoothstep(0.0, 0.16, vLocalPosition.y);
-    color = mix(color, vec3(0.82, 0.91, 0.90), terrainContact * 0.04);
-    color += vec3(0.16, 0.31, 0.38) * fresnel * (0.05 + slowGlint * uMotion * 0.025);
+    color = mix(color, vec3(0.28, 0.36, 0.48), terrainContact * 0.04);
+    color += vec3(0.30, 0.44, 0.62) * fresnel * (0.05 + slowGlint * uMotion * 0.025);
     gl_FragColor = vec4(color, 1.0);
     #include <fog_fragment>
   }
@@ -119,7 +299,7 @@ function applyInstances(mesh, placements, band, allowedStationIds) {
   );
   const transform = new THREE.Object3D();
   const color = new THREE.Color();
-  const frost = new THREE.Color("#EAF8F1");
+  const frost = new THREE.Color("#A9C2DB");
   const morphology = new Float32Array(visiblePlacements.length);
   const bandMix =
     band === "near"
@@ -161,6 +341,7 @@ export default function AdaptivePolarWorldDressing({
   const near = useRef(null);
   const mid = useRef(null);
   const far = useRef(null);
+  const horizonRings = useRef([null, null, null]);
   const ownershipScratch = useRef({
     blend: { entries: [{}, {}], primary: null, secondary: null },
     visibleStationIds: [],
@@ -175,7 +356,22 @@ export default function AdaptivePolarWorldDressing({
   const lowQuality = quality === "low";
   const localPolicy =
     LOCAL_WORLD_DRESSING_POLICY[quality] || LOCAL_WORLD_DRESSING_POLICY.medium;
+  const horizonLayerCount =
+    HORIZON_THEATRE_POLICY[quality] ?? HORIZON_THEATRE_POLICY.medium;
   const geometries = useMemo(() => createWorldDressingGeometries(), []);
+  const horizonGeometry = useMemo(() => createHorizonSilhouetteGeometry(), []);
+  const horizonMaterial = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        fragmentShader: HORIZON_FRAGMENT_SHADER,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+        uniforms: { uTravelerXZ: { value: new THREE.Vector2() } },
+        vertexColors: true,
+        vertexShader: HORIZON_VERTEX_SHADER,
+      }),
+    [],
+  );
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -202,14 +398,30 @@ export default function AdaptivePolarWorldDressing({
     visibleOwnershipKey.current = "";
   }, [layout]);
 
+  useLayoutEffect(() => {
+    // Low tier keeps one static far ring and dissolves it further into haze so
+    // the pixel-graded low pipeline never trades horizon depth for luminance.
+    const hazeBoost = lowQuality ? 0.24 : 0;
+    for (let index = 0; index < horizonLayerCount; index += 1) {
+      populateHorizonLayer(
+        horizonRings.current[index],
+        HORIZON_THEATRE_LAYERS[index],
+        index,
+        hazeBoost,
+      );
+    }
+  }, [horizonLayerCount, lowQuality]);
+
   useEffect(
     () => () => {
       geometries.near.dispose();
       geometries.mid.dispose();
       geometries.far.dispose();
       material.dispose();
+      horizonGeometry.dispose();
+      horizonMaterial.dispose();
     },
-    [geometries, material],
+    [geometries, horizonGeometry, horizonMaterial, material],
   );
 
   useFrame(({ clock }) => {
@@ -249,6 +461,29 @@ export default function AdaptivePolarWorldDressing({
     material.uniforms.uMotion.value = reducedMotion
       ? 0
       : THREE.MathUtils.clamp(speed / 5.8, 0, 1);
+    // Tiny far-berg wobble: a whole-pool yaw breath, so the horizon band is
+    // never perfectly still. No instance rewrite, no extra draw.
+    if (far.current) {
+      far.current.rotation.y = reducedMotion
+        ? 0
+        : Math.sin(clock.elapsedTime * 0.21) * 0.01;
+    }
+    const horizonDriftTime = reducedMotion || lowQuality ? 0 : clock.elapsedTime;
+    horizonMaterial.uniforms.uTravelerXZ.value.set(
+      positionScratch.current[0],
+      positionScratch.current[1],
+    );
+    for (let index = 0; index < horizonLayerCount; index += 1) {
+      const ring = horizonRings.current[index];
+      const layer = HORIZON_THEATRE_LAYERS[index];
+      if (!ring || !layer) continue;
+      ring.position.set(
+        positionScratch.current[0] * layer.follow,
+        0,
+        positionScratch.current[1] * layer.follow,
+      );
+      ring.rotation.y = horizonDriftTime * layer.drift;
+    }
   });
 
   return (
@@ -259,12 +494,28 @@ export default function AdaptivePolarWorldDressing({
         drawCalls: budget.drawCalls,
         localWorldDrawCalls: localPolicy.drawCalls,
         farObjects: budget.far,
+        horizonLayers: horizonLayerCount,
         midObjects: budget.mid,
         nearObjects: budget.near,
         totalObjects: budget.total,
         stationCount: STATION_WORLD_SCHEMA.order.length,
       }}
     >
+      {HORIZON_THEATRE_LAYERS.slice(0, horizonLayerCount).map((layer, index) => (
+        <instancedMesh
+          args={[horizonGeometry, horizonMaterial, layer.count]}
+          castShadow={false}
+          frustumCulled={false}
+          geometry={horizonGeometry}
+          key={layer.id}
+          material={horizonMaterial}
+          name={`horizon-theatre-${layer.id}-berg-ring`}
+          receiveShadow={false}
+          ref={(node) => {
+            horizonRings.current[index] = node;
+          }}
+        />
+      ))}
       <instancedMesh
         castShadow={false}
         frustumCulled

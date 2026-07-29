@@ -10,8 +10,8 @@ export const TERRAIN_CHUNK_COUNT = 7;
 export const TERRAIN_RENDER_NOTE = "recursive Antarctic floor material tile";
 export const CLEAN_POLAR_SURFACE_PROFILE = "uplifting clean polar ice, soft blue-violet shadows, texture subordinate to stations";
 export const ANIME_TERRAIN_SHADER_PROFILE =
-  "three-band anime snow on one memoized 4-pixel toon ramp: #F6F1E7 cream, #BCDCE2 cyan, #9EB2C5 lavender shadow";
-export const TERRAIN_MATERIAL_COLOR = POLAR_PALETTE.polarIvory;
+  "three-band anime snow on one memoized 4-pixel toon ramp: #F2D3A8 warm bounce, #68829E dusk cyan, #3E4A64 night shadow";
+export const TERRAIN_MATERIAL_COLOR = POLAR_PALETTE.glacierWhite;
 
 const SNOW_PBR = {
   map: "/assets/pbr/ground/cloudy-veined-quartz-light-bl/cloudy-veined-quartz-light_albedo.png",
@@ -50,10 +50,10 @@ function useTerrainMaps() {
 function useAnimeGradientMap() {
   return useMemo(() => {
     const data = new Uint8Array([
-      158, 178, 197, 255,
-      188, 220, 226, 255,
-      188, 220, 226, 255,
-      246, 241, 231, 255,
+      62, 74, 100, 255,
+      104, 130, 158, 255,
+      104, 130, 158, 255,
+      242, 211, 168, 255,
     ]);
     const texture = new THREE.DataTexture(data, 4, 1, THREE.RGBAFormat);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -130,7 +130,7 @@ export default function IglooTerrain({ axisX = 0, depthZ = 0, quality = "medium"
   const mountainMaterial = useMemo(
     () =>
       new THREE.MeshToonMaterial({
-        color: "#A6D7E4",
+        color: "#4A6484",
         emissive: POLAR_PALETTE.animeShadow,
         emissiveIntensity: 0.025,
         gradientMap,

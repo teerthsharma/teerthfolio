@@ -20,25 +20,103 @@ import {
 export const NORTHEAST_MECHANISM_RENDER_PROFILE =
   "four authored northeast monuments; three bounded architectural instance pools each; shared wrapped-light program; zero textures";
 export const S2_CRYOGENIC_LAB_PROFILE =
-  "long cobalt/CERN Penning-trap cryogenic laboratory chamber: cobalt shell, machined pale metal, bright cyan diagnostics and diagnostic rails, coils, calibration collars, and cobalt/cyan axial halo";
+  "rotating kernel-citadel evolution of the CERN Penning-trap cryogenic laboratory: faceted cobalt shell rotor drum with six cache blades, machined pale metal plinth and tiered crown, bright cyan diagnostics gate with static coil pylons, calibration collars, and a slow ceremonial spin under the cobalt/cyan axial halo";
 export const AETHER_ABYSS_PROFILE =
-  "abyss-blue primordial sanctuary: readable deep-ocean holder, one golden seed, golden deterministic motes, and restrained caustic arcs";
+  "caged-star reliquary in abyss-blue: dark thick shield hemispheres eclipse one small blinding golden seed, golden deterministic motes ride violet orbital caustic arcs above a grounded plinth";
 export const FIELD_THERMAL_FORGE_PROFILE =
-  "graphite thermal land with copper opposed coils and a large orange-white plasma heater below it, contained plasma, and a living heat shimmer";
+  "possessed polar plant heater: graphite steel skid chassis with panel-clad control housing and ember portholes, copper-amber helical heating elements at temperature over a reflector trough, one orange-white plasma firebox heart, a nano-particle symbiote flux crawling the elements, and a living heat shimmer";
 export const QPU_ALIEN_COHERENCE_PROFILE =
-  "continuous sampled Riemann-manifold ice pavilion: alien jade dock band, iridescent cyan contiguous floor shell and ribs, slender abutments, and a coherence verification beam";
+  "coherent crystal causeway evolution of the continuous sampled Riemann-manifold ice pavilion: alien jade dock band, catenary-crested translucent glass deck as the iridescent cyan contiguous floor shell and ribs in dark teal metal, clustered crystal pylons over both slender abutments, bidirectional interfering mint signal traffic, and a coherence verification beam";
 
 const TWO_PI = Math.PI * 2;
+// Antarctic boot-camp construction grammar. One contractor built this camp:
+// every station shares the same graphite steel structure, the same thin coral
+// safety trim, and the same ember window glass. Only the cladding family
+// changes per station (two close values so panels read as panels), and the
+// saturated identity color is reserved for that station's signature mechanism
+// - the rotor beacon, the caged seed, the signal pulses, the heating elements.
+// Painted per-vertex into the merged frame geometry, so a station shows four
+// distinct material zones inside its single existing draw call.
+const STATION_PALETTE = Object.freeze({
+  aetherCladding: "#5F6B87",
+  aetherCladdingAlt: "#6D7994",
+  drift: "#DCE6EF",
+  fieldCladding: "#59667A",
+  fieldCladdingAlt: "#65718A",
+  qpuCladding: "#5A7A79",
+  qpuCladdingAlt: "#68898A",
+  qpuGlass: "#2EC9B4",
+  s2Cladding: "#63758C",
+  s2CladdingAlt: "#71829B",
+  steel: "#2A3140",
+  trim: "#E8705E",
+  window: "#F2B96B",
+});
+// Bodies are lit, never lamps: every frame pool's emissive stays under this so
+// the signature mechanism is always the brightest thing on the station.
+const BODY_EMISSIVE_CEILING = 0.06;
+// The one place S2 is allowed to be saturated cobalt: the superconducting
+// diagnostics ring that its proof bit threads through.
+const S2_IDENTITY_COBALT = "#3E63D8";
 const S2_KERNEL_SHELL_GAP = 0.25;
 const S2_DIAGNOSTIC_HALF_SPAN = 1.72;
-const AETHER_DOMINANT_SEED_RADIUS = 0.34;
+const S2_PORT_RAIL_Z = 1.08;
+const S2_CROWN_BEACON_Y = 1.18;
+const S2_CROWN_COUNTER_RATE = 0.62;
+const S2_ROTOR_IDLE_RATE = 0.08;
+const S2_ROTOR_DOCKED_RATE = 0.65;
+const S2_ROTOR_SPIN_RESPONSE = 0.45;
+const S2_ROTOR_REDUCED_ANGLE = 0.75;
+const AETHER_DOMINANT_SEED_RADIUS = 0.22;
+const AETHER_SEED_CORE_RADIUS = 0.13;
+const AETHER_SEED_HEIGHT = 0.46;
+const AETHER_SHIELD_RADIUS = 0.74;
+// Local-space bearing of the visitor dock (world dock [9.55, 14.33] from
+// station center [8, 12], unrotated by the authored -27 degree station yaw).
+const AETHER_DOCK_YAW = 1.06;
+const AETHER_ORBITAL_TILT = 0.34;
+const AETHER_ORBITAL_RADIUS = 1.3;
+// [radius, inclination, gapYaw, sweep, tube, planeYaw]
+const AETHER_ORBITAL_ARCS = Object.freeze([
+  Object.freeze([AETHER_ORBITAL_RADIUS, AETHER_ORBITAL_TILT, 0.5, 5.1, 0.016, 0]),
+  Object.freeze([1.42, -0.24, 2.6, 4.6, 0.013, 1.15]),
+  Object.freeze([1.16, 0.52, 4.3, 4.2, 0.013, 2.3]),
+]);
 const FIELD_HEATER_HALF_LENGTH = 0.92;
+const FIELD_ELEMENT_AXIS_Y = 0.32;
+const FIELD_ELEMENT_RADIUS = 0.3;
+const FIELD_ELEMENT_TURNS = 4.25;
+// Symbiote possession cadence: idle nano-flux crawl, roughly doubled at dock,
+// with a spring response mirroring the S2 rotor pattern.
+const FIELD_SYMBIOTE_IDLE_RATE = 0.11;
+const FIELD_SYMBIOTE_DOCKED_RATE = 0.24;
+const FIELD_SYMBIOTE_RESPONSE = 0.5;
+const FIELD_SYMBIOTE_REDUCED_CRAWL = 0.37;
+const FIELD_SYMBIOTE_REDUCED_PULSE = 1.35;
+const FIELD_HEARTBEAT_IDLE_RATE = 2.1;
+const FIELD_HEARTBEAT_DOCKED_RATE = 4;
+// Two ember porthole windows on the dock-facing control-housing wall.
+const FIELD_PORTHOLE_WINDOWS = Object.freeze([
+  Object.freeze([1.13, 0, 0.34]),
+  Object.freeze([1.39, 0, 0.34]),
+]);
 const QPU_BRIDGE_HALF_SPAN = QPU_MANIFOLD_LAYOUT.halfSpan;
 const QPU_ABUTMENT_RADIUS = 0.09;
 const QPU_ABUTMENT_HEIGHT = 0.52;
 const QPU_MANIFOLD_SLICE_COUNT = QPU_MANIFOLD_LAYOUT.sliceCount;
 const QPU_SIGNAL_BASE_LENGTH = 0.43;
 const QPU_INVERSE_BRIDGE_LIFT = 0.58;
+// Shared-library span arch coefficient mirrored for instance placement, plus a
+// component-space catenary crest so the causeway reads as a true high arc.
+const QPU_DECK_ARCH = 0.34;
+const QPU_CREST_BOOST = 0.36;
+const QPU_FRAME_SCALE = 1.08;
+// Bidirectional signal traffic: pulses per lane pair, plus one verification beam.
+const QPU_PULSE_COUNT = 10;
+const QPU_SIGNAL_POOL_SIZE = QPU_PULSE_COUNT + 1;
+const QPU_TRAFFIC_IDLE_RATE = 0.16;
+const QPU_TRAFFIC_DOCKED_RATE = 0.34;
+const QPU_TRAFFIC_RESPONSE = 0.6;
 const REDUCED_MOTION_SHADER_TIME = 0.75;
 const EMPTY_RENDER_RESOURCES = Object.freeze({
   geometries: Object.freeze({}),
@@ -60,6 +138,22 @@ const STATION_TRANSFORMS = Object.freeze(
     }),
   ),
 );
+
+/**
+ * Lowest authored local-space Y of each grounded monument base, measured from
+ * the geometry builders (base cylinder center y minus half height):
+ * s2 cryostat plinth -0.58 - 0.11, aether sanctuary plinth -0.57 - 0.09,
+ * field heater skid rails -0.59 - 0.05 (its windward drift skirt intentionally
+ * dips below the skid contact plane so it reads as buried snow load, and must
+ * not move the contact value). qpu-ice-bridge floats by design
+ * (QPU_INVERSE_BRIDGE_LIFT) and is intentionally absent so docking never
+ * shifts its root Y.
+ */
+const STATION_LOWEST_LOCAL_Y = Object.freeze({
+  "field-chamber-coils": -0.64,
+  "manifold-reactor": -0.66,
+  "s2-kernel-core": -0.69,
+});
 
 const QUALITY_GEOMETRY = Object.freeze({
   high: Object.freeze({ bevel: 3, cap: 8, curve: 96, radial: 10, round: 32 }),
@@ -99,7 +193,26 @@ function bakeGeometry(
   return baked;
 }
 
-function mergeParts(parts, name) {
+// Paint one merged-geometry part with a construction-grammar color. The frame
+// materials read this as vertex color, so steel, cladding, coral trim, and
+// ember glass coexist inside one instanced draw call.
+function paint(geometry, hex) {
+  const color = new THREE.Color(hex);
+  const count = geometry.getAttribute("position").count;
+  const colors = new Float32Array(count * 3);
+  for (let index = 0; index < count; index += 1) {
+    colors[index * 3] = color.r;
+    colors[index * 3 + 1] = color.g;
+    colors[index * 3 + 2] = color.b;
+  }
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  return geometry;
+}
+
+function mergeParts(parts, name, defaultColor = "#FFFFFF") {
+  for (const part of parts) {
+    if (!part.getAttribute("color")) paint(part, defaultColor);
+  }
   const geometry = mergeGeometries(parts, false);
   for (const part of parts) part.dispose();
   if (!geometry) throw new Error(`Unable to merge northeast monument geometry: ${name}`);
@@ -144,6 +257,25 @@ function cylinderPart(
   );
 }
 
+function facetedPart(
+  radiusTop,
+  radiusBottom,
+  height,
+  facets,
+  position,
+  rotation = [0, 0, 0],
+) {
+  const geometry = bakeGeometry(
+    new THREE.CylinderGeometry(radiusTop, radiusBottom, height, facets, 1, false),
+    { position, rotation },
+  );
+  // Flat per-face normals so the low-segment kernel drum reads as machined
+  // facets instead of a smooth anonymous cylinder.
+  geometry.deleteAttribute("normal");
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 function torusPart(
   policy,
   radius,
@@ -181,59 +313,129 @@ function tubePart(policy, curve, radius, name, closed = false) {
 
 function createS2AntimatterCryostatGeometry(quality) {
   const policy = geometryPolicy(quality);
+  const facets = quality === "low" ? 6 : 7;
   const parts = [
-    cylinderPart(policy, 1.46, 1.62, 0.22, [0, -0.58, 0], [0, 0, 0], [1.28, 1, 0.74]),
-    cylinderPart(policy, 1.18, 1.3, 0.1, [0, -0.43, 0], [0, 0, 0], [1.32, 1, 0.72]),
-    torusPart(policy, 1.14, 0.065, [0, -0.36, 0], [Math.PI / 2, 0, 0], [1.32, 1, 0.72]),
-    cylinderPart(policy, 0.3, 0.36, 2.9, [0, 0.08, 0], [0, 0, Math.PI / 2]),
-    cylinderPart(policy, 0.44, 0.44, 0.24, [-1.54, 0.08, 0], [0, 0, Math.PI / 2]),
-    cylinderPart(policy, 0.44, 0.44, 0.24, [1.54, 0.08, 0], [0, 0, Math.PI / 2]),
-    roundedPart(policy, [3.42, 0.12, 0.2], [0, -0.33, 0.5], [0, 0, 0], 0.045),
-    roundedPart(policy, [3.42, 0.12, 0.2], [0, -0.33, -0.5], [0, 0, 0], 0.045),
+    // Kernel-citadel rotor. Every non-bladed part below is a surface of
+    // revolution, so spinning the single merged frame instance about Y reads
+    // as the citadel turning on a stationary circular plinth. Structure is
+    // shared graphite steel; only the drum and blade cladding carries the
+    // station's own (desaturated) blue-grey family.
+    paint(cylinderPart(policy, 1.42, 1.58, 0.22, [0, -0.58, 0]), STATION_PALETTE.steel),
+    paint(cylinderPart(policy, 1.06, 1.24, 0.16, [0, -0.42, 0]), STATION_PALETTE.steel),
+    // deck-edge safety trim ring
+    paint(
+      torusPart(policy, 1.14, 0.05, [0, -0.34, 0], [Math.PI / 2, 0, 0]),
+      STATION_PALETTE.trim,
+    ),
+    paint(cylinderPart(policy, 0.54, 0.68, 0.2, [0, -0.26, 0]), STATION_PALETTE.steel),
+    // faceted kernel core drum
+    paint(facetedPart(0.72, 0.84, 0.66, facets, [0, 0.17, 0]), STATION_PALETTE.s2Cladding),
+    paint(cylinderPart(policy, 0.56, 0.66, 0.12, [0, 0.54, 0]), STATION_PALETTE.steel),
+    // tiered crown drums and finial mast
+    paint(
+      facetedPart(0.4, 0.5, 0.28, facets, [0, 0.73, 0], [0, Math.PI / facets, 0]),
+      STATION_PALETTE.s2CladdingAlt,
+    ),
+    paint(facetedPart(0.16, 0.28, 0.18, facets, [0, 0.96, 0]), STATION_PALETTE.s2Cladding),
+    paint(cylinderPart(policy, 0.05, 0.1, 0.1, [0, 1.08, 0]), STATION_PALETTE.steel),
   ];
-  for (const x of [-1.5, 1.5]) {
-    for (const z of [-0.5, 0.5]) {
-      parts.push(
-        roundedPart(policy, [0.18, 0.78, 0.22], [x, -0.02, z], [0, 0, x * -0.035], 0.05),
-        cylinderPart(policy, 0.105, 0.125, 0.18, [x, 0.42, z]),
-      );
-    }
-  }
-  const axialRails = [
-    roundedPart(policy, [3.68, 0.055, 0.075], [0, -0.5, 0.31], [0, 0, 0], 0.02),
-    roundedPart(policy, [3.68, 0.055, 0.075], [0, -0.5, -0.31], [0, 0, 0], 0.02),
-  ];
-  for (const rail of axialRails) rail.name = "s2-machined-axial-rails";
-  parts.push(...axialRails);
-  const calibrationCollars = [-1.44, -0.96, -0.48, 0, 0.48, 0.96, 1.44].map((x) => {
-    const collar = torusPart(
-      policy,
-      0.34,
-      0.014,
-      [x, 0.08, 0],
-      [0, Math.PI / 2, 0],
-      [1, 1.06, 1],
+  // Proud horizontal seam band splitting the drum into two panel courses: a
+  // real geometric step, not a shader stripe, so the seam survives distance.
+  const drumSeam = torusPart(policy, 0.79, 0.022, [0, 0.06, 0], [Math.PI / 2, 0, 0]);
+  drumSeam.name = "s2-panel-seam";
+  parts.push(paint(drumSeam, STATION_PALETTE.steel));
+  for (let index = 0; index < 6; index += 1) {
+    const angle = (index / 6) * TWO_PI;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    parts.push(
+      paint(
+        roundedPart(
+          policy,
+          [0.84, 0.52, 0.1],
+          [cos * 0.92, 0.18, sin * 0.92],
+          [0, -angle, 0],
+          0.04,
+        ),
+        STATION_PALETTE.s2CladdingAlt,
+      ),
     );
+    const rail = roundedPart(
+      policy,
+      [0.06, 0.62, 0.07],
+      [cos * 1.3, 0.18, sin * 1.3],
+      [0, -angle, 0],
+      0.02,
+    );
+    rail.name = "s2-machined-axial-rails";
+    parts.push(paint(rail, STATION_PALETTE.steel));
+    const crownAngle = angle + Math.PI / 6;
+    parts.push(
+      paint(
+        roundedPart(
+          policy,
+          [0.36, 0.2, 0.07],
+          [Math.cos(crownAngle) * 0.54, 0.72, Math.sin(crownAngle) * 0.54],
+          [0, -crownAngle, 0],
+          0.025,
+        ),
+        STATION_PALETTE.steel,
+      ),
+    );
+  }
+  // Three ember windows and three proud steel panel seams alternate around the
+  // drum between the cache blades: life inside the cold, and panels that read
+  // as panels while the citadel turns.
+  for (let index = 0; index < 3; index += 1) {
+    const windowAngle = (index / 3) * TWO_PI + Math.PI / 6;
+    const emberWindow = roundedPart(
+      policy,
+      [0.05, 0.15, 0.24],
+      [Math.cos(windowAngle) * 0.8, 0.3, Math.sin(windowAngle) * 0.8],
+      [0, -windowAngle, 0],
+      0.02,
+    );
+    emberWindow.name = "s2-ember-window";
+    parts.push(paint(emberWindow, STATION_PALETTE.window));
+    const seamAngle = windowAngle + Math.PI / 3;
+    const seam = roundedPart(
+      policy,
+      [0.05, 0.6, 0.05],
+      [Math.cos(seamAngle) * 0.79, 0.17, Math.sin(seamAngle) * 0.79],
+      [0, -seamAngle, 0],
+      0.015,
+    );
+    seam.name = "s2-panel-seam";
+    parts.push(paint(seam, STATION_PALETTE.steel));
+  }
+  for (const [ringRadius, ringY] of [
+    [0.7, 0.6],
+    [0.42, 0.89],
+  ]) {
+    const collar = torusPart(policy, ringRadius, 0.035, [0, ringY, 0], [Math.PI / 2, 0, 0]);
     collar.name = "s2-calibration-collars";
-    return collar;
-  });
-  parts.push(...calibrationCollars);
-  return mergeParts(parts, "s2-cern-antimatter-cryostat");
+    parts.push(paint(collar, STATION_PALETTE.trim));
+  }
+  return mergeParts(parts, "s2-cern-antimatter-cryostat", STATION_PALETTE.s2Cladding);
 }
 
 function createS2PenningTrapCoilGeometry(quality) {
   const policy = geometryPolicy(quality);
-  const parts = [];
-  for (const x of [-0.13, 0.13]) {
-    parts.push(
-      torusPart(policy, 0.43, 0.07, [x, 0, 0], [0, Math.PI / 2, 0], [1, 1.08, 1]),
-    );
-  }
-  parts.push(
-    roundedPart(policy, [0.38, 0.08, 1.02], [0, 0.5, 0], [0, 0, 0], 0.03),
-    roundedPart(policy, [0.38, 0.08, 1.02], [0, -0.5, 0], [0, 0, 0], 0.03),
-  );
-  return mergeParts(parts, "s2-penning-trap-superconducting-coil-rings");
+  // Static port-side diagnostic-gate pylon: a grounded pedestal carrying one
+  // vertical superconducting coil ring the proof bit threads through.
+  // Shared graphite steel pedestal and mast; the saturated cobalt is spent
+  // only on the superconducting ring itself, with one coral collar of trim.
+  const parts = [
+    paint(cylinderPart(policy, 0.11, 0.16, 0.3, [0, -0.54, 0]), STATION_PALETTE.steel),
+    paint(torusPart(policy, 0.14, 0.02, [0, -0.4, 0], [Math.PI / 2, 0, 0]), STATION_PALETTE.trim),
+    paint(cylinderPart(policy, 0.07, 0.09, 0.34, [0, -0.24, 0]), STATION_PALETTE.steel),
+    paint(
+      torusPart(policy, 0.3, 0.05, [0, 0.05, 0], [0, Math.PI / 2, 0], [1, 1.06, 1]),
+      S2_IDENTITY_COBALT,
+    ),
+    paint(cylinderPart(policy, 0.045, 0.06, 0.14, [0, 0.42, 0]), STATION_PALETTE.steel),
+  ];
+  return mergeParts(parts, "s2-penning-trap-superconducting-coil-rings", STATION_PALETTE.steel);
 }
 
 function createS2DiagnosticBeamlineGeometry(quality) {
@@ -253,42 +455,119 @@ function createS2DiagnosticBeamlineGeometry(quality) {
 function createAetherPrimordialSanctuaryGeometry(quality) {
   const policy = geometryPolicy(quality);
   const parts = [
-    cylinderPart(policy, 1.2, 1.32, 0.18, [0, -0.57, 0]),
-    cylinderPart(policy, 0.88, 1.02, 0.11, [0, -0.42, 0]),
-    torusPart(policy, 0.92, 0.06, [0, -0.35, 0], [Math.PI / 2, 0, 0]),
-    cylinderPart(policy, 0.29, 0.38, 0.22, [0, -0.24, 0]),
+    // Grounded reliquary dais: wide stepped rings with one rim-lit lip. The
+    // bottom face stays at -0.66 so STATION_LOWEST_LOCAL_Y remains accurate.
+    // Riser and stem are the shared graphite steel, the walkable step is the
+    // station's own desaturated indigo-slate cladding, and the lip is trim.
+    paint(cylinderPart(policy, 1.24, 1.38, 0.18, [0, -0.57, 0]), STATION_PALETTE.steel),
+    paint(
+      cylinderPart(policy, 0.94, 1.08, 0.12, [0, -0.43, 0]),
+      STATION_PALETTE.aetherCladding,
+    ),
+    paint(
+      torusPart(policy, 1.12, 0.045, [0, -0.36, 0], [Math.PI / 2, 0, 0]),
+      STATION_PALETTE.trim,
+    ),
+    // Pedestal stem and collar presenting the suspended seed cradle.
+    paint(cylinderPart(policy, 0.15, 0.3, 0.32, [0, -0.22, 0]), STATION_PALETTE.steel),
+    paint(
+      torusPart(policy, 0.19, 0.03, [0, -0.05, 0], [Math.PI / 2, 0, 0]),
+      STATION_PALETTE.aetherCladdingAlt,
+    ),
   ];
-  for (const [x, z, height] of [
-    [-0.72, -0.42, 0.92],
-    [0.72, -0.42, 0.92],
-    [-0.72, 0.42, 0.72],
-    [0.72, 0.42, 0.72],
-  ]) {
+  // Two ember portholes on the dock-facing riser, each between proud steel
+  // panel seams, so the dais reads as an inhabited plinth rather than a slab.
+  for (const [index, offset] of [[0, -0.62], [1, 0.62]]) {
+    const angle = AETHER_DOCK_YAW + offset;
+    const porthole = roundedPart(
+      policy,
+      [0.05, 0.11, 0.2],
+      [Math.sin(angle) * 1.26, -0.55, Math.cos(angle) * 1.26],
+      [0, angle - Math.PI / 2, 0],
+      0.02,
+    );
+    porthole.name = "aether-dais-porthole";
+    parts.push(paint(porthole, STATION_PALETTE.window));
+    const seamAngle = angle + (index === 0 ? -0.3 : 0.3);
+    const seam = roundedPart(
+      policy,
+      [0.05, 0.2, 0.05],
+      [Math.sin(seamAngle) * 1.28, -0.56, Math.cos(seamAngle) * 1.28],
+      [0, seamAngle - Math.PI / 2, 0],
+      0.015,
+    );
+    seam.name = "aether-panel-seam";
+    parts.push(paint(seam, STATION_PALETTE.aetherCladdingAlt));
+  }
+  // Vent-stack greeble on the back of the dais, away from the visitor line.
+  const vent = cylinderPart(
+    policy,
+    0.045,
+    0.06,
+    0.34,
+    [Math.sin(AETHER_DOCK_YAW + Math.PI) * 0.8, -0.2, Math.cos(AETHER_DOCK_YAW + Math.PI) * 0.8],
+  );
+  vent.name = "aether-vent-stack";
+  parts.push(paint(vent, STATION_PALETTE.steel));
+  // Three precise cradle prongs lean inward under the suspended seed.
+  for (let index = 0; index < 3; index += 1) {
+    const angle = AETHER_DOCK_YAW + Math.PI / 6 + (index / 3) * TWO_PI;
+    const lean = 0.32;
     parts.push(
-      cylinderPart(policy, 0.035, 0.09, height, [x, -0.2 + height * 0.5, z]),
+      paint(
+        cylinderPart(
+          policy,
+          0.022,
+          0.05,
+          0.44,
+          [Math.sin(angle) * 0.24, 0.13, Math.cos(angle) * 0.24],
+          [-Math.cos(angle) * lean, 0, Math.sin(angle) * lean],
+        ),
+        STATION_PALETTE.steel,
+      ),
     );
   }
-  return mergeParts(parts, "aether-primordial-first-energy-sanctuary");
+  return mergeParts(
+    parts,
+    "aether-primordial-first-energy-sanctuary",
+    STATION_PALETTE.aetherCladding,
+  );
 }
 
 function createAetherShieldHemisphereGeometry(quality) {
   const policy = geometryPolicy(quality);
-  const hemisphere = bakeGeometry(
-    new THREE.SphereGeometry(
-      0.62,
-      policy.round,
-      Math.max(10, Math.round(policy.round * 0.55)),
-      -Math.PI / 2,
-      Math.PI,
-      0.12,
-      Math.PI - 0.24,
-    ),
-    { scale: [0.72, 1.04, 0.9] },
-  );
+  const verticalSegments = Math.max(10, Math.round(policy.round * 0.55));
+  // Thick dark containment cup: an outer and an inner partial shell so the
+  // shield reads as massive machined plate, opening toward local +X.
+  const shell = (radius) =>
+    bakeGeometry(
+      new THREE.SphereGeometry(
+        radius,
+        policy.round,
+        verticalSegments,
+        -Math.PI / 2 + 0.1,
+        Math.PI - 0.2,
+        0.16,
+        Math.PI - 0.32,
+      ),
+      { scale: [0.82, 1, 1] },
+    );
   return mergeParts(
     [
-      hemisphere,
-      torusPart(policy, 0.49, 0.026, [0, -0.05, 0], [0, 0, 0], [0.78, 1, 0.94], Math.PI),
+      shell(AETHER_SHIELD_RADIUS),
+      shell(AETHER_SHIELD_RADIUS * 0.9),
+      // Accent-lit aperture rim ring in the x = 0 mouth plane.
+      torusPart(policy, 0.71, 0.03, [0, 0, 0], [0, Math.PI / 2, 0]),
+      // Proud meridian spine rib over the dark back of the cup.
+      torusPart(
+        policy,
+        0.75,
+        0.032,
+        [0, 0, 0],
+        [0, 0, Math.PI / 2 + 0.1],
+        [1, 0.84, 1],
+        Math.PI - 0.2,
+      ),
     ],
     "aether-two-separated-shield-hemispheres",
   );
@@ -297,23 +576,16 @@ function createAetherShieldHemisphereGeometry(quality) {
 function createAetherCausticArcGeometry(quality) {
   const policy = geometryPolicy(quality);
   const arcs = [];
-  for (const [z, height, radius] of [
-    [-0.23, 0.64, 0.018],
-    [0, 0.83, 0.024],
-    [0.23, 0.64, 0.018],
-  ]) {
-    arcs.push(
-      tubePart(
-        policy,
-        new THREE.QuadraticBezierCurve3(
-          new THREE.Vector3(-0.5, 0.08, z),
-          new THREE.Vector3(0, height, z * 0.35),
-          new THREE.Vector3(0.5, 0.08, z),
-        ),
-        radius,
-        "aether-abyss-blue-caustic-arc",
-      ),
+  // Three thin orbital ribbons on distinct tilted planes, outside the cage,
+  // tracing the containment field around the caged star.
+  for (const [radius, inclination, gapYaw, sweep, tube, planeYaw] of AETHER_ORBITAL_ARCS) {
+    const arc = bakeGeometry(
+      new THREE.TorusGeometry(radius, tube, policy.radial, policy.curve, sweep),
+      { rotation: [Math.PI / 2 - inclination, 0, gapYaw] },
     );
+    arc.rotateY(planeYaw);
+    arc.name = "aether-abyss-blue-caustic-arc";
+    arcs.push(arc);
   }
   return mergeParts(arcs, "aether-abyss-blue-caustic-arc");
 }
@@ -322,19 +594,21 @@ function createAetherFirstEnergySeedGeometry(quality) {
   const policy = geometryPolicy(quality);
   return mergeParts(
     [
+      // Small and blinding: a white-hot faceted core inside one tight amber
+      // corona shell. Point-source drama instead of a dominant emissive ball.
+      bakeGeometry(
+        new THREE.IcosahedronGeometry(AETHER_SEED_CORE_RADIUS, quality === "high" ? 2 : 1),
+      ),
       bakeGeometry(
         new THREE.SphereGeometry(
           AETHER_DOMINANT_SEED_RADIUS,
           policy.round,
           Math.max(12, Math.round(policy.round * 0.65)),
         ),
-        { scale: [0.94, 1.06, 0.94] },
+        { scale: [1, 1.05, 1] },
       ),
-      torusPart(policy, 0.46, 0.018, [0, 0, 0], [Math.PI / 2, 0, 0]),
-      torusPart(policy, 0.41, 0.012, [0, 0, 0], [0.34, 0.15, Math.PI / 2]),
-      cylinderPart(policy, 0.012, 0.04, 0.78, [0, 0.55, 0]),
-      cylinderPart(policy, 0.008, 0.025, 0.58, [-0.18, 0.43, 0.04], [0, 0, -0.13]),
-      cylinderPart(policy, 0.008, 0.025, 0.58, [0.18, 0.43, -0.04], [0, 0, 0.13]),
+      // One restrained slender upward ray keeps the reliquary read without wash.
+      cylinderPart(policy, 0.006, 0.02, 0.46, [0, 0.42, 0]),
       createAetherCausticArcGeometry(quality),
     ],
     "aether-one-golden-energy-seed holy-upward-rays persistent-cycle aether-abyss-blue-caustic-arc",
@@ -343,63 +617,149 @@ function createAetherFirstEnergySeedGeometry(quality) {
 
 function createFieldContainmentFrameGeometry(quality) {
   const policy = geometryPolicy(quality);
-  const parts = [
-    cylinderPart(policy, 1.2, 1.32, 0.18, [0, -0.55, 0], [0, 0, 0], [1.52, 1, 0.78]),
-    cylinderPart(policy, 0.42, 0.5, 0.24, [0, -0.34, 0], [0, 0, 0], [1.42, 1, 0.8]),
-    torusPart(policy, 0.9, 0.052, [0, -0.41, 0], [Math.PI / 2, 0, 0], [1.52, 1, 0.72]),
-    torusPart(policy, 0.68, 0.046, [0, 0.68, 0], [Math.PI / 2, 0, 0], [1.42, 1, 0.72]),
-    cylinderPart(policy, 0.22, 0.28, 0.12, [0, 0.73, 0], [0, 0, 0], [1.1, 1, 0.8]),
-  ];
-  for (const [x, z] of [
-    [-1.28, -0.43],
-    [-1.28, 0.43],
-    [1.28, -0.43],
-    [1.28, 0.43],
-  ]) {
-    const curve = new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(x, -0.4, z),
-      new THREE.Vector3(x * 1.12, 0.22, z * 1.1),
-      new THREE.Vector3(x * 0.7, 0.69, z * 0.7),
+  // Antarctic plant-equipment heater chassis in shared graphite steel: skid
+  // frame legs, reflector trough under the exposed heating elements, guard
+  // bars, panel-clad control housing with seams, vent-stack greeble, and a
+  // windward snow-drift skirt. The glowing elements and firebox live in the
+  // coil/packet pools so the steel stays dark at the bottom of the gradient.
+  const parts = [];
+  for (const side of [-1, 1]) {
+    const skid = roundedPart(policy, [2.4, 0.1, 0.15], [0, -0.59, side * 0.48], [0, 0, 0], 0.03);
+    skid.name = "field-steel-skid-frame";
+    parts.push(paint(skid, STATION_PALETTE.steel));
+    parts.push(
+      paint(
+        roundedPart(policy, [0.14, 0.09, 1.02], [side * 0.9, -0.56, 0], [0, 0, 0], 0.03),
+        STATION_PALETTE.steel,
+      ),
     );
-    parts.push(tubePart(policy, curve, 0.052, "field-bowed-containment-rib"));
+    for (const legX of [-0.88, 0.88]) {
+      parts.push(
+        paint(
+          cylinderPart(policy, 0.04, 0.05, 0.42, [legX, -0.35, side * 0.34]),
+          STATION_PALETTE.steel,
+        ),
+      );
+    }
+    // Reflector trough wings angled up around the element bank.
+    parts.push(
+      paint(
+        roundedPart(policy, [1.82, 0.05, 0.36], [0, 0.12, side * 0.38], [side * -0.55, 0, 0], 0.02),
+        STATION_PALETTE.steel,
+      ),
+    );
+    // Heater end plates and rim collars closing the element run.
+    parts.push(
+      paint(
+        cylinderPart(policy, 0.48, 0.48, 0.13, [side * 0.97, FIELD_ELEMENT_AXIS_Y, 0], [0, 0, Math.PI / 2]),
+        STATION_PALETTE.fieldCladding,
+      ),
+    );
+    parts.push(
+      paint(
+        torusPart(policy, 0.44, 0.03, [side * 0.99, FIELD_ELEMENT_AXIS_Y, 0], [0, Math.PI / 2, 0]),
+        STATION_PALETTE.trim,
+      ),
+    );
   }
-  return mergeParts(parts, "field-graphite-copper-contained-thermal-chamber");
+  parts.push(
+    paint(
+      roundedPart(policy, [1.82, 0.06, 0.72], [0, -0.03, 0], [0, 0, 0], 0.03),
+      STATION_PALETTE.fieldCladdingAlt,
+    ),
+  );
+  // Safety guard bars across the open element face (three on the dock side).
+  for (const [barY, barZ] of [
+    [0.16, 0.4],
+    [FIELD_ELEMENT_AXIS_Y, 0.44],
+    [0.48, 0.4],
+    [FIELD_ELEMENT_AXIS_Y, -0.44],
+  ]) {
+    parts.push(
+      paint(
+        cylinderPart(policy, 0.014, 0.014, 1.86, [0, barY, barZ], [0, 0, Math.PI / 2]),
+        STATION_PALETTE.trim,
+      ),
+    );
+  }
+  // Panel-clad control housing with proud seam strips and an access door.
+  parts.push(
+    paint(
+      roundedPart(policy, [0.6, 0.68, 0.66], [1.26, 0, 0], [0, 0, 0], 0.05),
+      STATION_PALETTE.fieldCladding,
+    ),
+  );
+  for (const seamY of [-0.2, 0.18]) {
+    const seam = roundedPart(policy, [0.62, 0.022, 0.675], [1.26, seamY, 0], [0, 0, 0], 0.01);
+    seam.name = "field-panel-seam";
+    parts.push(paint(seam, STATION_PALETTE.steel));
+  }
+  parts.push(
+    paint(
+      roundedPart(policy, [0.03, 0.4, 0.34], [1.565, -0.02, 0], [0, 0, 0], 0.012),
+      STATION_PALETTE.trim,
+    ),
+  );
+  const vent = cylinderPart(policy, 0.055, 0.07, 0.5, [1.36, 0.58, -0.14]);
+  vent.name = "field-vent-stack";
+  parts.push(paint(vent, STATION_PALETTE.steel));
+  parts.push(
+    paint(
+      torusPart(policy, 0.07, 0.018, [1.36, 0.76, -0.14], [Math.PI / 2, 0, 0]),
+      STATION_PALETTE.steel,
+    ),
+  );
+  parts.push(
+    paint(cylinderPart(policy, 0.095, 0.02, 0.08, [1.36, 0.87, -0.14]), STATION_PALETTE.steel),
+  );
+  // Windward drift skirt, intentionally buried below the skid contact plane.
+  const skirt = roundedPart(policy, [2.2, 0.16, 0.5], [0, -0.56, -0.66], [0.35, 0, 0], 0.05);
+  skirt.name = "field-snow-drift-skirt";
+  parts.push(paint(skirt, STATION_PALETTE.drift));
+  return mergeParts(
+    parts,
+    "field-graphite-copper-contained-thermal-chamber",
+    STATION_PALETTE.fieldCladding,
+  );
 }
 
 class FieldHelixCurve extends THREE.Curve {
   getPoint(t, target = new THREE.Vector3()) {
-    const angle = t * TWO_PI * 4.25;
+    const angle = t * TWO_PI * FIELD_ELEMENT_TURNS;
     return target.set(
       (t - 0.5) * FIELD_HEATER_HALF_LENGTH * 2,
-      Math.cos(angle) * 0.3,
-      Math.sin(angle) * 0.3,
+      Math.cos(angle) * FIELD_ELEMENT_RADIUS,
+      Math.sin(angle) * FIELD_ELEMENT_RADIUS,
     );
   }
 }
 
 function createFieldHelixGeometry(quality) {
   const policy = geometryPolicy(quality);
+  // The helix reads as a heating element at temperature: one longitudinal
+  // amber element run with three support collars ringing the element axis.
   const helix = bakeGeometry(
     new THREE.TubeGeometry(
       new FieldHelixCurve(),
       Math.max(48, policy.curve),
-      quality === "low" ? 0.028 : 0.034,
+      quality === "low" ? 0.03 : 0.038,
       policy.radial,
       false,
     ),
   );
-  return mergeParts(
-    [
-      helix,
-      torusPart(policy, 0.3, 0.025, [0, -0.42, 0], [Math.PI / 2, 0, 0]),
-      torusPart(policy, 0.3, 0.025, [0, 0.42, 0], [Math.PI / 2, 0, 0]),
-    ],
-    "field-compressing-helical-coils",
-  );
+  const parts = [helix];
+  for (const collarX of [-0.55, 0, 0.55]) {
+    parts.push(torusPart(policy, 0.33, 0.02, [collarX, 0, 0], [0, Math.PI / 2, 0]));
+  }
+  return mergeParts(parts, "field-compressing-helical-coils");
 }
 
 function createFieldFluxPacketGeometry(quality) {
   const policy = geometryPolicy(quality);
+  // Symbiote nano-flux blob: an elongated head lobe, a trailing tendril
+  // capsule, and one satellite droplet so the mass reads as living substance
+  // rather than a machined bead. The merged plasma core carries the white-hot
+  // firebox read when instance zero scales up at the heater heart.
   return mergeParts(
     [
       bakeGeometry(new THREE.IcosahedronGeometry(0.07, quality === "high" ? 2 : 1), {
@@ -409,6 +769,9 @@ function createFieldFluxPacketGeometry(quality) {
         new THREE.CapsuleGeometry(0.022, 0.11, policy.cap, policy.radial),
         { position: [-0.1, 0, 0], rotation: [0, 0, Math.PI / 2] },
       ),
+      bakeGeometry(new THREE.IcosahedronGeometry(0.045, quality === "high" ? 2 : 1), {
+        position: [0.09, 0.028, 0.012],
+      }),
       createFieldPlasmaCoreGeometry(quality),
     ],
     "field-charge-packets flux-skin field-graphite-copper-orange-white-plasma",
@@ -429,26 +792,101 @@ function createFieldPlasmaCoreGeometry(quality) {
   );
 }
 
+// Component-space catenary crest layered over the shared library manifold
+// sample. It depends only on the normalized span position, so adjacent
+// endpoint-to-center construction bands still share identical boundary
+// vertices and the reveal seams stay closed.
+function qpuCrestLift(normalizedX) {
+  return QPU_CREST_BOOST * (1 - normalizedX * normalizedX);
+}
+
 function createQpuStableDockBandGeometry(quality) {
   const policy = geometryPolicy(quality);
+  const shardFacets = quality === "low" ? 5 : 6;
   const parts = [
-    roundedPart(policy, [2.88, 0.1, 0.24], [0, -0.43, -0.52], [0, 0, 0], 0.045),
-    roundedPart(policy, [2.72, 0.075, 0.84], [0, -0.46, 0], [0, 0, 0], 0.035),
+    // Visitor dock walk strip plus two end landings. The old full-width plank
+    // under the deck is gone so the glass span reads as a floating arc. Deck
+    // structure is the shared graphite steel; only the crystal and the glass
+    // span carry the station's saturated jade.
+    paint(
+      roundedPart(policy, [2.9, 0.08, 0.3], [0, -0.45, -0.55], [0, 0, 0], 0.035),
+      STATION_PALETTE.steel,
+    ),
+    paint(
+      roundedPart(policy, [0.66, 0.09, 0.78], [-1.52, -0.44, 0], [0, 0, 0], 0.04),
+      STATION_PALETTE.qpuCladding,
+    ),
+    paint(
+      roundedPart(policy, [0.66, 0.09, 0.78], [1.52, -0.44, 0], [0, 0, 0], 0.04),
+      STATION_PALETTE.qpuCladdingAlt,
+    ),
   ];
+  // Coral edge striping along both landings and one ember marker lamp each:
+  // the causeway reads as a maintained crossing, not an abstract ramp.
+  for (const side of [-1, 1]) {
+    for (const edgeZ of [-0.42, 0.42]) {
+      const trim = roundedPart(
+        policy,
+        [0.68, 0.035, 0.05],
+        [side * 1.52, -0.4, edgeZ],
+        [0, 0, 0],
+        0.014,
+      );
+      trim.name = "qpu-landing-trim";
+      parts.push(paint(trim, STATION_PALETTE.trim));
+    }
+    const marker = roundedPart(
+      policy,
+      [0.09, 0.1, 0.09],
+      [side * 1.78, -0.36, -0.28],
+      [0, 0, 0],
+      0.025,
+    );
+    marker.name = "qpu-landing-marker-lamp";
+    parts.push(paint(marker, STATION_PALETTE.window));
+  }
   for (const x of [-1.58, 1.58]) {
     parts.push(
-      cylinderPart(
-        policy,
-        QPU_ABUTMENT_RADIUS * 0.78,
-        QPU_ABUTMENT_RADIUS,
-        QPU_ABUTMENT_HEIGHT,
-        [x, -0.18, 0],
+      paint(
+        cylinderPart(
+          policy,
+          QPU_ABUTMENT_RADIUS * 0.78,
+          QPU_ABUTMENT_RADIUS,
+          QPU_ABUTMENT_HEIGHT,
+          [x, -0.18, 0],
+        ),
+        STATION_PALETTE.steel,
       ),
     );
+  }
+  // Clustered angular crystal pylons at each abutment: one faceted root spike
+  // reaching down toward the ice, one tall mast shard, two leaning fore/aft
+  // shards, and a landing collar. Faceted normals keep them reading as cut
+  // crystal instead of smooth posts.
+  for (const side of [-1, 1]) {
+    const x = side * 1.52;
+    const shard = (part) => {
+      part.name = "qpu-crystal-pylon-cluster";
+      parts.push(paint(part, STATION_PALETTE.qpuGlass));
+    };
+    shard(facetedPart(0.15, 0.05, 1.15, shardFacets, [x, -0.55, 0]));
+    shard(
+      facetedPart(0.035, 0.145, 1.55, shardFacets, [x, 0.55, 0], [0, side * 0.4, side * 0.07]),
+    );
+    shard(
+      facetedPart(0.028, 0.105, 0.95, shardFacets, [x * 0.96, 0.16, 0.31], [0.12, 0, -side * 0.1]),
+    );
+    shard(
+      facetedPart(0.024, 0.09, 0.78, shardFacets, [x * 0.96, 0.08, -0.31], [-0.12, 0, -side * 0.06]),
+    );
+    const collar = torusPart(policy, 0.24, 0.028, [x, 0.15, 0], [Math.PI / 2, 0, 0]);
+    collar.name = "qpu-crystal-pylon-cluster";
+    parts.push(paint(collar, STATION_PALETTE.steel));
   }
   return mergeParts(
     parts,
     "qpu-jade-cyan-coherence-causeway qpu-stable-visitor-dock-band-and-slender-abutments",
+    STATION_PALETTE.qpuCladding,
   );
 }
 
@@ -467,9 +905,10 @@ function createQpuContinuousManifoldGeometry(quality) {
         const z = -QPU_MANIFOLD_LAYOUT.halfDepth +
           (vIndex / vSegments) * QPU_MANIFOLD_LAYOUT.halfDepth * 2;
         const point = sampleQpuManifoldPoint(x, z);
+        const crest = qpuCrestLift(x / QPU_MANIFOLD_LAYOUT.halfSpan);
         positions.push(
           point.x,
-          point.y - surface * QPU_MANIFOLD_LAYOUT.floorThickness,
+          point.y + crest - surface * QPU_MANIFOLD_LAYOUT.floorThickness,
           point.z,
         );
       }
@@ -533,10 +972,10 @@ function createQpuManifoldRibGeometry(quality) {
     policy,
     new THREE.QuadraticBezierCurve3(
       new THREE.Vector3(0, 0.02, -QPU_MANIFOLD_LAYOUT.halfDepth),
-      new THREE.Vector3(0, 0.24, 0),
+      new THREE.Vector3(0, 0.26, 0),
       new THREE.Vector3(0, 0.02, QPU_MANIFOLD_LAYOUT.halfDepth),
     ),
-    0.024,
+    0.03,
     "qpu-endpoint-to-center-reconstruction-rib",
   );
 }
@@ -552,6 +991,7 @@ function createQpuCausewayFrameGeometry(quality) {
   const geometry = mergeParts(
     [stableGeometry, constructionGeometry],
     "qpu-jade-cyan-coherence-causeway qpu-continuous-global-riemann-manifold qpu-contiguous-floor-shell-and-ribs",
+    STATION_PALETTE.qpuGlass,
   );
   geometry.userData.stableVertexCount = stableVertexCount;
   geometry.userData.constructionVertexCount = constructionVertexCount;
@@ -560,11 +1000,22 @@ function createQpuCausewayFrameGeometry(quality) {
 }
 
 function createQpuCoherencePlateGeometry(quality) {
+  const policy = geometryPolicy(quality);
+  // Floating coherence stabilizer ring hovering beside the span; alternate
+  // plate instances yaw half a turn so the rings flank both deck edges.
+  const ring = torusPart(
+    policy,
+    0.15,
+    0.02,
+    [0, 0.3, QPU_MANIFOLD_LAYOUT.halfDepth + 0.26],
+    [0, Math.PI / 2, 0],
+  );
+  ring.name = "qpu-floating-coherence-stabilizer-ring";
   return mergeParts(
     [
       createQpuManifoldRibGeometry(quality),
       tubePart(
-        geometryPolicy(quality),
+        policy,
         new THREE.LineCurve3(
           new THREE.Vector3(-0.08, 0, 0),
           new THREE.Vector3(0.08, 0, 0),
@@ -572,6 +1023,7 @@ function createQpuCoherencePlateGeometry(quality) {
         0.018,
         "qpu-rib-edge-lock",
       ),
+      ring,
     ],
     "qpu-manifold-reconstruction-ribs qpu-alien-iridescent-interference-fins",
   );
@@ -591,12 +1043,16 @@ function patchAwardSurface(
     effectMode = 0,
     effectStrength = 0,
     macroStrength,
+    orbitalColor,
+    orbitalStrength = 0,
     phaseColor,
     rimColor,
     rimStrength,
+    windowGain = 0,
   },
 ) {
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.uAwardWindowGain = { value: windowGain };
     shader.uniforms.uAwardMacroStrength = { value: macroStrength };
     shader.uniforms.uAwardRimColor = { value: new THREE.Color(rimColor) };
     shader.uniforms.uAwardRimStrength = { value: rimStrength };
@@ -604,6 +1060,8 @@ function patchAwardSurface(
     shader.uniforms.uAwardEffectStrength = { value: effectStrength };
     shader.uniforms.uAwardActivity = { value: 0 };
     shader.uniforms.uAwardPhaseColor = { value: new THREE.Color(phaseColor || rimColor) };
+    shader.uniforms.uAwardOrbitalColor = { value: new THREE.Color(orbitalColor || rimColor) };
+    shader.uniforms.uAwardOrbitalStrength = { value: orbitalStrength };
     shader.uniforms.uAwardTime = { value: 0 };
     material.userData.awardUniforms = shader.uniforms;
     shader.vertexShader = shader.vertexShader
@@ -611,6 +1069,7 @@ function patchAwardSurface(
         "#include <common>",
         `#include <common>
 varying vec3 vAwardWorldPosition;
+varying vec3 vAwardLocalPosition;
 uniform float uAwardActivity;
 uniform float uAwardEffectMode;
 uniform float uAwardTime;`,
@@ -618,6 +1077,7 @@ uniform float uAwardTime;`,
       .replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
+vAwardLocalPosition = position;
 float awardFieldMask = step(2.5, uAwardEffectMode) * (1.0 - step(3.5, uAwardEffectMode));
 float awardQpuMask = step(3.5, uAwardEffectMode);
 float awardThermalBand = sin(position.y * 17.0 + position.x * 3.0 - uAwardTime * 3.2);
@@ -657,13 +1117,17 @@ transformed.z = position.z + clamp(
         "#include <common>",
         `#include <common>
 varying vec3 vAwardWorldPosition;
+varying vec3 vAwardLocalPosition;
 uniform vec3 uAwardRimColor;
 uniform vec3 uAwardPhaseColor;
+uniform vec3 uAwardOrbitalColor;
+uniform float uAwardOrbitalStrength;
 uniform float uAwardRimStrength;
 uniform float uAwardMacroStrength;
 uniform float uAwardEffectMode;
 uniform float uAwardEffectStrength;
 uniform float uAwardTime;
+uniform float uAwardWindowGain;
 
 float awardSignal(vec3 p) {
   return sin(p.x + sin(p.z * 1.37)) * cos(p.y * 0.83 + p.z * 0.41);
@@ -705,10 +1169,22 @@ float awardStationSignal = awardStationField(vAwardWorldPosition);
 reflectedLight.indirectDiffuse += diffuseColor.rgb * (0.045 + awardWrappedDiffuse * 0.075);
 reflectedLight.indirectDiffuse *= 1.0 + awardMacro * uAwardMacroStrength;
 reflectedLight.indirectDiffuse += uAwardPhaseColor * awardStationSignal * uAwardEffectStrength;
-reflectedLight.indirectSpecular += uAwardRimColor * awardFresnel * uAwardRimStrength;`,
+reflectedLight.indirectSpecular += uAwardRimColor * awardFresnel * uAwardRimStrength;
+// Shared ember windows: the painted amber vertices of the boot-camp palette
+// (warm and mid-value) light from inside. Coral safety trim is warm but far
+// darker in green, so it stays a painted stripe instead of becoming a lamp.
+float awardWindowWarmth = clamp(diffuseColor.r - diffuseColor.b, 0.0, 1.0);
+float awardWindowMask =
+  smoothstep(0.16, 0.34, awardWindowWarmth) * smoothstep(0.30, 0.46, diffuseColor.g);
+totalEmissiveRadiance += diffuseColor.rgb * awardWindowMask * uAwardWindowGain;
+// Orbital caustic recolor: material-gated, keyed on authored local radius so
+// the golden seed core stays golden while its orbital ribbons turn violet.
+float awardOrbitalMask = uAwardOrbitalStrength * smoothstep(0.5, 0.72, length(vAwardLocalPosition.xz));
+totalEmissiveRadiance = mix(totalEmissiveRadiance, uAwardOrbitalColor * (0.5 + awardStationSignal * 0.5), awardOrbitalMask);
+reflectedLight.indirectDiffuse = mix(reflectedLight.indirectDiffuse, uAwardOrbitalColor * 0.32, awardOrbitalMask);`,
       );
   };
-  material.customProgramCacheKey = () => "polar-ne-award-surface-v3";
+  material.customProgramCacheKey = () => "polar-ne-award-surface-v5";
   material.userData.surfaceMath =
     "gain 0.35 low-pass macro / wrapped diffuse / Fresnel containment / authored station field";
   return material;
@@ -723,10 +1199,14 @@ function makeArchitecturalSurface({
   macroStrength = 0.022,
   metalness,
   opacity = 0.96,
+  orbitalColor,
+  orbitalStrength = 0,
   phaseColor,
   rimColor,
   rimStrength = 0.18,
   roughness,
+  vertexColors = false,
+  windowGain = 0,
 }) {
   const material = patchAwardSurface(
     new THREE.MeshStandardMaterial({
@@ -738,8 +1218,19 @@ function makeArchitecturalSurface({
       opacity,
       roughness,
       transparent: true,
+      vertexColors,
     }),
-    { effectMode, effectStrength, macroStrength, phaseColor, rimColor, rimStrength },
+    {
+      effectMode,
+      effectStrength,
+      macroStrength,
+      orbitalColor,
+      orbitalStrength,
+      phaseColor,
+      rimColor,
+      rimStrength,
+      windowGain,
+    },
   );
   material.userData.stationBaseOpacity = opacity;
   return material;
@@ -766,76 +1257,87 @@ function createRenderResources(quality, detailed) {
   }
   const materials = {
     aetherBead: makeArchitecturalSurface({
-      color: "#FFE8A3",
+      color: "#FFF6E2",
       effectMode: 2,
-      effectStrength: 0.18,
-      emissive: "#FFB31A",
-      emissiveIntensity: 1.42,
-      macroStrength: 0.012,
-      metalness: 0.02,
-      opacity: 0.96,
-      phaseColor: "#FFF3B8",
-      rimColor: "#FFF8D8",
-      rimStrength: 0.42,
-      roughness: 0.1,
+      effectStrength: 0.12,
+      emissive: "#FFAB33",
+      emissiveIntensity: 1.3,
+      macroStrength: 0.008,
+      metalness: 0,
+      opacity: 0.55,
+      orbitalColor: "#8D69D6",
+      orbitalStrength: 1,
+      phaseColor: "#FFE9B8",
+      rimColor: "#FFFFFF",
+      rimStrength: 0.12,
+      roughness: 0.12,
     }),
+    // The four frame bodies share one construction material read: a white base
+    // multiplied by the per-vertex boot-camp palette (graphite steel structure,
+    // that station's two desaturated cladding values, coral trim, ember glass).
+    // They are lit, not luminous - the identity emissive belongs to the
+    // signature mechanism pools.
     aetherFrame: makeArchitecturalSurface({
-      color: "#6EAAD2",
+      color: "#FFFFFF",
       effectMode: 2,
-      effectStrength: 0.1,
-      emissive: "#3B7EAD",
-      emissiveIntensity: 1,
-      metalness: 0.68,
+      effectStrength: 0.03,
+      emissive: "#1B2C46",
+      emissiveIntensity: 0.05,
+      metalness: 0.34,
       opacity: 0.98,
-      phaseColor: "#FFD05A",
-      rimColor: "#2E83C4",
-      rimStrength: 0.42,
-      roughness: 0.24,
+      phaseColor: "#2D6FA3",
+      rimColor: "#2D6FA3",
+      rimStrength: 0.6,
+      roughness: 0.48,
+      vertexColors: true,
+      windowGain: 1.15,
     }),
     aetherRibbon: makeArchitecturalSurface({
-      color: "#326B99",
+      color: "#0B2A56",
       effectMode: 2,
-      effectStrength: 0.13,
-      emissive: "#245A88",
-      emissiveIntensity: 0.48,
-      macroStrength: 0.016,
-      metalness: 0.5,
-      opacity: 0.94,
-      phaseColor: "#FFD05A",
-      rimColor: "#6BB9EB",
-      rimStrength: 0.5,
-      roughness: 0.18,
+      effectStrength: 0.05,
+      emissive: "#122F5E",
+      emissiveIntensity: 0.2,
+      macroStrength: 0.014,
+      metalness: 0.28,
+      opacity: 0.985,
+      phaseColor: "#2D6FA3",
+      rimColor: "#2D6FA3",
+      rimStrength: 0.82,
+      roughness: 0.52,
     }),
     fieldCoil: makeArchitecturalSurface({
       color: "#B85D2A",
       effectMode: 3,
-      effectStrength: 0.18,
-      emissive: "#FF5A1F",
-      emissiveIntensity: 0.7,
-      metalness: 0.66,
-      phaseColor: "#FFF0B0",
-      rimColor: "#FFF1A8",
-      rimStrength: 0.34,
-      roughness: 0.23,
+      effectStrength: 0.17,
+      emissive: "#EE9440",
+      emissiveIntensity: 0.85,
+      metalness: 0.5,
+      phaseColor: "#EFC15C",
+      rimColor: "#FFE9B8",
+      rimStrength: 0.3,
+      roughness: 0.24,
     }),
     fieldFrame: makeArchitecturalSurface({
-      color: "#6B5550",
+      color: "#FFFFFF",
       effectMode: 3,
-      effectStrength: 0.07,
-      emissive: "#9A4E30",
-      emissiveIntensity: 0.32,
-      metalness: 0.74,
+      effectStrength: 0.04,
+      emissive: "#3A2416",
+      emissiveIntensity: 0.05,
+      metalness: 0.55,
       opacity: 0.98,
       phaseColor: "#F29C46",
-      rimColor: "#B66A3F",
-      rimStrength: 0.38,
-      roughness: 0.32,
+      rimColor: "#E8705E",
+      rimStrength: 0.5,
+      roughness: 0.46,
+      vertexColors: true,
+      windowGain: 1.15,
     }),
     fieldPacket: makeArchitecturalSurface({
-      color: "#FFF5D5",
+      color: "#FFF6E6",
       effectMode: 3,
       effectStrength: 0.26,
-      emissive: "#FF6B21",
+      emissive: "#FF7A24",
       emissiveIntensity: 1.42,
       macroStrength: 0.01,
       metalness: 0.02,
@@ -845,68 +1347,69 @@ function createRenderResources(quality, detailed) {
       roughness: 0.12,
     }),
     qpuFrame: makeArchitecturalSurface({
-      color: "#29A99D",
+      color: "#2EC9B4",
       effectMode: 4,
-      effectStrength: 0.12,
-      emissive: "#0B756A",
-      emissiveIntensity: 0.68,
-      metalness: 0.58,
-      opacity: 0.96,
+      effectStrength: 0.16,
+      emissive: "#0E8F84",
+      emissiveIntensity: 0.62,
+      macroStrength: 0.014,
+      metalness: 0.3,
+      opacity: 0.8,
       phaseColor: "#36D8FF",
-      rimColor: "#9EF9DA",
-      rimStrength: 0.28,
-      roughness: 0.24,
+      rimColor: "#C9FFEC",
+      rimStrength: 0.85,
+      roughness: 0.14,
     }),
     qpuPlate: makeArchitecturalSurface({
-      color: "#68EBC8",
+      color: "#1E6157",
       effectMode: 0,
       effectStrength: 0,
-      emissive: "#1AB6B2",
+      emissive: "#1FAE93",
       emissiveIntensity: 0.5,
-      metalness: 0.16,
-      opacity: 0.93,
+      metalness: 0.78,
+      opacity: 0.97,
       phaseColor: "#65D6FF",
-      rimColor: "#D8FFF4",
-      rimStrength: 0.34,
-      roughness: 0.2,
+      rimColor: "#7DF0B4",
+      rimStrength: 0.85,
+      roughness: 0.28,
     }),
     qpuSignal: makeArchitecturalSurface({
-      color: "#D8FFF4",
+      color: "#F2FFF7",
       effectMode: 4,
-      effectStrength: 0.28,
-      emissive: "#31DCEC",
-      emissiveIntensity: 1.25,
-      macroStrength: 0.008,
+      effectStrength: 0.3,
+      emissive: "#4BFFAF",
+      emissiveIntensity: 1.45,
+      macroStrength: 0.006,
       metalness: 0,
-      opacity: 0.96,
-      phaseColor: "#B17BFF",
-      rimColor: "#FFF0A6",
-      rimStrength: 0.32,
-      roughness: 0.1,
+      opacity: 0.98,
+      phaseColor: "#B9FFE2",
+      rimColor: "#FFFFFF",
+      rimStrength: 0.3,
+      roughness: 0.08,
     }),
     s2Frame: makeArchitecturalSurface({
-      color: "#4C8EF0",
+      color: "#7FB9DE",
       effectMode: 1,
-      effectStrength: 0.08,
-      emissive: "#245FC2",
-      emissiveIntensity: 0.72,
-      metalness: 0.78,
+      effectStrength: 0.1,
+      emissive: "#2B4FC9",
+      emissiveIntensity: 0.62,
+      metalness: 0.48,
       opacity: 0.97,
       phaseColor: "#56D7FF",
       rimColor: "#9FDFFF",
-      rimStrength: 0.3,
-      roughness: 0.23,
+      rimStrength: 0.34,
+      roughness: 0.3,
     }),
     s2Shell: makeArchitecturalSurface({
-      color: "#BCD8E4",
+      color: "#5573E0",
       effectMode: 1,
       effectStrength: 0.1,
-      emissive: "#357A9A",
-      emissiveIntensity: 0.42,
-      metalness: 0.54,
+      emissive: "#3550C8",
+      emissiveIntensity: 0.55,
+      metalness: 0.6,
       opacity: 0.96,
       phaseColor: "#55CFFF",
-      rimColor: "#E8FCFF",
+      rimColor: "#BFD8FF",
       rimStrength: 0.42,
       roughness: 0.2,
     }),
@@ -998,69 +1501,76 @@ function updateQpuFrameDrawRange(frame, buildProgress) {
   geometry.setDrawRange(0, visibleVertexCount);
 }
 
-function applyS2Instances(state, pools, scratch) {
+function applyS2Instances(state, pools, scratch, rotorAngle) {
   const brownian = state.brownianCoordinates;
   const brownianBlend = state.brownianBlend || 0;
-  const coreX = (brownian?.[4] || 0) * brownianBlend;
-  const coreZ = (brownian?.[5] || 0) * brownianBlend;
-  setInstance(pools.frame, 0, scratch, coreX, 0, coreZ, 0, 0, 0, 1, 1, 1);
+  const swayX = (brownian?.[4] || 0) * brownianBlend;
+  const swayZ = (brownian?.[5] || 0) * brownianBlend;
   const closure = state.shellClosure || 0;
-  const gap = S2_KERNEL_SHELL_GAP + (1 - closure) * 0.17;
-  const firstAngle = state.ringAngles[0];
-  const secondAngle = state.ringAngles[1];
+  // The merged citadel rotor (faceted kernel drum, six cache blades, tiered
+  // crown) spins about its Y bearing via this one instance matrix; the
+  // circular plinth inside the same merge is rotation-invariant so it reads
+  // as a stationary base. Rotation is independent of the reveal scale and of
+  // the contact-plane Y compensation in applyStationRootReveal.
+  setInstance(pools.frame, 0, scratch, swayX * 0.4, 0, swayZ * 0.4, 0, rotorAngle, 0, 1, 1, 1);
+  // Static diagnostic-gate coil pylons flank the port beamline and tighten
+  // toward the citadel as the kernel closes; they never inherit rotor spin.
+  const pylonReach = S2_DIAGNOSTIC_HALF_SPAN - S2_KERNEL_SHELL_GAP + (1 - closure) * 0.12;
+  const pylonLean = 0.04 + closure * 0.03;
+  setInstance(pools.shells, 0, scratch, -pylonReach, 0, S2_PORT_RAIL_Z, 0, 0, pylonLean, 1, 1, 1);
+  setInstance(pools.shells, 1, scratch, pylonReach, 0, S2_PORT_RAIL_Z, 0, Math.PI, pylonLean, 1, 1, 1);
+  // Crown light arms: co- and counter-rotating sweeps that prove the spin
+  // even at thumbnail scale.
   setInstance(
-    pools.shells,
+    pools.signals,
     0,
     scratch,
-    -gap + (brownian?.[0] || 0) * brownianBlend,
-    0.04 + (brownian?.[1] || 0) * brownianBlend,
-    -0.03 + coreZ * 0.35,
-    Math.sin(firstAngle) * 0.025,
-    firstAngle * 0.035,
-    -0.025 - closure * 0.018,
-    1,
-    1.02,
-    0.96,
+    swayX * 0.4,
+    S2_CROWN_BEACON_Y,
+    swayZ * 0.4,
+    0,
+    rotorAngle,
+    0,
+    1.5,
+    1.05,
+    1.5,
   );
   setInstance(
-    pools.shells,
+    pools.signals,
     1,
     scratch,
-    gap + (brownian?.[2] || 0) * brownianBlend,
-    0.04 + (brownian?.[3] || 0) * brownianBlend,
-    0.03 - coreZ * 0.35,
-    Math.sin(secondAngle) * -0.025,
-    Math.PI + secondAngle * 0.035,
-    0.025 + closure * 0.018,
-    1,
-    1.02,
-    0.96,
+    swayX * 0.4,
+    S2_CROWN_BEACON_Y - 0.28,
+    swayZ * 0.4,
+    0,
+    -rotorAngle * S2_CROWN_COUNTER_RATE + 1.25,
+    0,
+    2,
+    0.9,
+    2,
   );
-
-  setInstance(pools.signals, 0, scratch, -0.84 + coreX, 0.2, coreZ, 0, 0, -0.16, 1.05, 1.05, 1.05);
-  setInstance(pools.signals, 1, scratch, 0.84 + coreX, 0.2, coreZ, 0, 0, 0.16, 1.05, 1.05, 1.05);
   const bitPhase = state.proofBitPhase;
   const s2AxialTravel = (bitPhase + Math.PI) / TWO_PI;
-  const bitScale = state.capExchange ? 1.22 : 0.56;
+  const bitScale = state.capExchange ? 1.18 : 0.6;
   setInstance(
     pools.signals,
     2,
     scratch,
     -S2_DIAGNOSTIC_HALF_SPAN + s2AxialTravel * S2_DIAGNOSTIC_HALF_SPAN * 2,
-    0.2 + Math.sin(bitPhase * 2) * 0.08 + (brownian?.[4] || 0) * brownianBlend,
-    Math.sin(bitPhase) * 0.08 + (brownian?.[5] || 0) * brownianBlend,
+    0.05 + Math.sin(bitPhase * 2) * 0.05,
+    S2_PORT_RAIL_Z + Math.sin(bitPhase) * 0.04,
     bitPhase,
     0,
-    bitPhase * 0.5,
+    0,
     bitScale,
     bitScale,
     bitScale,
   );
   if (pools.shells?.material) {
-    pools.shells.material.emissiveIntensity = 0.3 + closure * 0.34;
+    pools.shells.material.emissiveIntensity = 0.42 + closure * 0.46;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.58 + closure * 0.38;
+    pools.frame.material.emissiveIntensity = 0.2 + closure * 0.22;
   }
   setAwardSurfaceActivity(pools.frame?.material, closure);
   setAwardSurfaceActivity(pools.shells?.material, closure);
@@ -1070,180 +1580,263 @@ function applyS2Instances(state, pools, scratch) {
   commitPool(pools.signals);
 }
 
-function applyAetherInstances(state, pools, scratch) {
+function aetherShieldYaw(bearing) {
+  // Orient the cup geometry (opens toward local +X) so its mouth faces the
+  // seed from a placement bearing measured off local +Z.
+  return Math.atan2(Math.cos(bearing), -Math.sin(bearing));
+}
+
+function applyAetherInstances(state, pools, scratch, reducedMotion) {
   setIdentityInstance(pools.frame, scratch);
   const bloom = state.sanctuaryBloom || 0;
-  const cradleOpening = 0.31 + bloom * 0.13;
-  const shieldScale = 0.9 + bloom * 0.08;
+  // Eclipse aperture ritual: idle keeps the cups biased toward the dock line;
+  // docking parts and swings them open toward the visitor, revealing more of
+  // the seed. Reduced motion pins the aperture mid-open.
+  const aperture = reducedMotion ? 0.5 : bloom;
+  const shieldReach = 0.58 + aperture * 0.16;
+  const shieldSwing = 1.2 + aperture * 0.37;
+  for (const [index, side, shieldScale, roll] of [
+    [0, 1, 1, -0.05],
+    [1, -1, 0.9, 0.05],
+  ]) {
+    const bearing = AETHER_DOCK_YAW + side * shieldSwing;
+    setInstance(
+      pools.ribbons,
+      index,
+      scratch,
+      Math.sin(bearing) * shieldReach,
+      AETHER_SEED_HEIGHT,
+      Math.cos(bearing) * shieldReach,
+      0,
+      aetherShieldYaw(bearing),
+      roll,
+      shieldScale,
+      shieldScale,
+      shieldScale,
+    );
+  }
+  // Backdrop shield: the dark eclipse disc behind the seed on the dock axis.
+  const backBearing = AETHER_DOCK_YAW + Math.PI;
   setInstance(
     pools.ribbons,
-    0,
+    2,
     scratch,
-    -cradleOpening,
-    0.12,
+    Math.sin(backBearing) * 0.74,
+    AETHER_SEED_HEIGHT + 0.05,
+    Math.cos(backBearing) * 0.74,
     0,
+    aetherShieldYaw(backBearing),
     0,
-    -0.12 - bloom * 0.08,
-    -0.04,
-    shieldScale,
-    shieldScale,
-    shieldScale,
+    1.16,
+    1.16,
+    1.16,
   );
-  setInstance(
-    pools.ribbons,
-    1,
-    scratch,
-    cradleOpening,
-    0.12,
-    0,
-    0,
-    Math.PI + 0.12 + bloom * 0.08,
-    0.04,
-    shieldScale,
-    shieldScale,
-    shieldScale,
-  );
-  setInstance(pools.ribbons, 2, scratch, 0, -2, 0, 0, 0, 0, 0.001, 0.001, 0.001);
 
-  const seedScale = 1.02 + bloom * 0.38;
+  // Deterministic orbit and seed pulse both derive from the fixed-step
+  // circulation phase, which the mechanism authority already freezes under
+  // reduced motion and accelerates with proximity/docking.
+  const orbit = state.circulationPhase;
+  const pulse = 0.5 + 0.5 * Math.sin(orbit * 4);
+  const seedScale = 0.95 + pulse * 0.05 + bloom * 0.05;
   setInstance(
     pools.beads,
     0,
     scratch,
     0,
-    0.32,
+    AETHER_SEED_HEIGHT,
     0,
     0,
-    state.circulationPhase * 0.18,
+    orbit,
     0,
     seedScale,
     seedScale,
     seedScale,
   );
+  const cosOrbit = Math.cos(orbit);
+  const sinOrbit = Math.sin(orbit);
+  const sinTilt = Math.sin(AETHER_ORBITAL_TILT);
+  const cosTilt = Math.cos(AETHER_ORBITAL_TILT);
   for (let index = 1; index < state.beadVisibility.length; index += 1) {
-    const phase = state.circulationPhase * 0.38 + ((index - 1) / 6) * TWO_PI;
-    const visibility = 0.42 + state.beadVisibility[index] * 0.58;
-    const moteScale = (0.08 + bloom * 0.025) * visibility;
+    const pathPhase = orbit * 1.6 + ((index - 1) / 6) * TWO_PI;
+    const x0 = Math.cos(pathPhase) * AETHER_ORBITAL_RADIUS;
+    const y0 = Math.sin(pathPhase) * AETHER_ORBITAL_RADIUS * sinTilt;
+    const z0 = Math.sin(pathPhase) * AETHER_ORBITAL_RADIUS * cosTilt;
+    const visibility = 0.35 + state.beadVisibility[index] * 0.65;
+    const moteScale = (0.055 + bloom * 0.02) * visibility;
     setInstance(
       pools.beads,
       index,
       scratch,
-      Math.cos(phase) * 0.88,
-      0.32 + Math.sin(phase * 2) * 0.3,
-      Math.sin(phase) * 0.62,
-      phase * 0.21,
-      -phase,
-      phase * 0.13,
+      cosOrbit * x0 + sinOrbit * z0,
+      AETHER_SEED_HEIGHT + y0,
+      -sinOrbit * x0 + cosOrbit * z0,
+      0,
+      pathPhase,
+      0,
       moteScale,
       moteScale,
       moteScale,
     );
   }
   if (pools.ribbons?.material) {
-    pools.ribbons.material.emissiveIntensity = 0.65 + bloom * 0.25;
+    pools.ribbons.material.emissiveIntensity = 0.16 + bloom * 0.12;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.62 + bloom * 0.28;
+    pools.frame.material.emissiveIntensity = 0.5 + bloom * 0.25;
   }
   if (pools.beads?.material) {
-    pools.beads.material.emissiveIntensity = 1.12 + bloom * 0.72;
+    pools.beads.material.emissiveIntensity = 1.15 + pulse * 0.4 + bloom * 0.45;
   }
   setAwardSurfaceActivity(pools.frame?.material, bloom);
-  setAwardSurfaceActivity(pools.ribbons?.material, bloom);
-  setAwardSurfaceActivity(pools.beads?.material, bloom);
+  setAwardSurfaceActivity(pools.ribbons?.material, bloom * 0.5);
+  setAwardSurfaceActivity(pools.beads?.material, Math.max(bloom, pulse * 0.6));
   commitPool(pools.frame);
   commitPool(pools.ribbons);
   commitPool(pools.beads);
 }
 
-function applyFieldInstances(state, pools, scratch) {
+function applyFieldInstances(state, pools, scratch, symbiote) {
   setIdentityInstance(pools.frame, scratch);
   const compression = state.compression || 0;
-  const firstTilt = THREE.MathUtils.degToRad(state.coilTiltsDegrees[0]);
-  const secondTilt = THREE.MathUtils.degToRad(state.coilTiltsDegrees[1]);
-  const separation = 0.54 - compression * 0.12;
+  const excitement = symbiote.excite;
+  const livingTime = symbiote.organicTime;
+  // The heating-element banks flex with the lib-authored bounded coil tilt and
+  // undulate on stacked incommensurate sinusoids so the element run reads as
+  // living substance without ever losing its longitudinal heater axis.
+  const flex = THREE.MathUtils.degToRad(state.coilTiltsDegrees[0]);
+  const swellA =
+    Math.sin(livingTime * 0.93) * 0.5 + Math.sin(livingTime * 1.51 + 1.7) * 0.5;
+  const swellB =
+    Math.sin(livingTime * 1.17 + 3.4) * 0.5 + Math.sin(livingTime * 0.73 + 0.9) * 0.5;
+  const undulation = 0.045 + excitement * 0.05;
   setInstance(
     pools.coils,
     0,
     scratch,
     0,
-    0.13,
-    -separation,
-    firstTilt,
+    FIELD_ELEMENT_AXIS_Y + swellA * 0.014,
     0,
-    -0.08 - compression * 0.08,
-    0.96 + compression * 0.08,
-    1 + compression * 0.06,
-    0.96 + compression * 0.08,
+    swellA * undulation,
+    0,
+    flex + swellB * 0.03,
+    1,
+    1 + swellB * 0.02,
+    1 + swellA * 0.02,
   );
   setInstance(
     pools.coils,
     1,
     scratch,
     0,
-    0.13,
-    separation,
-    secondTilt,
+    FIELD_ELEMENT_AXIS_Y + swellB * 0.012,
     0,
-    0.08 + compression * 0.08,
-    0.96 + compression * 0.08,
-    1 + compression * 0.06,
-    0.96 + compression * 0.08,
+    Math.PI + swellB * undulation * 0.8,
+    0,
+    -flex + swellA * 0.03,
+    0.99,
+    0.62 + swellA * 0.015,
+    0.62 + swellB * 0.015,
   );
-  for (let index = 0; index < state.packetPhases.length; index += 1) {
-    if (index === 0) {
-      const coreScale = 0.82 + compression * 0.72 + Math.abs(state.current) * 0.18;
-      setInstance(
-        pools.packets,
-        index,
-        scratch,
-        0,
-        0.12,
-        0,
-        compression * 0.08,
-        state.packetPhases[index] * TWO_PI * 0.18,
-        -compression * 0.06,
-        coreScale,
-        coreScale * 1.08,
-        coreScale,
-      );
-      continue;
-    }
-    const phase = state.packetPhases[index] * TWO_PI;
-    const packetScale = 0.36 + Math.abs(state.current) * 0.42;
+  // Firebox heart: a double-thump pulse whose cadence quickens while docked.
+  const beat =
+    Math.pow(Math.max(0, Math.sin(symbiote.pulse)), 3) +
+    0.55 * Math.pow(Math.max(0, Math.sin(symbiote.pulse - 0.42)), 3);
+  const coreScale = 0.78 + compression * 0.3 + beat * (0.1 + excitement * 0.08);
+  setInstance(
+    pools.packets,
+    0,
+    scratch,
+    0,
+    FIELD_ELEMENT_AXIS_Y,
+    0,
+    0,
+    symbiote.crawl * TWO_PI,
+    0,
+    coreScale,
+    coreScale * (1.05 + beat * 0.06),
+    coreScale,
+  );
+  // Symbiote nano-flux packets crawl the element helix. Their travel stacks
+  // the deterministic lib packet phase, the shared crawl phase, and two
+  // incommensurate sinusoids so no packet ever marches linear-mechanically.
+  for (let index = 1; index < state.packetPhases.length; index += 1) {
+    const wander =
+      Math.sin(livingTime * 0.83 + index * 2.39) * 0.045 +
+      Math.sin(livingTime * 1.71 + index * 1.13) * 0.028;
+    const travel = (((state.packetPhases[index] + symbiote.crawl + wander) % 1) + 1) % 1;
+    const angle = travel * TWO_PI * FIELD_ELEMENT_TURNS;
+    const hug = FIELD_ELEMENT_RADIUS + 0.02 * Math.sin(livingTime * 1.9 + index * 2.7);
+    const tangentX = FIELD_HEATER_HALF_LENGTH * 2;
+    const tangentY = -Math.sin(angle) * hug * TWO_PI * FIELD_ELEMENT_TURNS;
+    const tangentZ = Math.cos(angle) * hug * TWO_PI * FIELD_ELEMENT_TURNS;
+    const packetScale =
+      0.3 + excitement * 0.13 + 0.045 * Math.sin(livingTime * 2.3 + index * 3.1);
     setInstance(
       pools.packets,
       index,
       scratch,
-      Math.cos(phase) * (0.76 - compression * 0.1),
-      0.2 + Math.sin(phase * 2) * 0.16,
-      Math.sin(phase) * 0.44,
+      (travel - 0.5) * FIELD_HEATER_HALF_LENGTH * 2,
+      FIELD_ELEMENT_AXIS_Y + Math.cos(angle) * hug,
+      Math.sin(angle) * hug,
+      -angle,
+      Math.atan2(-tangentZ, tangentX),
+      Math.atan2(tangentY, Math.hypot(tangentX, tangentZ)),
+      packetScale,
+      packetScale * 0.9,
+      packetScale * 0.9,
+    );
+  }
+  // Static warm porthole windows on the dock-facing control-housing wall.
+  for (let index = 0; index < FIELD_PORTHOLE_WINDOWS.length; index += 1) {
+    const [windowX, windowY, windowZ] = FIELD_PORTHOLE_WINDOWS[index];
+    setInstance(
+      pools.packets,
+      state.packetPhases.length + index,
+      scratch,
+      windowX,
+      windowY,
+      windowZ,
+      Math.PI / 2,
       0,
-      -phase,
-      Math.sin(phase) * 0.28,
-      packetScale,
-      packetScale,
-      packetScale,
+      0,
+      0.4,
+      0.14,
+      0.4,
     );
   }
   if (pools.coils?.material) {
-    pools.coils.material.emissiveIntensity = 0.56 + compression * 0.8;
+    pools.coils.material.emissiveIntensity = 0.55 + compression * 0.35 + excitement * 0.45;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.8 + state.fluxSkin * 0.3;
+    pools.frame.material.emissiveIntensity = 0.34 + state.fluxSkin * 0.22 + excitement * 0.2;
   }
   if (pools.packets?.material) {
-    pools.packets.material.emissiveIntensity = 1.16 + compression * 0.78;
+    pools.packets.material.emissiveIntensity =
+      1.18 + compression * 0.4 + excitement * 0.5 + beat * 0.25;
   }
-  setAwardSurfaceActivity(pools.frame?.material, state.fluxSkin);
-  setAwardSurfaceActivity(pools.coils?.material, compression);
-  setAwardSurfaceActivity(pools.packets?.material, Math.max(compression, state.fluxSkin));
+  // Chassis skin stays subtle: enough shimmer that the panels feel possessed,
+  // never enough that the machined end plates read as melting silhouettes.
+  setAwardSurfaceActivity(
+    pools.frame?.material,
+    Math.min(0.4, Math.max(state.fluxSkin, excitement) * 0.4),
+  );
+  // The element tube is thin, so full shader activity would shred the helix
+  // into flame petals; cap the displacement low enough that the run always
+  // reads as glowing heater elements with a living skin, never open fire.
+  setAwardSurfaceActivity(
+    pools.coils?.material,
+    0.16 + Math.max(compression, excitement) * 0.26,
+  );
+  setAwardSurfaceActivity(
+    pools.packets?.material,
+    Math.max(compression, state.fluxSkin, excitement),
+  );
   commitPool(pools.frame);
   commitPool(pools.coils);
   commitPool(pools.packets);
 }
 
-function applyQpuInstances(state, pools, scratch) {
+function applyQpuInstances(state, pools, scratch, traffic, reducedMotion) {
   updateQpuFrameDrawRange(pools.frame, state.manifoldBuild);
   setInstance(
     pools.frame,
@@ -1255,52 +1848,76 @@ function applyQpuInstances(state, pools, scratch) {
     0,
     0,
     0,
-    1.08,
-    1.08,
-    1.08,
+    QPU_FRAME_SCALE,
+    QPU_FRAME_SCALE,
+    QPU_FRAME_SCALE,
   );
+  const trafficBlend = reducedMotion ? 1 : traffic.blend;
   const lastSlice = state.manifoldSliceBuild.length - 1;
   const sliceSpacing = (QPU_BRIDGE_HALF_SPAN * 2) / lastSlice;
   for (let index = 0; index < state.manifoldSliceBuild.length; index += 1) {
     const build = state.manifoldSliceBuild[index];
     const normalizedX = index / lastSlice * 2 - 1;
     const x = -QPU_BRIDGE_HALF_SPAN + index * sliceSpacing;
-    const arch = 0.34 * (1 - normalizedX * normalizedX);
+    const arch = QPU_DECK_ARCH * (1 - normalizedX * normalizedX) + qpuCrestLift(normalizedX);
     const reweave = Math.sin(state.reweavePhase + index * 0.42) * 0.012 * state.manifoldBuild;
+    // Deterministic stabilizer bob rides the same fixed-step reweave phase;
+    // reduced motion holds the ribs and rings perfectly still.
+    const bob = reducedMotion
+      ? 0
+      : Math.sin(state.reweavePhase * 0.8 + index * 1.7) * 0.02 * state.manifoldBuild;
     setInstance(
       pools.plates,
       index,
       scratch,
       x,
-      QPU_INVERSE_BRIDGE_LIFT + arch + reweave,
+      QPU_INVERSE_BRIDGE_LIFT + arch + reweave + bob,
       0,
       0,
-      0,
+      index % 2 === 0 ? 0 : Math.PI,
       normalizedX * -0.21 + reweave * 0.8,
       1.04,
       0.045 + build * 0.955,
       1,
     );
   }
-  for (let index = 0; index < 5; index += 1) {
-    const signalProgress = index / 4;
-    const normalizedX = signalProgress * 2 - 1;
-    const x = -QPU_BRIDGE_HALF_SPAN + signalProgress * QPU_BRIDGE_HALF_SPAN * 2;
-    const arch = 0.34 * (1 - normalizedX * normalizedX);
-    const signalScale = 0.3 + state.manifoldBuild * 0.24;
+  // Signal traffic ritual: light pulses travel the deck in both directions
+  // with phase offsets. Idle keeps sparse slow carriers; docking multiplies
+  // the traffic and roughly doubles its cadence, with interference brightening
+  // toward midspan. Reduced motion pins a static standing-wave pattern of
+  // bright nodes along the deck instead of travel.
+  const deckSlope = 2 * (QPU_DECK_ARCH + QPU_CREST_BOOST) * QPU_FRAME_SCALE / QPU_BRIDGE_HALF_SPAN;
+  for (let index = 0; index < QPU_PULSE_COUNT; index += 1) {
+    const direction = index % 2 === 0 ? 1 : -1;
+    const offset = index / QPU_PULSE_COUNT;
+    const travel = reducedMotion
+      ? (index + 0.5) / QPU_PULSE_COUNT
+      : (((traffic.phase * direction + offset) % 1) + 1) % 1;
+    const normalizedX = travel * 2 - 1;
+    const x = normalizedX * QPU_BRIDGE_HALF_SPAN;
+    const deckLocalY = 0.14 + (QPU_DECK_ARCH + QPU_CREST_BOOST) * (1 - normalizedX * normalizedX);
+    const idleCarrier = index % 3 === 0 ? 1 : 0.22;
+    const presence = idleCarrier + (1 - idleCarrier) * trafficBlend;
+    const interference = reducedMotion
+      ? 0.5 + 0.5 * Math.cos(normalizedX * Math.PI * 5)
+      : (1 - Math.abs(normalizedX)) * trafficBlend;
+    const pulseScale =
+      (0.26 + trafficBlend * 0.16 + interference * 0.24) *
+      presence *
+      (0.35 + state.manifoldBuild * 0.65);
     setInstance(
       pools.signals,
       index,
       scratch,
       x,
-      QPU_INVERSE_BRIDGE_LIFT + arch + 0.2,
-      0.34,
+      QPU_INVERSE_BRIDGE_LIFT + QPU_FRAME_SCALE * deckLocalY + 0.075,
+      direction * 0.17,
       0,
-      normalizedX * 0.16,
       0,
-      signalScale,
-      signalScale,
-      signalScale,
+      Math.atan(-deckSlope * normalizedX),
+      pulseScale * 1.3,
+      pulseScale,
+      pulseScale,
     );
   }
   const progress = state.verificationBeamProgress;
@@ -1308,28 +1925,31 @@ function applyQpuInstances(state, pools, scratch) {
   const beamLength = QPU_BRIDGE_HALF_SPAN * 2 * coherenceSpan;
   setInstance(
     pools.signals,
-    5,
+    QPU_PULSE_COUNT,
     scratch,
     -QPU_BRIDGE_HALF_SPAN + beamLength * 0.5,
-    QPU_INVERSE_BRIDGE_LIFT + 0.72,
+    QPU_INVERSE_BRIDGE_LIFT + QPU_FRAME_SCALE * (0.14 + QPU_DECK_ARCH + QPU_CREST_BOOST) + 0.24,
     0,
     0,
     0,
     0,
     Math.max(0.05, beamLength / QPU_SIGNAL_BASE_LENGTH),
-    0.78 + progress * 0.52,
-    0.78 + progress * 0.52,
+    0.6 + progress * 0.5,
+    0.6 + progress * 0.5,
   );
   if (pools.plates?.material) {
-    pools.plates.material.emissiveIntensity = 0.28 + state.sanctumPulse * 0.38;
+    pools.plates.material.emissiveIntensity =
+      0.24 + state.sanctumPulse * 0.3 + trafficBlend * 0.22;
   }
   if (pools.signals?.material) {
-    pools.signals.material.emissiveIntensity = 0.88 + Math.max(state.coherence, progress) * 0.86;
+    pools.signals.material.emissiveIntensity =
+      1.05 + trafficBlend * 0.7 + Math.max(state.coherence, progress) * 0.6;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.54 + state.sanctumPulse * 0.4;
+    pools.frame.material.emissiveIntensity =
+      0.5 + state.sanctumPulse * 0.34 + trafficBlend * 0.4;
   }
-  const qpuActivity = Math.max(state.coherence, progress, state.sanctumPulse);
+  const qpuActivity = Math.max(state.coherence, progress, state.sanctumPulse, trafficBlend);
   setAwardSurfaceActivity(pools.frame?.material, qpuActivity);
   setAwardSurfaceActivity(pools.plates?.material, qpuActivity);
   setAwardSurfaceActivity(pools.signals?.material, qpuActivity);
@@ -1343,7 +1963,16 @@ function applyStationRootReveal(root, stationId, alpha, familyAlpha, isPromise, 
   root.visible = alpha > 0.005 && familyAlpha > 0.005;
   if (!root.visible) return;
   const heroScale = NE_MONUMENT_CONTRACTS[stationId]?.heroScale ?? 1;
-  root.scale.setScalar(isPromise ? 0.88 : isDocked ? heroScale : 1);
+  const revealScale = isPromise ? 0.88 : isDocked ? heroScale : 1;
+  root.scale.setScalar(revealScale);
+  const lowestLocalY = STATION_LOWEST_LOCAL_Y[stationId];
+  if (lowestLocalY !== undefined) {
+    // Scale about the ground-contact plane, not the root origin: lift the root
+    // so the monument's lowest authored point stays at its idle contact height
+    // for whatever scale value this frame applies (hero, promise, or idle).
+    root.position.y =
+      STATION_TRANSFORMS[stationId].position[1] + (revealScale - 1) * -lowestLocalY;
+  }
   root.traverse((object) => {
     if (!object.material) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -1367,6 +1996,15 @@ export default function PolarStationMechanismsNE({
   visible = true,
 }) {
   const systemRef = useRef(createNortheastMechanismSystem());
+  const s2RotorRef = useRef({ angle: 0, rate: S2_ROTOR_IDLE_RATE, simTime: 0 });
+  const fieldSymbioteRef = useRef({
+    crawl: 0,
+    excite: 0,
+    organicTime: 0,
+    pulse: 0,
+    simTime: 0,
+  });
+  const qpuTrafficRef = useRef({ blend: 0, phase: 0, simTime: 0 });
   const inputsRef = useRef({});
   const ritualOutputRef = useRef({
     evidenceReady: false,
@@ -1420,14 +2058,16 @@ export default function PolarStationMechanismsNE({
     preparePool(aetherBeads.current, 7);
     preparePool(fieldFrame.current, 1);
     preparePool(fieldCoils.current, 2);
-    preparePool(fieldPackets.current, 4);
+    // Four lib packet slots (firebox heart plus three crawling nano-flux
+    // packets) plus the two static ember porthole windows.
+    preparePool(fieldPackets.current, 4 + FIELD_PORTHOLE_WINDOWS.length);
     preparePool(qpuFrame.current, 1);
     updateQpuFrameDrawRange(
       qpuFrame.current,
       systemRef.current.states["qpu-ice-bridge"].manifoldBuild,
     );
     preparePool(qpuPlates.current, QPU_MANIFOLD_SLICE_COUNT);
-    preparePool(qpuSignals.current, 6);
+    preparePool(qpuSignals.current, QPU_SIGNAL_POOL_SIZE);
   }, [resources]);
 
   useEffect(() => () => disposeRenderResources(resources), [resources]);
@@ -1499,10 +2139,95 @@ export default function PolarStationMechanismsNE({
     pools.qpu.frame = qpuFrame.current;
     pools.qpu.plates = qpuPlates.current;
     pools.qpu.signals = qpuSignals.current;
-    applyS2Instances(system.states["s2-kernel-core"], pools.s2, scratch);
-    applyAetherInstances(system.states["manifold-reactor"], pools.aether, scratch);
-    applyFieldInstances(system.states["field-chamber-coils"], pools.field, scratch);
-    applyQpuInstances(system.states["qpu-ice-bridge"], pools.qpu, scratch);
+    // Kernel-citadel rotor: idle ambient spin that springs up to the docked
+    // ceremonial rate and decays back on undock. Driven only by the fixed-step
+    // simulation clock (never the wall clock); reduced motion pins the rotor
+    // at one authored deterministic angle.
+    const rotor = s2RotorRef.current;
+    const s2Docked =
+      exclusiveStationId === "s2-kernel-core" || pose?.dockedId === "s2-kernel-core";
+    const rotorTargetRate = s2Docked ? S2_ROTOR_DOCKED_RATE : S2_ROTOR_IDLE_RATE;
+    const rotorSimDelta = Math.max(0, system.simulationTime - rotor.simTime);
+    rotor.simTime = system.simulationTime;
+    if (reducedMotion) {
+      rotor.rate = 0;
+      rotor.angle = S2_ROTOR_REDUCED_ANGLE;
+    } else if (rotorSimDelta > 0) {
+      rotor.rate +=
+        (rotorTargetRate - rotor.rate) *
+        (1 - Math.exp(-rotorSimDelta / S2_ROTOR_SPIN_RESPONSE));
+      rotor.angle = (rotor.angle + rotor.rate * rotorSimDelta) % TWO_PI;
+    }
+    applyS2Instances(system.states["s2-kernel-core"], pools.s2, scratch, rotor.angle);
+    applyAetherInstances(
+      system.states["manifold-reactor"],
+      pools.aether,
+      scratch,
+      reducedMotion,
+    );
+    // Possessed-heater symbiote: crawl phase, excitement, and firebox pulse
+    // all integrate against the fixed-step simulation clock exactly like the
+    // S2 rotor spring. Docking roughly doubles the nano-flux crawl cadence
+    // and quickens the heartbeat; reduced motion pins one authored pose that
+    // stays fully incandescent so the heat gradient never disappears.
+    const symbiote = fieldSymbioteRef.current;
+    const fieldDocked =
+      exclusiveStationId === "field-chamber-coils" ||
+      pose?.dockedId === "field-chamber-coils";
+    const symbioteSimDelta = Math.max(0, system.simulationTime - symbiote.simTime);
+    symbiote.simTime = system.simulationTime;
+    if (reducedMotion) {
+      symbiote.excite = 1;
+      symbiote.crawl = FIELD_SYMBIOTE_REDUCED_CRAWL;
+      symbiote.pulse = FIELD_SYMBIOTE_REDUCED_PULSE;
+      symbiote.organicTime = 0;
+    } else if (symbioteSimDelta > 0) {
+      symbiote.excite +=
+        ((fieldDocked ? 1 : 0) - symbiote.excite) *
+        (1 - Math.exp(-symbioteSimDelta / FIELD_SYMBIOTE_RESPONSE));
+      const crawlRate =
+        FIELD_SYMBIOTE_IDLE_RATE +
+        (FIELD_SYMBIOTE_DOCKED_RATE - FIELD_SYMBIOTE_IDLE_RATE) * symbiote.excite;
+      symbiote.crawl = (symbiote.crawl + crawlRate * symbioteSimDelta) % 1;
+      symbiote.pulse =
+        (symbiote.pulse +
+          (FIELD_HEARTBEAT_IDLE_RATE +
+            (FIELD_HEARTBEAT_DOCKED_RATE - FIELD_HEARTBEAT_IDLE_RATE) *
+              symbiote.excite) *
+            symbioteSimDelta) %
+        TWO_PI;
+      symbiote.organicTime += symbioteSimDelta;
+    }
+    applyFieldInstances(
+      system.states["field-chamber-coils"],
+      pools.field,
+      scratch,
+      symbiote,
+    );
+    // Coherent-causeway signal traffic: like the S2 rotor, the pulse phase
+    // integrates only against the fixed-step simulation clock, easing toward
+    // roughly double cadence and full lane occupancy while the seal is docked.
+    const traffic = qpuTrafficRef.current;
+    const qpuDocked =
+      exclusiveStationId === "qpu-ice-bridge" || pose?.dockedId === "qpu-ice-bridge";
+    const trafficSimDelta = Math.max(0, system.simulationTime - traffic.simTime);
+    traffic.simTime = system.simulationTime;
+    if (trafficSimDelta > 0 && !reducedMotion) {
+      traffic.blend +=
+        ((qpuDocked ? 1 : 0) - traffic.blend) *
+        (1 - Math.exp(-trafficSimDelta / QPU_TRAFFIC_RESPONSE));
+      const trafficRate =
+        QPU_TRAFFIC_IDLE_RATE +
+        (QPU_TRAFFIC_DOCKED_RATE - QPU_TRAFFIC_IDLE_RATE) * traffic.blend;
+      traffic.phase = (traffic.phase + trafficRate * trafficSimDelta) % 1;
+    }
+    applyQpuInstances(
+      system.states["qpu-ice-bridge"],
+      pools.qpu,
+      scratch,
+      traffic,
+      reducedMotion,
+    );
   });
 
   if (safeMode || !visible) return null;
@@ -1639,7 +2364,7 @@ export default function PolarStationMechanismsNE({
               ref={fieldCoils}
             />
             <instancedMesh
-              args={[resources.geometries.fieldPacket, resources.materials.fieldPacket, 4]}
+              args={[resources.geometries.fieldPacket, resources.materials.fieldPacket, 6]}
               frustumCulled
               geometry={resources.geometries.fieldPacket}
               material={resources.materials.fieldPacket}
@@ -1682,7 +2407,7 @@ export default function PolarStationMechanismsNE({
               ref={qpuPlates}
             />
             <instancedMesh
-              args={[resources.geometries.qpuSignal, resources.materials.qpuSignal, 6]}
+              args={[resources.geometries.qpuSignal, resources.materials.qpuSignal, QPU_SIGNAL_POOL_SIZE]}
               frustumCulled={false}
               geometry={resources.geometries.qpuSignal}
               material={resources.materials.qpuSignal}

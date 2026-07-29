@@ -52,6 +52,14 @@ export const CAMERA_DAMPING_PROFILE = "Abeto-style frame-rate independent camera
 
 const EMPTY_PROJECTS = Object.freeze([]);
 
+// Local camera-rig idle life. These are rig-only breathing terms layered on top
+// of the pinned CAMERA_COMPOSITION solve; all of them read zero under reduced
+// motion so the frozen frame stays byte-stable.
+const RIG_IDLE_YAW_DEGREES = 0.15;
+const RIG_IDLE_YAW_HZ = 0.09;
+const RIG_IDLE_HEIGHT = 0.012;
+const RIG_IDLE_HEIGHT_HZ = 0.13;
+
 function WorldStreamReveal({
   children,
   durationMs,
@@ -180,6 +188,27 @@ function CameraRig({
     sealPosition: { x: 0, z: 0 },
     velocity: { x: 0, z: 0 },
   });
+  // Normalised cursor position (-1..1) and its damped follower. The rig alone
+  // consumes this; the post pass stays pointer-free by contract.
+  const pointerTarget = useRef({ x: 0, y: 0 });
+  const pointerCurrent = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (reducedMotion) {
+      pointerTarget.current.x = 0;
+      pointerTarget.current.y = 0;
+      return undefined;
+    }
+    const canvas = gl.domElement;
+    const onMove = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      pointerTarget.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerTarget.current.y = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+    };
+    canvas.addEventListener("pointermove", onMove, { passive: true });
+    return () => canvas.removeEventListener("pointermove", onMove);
+  }, [gl, reducedMotion]);
   const dockComposition = useMemo(
     () =>
       solvePolarCameraComposition({
@@ -260,12 +289,36 @@ function CameraRig({
     const elevation = THREE.MathUtils.degToRad(dockComposition.camera.elevationDegrees);
     const horizontalDistance = Math.cos(elevation) * distance;
     const drift = reducedMotion ? 0 : THREE.MathUtils.smoothstep(speed, 0.08, 3.8);
+    // Idle life: a sub-degree yaw sway and a small height breath keep a settled
+    // frame from reading as a still image. Both collapse to zero when the user
+    // asks for reduced motion.
+    const idleYaw = reducedMotion
+      ? 0
+      : THREE.MathUtils.degToRad(RIG_IDLE_YAW_DEGREES) *
+        Math.sin(t * Math.PI * 2 * RIG_IDLE_YAW_HZ);
+    const idleHeight = reducedMotion
+      ? 0
+      : RIG_IDLE_HEIGHT * Math.sin(t * Math.PI * 2 * RIG_IDLE_HEIGHT_HZ);
+    const swayedAzimuth = azimuth + idleYaw;
     desired.set(
-      target.x + Math.sin(azimuth) * horizontalDistance + Math.sin(t * 0.1) * 0.045 * drift,
-      target.y + Math.sin(elevation) * distance,
-      target.z + Math.cos(azimuth) * horizontalDistance + Math.cos(t * 0.09) * 0.065 * drift,
+      target.x + Math.sin(swayedAzimuth) * horizontalDistance + Math.sin(t * 0.1) * 0.045 * drift,
+      target.y + Math.sin(elevation) * distance + idleHeight,
+      target.z + Math.cos(swayedAzimuth) * horizontalDistance + Math.cos(t * 0.09) * 0.065 * drift,
     );
     desiredLook.copy(target);
+    // Pointer reactivity lives on the look target only, capped below half a
+    // degree so the authored composition never leaves its solved envelope.
+    if (!reducedMotion) {
+      const pointerDamping = 1 - Math.exp(-Math.min(delta, 0.05) * 4);
+      pointerCurrent.current.x +=
+        (pointerTarget.current.x - pointerCurrent.current.x) * pointerDamping;
+      pointerCurrent.current.y +=
+        (pointerTarget.current.y - pointerCurrent.current.y) * pointerDamping;
+      const pointerReach = distance * Math.tan(THREE.MathUtils.degToRad(0.4));
+      desiredLook.x += Math.cos(azimuth) * pointerCurrent.current.x * pointerReach;
+      desiredLook.z += -Math.sin(azimuth) * pointerCurrent.current.x * pointerReach;
+      desiredLook.y += -pointerCurrent.current.y * pointerReach;
+    }
     const cameraDamping = reducedMotion
       ? 1
       : 1 - Math.exp(-delta * CAMERA_COMPOSITION.positionDamping);
@@ -573,7 +626,7 @@ export default function IglooScene({
       gl.shadowMap.enabled = true;
       gl.shadowMap.type = THREE.PCFSoftShadowMap;
       gl.toneMapping = THREE.ACESFilmicToneMapping;
-      gl.toneMappingExposure = 1.08;
+      gl.toneMappingExposure = 1.12;
       onGpuEvent?.({
         detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
         message: `WebGL renderer ready at ${quality} quality.`,
@@ -620,10 +673,10 @@ export default function IglooScene({
       }}
       onCreated={onCanvasCreated}
     >
-      <color attach="background" args={[POLAR_PALETTE.glacierWhite]} />
-      <fogExp2 attach="fog" args={[POLAR_PALETTE.fog, 0.018]} />
-      <ambientLight intensity={0.44} />
-      <hemisphereLight color="#FFFDF7" groundColor="#9BB5C1" intensity={1} />
+      <color attach="background" args={["#5A6E9C"]} />
+      <fogExp2 attach="fog" args={[POLAR_PALETTE.fog, 0.0085]} />
+      <ambientLight color="#8FA2CC" intensity={0.46} />
+      <hemisphereLight color="#B6C8EC" groundColor="#5A6684" intensity={1.15} />
       <Suspense fallback={null}>
         <SceneDiagnostics
           observatoryDistance={observatoryDistance}
@@ -779,7 +832,7 @@ export default function IglooScene({
               ]}
               impactPulse={iglooPulse}
               initialStreamRevealProgress={reducedMotion ? 1 : 0}
-              pointerInteractionEnabled={dockedStationId === "observatory-plaque"}
+              pointerInteractionEnabled={dockedStationId === "observatory-plaque" || observatoryDistance <= 4.6}
               quality={quality}
               reducedMotion={reducedMotion}
               streamRevealProgressRef={domeRevealProgressRef}

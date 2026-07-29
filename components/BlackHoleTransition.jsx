@@ -104,6 +104,19 @@ const STAR_NEST_FRAGMENT_SHADER = `
     col *= vignette;
     col = pow(col, vec3(1.28));
 
+    // Polar-dusk grade: cool the star nest toward twilight blue, wrap the
+    // event horizon in a slow mint-to-violet aurora ring, and float the core
+    // on deep #0C1122 navy instead of pure black.
+    col *= vec3(0.84, 0.92, 1.14);
+    vec3 auroraMint = vec3(0.4353, 0.9059, 0.7843);
+    vec3 auroraViolet = vec3(0.5529, 0.4118, 0.8392);
+    vec3 deepCore = vec3(0.0471, 0.0667, 0.1333);
+    float horizonAngle = atan(uvScreen.y, uvScreen.x + 0.0001);
+    vec3 horizonTint = mix(auroraMint, auroraViolet, 0.5 + 0.5 * sin(horizonAngle + uTime * 0.12));
+    float horizonBand = exp(-pow((distToSingularity - BLACKHOLE_RADIUS - 0.09) * 5.5, 2.0));
+    col += horizonTint * horizonBand * 0.16 * vignette;
+    col += deepCore * (0.3 + 0.7 * (1.0 - edge)) * vignette;
+
     gl_FragColor = vec4(col, 1.0);
   }
 `;

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run check:biome-world)",
+      "Bash(npm run check:browser-diagnostics)",
+      "Bash(npm run check:camera-composition)",
+      "Bash(npm run check:ci-browser-boundary)",
+      "Bash(npm run check:dome-crystal)",
+      "Bash(npm run check:evidence-integrity)",
+      "Bash(npm run check:gpu-lifecycle)",
+      "Bash(npm run check:hud-accessibility)",
+      "Bash(npm run check:particles)",
+      "Bash(npm run check:polar-rescue)",
+      "Bash(npm run check:polar-traversal)",
+      "Bash(npm run check:publication-packaging)",
+      "Bash(npm run check:render-budget)",
+      "Bash(npm run check:seal-manifold)",
+      "Bash(npm run check:station-mechanism-layer)",
+      "Bash(npm run check:station-mechanisms-ne)",
+      "Bash(npm run check:station-mechanisms-sw)",
+      "Bash(npm run check:station-shaders)",
+      "Bash(npm run check:station-world)",
+      "Bash(npm run check:station-world-integration)",
+      "Bash(npm run check:teerth)",
+      "Bash(npm run check:user-copy)",
+      "Bash(npm run check:world-cadence)",
+      "Bash(npm run lint)"
+    ]
+  }
+}

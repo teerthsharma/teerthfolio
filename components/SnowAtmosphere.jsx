@@ -5,7 +5,12 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 export const SNOW_ATMOSPHERE_MODE = "bounded falling snow and ground fog";
-export const POLAR_GROUND_FOG_PROFILE = "uplifting translucent mint-lavender ground fog that keeps station silhouettes readable";
+export const POLAR_GROUND_FOG_PROFILE = "dusk translucent twilight-blue ground fog that keeps station silhouettes readable";
+
+// Polar-dusk grade: cold ice-blue flakes with a faint warm glint borrowed from
+// the low sun. The glint is a slow color drift only, never extra particles.
+const SNOW_BASE_COLOR = new THREE.Color("#E8F2FF");
+const SNOW_GLINT_COLOR = new THREE.Color("#F5D9A8");
 
 function makeSnowGeometry(count) {
   const geometry = new THREE.BufferGeometry();
@@ -32,10 +37,10 @@ export default function SnowAtmosphere({ axisX = 0, depthZ = 0, quality = "mediu
   const material = useMemo(
     () =>
       new THREE.PointsMaterial({
-        color: "#dcfff8",
+        color: "#E8F2FF",
         size: quality === "low" ? 0.026 : 0.018,
         transparent: true,
-        opacity: quality === "low" ? 0.16 : 0.2,
+        opacity: quality === "low" ? 0.13 : 0.16,
         depthWrite: false,
         blending: THREE.NormalBlending,
       }),
@@ -67,10 +72,13 @@ export default function SnowAtmosphere({ axisX = 0, depthZ = 0, quality = "mediu
     }
     positions.needsUpdate = true;
 
+    const glint = 0.06 + Math.sin(clock.elapsedTime * 0.45) * 0.05;
+    material.color.copy(SNOW_BASE_COLOR).lerp(SNOW_GLINT_COLOR, glint);
+
     if (fog.current) {
       fog.current.position.x = axisX;
       fog.current.position.z = depthZ - 2;
-      fog.current.material.opacity = 0.034 + Math.sin(clock.elapsedTime * 0.33) * 0.006;
+      fog.current.material.opacity = 0.045 + Math.sin(clock.elapsedTime * 0.33) * 0.007;
     }
   });
 
@@ -79,7 +87,7 @@ export default function SnowAtmosphere({ axisX = 0, depthZ = 0, quality = "mediu
       <points ref={points} geometry={geometry} material={material} />
       <mesh ref={fog} position={[axisX, -0.05, depthZ - 2]} rotation={[-Math.PI / 2, 0, 0]} scale={[30, 18, 1]}>
         <planeGeometry args={[1, 1, 1, 1]} />
-        <meshBasicMaterial color="#bdefff" transparent opacity={0.034} depthWrite={false} />
+        <meshBasicMaterial color="#3A4C73" transparent opacity={0.045} depthWrite={false} />
       </mesh>
     </group>
   );

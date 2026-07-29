@@ -169,7 +169,7 @@ function makeMistGeometry(count) {
 }
 
 export default function PolarAtmosphereField({
-  accent = "#65C1BC",
+  accent = "#5CC9C2",
   axisX = 0,
   depthZ = 0,
   quality = "medium",
@@ -201,9 +201,9 @@ export default function PolarAtmosphereField({
             toneMapped: false,
             transparent: true,
             uniforms: {
-              uAccent: { value: new THREE.Color("#65C1BC") },
-              uAtmosphereColor: { value: new THREE.Color("#F7FFFF") },
-              uAtmosphereGlow: { value: new THREE.Color("#8FD0E0") },
+              uAccent: { value: new THREE.Color("#5CC9C2") },
+              uAtmosphereColor: { value: new THREE.Color("#22354F") },
+              uAtmosphereGlow: { value: new THREE.Color("#5A93A8") },
               uBiomeCenterXZ: { value: new THREE.Vector2(-15, 7) },
               uBiomeFalloff: { value: 0.62 },
               uBiomeRadius: { value: 10.5 },
