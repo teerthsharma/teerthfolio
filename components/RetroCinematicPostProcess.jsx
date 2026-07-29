@@ -15,11 +15,15 @@ const qualityBudget = POST_PROCESS_BUDGET;
 
 // Local cinematic layer tuned per quality tier, stacked on top of the frozen
 // POST_PROCESS_BUDGET without changing how that budget is consumed.
-// Low tier stays near-passthrough: no glow taps, no grain, faint vignette.
+// SHADER LAW 1: the camera-space layer is a whisper. Everything that reads as
+// dirt on the glass (grain, screen snow, heavy vignette) is floored so the
+// frame looks like a place, not a filtered image. Only bloom and the colour
+// grade survive at strength, and bloom is threshold-gated to real highlights.
+// Liveliness belongs to the world (sky aurora sector + cloud drift), not here.
 const CINEMATIC_GRADE = Object.freeze({
-  low: Object.freeze({ vignette: 0.07, grain: 0, bloom: 0, sCurve: 0.06, splitTone: 0.08, snow: 0 }),
-  medium: Object.freeze({ vignette: 0.12, grain: 0.025, bloom: 0.32, sCurve: 0.08, splitTone: 0.12, snow: 0.014 }),
-  high: Object.freeze({ vignette: 0.14, grain: 0.045, bloom: 0.45, sCurve: 0.08, splitTone: 0.16, snow: 0.02 }),
+  low: Object.freeze({ vignette: 0.05, grain: 0, bloom: 0, sCurve: 0.06, splitTone: 0.08, snow: 0 }),
+  medium: Object.freeze({ vignette: 0.06, grain: 0.01, bloom: 0.38, sCurve: 0.06, splitTone: 0.09, snow: 0 }),
+  high: Object.freeze({ vignette: 0.07, grain: 0.012, bloom: 0.5, sCurve: 0.06, splitTone: 0.1, snow: 0 }),
 });
 
 const VERTEX_SHADER = `
@@ -182,7 +186,9 @@ vec3 highlightGlow(vec2 uv, vec2 texel) {
   // tier never pays for the extra texture reads.
   vec2 spread = texel * 2.4;
   vec2 diagonal = spread * 0.7071;
-  vec3 glowThreshold = vec3(0.62);
+  // Threshold sits high so only genuine highlights (window glass, indicator
+  // lights, sun kiss) bloom. Lower thresholds smear the whole frame into haze.
+  vec3 glowThreshold = vec3(0.80);
   vec3 accum = vec3(0.0);
   accum += max(texture2D(tDiffuse, clamp(uv + vec2(spread.x, 0.0), 0.001, 0.999)).rgb - glowThreshold, 0.0);
   accum += max(texture2D(tDiffuse, clamp(uv - vec2(spread.x, 0.0), 0.001, 0.999)).rgb - glowThreshold, 0.0);
@@ -238,7 +244,7 @@ void main() {
   float depthFogMask = smoothstep(0.54, 0.96, linearDepth);
   float pixelSize = max(1.0, uPixelSize);
   vec2 pixelUv = (floor(clampedUv * uResolution / pixelSize) + 0.5) * pixelSize / uResolution;
-  vec2 sampleUv = mix(clampedUv, clamp(pixelUv, 0.001, 0.999), depthFogMask * 0.10);
+  vec2 sampleUv = mix(clampedUv, clamp(pixelUv, 0.001, 0.999), depthFogMask * 0.04);
 
   // 4. Four cardinal luma taps and four depth taps share one bounded line-confidence field.
   float lumaEdge = lumaEdgeConfidence(sampleUv, texel);
@@ -264,7 +270,7 @@ void main() {
   float scanline = 0.5 + 0.5 * sin(gl_FragCoord.y * 3.14159265);
   color *= 1.0 - scanline * uScanlineStrength * 0.45;
   float vignette = smoothstep(0.50, 1.45, dot(normalizedScreen, normalizedScreen));
-  color = mix(color, animeInk, vignette * 0.08);
+  color = mix(color, animeInk, vignette * 0.025);
 
   // 11. A tiered paper-grade curve restores ink structure; medium/high retain brighter snow.
   color *= (uGradeBase + uGradeCurve * color);

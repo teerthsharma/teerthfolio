@@ -20,6 +20,9 @@ const { STATION_WORLD_SCHEMA } = await import(pathToFileURL(worldPath).href);
 const {
   ASSEMBLY_WORKSHOP_GEOMETRY,
   SW_ASSEMBLY_PART_TYPES,
+  SW_ASSEMBLY_RELIC_CAPACITY,
+  SW_ASSEMBLY_RELIC_FORMS,
+  SW_BASE_LANGUAGE,
   SW_MECHANISM_INTEGRATION,
   SW_MECHANISM_BUDGET,
   SW_MECHANISM_IDS,
@@ -122,6 +125,21 @@ assert.deepEqual(SW_MECHANISM_SCALE_CONTRACTS, {
 });
 assert.deepEqual(SW_ASSEMBLY_PART_TYPES, ["avx512", "paging", "no_std", "stencil_simd"]);
 assert.ok(Object.isFrozen(SW_ASSEMBLY_PART_TYPES));
+assert.equal(SW_ASSEMBLY_RELIC_CAPACITY, 4);
+assert.ok(Object.isFrozen(SW_ASSEMBLY_RELIC_FORMS));
+// One camp, one contractor: the shared construction kit is authored once.
+assert.deepEqual(Object.keys(SW_BASE_LANGUAGE).sort(), [
+  "cladding",
+  "claddingAlt",
+  "emberWindow",
+  "hardware",
+  "safetyTrim",
+  "seamShadow",
+  "snow",
+  "structureShadow",
+  "structureSteel",
+]);
+assert.ok(Object.isFrozen(SW_BASE_LANGUAGE));
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].naturalFrequency, 5.4);
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].dampingRatio, 0.86);
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].bearingToleranceDegrees, 3);
@@ -196,8 +214,10 @@ assert.equal(
   STATION_PERSONALITY_PROFILES[IDS[2]].lighting.key,
 );
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].material, /mint waveguide/i);
-assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /staggered relational canyon/i);
-assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].material, /purple metallic basalt/i);
+// LAW 2: the archive is the camp's ice-core cold store and the tool locker is
+// its machine shop. Both contracts must name the real facility, not an effect.
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /ice-core cold store/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].material, /seamed panel cladding/i);
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].dishOrientation, "face-on-camera");
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].waveRingMode, "concentric-amplitude");
 assert.equal(SW_MECHANISM_PROFILES[IDS[0]].directionalPacketCount, 1);
@@ -221,13 +241,15 @@ assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].silhouette, /face-on coral\/m
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].launchApertureDistance, 0.34);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].countdownSeconds, 3);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].ignitionMotion, "countdown-then-ignition");
-assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /strata barcode canyon/i);
-assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /sweeping scan gantry/i);
-assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /open gantry/i);
-assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /graphite strata/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /racked core tubes/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /core-logging rig/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /insulated panels with real seams/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /graphite steel racks/i);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].railCount, 2);
-assert.equal(SW_MECHANISM_PROFILES[IDS[2]].edgeLighting, "purple-gold-lit");
-assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].silhouette, /suspended assembly rails/i);
+assert.equal(SW_MECHANISM_PROFILES[IDS[2]].edgeLighting, "amber-worklight-and-welding-arc");
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].silhouette, /overhead hoist rail/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].silhouette, /tool wall of merged upstream relics/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].material, /welding arc/i);
 assert.equal(
   new Set(IDS.map((id) => SW_MECHANISM_PROFILES[id].palette.surface)).size,
   3,
@@ -592,8 +614,36 @@ function advanceFor(system, inputs, seconds, options = {}, frameRate = 60) {
   assert.equal(resolved[IDS[1]].topologyCategory, "memory");
   assert.equal(resolved[IDS[2]].pointerPaused, true);
   assert.equal(resolved[IDS[2]].pointerScrub, 0.5);
+  // The tool wall hangs the real merged upstream work, so the resolver must
+  // forward both the live feed and the offline evidence sources to the shop —
+  // and to nowhere else.
+  assert.equal(resolved[IDS[2]].relicMetadata, liveSummary);
+  assert.equal(resolved[IDS[1]].relicMetadata, null);
+  assert.equal(resolved[IDS[0]].evidenceSources, null);
   assert.equal(resolved[IDS[0]].arrivalStrength, 0.7);
   assert.ok(resolved[IDS[0]].proximity >= 0.84);
+}
+
+// Merged upstream contributions become one physical relic each; the offline
+// evidence sources are the last resort so an archive without a network still
+// shows real tools instead of invented ones.
+{
+  const system = createSouthwestMechanismSystem();
+  const inputs = emptyInputs();
+  Object.assign(inputs[IDS[2]], { docked: true, proximity: 1, relicMetadata: liveSummary });
+  advanceFor(system, inputs, 0.2);
+  const live = system.states[IDS[2]].relics;
+  assert.equal(live.length, 1);
+  assert.equal(live[0].repo, "google-deepmind/mujoco");
+  assert.equal(live[0].url, "https://github.com/google-deepmind/mujoco/pull/1");
+  assert.ok(SW_ASSEMBLY_RELIC_FORMS.includes(live[0].form));
+
+  Object.assign(inputs[IDS[2]], { relicMetadata: null, evidenceSources: topologySources });
+  advanceFor(system, inputs, 0.2);
+  const offline = system.states[IDS[2]].relics;
+  assert.equal(offline.length, Math.min(SW_ASSEMBLY_RELIC_CAPACITY, topologySources.length));
+  assert.equal(offline[0].repo, "lambda-topo");
+  assert.ok(offline.every((relic) => SW_ASSEMBLY_RELIC_FORMS.includes(relic.form)));
 }
 
 // Reduced/safe variants keep complete semantic access without moving geometry.
@@ -705,16 +755,27 @@ for (const token of [
   "upstream-verified-signal-rings",
   "upstream-coral-signal-harbor-footing-and-bearing-cradle",
   "upstream-received-source-packet",
-  "topology-thick-relational-archive-canyon-walls-and-plinths",
+  "archive-ice-core-cold-store-panels-and-skid-deck",
   "topology-connected-trace",
   "topologyPanelX",
   "TOPOLOGY_SURFACE_COUNT",
-  "assembly-heavy-curved-gantry-inspection-backplane-and-proof-tool-mass",
-  "assembly-locator-pins",
-  "assembly-proof-tolerance-ring",
+  "TOPOLOGY_RACK_TIERS",
+  "topologyCoreLength",
+  "topologyRigX",
+  "assembly-machine-shop-open-bay",
+  "assembly-relic-worklights",
+  "assembly-welding-arc",
+  "assemblyArcIntensity",
+  "ASSEMBLY_RELIC_START",
+  "SW_ASSEMBLY_RELIC_CAPACITY",
+  "state.relics",
+  "SW_BASE_LANGUAGE.structureSteel",
+  "SW_BASE_LANGUAGE.safetyTrim",
+  "SW_BASE_LANGUAGE.emberWindow",
+  "SW_BASE_LANGUAGE.snow",
   "upstream-radio-harbor-antenna-farm upstream-mint-waveguide-beacons",
-  "archive-luminous-provenance-apertures archive-index-strata-crowns",
-  "assembly-purple-lit-archaeology-gantry assembly-ochre-circuit-hieroglyphs",
+  "archive-racked-core-tubes archive-rack-index-labels",
+  "assembly-tool-wall-of-merged-upstream-relics",
   "setInstanceColor",
   "instanceColor.needsUpdate",
   "upstreamPalette.surface",
@@ -760,13 +821,13 @@ for (const token of [
   "upstreamColors",
   "upstreamPalette.trim",
   "materials.upstreamDish",
-  "archive-magenta-strata-barcode-scan",
-  "archive-open-canyon-gantry",
-  "archive-launch-aperture-countdown-ignition",
-  "assembly-purple-gold-lit-workshop",
-  "assembly-visitor-facing-open-workshop",
-  "assembly-suspended-assembly-rails",
-  "assembly-lit-edge-rails",
+  "archive-magenta-logger-scan",
+  "archive-travelling-core-logging-rig",
+  "archive-open-bay-roll-up-door",
+  "assembly-welding-bay-and-jig",
+  "assembly-overhead-hoist-rail",
+  "assembly-workbenches-vice-and-compressor",
+  "assembly-panel-clad-roof-trusses",
 ]) {
   assert.ok(source.includes(token), `PolarStationMechanismsSW.jsx is missing ${JSON.stringify(token)}`);
 }
@@ -791,10 +852,23 @@ for (const forbidden of [
 ]) {
   assert.ok(!source.includes(forbidden), `southwest renderer must not include ${JSON.stringify(forbidden)}`);
 }
+// LAW 3 — lit, not glowing. The two camp facilities are modelled by the scene
+// rig; emissive is reserved for windows, indicators and the signature mechanism.
+for (const [label, pattern] of [
+  ["topologySurface", /topologySurface: makeSurface\(\{[\s\S]*?emissiveIntensity: ([0-9.]+)/],
+  ["assemblySurface", /assemblySurface: makeSurface\(\{[\s\S]*?emissiveIntensity: ([0-9.]+)/],
+]) {
+  const match = source.match(pattern);
+  assert.ok(match, `${label} must declare a body emissive intensity`);
+  assert.ok(
+    Number(match[1]) <= 0.06,
+    `LAW 3: ${label} body emissive must stay <= 0.06 (found ${match[1]})`,
+  );
+}
 assert.equal((source.match(/useFrame\(/g) || []).length, 1, "all three mechanisms share one frame loop");
 assert.equal((source.match(/<instancedMesh/g) || []).length, 8, "high/medium use eight pooled instance draws");
 assert.equal((source.match(/<lineSegments/g) || []).length, 1, "topology uses one pooled trace line draw");
 
 console.log(
-  "Southwest station mechanisms verified: coral-mint signal harbor, scan-read strata barcode canyon, purple-basalt proof gantry, source-backed state, 9/4/0 draw tiers, zero textures.",
+  "Southwest station mechanisms verified: coral-mint signal harbor, ice-core cold store with travelling logging rig, machine shop with a merged-upstream tool wall, source-backed state, 9/4/0 draw tiers, zero textures.",
 );

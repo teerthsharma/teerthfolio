@@ -14,19 +14,20 @@ import {
   resolveQpuConstructionStep,
   resolveNortheastMechanismInputs,
   resolveNortheastStationReveal,
+  sampleQpuManifoldHeight,
   sampleQpuManifoldPoint,
 } from "../lib/polar-station-mechanisms";
 
 export const NORTHEAST_MECHANISM_RENDER_PROFILE =
   "four authored northeast monuments; three bounded architectural instance pools each; shared wrapped-light program; zero textures";
 export const S2_CRYOGENIC_LAB_PROFILE =
-  "rotating kernel-citadel evolution of the CERN Penning-trap cryogenic laboratory: faceted cobalt shell rotor drum with six cache blades, machined pale metal plinth and tiered crown, bright cyan diagnostics gate with static coil pylons, calibration collars, and a slow ceremonial spin under the cobalt/cyan axial halo";
+  "server and data hut of the CERN Penning-trap cryogenic laboratory lineage: insulated panel-clad container on graphite steel stilt legs, cooling louvre stack and two geared fan rotors on the dock wall, cable tray and conduit dropping a rear leg into the snow, a narrow machined pale metal rack window strip with cobalt indicator banks blinking behind it, external ladder and entry platform, windward drift, uplink whip, and a docked cyan diagnostics rack storm under the cobalt axial halo";
 export const AETHER_ABYSS_PROFILE =
-  "caged-star reliquary in abyss-blue: dark thick shield hemispheres eclipse one small blinding golden seed, golden deterministic motes ride violet orbital caustic arcs above a grounded plinth";
+  "generator hall in abyss-blue: a long low machine hall on a graphite plinth with panel seams, day tanks on a bunded skid, a transformer cabinet, a tall exhaust stack whose abyss-blue condensate plume shimmers in world space, and one small contained living gold burner behind three rolling door slats";
 export const FIELD_THERMAL_FORGE_PROFILE =
   "possessed polar plant heater: graphite steel skid chassis with panel-clad control housing and ember portholes, copper-amber helical heating elements at temperature over a reflector trough, one orange-white plasma firebox heart, a nano-particle symbiote flux crawling the elements, and a living heat shimmer";
-export const QPU_ALIEN_COHERENCE_PROFILE =
-  "coherent crystal causeway evolution of the continuous sampled Riemann-manifold ice pavilion: alien jade dock band, catenary-crested translucent glass deck as the iridescent cyan contiguous floor shell and ribs in dark teal metal, clustered crystal pylons over both slender abutments, bidirectional interfering mint signal traffic, and a coherence verification beam";
+export const QPU_ICE_CORE_DRILL_PROFILE =
+  "ice-core drill rig standing on the snow: a braced graphite steel derrick with a crown block over a hazard-ringed borehole collar on a legged platform, a drawworks winch on a skid, a panel-clad drill shack with ember windows and a mint indicator panel, a cambered catwalk between them built from both ends, core crate stacks, a drill rod rack, cable trays, windward drift, and mint telemetry lights running the winch cable down the hole and back";
 
 const TWO_PI = Math.PI * 2;
 // Antarctic boot-camp construction grammar. One contractor built this camp:
@@ -38,16 +39,15 @@ const TWO_PI = Math.PI * 2;
 // Painted per-vertex into the merged frame geometry, so a station shows four
 // distinct material zones inside its single existing draw call.
 const STATION_PALETTE = Object.freeze({
-  aetherCladding: "#5F6B87",
-  aetherCladdingAlt: "#6D7994",
-  drift: "#DCE6EF",
+  aetherCladding: "#77839E",
+  aetherCladdingAlt: "#8591AC",
+  drift: "#B3C2D2",
   fieldCladding: "#59667A",
   fieldCladdingAlt: "#65718A",
-  qpuCladding: "#5A7A79",
-  qpuCladdingAlt: "#68898A",
-  qpuGlass: "#2EC9B4",
-  s2Cladding: "#63758C",
-  s2CladdingAlt: "#71829B",
+  qpuCladding: "#6E9190",
+  qpuCladdingAlt: "#7CA1A0",
+  s2Cladding: "#7D8CA6",
+  s2CladdingAlt: "#8C9BB4",
   steel: "#2A3140",
   trim: "#E8705E",
   window: "#F2B96B",
@@ -55,33 +55,71 @@ const STATION_PALETTE = Object.freeze({
 // Bodies are lit, never lamps: every frame pool's emissive stays under this so
 // the signature mechanism is always the brightest thing on the station.
 const BODY_EMISSIVE_CEILING = 0.06;
-// The one place S2 is allowed to be saturated cobalt: the superconducting
-// diagnostics ring that its proof bit threads through.
-const S2_IDENTITY_COBALT = "#3E63D8";
-const S2_KERNEL_SHELL_GAP = 0.25;
-const S2_DIAGNOSTIC_HALF_SPAN = 1.72;
-const S2_PORT_RAIL_Z = 1.08;
-const S2_CROWN_BEACON_Y = 1.18;
-const S2_CROWN_COUNTER_RATE = 0.62;
+// The only places S2 is allowed to be saturated cobalt: the rack indicator
+// lights, the painted entry door, and one thin livery trim line under the eave.
+const S2_IDENTITY_COBALT = "#5573E0";
+// Server & data hut, authored in local space. The station yaw is 38 degrees and
+// the visitor dock unrotates to local (-2.40, 1.44), so local -X is the wall the
+// seal reads: door bay, louvre stack, fan bank, and rack window strip all live
+// there. Local +X is windward and carries the drift and the cable drop.
+const S2_HUT_HALF_WIDTH = 0.75;
+const S2_HUT_HALF_LENGTH = 1.2;
+const S2_HUT_FLOOR_Y = -0.2;
+const S2_HUT_ROOF_Y = 0.58;
+// Fan hubs stand off the cladding skin by this gap so the guards clear the wall.
+const S2_KERNEL_SHELL_GAP = 0.09;
+const S2_FAN_WALL_X = -S2_HUT_HALF_WIDTH - S2_KERNEL_SHELL_GAP;
+const S2_FAN_Y = 0.06;
+const S2_FAN_RADIUS = 0.24;
+const S2_FAN_CENTERS_Z = Object.freeze([0.44, 0.96]);
+// One turn of the shared rotor bearing spins the cooling fans nine times: the
+// old citadel spin machinery survives, re-geared onto the running tell.
+const S2_FAN_GEAR_RATIO = 9;
+const S2_RACK_WINDOW_X = -S2_HUT_HALF_WIDTH - 0.015;
+const S2_RACK_WINDOW_Y = 0.44;
+const S2_RACK_WINDOW_Z = 0.42;
+const S2_RACK_LIGHT_X = -S2_HUT_HALF_WIDTH - 0.05;
+const S2_RACK_BANK_Z = Object.freeze([0.02, 0.88]);
+// Half-length of the rack window strip the activity scan travels.
+const S2_DIAGNOSTIC_HALF_SPAN = 0.66;
+const S2_DOOR_Z = -0.78;
 const S2_ROTOR_IDLE_RATE = 0.08;
 const S2_ROTOR_DOCKED_RATE = 0.65;
 const S2_ROTOR_SPIN_RESPONSE = 0.45;
 const S2_ROTOR_REDUCED_ANGLE = 0.75;
-const AETHER_DOMINANT_SEED_RADIUS = 0.22;
-const AETHER_SEED_CORE_RADIUS = 0.13;
-const AETHER_SEED_HEIGHT = 0.46;
-const AETHER_SHIELD_RADIUS = 0.74;
-// Local-space bearing of the visitor dock (world dock [9.55, 14.33] from
-// station center [8, 12], unrotated by the authored -27 degree station yaw).
-const AETHER_DOCK_YAW = 1.06;
-const AETHER_ORBITAL_TILT = 0.34;
-const AETHER_ORBITAL_RADIUS = 1.3;
-// [radius, inclination, gapYaw, sweep, tube, planeYaw]
-const AETHER_ORBITAL_ARCS = Object.freeze([
-  Object.freeze([AETHER_ORBITAL_RADIUS, AETHER_ORBITAL_TILT, 0.5, 5.1, 0.016, 0]),
-  Object.freeze([1.42, -0.24, 2.6, 4.6, 0.013, 1.15]),
-  Object.freeze([1.16, 0.52, 4.3, 4.2, 0.013, 2.3]),
+// Generator hall, authored in local space. The station yaw is -27 degrees and
+// the visitor dock unrotates to local (2.44, 1.37), so the roller door faces
+// local +X and the seal reads the door wall plus the +Z long side with its day
+// tanks. Local -X/-Z is windward: drift, stack, and pipe runs.
+const AETHER_DOMINANT_SEED_RADIUS = 0.14;
+const AETHER_SEED_CORE_RADIUS = 0.08;
+const AETHER_HALL_X = -0.1;
+const AETHER_HALL_HALF_WIDTH = 1.1;
+const AETHER_HALL_HALF_DEPTH = 0.7;
+const AETHER_HALL_FLOOR_Y = -0.46;
+const AETHER_HALL_ROOF_Y = 0.16;
+// The roller door sits on the +Z long wall, the one the docked camera reads
+// broadside; the day tanks are pushed to the far end so nothing blocks it.
+const AETHER_DOOR_X = 0.52;
+const AETHER_DOOR_Z = AETHER_HALL_HALF_DEPTH + 0.02;
+const AETHER_BURNER = Object.freeze([AETHER_DOOR_X, -0.22, AETHER_DOOR_Z + 0.06]);
+// [closed local Y, retracted local Y] per roller-door slat, bottom slat first.
+const AETHER_DOOR_SLATS = Object.freeze([
+  Object.freeze([-0.365, 0.03]),
+  Object.freeze([-0.195, 0.055]),
+  Object.freeze([-0.025, 0.08]),
 ]);
+// Six warm indicator lamps: switchgear cabinet, door jambs, day-tank skid.
+const AETHER_INDICATOR_LAMPS = Object.freeze([
+  Object.freeze([1.11, 0.02, -0.5]),
+  Object.freeze([1.11, -0.12, -0.34]),
+  Object.freeze([AETHER_DOOR_X - 0.52, -0.02, AETHER_DOOR_Z + 0.08]),
+  Object.freeze([AETHER_DOOR_X + 0.52, -0.02, AETHER_DOOR_Z + 0.08]),
+  Object.freeze([-0.34, -0.1, 1.06]),
+  Object.freeze([-1.14, -0.1, 1.06]),
+]);
+const AETHER_STACK = Object.freeze([-0.95, -0.42]);
+const AETHER_STACK_TOP_Y = 0.88;
 const FIELD_HEATER_HALF_LENGTH = 0.92;
 const FIELD_ELEMENT_AXIS_Y = 0.32;
 const FIELD_ELEMENT_RADIUS = 0.3;
@@ -100,23 +138,45 @@ const FIELD_PORTHOLE_WINDOWS = Object.freeze([
   Object.freeze([1.13, 0, 0.34]),
   Object.freeze([1.39, 0, 0.34]),
 ]);
+// ICE-CORE DRILL RIG, authored in local space. The station yaw is -48 degrees
+// and the visitor dock unrotates to local (0.82, -3.30), so local -Z is the
+// wall the seal reads: shack door, warm window, mint indicator panel, winch
+// skid and the borehole all face it. Local +Z is windward and carries the
+// drift, the cable tray and the drill-rod rack. The rig SITS ON THE SNOW:
+// every foot pad bottoms out at QPU_GROUND_Y, which is the station's entry in
+// STATION_LOWEST_LOCAL_Y.
 const QPU_BRIDGE_HALF_SPAN = QPU_MANIFOLD_LAYOUT.halfSpan;
-const QPU_ABUTMENT_RADIUS = 0.09;
-const QPU_ABUTMENT_HEIGHT = 0.52;
+const QPU_GROUND_Y = -0.62;
+const QPU_DECK_Y = -0.26;
+const QPU_SHACK_X = -1.52;
+const QPU_BOREHOLE_X = 1.52;
+const QPU_CROWN_Y = 0.9;
+// The two slender end abutments the catwalk lands on between shack and platform.
+const QPU_ABUTMENT_RADIUS = 0.075;
+const QPU_ABUTMENT_HEIGHT = 0.42;
 const QPU_MANIFOLD_SLICE_COUNT = QPU_MANIFOLD_LAYOUT.sliceCount;
-const QPU_SIGNAL_BASE_LENGTH = 0.43;
-const QPU_INVERSE_BRIDGE_LIFT = 0.58;
-// Shared-library span arch coefficient mirrored for instance placement, plus a
-// component-space catenary crest so the causeway reads as a true high arc.
-const QPU_DECK_ARCH = 0.34;
-const QPU_CREST_BOOST = 0.36;
-const QPU_FRAME_SCALE = 1.08;
-// Bidirectional signal traffic: pulses per lane pair, plus one verification beam.
+// Catwalk plate level. The shared library samples the walkway camber; this is
+// only the height the whole walkway hangs at, plus a small component-space
+// crown so the two landings stay drained toward their decks.
+const QPU_CATWALK_BASE_Y = -0.26;
+const QPU_CREST_BOOST = 0.035;
+// Winch cable polyline: drawworks drum -> crown block sheave -> down the hole.
+// The telemetry lights ride exactly this path, so the cable a viewer sees and
+// the path the light travels are the same three points.
+const QPU_CABLE_DRUM = Object.freeze([-0.15, -0.06, -0.46]);
+const QPU_CABLE_CROWN = Object.freeze([QPU_BOREHOLE_X, QPU_CROWN_Y, -0.07]);
+// The run ends at the collar mouth: a light that reaches it has gone down the
+// hole, so nothing is ever left dangling in the open under the platform deck.
+const QPU_CABLE_HOLE = Object.freeze([QPU_BOREHOLE_X, QPU_DECK_Y + 0.02, 0]);
+// Telemetry lights per direction pair, plus one wireline verification sonde.
 const QPU_PULSE_COUNT = 10;
 const QPU_SIGNAL_POOL_SIZE = QPU_PULSE_COUNT + 1;
 const QPU_TRAFFIC_IDLE_RATE = 0.16;
 const QPU_TRAFFIC_DOCKED_RATE = 0.34;
 const QPU_TRAFFIC_RESPONSE = 0.6;
+// The only places the QPU station is allowed to be saturated mint: the cable
+// telemetry lights, the shack indicator panel, and one thin livery trim line.
+const QPU_IDENTITY_MINT = "#55CE85";
 const REDUCED_MOTION_SHADER_TIME = 0.75;
 const EMPTY_RENDER_RESOURCES = Object.freeze({
   geometries: Object.freeze({}),
@@ -141,17 +201,20 @@ const STATION_TRANSFORMS = Object.freeze(
 
 /**
  * Lowest authored local-space Y of each grounded monument base, measured from
- * the geometry builders (base cylinder center y minus half height):
- * s2 cryostat plinth -0.58 - 0.11, aether sanctuary plinth -0.57 - 0.09,
- * field heater skid rails -0.59 - 0.05 (its windward drift skirt intentionally
- * dips below the skid contact plane so it reads as buried snow load, and must
- * not move the contact value). qpu-ice-bridge floats by design
- * (QPU_INVERSE_BRIDGE_LIFT) and is intentionally absent so docking never
- * shifts its root Y.
+ * the geometry builders (base part center y minus half height):
+ * s2 hut stilt foot pads -0.66 - 0.03, aether generator-hall plinth -0.57 - 0.09,
+ * field heater skid rails -0.59 - 0.05, qpu drill-rig foot pads and shack skid
+ * runners flat on QPU_GROUND_Y. Every station's windward drift wedge
+ * intentionally dips below its contact plane so it reads as buried snow load,
+ * and must not move the contact value. The QPU station used to float on an
+ * authored inverse-bridge lift and was intentionally absent here; that lift is
+ * retired, because a drill rig stands on the snow, so it now takes part in
+ * contact-plane scaling like every other grounded monument.
  */
 const STATION_LOWEST_LOCAL_Y = Object.freeze({
   "field-chamber-coils": -0.64,
   "manifold-reactor": -0.66,
+  "qpu-ice-bridge": QPU_GROUND_Y,
   "s2-kernel-core": -0.69,
 });
 
@@ -297,6 +360,34 @@ function torusPart(
   );
 }
 
+// A straight member between two authored points: derrick legs, cross braces,
+// rod rack stringers and the winch cable are all this. Cheaper than a tube
+// along a line curve and it keeps every strut a single low-segment cylinder.
+const STRUT_UP = new THREE.Vector3(0, 1, 0);
+
+function strutPart(policy, from, to, radius) {
+  const start = new THREE.Vector3(...from);
+  const direction = new THREE.Vector3(...to).sub(start);
+  const length = direction.length();
+  const orientation = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion().setFromUnitVectors(STRUT_UP, direction.clone().normalize()),
+  );
+  return bakeGeometry(
+    new THREE.CylinderGeometry(
+      radius,
+      radius,
+      length,
+      Math.max(5, Math.round(policy.round * 0.3)),
+      1,
+      false,
+    ),
+    {
+      position: [start.x + direction.x / 2, start.y + direction.y / 2, start.z + direction.z / 2],
+      rotation: [orientation.x, orientation.y, orientation.z],
+    },
+  );
+}
+
 function tubePart(policy, curve, radius, name, closed = false) {
   const geometry = bakeGeometry(
     new THREE.TubeGeometry(
@@ -311,222 +402,538 @@ function tubePart(policy, curve, radius, name, closed = false) {
   return geometry;
 }
 
+// SERVER & DATA HUT. An insulated equipment container raised on graphite steel
+// stilt legs above the snow, exactly the box a polar camp drops its racks into.
+// Body is desaturated blue-grey panel cladding with real corner posts and proud
+// seams; structure, trays, guards, ladder and mast are the shared camp steel.
+// The saturated cobalt survives only as the painted door and one livery trim
+// line - the indicator lights live in the rack-light pool.
 function createS2AntimatterCryostatGeometry(quality) {
   const policy = geometryPolicy(quality);
-  const facets = quality === "low" ? 6 : 7;
-  const parts = [
-    // Kernel-citadel rotor. Every non-bladed part below is a surface of
-    // revolution, so spinning the single merged frame instance about Y reads
-    // as the citadel turning on a stationary circular plinth. Structure is
-    // shared graphite steel; only the drum and blade cladding carries the
-    // station's own (desaturated) blue-grey family.
-    paint(cylinderPart(policy, 1.42, 1.58, 0.22, [0, -0.58, 0]), STATION_PALETTE.steel),
-    paint(cylinderPart(policy, 1.06, 1.24, 0.16, [0, -0.42, 0]), STATION_PALETTE.steel),
-    // deck-edge safety trim ring
+  const wallX = -S2_HUT_HALF_WIDTH;
+  const bodyY = (S2_HUT_FLOOR_Y + S2_HUT_ROOF_Y) / 2;
+  const bodyHeight = S2_HUT_ROOF_Y - S2_HUT_FLOOR_Y;
+  const parts = [];
+  const steelPart = (part) => paint(part, STATION_PALETTE.steel);
+
+  // Stilt legs, foot pads and the under-frame that keeps the hut off the snow.
+  for (const legX of [-0.54, 0.54]) {
+    for (const legZ of [-0.92, 0.92]) {
+      parts.push(steelPart(cylinderPart(policy, 0.05, 0.07, 0.46, [legX, -0.43, legZ])));
+      parts.push(
+        steelPart(roundedPart(policy, [0.2, 0.06, 0.2], [legX, -0.66, legZ], [0, 0, 0], 0.02)),
+      );
+    }
+    parts.push(
+      steelPart(roundedPart(policy, [0.08, 0.08, 1.94], [legX, -0.27, 0], [0, 0, 0], 0.02)),
+    );
+  }
+  for (const braceZ of [-0.92, 0.92]) {
+    parts.push(
+      steelPart(roundedPart(policy, [1.2, 0.07, 0.07], [0, -0.31, braceZ], [0, 0, 0], 0.02)),
+    );
+  }
+
+  // Insulated container box, roof cap and corner posts.
+  parts.push(
     paint(
-      torusPart(policy, 1.14, 0.05, [0, -0.34, 0], [Math.PI / 2, 0, 0]),
-      STATION_PALETTE.trim,
+      roundedPart(
+        policy,
+        [S2_HUT_HALF_WIDTH * 2, bodyHeight, S2_HUT_HALF_LENGTH * 2],
+        [0, bodyY, 0],
+        [0, 0, 0],
+        0.05,
+      ),
+      STATION_PALETTE.s2Cladding,
     ),
-    paint(cylinderPart(policy, 0.54, 0.68, 0.2, [0, -0.26, 0]), STATION_PALETTE.steel),
-    // faceted kernel core drum
-    paint(facetedPart(0.72, 0.84, 0.66, facets, [0, 0.17, 0]), STATION_PALETTE.s2Cladding),
-    paint(cylinderPart(policy, 0.56, 0.66, 0.12, [0, 0.54, 0]), STATION_PALETTE.steel),
-    // tiered crown drums and finial mast
+  );
+  parts.push(
     paint(
-      facetedPart(0.4, 0.5, 0.28, facets, [0, 0.73, 0], [0, Math.PI / facets, 0]),
+      roundedPart(
+        policy,
+        [S2_HUT_HALF_WIDTH * 2 + 0.1, 0.07, S2_HUT_HALF_LENGTH * 2 + 0.1],
+        [0, S2_HUT_ROOF_Y + 0.035, 0],
+        [0, 0, 0],
+        0.03,
+      ),
       STATION_PALETTE.s2CladdingAlt,
     ),
-    paint(facetedPart(0.16, 0.28, 0.18, facets, [0, 0.96, 0]), STATION_PALETTE.s2Cladding),
-    paint(cylinderPart(policy, 0.05, 0.1, 0.1, [0, 1.08, 0]), STATION_PALETTE.steel),
-  ];
-  // Proud horizontal seam band splitting the drum into two panel courses: a
-  // real geometric step, not a shader stripe, so the seam survives distance.
-  const drumSeam = torusPart(policy, 0.79, 0.022, [0, 0.06, 0], [Math.PI / 2, 0, 0]);
-  drumSeam.name = "s2-panel-seam";
-  parts.push(paint(drumSeam, STATION_PALETTE.steel));
-  for (let index = 0; index < 6; index += 1) {
-    const angle = (index / 6) * TWO_PI;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    parts.push(
-      paint(
-        roundedPart(
-          policy,
-          [0.84, 0.52, 0.1],
-          [cos * 0.92, 0.18, sin * 0.92],
-          [0, -angle, 0],
-          0.04,
+  );
+  for (const postX of [wallX, -wallX]) {
+    for (const postZ of [-S2_HUT_HALF_LENGTH, S2_HUT_HALF_LENGTH]) {
+      parts.push(
+        steelPart(
+          roundedPart(policy, [0.1, bodyHeight + 0.05, 0.1], [postX, bodyY, postZ], [0, 0, 0], 0.02),
         ),
-        STATION_PALETTE.s2CladdingAlt,
-      ),
-    );
-    const rail = roundedPart(
+      );
+    }
+  }
+  // Proud vertical panel seams: real geometric steps, so panels stay panels at
+  // dock distance. The dock wall only carries seams where equipment does not.
+  for (const [seamX, seamZones] of [
+    [-wallX + 0.02, [-0.86, -0.43, 0, 0.43, 0.86]],
+    [wallX - 0.02, [-0.42, 0.18, 1.16]],
+  ]) {
+    for (const seamZ of seamZones) {
+      const seam = roundedPart(
+        policy,
+        [0.045, bodyHeight - 0.05, 0.055],
+        [seamX, bodyY, seamZ],
+        [0, 0, 0],
+        0.015,
+      );
+      seam.name = "s2-panel-seam";
+      parts.push(steelPart(seam));
+    }
+  }
+  for (const endZ of [-S2_HUT_HALF_LENGTH - 0.02, S2_HUT_HALF_LENGTH + 0.02]) {
+    const endSeam = roundedPart(policy, [1.4, 0.045, 0.045], [0, 0.24, endZ], [0, 0, 0], 0.015);
+    endSeam.name = "s2-panel-seam";
+    parts.push(steelPart(endSeam));
+  }
+
+  // Cable tray along the lee eave, dropping the rear leg and running conduit
+  // into the snow: the hut is fed from somewhere, like every real camp box.
+  for (const tray of [
+    roundedPart(policy, [0.15, 0.09, 2.2], [0.82, 0.42, 0], [0, 0, 0], 0.03),
+    roundedPart(policy, [0.13, 0.94, 0.13], [0.74, -0.08, 0.9], [0, 0, 0], 0.03),
+    cylinderPart(policy, 0.05, 0.05, 0.3, [0.74, -0.66, 0.9]),
+  ]) {
+    tray.name = "s2-machined-axial-rails";
+    parts.push(steelPart(tray));
+  }
+
+  // Cooling louvre stack: recessed dark plenum behind five proud intake slats.
+  parts.push(steelPart(roundedPart(policy, [0.05, 0.54, 0.5], [wallX + 0.02, 0.1, -0.11], [0, 0, 0], 0.02)));
+  for (const slatY of [-0.1, 0, 0.1, 0.2, 0.3]) {
+    const slat = roundedPart(policy, [0.06, 0.035, 0.46], [wallX - 0.035, slatY, -0.11], [0.34, 0, 0], 0.012);
+    slat.name = "s2-cooling-louvre";
+    parts.push(steelPart(slat));
+  }
+
+  // Fan bank: recessed plenum plus two guard collars the fan rotors turn inside.
+  parts.push(
+    steelPart(roundedPart(policy, [0.05, 0.58, 1.1], [wallX + 0.02, S2_FAN_Y, 0.7], [0, 0, 0], 0.02)),
+  );
+  for (const fanZ of S2_FAN_CENTERS_Z) {
+    const collar = torusPart(
       policy,
-      [0.06, 0.62, 0.07],
-      [cos * 1.3, 0.18, sin * 1.3],
-      [0, -angle, 0],
-      0.02,
+      S2_FAN_RADIUS + 0.03,
+      0.028,
+      [wallX - 0.05, S2_FAN_Y, fanZ],
+      [0, Math.PI / 2, 0],
     );
-    rail.name = "s2-machined-axial-rails";
-    parts.push(paint(rail, STATION_PALETTE.steel));
-    const crownAngle = angle + Math.PI / 6;
+    collar.name = "s2-calibration-collars";
+    parts.push(steelPart(collar));
+    for (const guardRoll of [0, Math.PI / 2]) {
+      const guardBar = roundedPart(
+        policy,
+        [0.03, 0.022, S2_FAN_RADIUS * 2],
+        [wallX - 0.06, S2_FAN_Y, fanZ],
+        [guardRoll, 0, 0],
+        0.008,
+      );
+      guardBar.name = "s2-calibration-collars";
+      parts.push(steelPart(guardBar));
+    }
+  }
+
+  // Rack window strip: a narrow dark glass slot the indicator banks sit behind,
+  // framed in steel with the cobalt livery line and a coral eave stripe above.
+  const rackWindow = roundedPart(
+    policy,
+    [0.05, 0.13, 1.5],
+    [S2_RACK_WINDOW_X, S2_RACK_WINDOW_Y, S2_RACK_WINDOW_Z],
+    [0, 0, 0],
+    0.015,
+  );
+  rackWindow.name = "s2-rack-window-strip";
+  parts.push(paint(rackWindow, "#141A26"));
+  for (const frameY of [S2_RACK_WINDOW_Y - 0.09, S2_RACK_WINDOW_Y + 0.09]) {
     parts.push(
-      paint(
-        roundedPart(
-          policy,
-          [0.36, 0.2, 0.07],
-          [Math.cos(crownAngle) * 0.54, 0.72, Math.sin(crownAngle) * 0.54],
-          [0, -crownAngle, 0],
-          0.025,
-        ),
-        STATION_PALETTE.steel,
+      steelPart(
+        roundedPart(policy, [0.06, 0.035, 1.54], [wallX - 0.03, frameY, S2_RACK_WINDOW_Z], [0, 0, 0], 0.012),
       ),
     );
   }
-  // Three ember windows and three proud steel panel seams alternate around the
-  // drum between the cache blades: life inside the cold, and panels that read
-  // as panels while the citadel turns.
-  for (let index = 0; index < 3; index += 1) {
-    const windowAngle = (index / 3) * TWO_PI + Math.PI / 6;
-    const emberWindow = roundedPart(
-      policy,
-      [0.05, 0.15, 0.24],
-      [Math.cos(windowAngle) * 0.8, 0.3, Math.sin(windowAngle) * 0.8],
-      [0, -windowAngle, 0],
-      0.02,
+  parts.push(
+    paint(
+      roundedPart(policy, [0.035, 0.035, 2.28], [wallX - 0.03, 0.545, 0], [0, 0, 0], 0.012),
+      S2_IDENTITY_COBALT,
+    ),
+  );
+  parts.push(
+    paint(
+      roundedPart(policy, [0.05, 0.04, 2.36], [wallX - 0.025, 0.615, 0], [0, 0, 0], 0.014),
+      STATION_PALETTE.trim,
+    ),
+  );
+
+  // Entry bay: cobalt painted door in a coral frame, entry platform, ladder.
+  parts.push(
+    paint(
+      roundedPart(policy, [0.05, 0.5, 0.44], [wallX - 0.025, 0.06, S2_DOOR_Z], [0, 0, 0], 0.015),
+      S2_IDENTITY_COBALT,
+    ),
+  );
+  for (const jambZ of [S2_DOOR_Z - 0.25, S2_DOOR_Z + 0.25]) {
+    parts.push(
+      steelPart(
+        roundedPart(policy, [0.06, 0.56, 0.045], [wallX - 0.03, 0.06, jambZ], [0, 0, 0], 0.014),
+      ),
     );
+  }
+  parts.push(
+    steelPart(
+      roundedPart(policy, [0.06, 0.045, 0.55], [wallX - 0.03, 0.335, S2_DOOR_Z], [0, 0, 0], 0.014),
+    ),
+  );
+  // One disciplined coral threshold stripe under the door, hazard-marking width.
+  parts.push(
+    paint(
+      roundedPart(policy, [0.07, 0.03, 0.5], [wallX - 0.035, -0.2, S2_DOOR_Z], [0, 0, 0], 0.01),
+      STATION_PALETTE.trim,
+    ),
+  );
+  const doorVisionPanel = roundedPart(
+    policy,
+    [0.05, 0.07, 0.12],
+    [wallX - 0.045, 0.21, S2_DOOR_Z],
+    [0, 0, 0],
+    0.012,
+  );
+  doorVisionPanel.name = "s2-ember-window";
+  parts.push(paint(doorVisionPanel, STATION_PALETTE.window));
+  parts.push(
+    steelPart(cylinderPart(policy, 0.018, 0.018, 0.16, [wallX - 0.06, 0.02, S2_DOOR_Z + 0.16])),
+  );
+  parts.push(
+    steelPart(
+      roundedPart(policy, [0.58, 0.06, 0.74], [wallX - 0.31, S2_HUT_FLOOR_Y - 0.02, S2_DOOR_Z], [0, 0, 0], 0.02),
+    ),
+  );
+  parts.push(
+    paint(
+      roundedPart(policy, [0.6, 0.035, 0.05], [wallX - 0.31, S2_HUT_FLOOR_Y + 0.03, S2_DOOR_Z - 0.37], [0, 0, 0], 0.012),
+      STATION_PALETTE.trim,
+    ),
+  );
+  for (const stringerZ of [S2_DOOR_Z - 0.18, S2_DOOR_Z + 0.18]) {
+    parts.push(
+      steelPart(cylinderPart(policy, 0.022, 0.022, 0.52, [wallX - 0.55, -0.45, stringerZ], [0.16, 0, 0])),
+    );
+  }
+  for (const rungY of [-0.64, -0.5, -0.36, -0.24]) {
+    parts.push(
+      steelPart(cylinderPart(policy, 0.016, 0.016, 0.34, [wallX - 0.55, rungY, S2_DOOR_Z], [Math.PI / 2, 0, 0])),
+    );
+  }
+
+  // Warm windows: one beside the door and one in each gable end.
+  for (const [windowSize, windowPosition] of [
+    [[0.05, 0.12, 0.16], [wallX - 0.025, 0.3, -1.04]],
+    [[0.34, 0.15, 0.05], [0.18, 0.34, -S2_HUT_HALF_LENGTH - 0.025]],
+    [[0.34, 0.15, 0.05], [-0.14, 0.34, S2_HUT_HALF_LENGTH + 0.025]],
+  ]) {
+    const emberWindow = roundedPart(policy, windowSize, windowPosition, [0, 0, 0], 0.02);
     emberWindow.name = "s2-ember-window";
     parts.push(paint(emberWindow, STATION_PALETTE.window));
-    const seamAngle = windowAngle + Math.PI / 3;
-    const seam = roundedPart(
-      policy,
-      [0.05, 0.6, 0.05],
-      [Math.cos(seamAngle) * 0.79, 0.17, Math.sin(seamAngle) * 0.79],
-      [0, -seamAngle, 0],
-      0.015,
-    );
-    seam.name = "s2-panel-seam";
-    parts.push(paint(seam, STATION_PALETTE.steel));
   }
-  for (const [ringRadius, ringY] of [
-    [0.7, 0.6],
-    [0.42, 0.89],
-  ]) {
-    const collar = torusPart(policy, ringRadius, 0.035, [0, ringY, 0], [Math.PI / 2, 0, 0]);
-    collar.name = "s2-calibration-collars";
-    parts.push(paint(collar, STATION_PALETTE.trim));
-  }
+
+  parts.push(
+    steelPart(roundedPart(policy, [0.045, 0.16, 0.2], [wallX - 0.012, 0.3, -1.04], [0, 0, 0], 0.014)),
+  );
+
+  // Uplink whip on the roof, plus its base plate and one stay.
+  parts.push(steelPart(roundedPart(policy, [0.2, 0.05, 0.2], [0.5, 0.64, -0.95], [0, 0, 0], 0.02)));
+  parts.push(steelPart(cylinderPart(policy, 0.012, 0.026, 0.5, [0.5, 0.91, -0.95])));
+  parts.push(steelPart(cylinderPart(policy, 0.008, 0.008, 0.36, [0.42, 0.8, -0.83], [0.5, 0, 0.28])));
+  parts.push(steelPart(torusPart(policy, 0.055, 0.012, [0.5, 1.1, -0.95], [Math.PI / 2, 0, 0])));
+
+  // Windward drift wedge banked against the lee legs.
+  const drift = roundedPart(policy, [0.72, 0.3, 2.0], [0.86, -0.76, 0.06], [0, 0, -0.2], 0.05);
+  drift.name = "s2-snow-drift";
+  parts.push(paint(drift, STATION_PALETTE.drift));
+  const gableDrift = roundedPart(policy, [1.1, 0.22, 0.46], [0.1, -0.78, -1.04], [-0.14, 0, 0], 0.04);
+  gableDrift.name = "s2-snow-drift";
+  parts.push(paint(gableDrift, STATION_PALETTE.drift));
+
   return mergeParts(parts, "s2-cern-antimatter-cryostat", STATION_PALETTE.s2Cladding);
 }
 
+// One cooling fan rotor: machined pale-metal hub and five pitched blades that
+// turn inside a guard collar on the dock wall. Two instances, counter-paired.
 function createS2PenningTrapCoilGeometry(quality) {
   const policy = geometryPolicy(quality);
-  // Static port-side diagnostic-gate pylon: a grounded pedestal carrying one
-  // vertical superconducting coil ring the proof bit threads through.
-  // Shared graphite steel pedestal and mast; the saturated cobalt is spent
-  // only on the superconducting ring itself, with one coral collar of trim.
+  const bladeCount = quality === "low" ? 4 : 5;
   const parts = [
-    paint(cylinderPart(policy, 0.11, 0.16, 0.3, [0, -0.54, 0]), STATION_PALETTE.steel),
-    paint(torusPart(policy, 0.14, 0.02, [0, -0.4, 0], [Math.PI / 2, 0, 0]), STATION_PALETTE.trim),
-    paint(cylinderPart(policy, 0.07, 0.09, 0.34, [0, -0.24, 0]), STATION_PALETTE.steel),
-    paint(
-      torusPart(policy, 0.3, 0.05, [0, 0.05, 0], [0, Math.PI / 2, 0], [1, 1.06, 1]),
-      S2_IDENTITY_COBALT,
-    ),
-    paint(cylinderPart(policy, 0.045, 0.06, 0.14, [0, 0.42, 0]), STATION_PALETTE.steel),
+    cylinderPart(policy, 0.075, 0.075, 0.11, [0, 0, 0], [0, 0, Math.PI / 2]),
+    bakeGeometry(new THREE.SphereGeometry(0.06, policy.round, 8), { position: [-0.06, 0, 0] }),
   ];
-  return mergeParts(parts, "s2-penning-trap-superconducting-coil-rings", STATION_PALETTE.steel);
+  for (let index = 0; index < bladeCount; index += 1) {
+    const sweep = (index / bladeCount) * TWO_PI;
+    parts.push(
+      roundedPart(
+        policy,
+        [0.022, S2_FAN_RADIUS * 0.94, 0.13],
+        [0, Math.cos(sweep) * S2_FAN_RADIUS * 0.52, Math.sin(sweep) * S2_FAN_RADIUS * 0.52],
+        [sweep, 0.42, 0],
+        0.01,
+      ),
+    );
+  }
+  return mergeParts(parts, "s2-penning-trap-superconducting-coil-rings");
 }
 
+// One rack indicator bank: a slim lit bar plus its lens, sitting just behind
+// the window strip. Three instances - two blinking banks and one activity scan.
 function createS2DiagnosticBeamlineGeometry(quality) {
   const policy = geometryPolicy(quality);
   return mergeParts(
     [
-      bakeGeometry(new THREE.CapsuleGeometry(0.038, 0.4, policy.cap, policy.radial), {
-        rotation: [0, 0, Math.PI / 2],
+      roundedPart(policy, [0.022, 0.075, 0.34], [0, 0, 0], [0, 0, 0], 0.008),
+      bakeGeometry(new THREE.IcosahedronGeometry(0.026, quality === "high" ? 2 : 1), {
+        position: [-0.006, 0, 0.16],
       }),
-      bakeGeometry(new THREE.IcosahedronGeometry(0.085, quality === "high" ? 2 : 1)),
-      torusPart(policy, 0.13, 0.012, [0, 0, 0], [Math.PI / 2, 0, 0]),
+      bakeGeometry(new THREE.IcosahedronGeometry(0.026, quality === "high" ? 2 : 1), {
+        position: [-0.006, 0, -0.16],
+      }),
     ],
     "s2-vacuum-throat diagnostic-beamline s2-proof-bit",
   );
 }
 
+// GENERATOR HALL / POWER PLANT. A long low machine hall on a graphite plinth:
+// panel walls with proud seams, day tanks on a bunded skid, a switchgear
+// cabinet, pipe runs leaving for the neighbouring buildings, and a tall exhaust
+// stack whose condensate plume the frame shader shimmers in world space. The
+// bottom face stays at -0.66 so STATION_LOWEST_LOCAL_Y remains accurate.
 function createAetherPrimordialSanctuaryGeometry(quality) {
   const policy = geometryPolicy(quality);
-  const parts = [
-    // Grounded reliquary dais: wide stepped rings with one rim-lit lip. The
-    // bottom face stays at -0.66 so STATION_LOWEST_LOCAL_Y remains accurate.
-    // Riser and stem are the shared graphite steel, the walkable step is the
-    // station's own desaturated indigo-slate cladding, and the lip is trim.
-    paint(cylinderPart(policy, 1.24, 1.38, 0.18, [0, -0.57, 0]), STATION_PALETTE.steel),
-    paint(
-      cylinderPart(policy, 0.94, 1.08, 0.12, [0, -0.43, 0]),
-      STATION_PALETTE.aetherCladding,
-    ),
-    paint(
-      torusPart(policy, 1.12, 0.045, [0, -0.36, 0], [Math.PI / 2, 0, 0]),
-      STATION_PALETTE.trim,
-    ),
-    // Pedestal stem and collar presenting the suspended seed cradle.
-    paint(cylinderPart(policy, 0.15, 0.3, 0.32, [0, -0.22, 0]), STATION_PALETTE.steel),
-    paint(
-      torusPart(policy, 0.19, 0.03, [0, -0.05, 0], [Math.PI / 2, 0, 0]),
-      STATION_PALETTE.aetherCladdingAlt,
-    ),
-  ];
-  // Two ember portholes on the dock-facing riser, each between proud steel
-  // panel seams, so the dais reads as an inhabited plinth rather than a slab.
-  for (const [index, offset] of [[0, -0.62], [1, 0.62]]) {
-    const angle = AETHER_DOCK_YAW + offset;
-    const porthole = roundedPart(
-      policy,
-      [0.05, 0.11, 0.2],
-      [Math.sin(angle) * 1.26, -0.55, Math.cos(angle) * 1.26],
-      [0, angle - Math.PI / 2, 0],
-      0.02,
-    );
-    porthole.name = "aether-dais-porthole";
-    parts.push(paint(porthole, STATION_PALETTE.window));
-    const seamAngle = angle + (index === 0 ? -0.3 : 0.3);
-    const seam = roundedPart(
-      policy,
-      [0.05, 0.2, 0.05],
-      [Math.sin(seamAngle) * 1.28, -0.56, Math.cos(seamAngle) * 1.28],
-      [0, seamAngle - Math.PI / 2, 0],
-      0.015,
-    );
-    seam.name = "aether-panel-seam";
-    parts.push(paint(seam, STATION_PALETTE.aetherCladdingAlt));
-  }
-  // Vent-stack greeble on the back of the dais, away from the visitor line.
-  const vent = cylinderPart(
-    policy,
-    0.045,
-    0.06,
-    0.34,
-    [Math.sin(AETHER_DOCK_YAW + Math.PI) * 0.8, -0.2, Math.cos(AETHER_DOCK_YAW + Math.PI) * 0.8],
-  );
-  vent.name = "aether-vent-stack";
-  parts.push(paint(vent, STATION_PALETTE.steel));
-  // Three precise cradle prongs lean inward under the suspended seed.
-  for (let index = 0; index < 3; index += 1) {
-    const angle = AETHER_DOCK_YAW + Math.PI / 6 + (index / 3) * TWO_PI;
-    const lean = 0.32;
+  const hallY = (AETHER_HALL_FLOOR_Y + AETHER_HALL_ROOF_Y) / 2;
+  const hallHeight = AETHER_HALL_ROOF_Y - AETHER_HALL_FLOOR_Y;
+  const parts = [];
+  const steelPart = (part) => paint(part, STATION_PALETTE.steel);
+
+  // Plinth with a coral deck-edge stripe on the two visitor-facing sides.
+  parts.push(steelPart(roundedPart(policy, [2.9, 0.18, 1.82], [0, -0.57, 0], [0, 0, 0], 0.04)));
+  // Hazard marking on the plinth deck edge: three disciplined dashes rather
+  // than one continuous line that reads as neon.
+  for (const stripeX of [-1.02, 0, 1.02]) {
     parts.push(
       paint(
-        cylinderPart(
-          policy,
-          0.022,
-          0.05,
-          0.44,
-          [Math.sin(angle) * 0.24, 0.13, Math.cos(angle) * 0.24],
-          [-Math.cos(angle) * lean, 0, Math.sin(angle) * lean],
-        ),
-        STATION_PALETTE.steel,
+        roundedPart(policy, [0.66, 0.03, 0.05], [stripeX, -0.47, 0.9], [0, 0, 0], 0.01),
+        STATION_PALETTE.trim,
       ),
     );
   }
+
+  // Machine hall body, roof cap, ridge and corner posts.
+  parts.push(
+    paint(
+      roundedPart(
+        policy,
+        [AETHER_HALL_HALF_WIDTH * 2, hallHeight, AETHER_HALL_HALF_DEPTH * 2],
+        [AETHER_HALL_X, hallY, 0],
+        [0, 0, 0],
+        0.045,
+      ),
+      STATION_PALETTE.aetherCladding,
+    ),
+  );
+  parts.push(
+    paint(
+      roundedPart(
+        policy,
+        [AETHER_HALL_HALF_WIDTH * 2 + 0.1, 0.06, AETHER_HALL_HALF_DEPTH * 2 + 0.1],
+        [AETHER_HALL_X, AETHER_HALL_ROOF_Y + 0.03, 0],
+        [0, 0, 0],
+        0.025,
+      ),
+      STATION_PALETTE.aetherCladdingAlt,
+    ),
+  );
+  parts.push(
+    steelPart(
+      roundedPart(policy, [AETHER_HALL_HALF_WIDTH * 2, 0.05, 0.12], [AETHER_HALL_X, AETHER_HALL_ROOF_Y + 0.08, 0], [0, 0, 0], 0.02),
+    ),
+  );
+  for (const postX of [AETHER_HALL_X - AETHER_HALL_HALF_WIDTH, AETHER_HALL_X + AETHER_HALL_HALF_WIDTH]) {
+    for (const postZ of [-AETHER_HALL_HALF_DEPTH, AETHER_HALL_HALF_DEPTH]) {
+      parts.push(
+        steelPart(
+          roundedPart(policy, [0.09, hallHeight + 0.04, 0.09], [postX, hallY, postZ], [0, 0, 0], 0.02),
+        ),
+      );
+    }
+  }
+  // Proud vertical panel seams down both long walls.
+  for (const seamZ of [-AETHER_HALL_HALF_DEPTH - 0.02, AETHER_HALL_HALF_DEPTH + 0.02]) {
+    for (const seamX of [-0.98, -0.6, -0.22, 0.16, 0.54]) {
+      const seam = roundedPart(policy, [0.05, hallHeight - 0.04, 0.045], [seamX, hallY, seamZ], [0, 0, 0], 0.015);
+      seam.name = "aether-panel-seam";
+      parts.push(steelPart(seam));
+    }
+  }
+
+  // Roller door bay on the visitor-facing long wall: recessed dark opening,
+  // coral-framed, with a lintel deep enough to swallow the slats when it rolls
+  // up and reveals the burner behind.
+  parts.push(
+    paint(
+      roundedPart(policy, [0.9, 0.54, 0.03], [AETHER_DOOR_X, -0.2, AETHER_DOOR_Z], [0, 0, 0], 0.01),
+      "#2B2119",
+    ),
+  );
+  for (const jambX of [AETHER_DOOR_X - 0.49, AETHER_DOOR_X + 0.49]) {
+    parts.push(
+      steelPart(
+        roundedPart(policy, [0.07, 0.6, 0.08], [jambX, -0.19, AETHER_DOOR_Z + 0.06], [0, 0, 0], 0.02),
+      ),
+    );
+  }
+  const doorSpill = roundedPart(
+    policy,
+    [0.86, 0.06, 0.05],
+    [AETHER_DOOR_X, -0.44, AETHER_DOOR_Z + 0.02],
+    [0, 0, 0],
+    0.014,
+  );
+  doorSpill.name = "aether-hall-window";
+  parts.push(paint(doorSpill, STATION_PALETTE.window));
+  parts.push(
+    paint(
+      roundedPart(policy, [1.02, 0.2, 0.14], [AETHER_DOOR_X, 0.16, AETHER_DOOR_Z + 0.04], [0, 0, 0], 0.02),
+      STATION_PALETTE.aetherCladdingAlt,
+    ),
+  );
+  parts.push(
+    paint(
+      roundedPart(policy, [1.02, 0.035, 0.08], [AETHER_DOOR_X, 0.09, AETHER_DOOR_Z + 0.08], [0, 0, 0], 0.012),
+      STATION_PALETTE.trim,
+    ),
+  );
+  // Apron lip the plant vehicles drive onto, outside the door.
+  parts.push(
+    steelPart(roundedPart(policy, [1.1, 0.05, 0.36], [AETHER_DOOR_X, -0.46, AETHER_DOOR_Z + 0.26], [0, 0, 0], 0.02)),
+  );
+
+  // Switchgear / transformer cabinet on the gable end, louvred and vented.
+  parts.push(
+    paint(
+      roundedPart(policy, [0.42, 0.5, 0.44], [1.08, -0.16, -0.42], [0, 0, 0], 0.03),
+      STATION_PALETTE.aetherCladdingAlt,
+    ),
+  );
+  for (const cabinetSlatY of [-0.26, -0.19, -0.12]) {
+    parts.push(
+      steelPart(roundedPart(policy, [0.44, 0.03, 0.32], [1.08, cabinetSlatY, -0.42], [0, 0, 0], 0.01)),
+    );
+  }
+  parts.push(steelPart(cylinderPart(policy, 0.035, 0.045, 0.28, [1.2, 0.2, -0.42])));
+
+  // Day tanks on a bunded skid, pushed to the far end of the visitor wall so
+  // they frame the roller door instead of blocking it.
+  parts.push(steelPart(roundedPart(policy, [1.5, 0.06, 0.48], [-0.74, -0.45, 1.06], [0, 0, 0], 0.02)));
+  parts.push(
+    steelPart(roundedPart(policy, [1.54, 0.09, 0.05], [-0.74, -0.4, 1.29], [0, 0, 0], 0.014)),
+  );
+  for (const tankX of [-0.34, -1.14]) {
+    parts.push(
+      paint(
+        cylinderPart(policy, 0.16, 0.16, 0.62, [tankX, -0.25, 1.06], [0, 0, Math.PI / 2]),
+        STATION_PALETTE.aetherCladding,
+      ),
+    );
+    for (const capX of [tankX - 0.32, tankX + 0.32]) {
+      parts.push(
+        steelPart(torusPart(policy, 0.155, 0.022, [capX, -0.25, 1.06], [0, Math.PI / 2, 0])),
+      );
+    }
+    for (const saddleX of [tankX - 0.2, tankX + 0.2]) {
+      parts.push(
+        steelPart(roundedPart(policy, [0.06, 0.14, 0.3], [saddleX, -0.37, 1.06], [0, 0, 0], 0.02)),
+      );
+    }
+    parts.push(steelPart(cylinderPart(policy, 0.022, 0.022, 0.3, [tankX, -0.02, 1.06])));
+  }
+
+  // Exhaust stack with rain cap and brackets, then three condensate plume
+  // shells above it. The plume is authored above y = 0.94 so the frame shader's
+  // aether branch can shimmer only those vertices.
+  parts.push(
+    steelPart(
+      cylinderPart(policy, 0.08, 0.1, 0.72, [AETHER_STACK[0], AETHER_STACK_TOP_Y - 0.36, AETHER_STACK[1]]),
+    ),
+  );
+  parts.push(
+    steelPart(torusPart(policy, 0.11, 0.02, [AETHER_STACK[0], AETHER_STACK_TOP_Y - 0.02, AETHER_STACK[1]], [Math.PI / 2, 0, 0])),
+  );
+  const vent = cylinderPart(policy, 0.13, 0.1, 0.05, [AETHER_STACK[0], AETHER_STACK_TOP_Y + 0.03, AETHER_STACK[1]]);
+  vent.name = "aether-vent-stack";
+  parts.push(steelPart(vent));
+  for (const bracketY of [0.34, 0.62]) {
+    parts.push(
+      steelPart(roundedPart(policy, [0.3, 0.035, 0.035], [AETHER_STACK[0] + 0.15, bracketY, AETHER_STACK[1]], [0, 0, 0], 0.012)),
+    );
+  }
+  for (const [puffRadius, puffY, puffDrift, puffSquash] of [
+    [0.16, 0.96, -0.06, 0.5],
+    [0.21, 1.05, -0.24, 0.44],
+    [0.25, 1.15, -0.48, 0.38],
+  ]) {
+    const plume = bakeGeometry(
+      new THREE.SphereGeometry(puffRadius, policy.round, Math.max(8, Math.round(policy.round * 0.5))),
+      {
+        position: [AETHER_STACK[0] + puffDrift, puffY, AETHER_STACK[1] + puffDrift * 0.7],
+        scale: [1.7, puffSquash, 1.25],
+      },
+    );
+    plume.name = "aether-stack-condensate-plume";
+    parts.push(paint(plume, STATION_PALETTE.drift));
+  }
+
+  // Warm windows: a run high on the visitor wall clear of the door, plus one on
+  // the gable end so the hall reads as inhabited from either approach.
+  for (const windowX of [-0.94, -0.5, -0.06]) {
+    const hallWindow = roundedPart(
+      policy,
+      [0.28, 0.16, 0.05],
+      [windowX, 0.0, AETHER_HALL_HALF_DEPTH + 0.02],
+      [0, 0, 0],
+      0.02,
+    );
+    hallWindow.name = "aether-hall-window";
+    parts.push(paint(hallWindow, STATION_PALETTE.window));
+  }
+  const gableWindow = roundedPart(
+    policy,
+    [0.05, 0.16, 0.24],
+    [AETHER_HALL_X + AETHER_HALL_HALF_WIDTH + 0.02, 0.0, 0.3],
+    [0, 0, 0],
+    0.018,
+  );
+  gableWindow.name = "aether-hall-window";
+  parts.push(paint(gableWindow, STATION_PALETTE.window));
+
+  // Pipe runs leaving the plinth toward the neighbouring buildings.
+  for (const [pipeY, pipeZ] of [[-0.42, -0.5], [-0.5, -0.66]]) {
+    parts.push(
+      steelPart(cylinderPart(policy, 0.045, 0.045, 1.5, [-1.9, pipeY, pipeZ], [0, 0, Math.PI / 2])),
+    );
+  }
+  for (const standX of [-1.5, -2.3]) {
+    parts.push(steelPart(roundedPart(policy, [0.07, 0.2, 0.3], [standX, -0.56, -0.58], [0, 0, 0], 0.02)));
+  }
+
+  // Windward drift banked into the lee corner of the plinth.
+  const drift = roundedPart(policy, [0.92, 0.3, 1.72], [-1.56, -0.76, -0.16], [0, 0, 0.18], 0.05);
+  drift.name = "aether-snow-drift";
+  parts.push(paint(drift, STATION_PALETTE.drift));
+  const apronDrift = roundedPart(policy, [1.0, 0.2, 0.5], [-1.18, -0.78, 1.04], [0.12, 0, 0], 0.04);
+  apronDrift.name = "aether-snow-drift";
+  parts.push(paint(apronDrift, STATION_PALETTE.drift));
+
   return mergeParts(
     parts,
     "aether-primordial-first-energy-sanctuary",
@@ -534,68 +941,41 @@ function createAetherPrimordialSanctuaryGeometry(quality) {
   );
 }
 
+// One roller-door slat: a ribbed steel panel. Three instances stack to close
+// the door bay and nest up behind the lintel while the seal is docked.
 function createAetherShieldHemisphereGeometry(quality) {
   const policy = geometryPolicy(quality);
-  const verticalSegments = Math.max(10, Math.round(policy.round * 0.55));
-  // Thick dark containment cup: an outer and an inner partial shell so the
-  // shield reads as massive machined plate, opening toward local +X.
-  const shell = (radius) =>
-    bakeGeometry(
-      new THREE.SphereGeometry(
-        radius,
-        policy.round,
-        verticalSegments,
-        -Math.PI / 2 + 0.1,
-        Math.PI - 0.2,
-        0.16,
-        Math.PI - 0.32,
-      ),
-      { scale: [0.82, 1, 1] },
-    );
-  return mergeParts(
-    [
-      shell(AETHER_SHIELD_RADIUS),
-      shell(AETHER_SHIELD_RADIUS * 0.9),
-      // Accent-lit aperture rim ring in the x = 0 mouth plane.
-      torusPart(policy, 0.71, 0.03, [0, 0, 0], [0, Math.PI / 2, 0]),
-      // Proud meridian spine rib over the dark back of the cup.
-      torusPart(
-        policy,
-        0.75,
-        0.032,
-        [0, 0, 0],
-        [0, 0, Math.PI / 2 + 0.1],
-        [1, 0.84, 1],
-        Math.PI - 0.2,
-      ),
-    ],
-    "aether-two-separated-shield-hemispheres",
-  );
+  const parts = [roundedPart(policy, [0.86, 0.17, 0.055], [0, 0, 0], [0, 0, 0], 0.012)];
+  for (const ribX of [-0.3, 0, 0.3]) {
+    parts.push(roundedPart(policy, [0.06, 0.035, 0.075], [ribX, 0, 0], [0, 0, 0], 0.01));
+  }
+  parts.push(roundedPart(policy, [0.88, 0.02, 0.07], [0, -0.075, 0], [0, 0, 0], 0.008));
+  return mergeParts(parts, "aether-two-separated-shield-hemispheres");
 }
 
+// Burner containment rings around the turbine mouth: the arcs that used to
+// orbit the caged star now cage the flame where it actually belongs.
 function createAetherCausticArcGeometry(quality) {
   const policy = geometryPolicy(quality);
   const arcs = [];
-  // Three thin orbital ribbons on distinct tilted planes, outside the cage,
-  // tracing the containment field around the caged star.
-  for (const [radius, inclination, gapYaw, sweep, tube, planeYaw] of AETHER_ORBITAL_ARCS) {
-    const arc = bakeGeometry(
-      new THREE.TorusGeometry(radius, tube, policy.radial, policy.curve, sweep),
-      { rotation: [Math.PI / 2 - inclination, 0, gapYaw] },
-    );
-    arc.rotateY(planeYaw);
+  for (const [radius, tube, offsetZ] of [
+    [0.17, 0.014, -0.02],
+    [0.15, 0.012, 0.06],
+    [0.12, 0.011, 0.11],
+  ]) {
+    const arc = torusPart(policy, radius, tube, [0, 0, offsetZ]);
     arc.name = "aether-abyss-blue-caustic-arc";
     arcs.push(arc);
   }
   return mergeParts(arcs, "aether-abyss-blue-caustic-arc");
 }
 
+// The signature mechanism: one small contained burner/turbine visible through
+// the roller-door mouth. Bright, tight, and the only saturated gold on the hall.
 function createAetherFirstEnergySeedGeometry(quality) {
   const policy = geometryPolicy(quality);
   return mergeParts(
     [
-      // Small and blinding: a white-hot faceted core inside one tight amber
-      // corona shell. Point-source drama instead of a dominant emissive ball.
       bakeGeometry(
         new THREE.IcosahedronGeometry(AETHER_SEED_CORE_RADIUS, quality === "high" ? 2 : 1),
       ),
@@ -603,12 +983,12 @@ function createAetherFirstEnergySeedGeometry(quality) {
         new THREE.SphereGeometry(
           AETHER_DOMINANT_SEED_RADIUS,
           policy.round,
-          Math.max(12, Math.round(policy.round * 0.65)),
+          Math.max(10, Math.round(policy.round * 0.6)),
         ),
-        { scale: [1, 1.05, 1] },
+        { scale: [1, 1, 1.35] },
       ),
-      // One restrained slender upward ray keeps the reliquary read without wash.
-      cylinderPart(policy, 0.006, 0.02, 0.46, [0, 0.42, 0]),
+      // Burner can and flame port the glow is contained inside.
+      cylinderPart(policy, 0.13, 0.13, 0.2, [0, 0, 0.02], [Math.PI / 2, 0, 0]),
       createAetherCausticArcGeometry(quality),
     ],
     "aether-one-golden-energy-seed holy-upward-rays persistent-cycle aether-abyss-blue-caustic-arc",
@@ -792,104 +1172,357 @@ function createFieldPlasmaCoreGeometry(quality) {
   );
 }
 
-// Component-space catenary crest layered over the shared library manifold
-// sample. It depends only on the normalized span position, so adjacent
-// endpoint-to-center construction bands still share identical boundary
-// vertices and the reveal seams stay closed.
+// Component-space crown layered over the shared library walkway camber. It
+// depends only on the normalized span position, so adjacent endpoint-to-center
+// construction bands still share identical boundary vertices and the reveal
+// seams stay closed.
 function qpuCrestLift(normalizedX) {
   return QPU_CREST_BOOST * (1 - normalizedX * normalizedX);
 }
 
+// One derrick corner, parameterised up the tower so legs, girts and cross
+// braces all land on the same battered taper.
+function qpuDerrickNode(signX, signZ, t) {
+  return [
+    QPU_BOREHOLE_X + signX * (0.36 - 0.24 * t),
+    QPU_DECK_Y + (QPU_CROWN_Y - QPU_DECK_Y) * t,
+    signZ * (0.38 - 0.26 * t),
+  ];
+}
+
+// The four derrick faces, each as the pair of corner signs it spans.
+const QPU_DERRICK_FACES = Object.freeze([
+  Object.freeze([Object.freeze([-1, -1]), Object.freeze([1, -1])]),
+  Object.freeze([Object.freeze([-1, 1]), Object.freeze([1, 1])]),
+  Object.freeze([Object.freeze([-1, -1]), Object.freeze([-1, 1])]),
+  Object.freeze([Object.freeze([1, -1]), Object.freeze([1, 1])]),
+]);
+
+// ICE-CORE DRILL RIG. Everything that stands on the snow lives here: the
+// borehole platform and its hazard-ringed collar, the braced derrick and crown
+// block, the drawworks winch and its cable run, the panel-clad drill shack, the
+// core crates, the rod rack, the cable tray and the windward drift. The catwalk
+// deck itself is the separately revealed construction geometry, so the two are
+// merged in createQpuCausewayFrameGeometry.
+// Legacy identity token retained for the mechanism-layer gate:
+// qpu-jade-cyan-coherence-causeway.
 function createQpuStableDockBandGeometry(quality) {
   const policy = geometryPolicy(quality);
-  const shardFacets = quality === "low" ? 5 : 6;
-  const parts = [
-    // Visitor dock walk strip plus two end landings. The old full-width plank
-    // under the deck is gone so the glass span reads as a floating arc. Deck
-    // structure is the shared graphite steel; only the crystal and the glass
-    // span carry the station's saturated jade.
+  const parts = [];
+  const steelPart = (part) => paint(part, STATION_PALETTE.steel);
+  const strut = (from, to, radius) => steelPart(strutPart(policy, from, to, radius));
+
+  // Borehole platform: a legged steel deck with a coral-striped working edge.
+  parts.push(
+    steelPart(roundedPart(policy, [1.04, 0.08, 1.08], [QPU_BOREHOLE_X, QPU_DECK_Y - 0.04, 0], [0, 0, 0], 0.025)),
+  );
+  for (const padX of [QPU_BOREHOLE_X - 0.44, QPU_BOREHOLE_X + 0.44]) {
+    for (const padZ of [-0.46, 0.46]) {
+      parts.push(steelPart(cylinderPart(policy, 0.05, 0.06, 0.28, [padX, QPU_GROUND_Y + 0.14, padZ])));
+      parts.push(
+        steelPart(roundedPart(policy, [0.18, 0.05, 0.18], [padX, QPU_GROUND_Y + 0.025, padZ], [0, 0, 0], 0.02)),
+      );
+    }
+  }
+  parts.push(
     paint(
-      roundedPart(policy, [2.9, 0.08, 0.3], [0, -0.45, -0.55], [0, 0, 0], 0.035),
-      STATION_PALETTE.steel,
+      roundedPart(policy, [0.92, 0.03, 0.05], [QPU_BOREHOLE_X, QPU_DECK_Y + 0.02, -0.52], [0, 0, 0], 0.012),
+      STATION_PALETTE.trim,
     ),
+  );
+
+  // Borehole collar: dark mouth, machined casing head, coral hazard ring.
+  const boreMouth = cylinderPart(policy, 0.14, 0.14, 0.12, [QPU_BOREHOLE_X, QPU_DECK_Y + 0.02, 0]);
+  boreMouth.name = "qpu-borehole-collar";
+  parts.push(paint(boreMouth, "#141A26"));
+  const casing = cylinderPart(
+    policy,
+    QPU_ABUTMENT_RADIUS * 2.4,
+    QPU_ABUTMENT_RADIUS * 2.6,
+    0.1,
+    [QPU_BOREHOLE_X, QPU_DECK_Y + 0.01, 0],
+  );
+  casing.name = "qpu-borehole-collar";
+  parts.push(steelPart(casing));
+  const hazardRing = torusPart(policy, 0.2, 0.02, [QPU_BOREHOLE_X, QPU_DECK_Y + 0.015, 0], [Math.PI / 2, 0, 0]);
+  hazardRing.name = "qpu-borehole-collar";
+  parts.push(paint(hazardRing, STATION_PALETTE.trim));
+
+  // Braced derrick: four battered legs, three girt tiers, cross braces on every
+  // face, coral hazard sleeves at the working height, and the crown block.
+  for (const [signX, signZ] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    const leg = strut(qpuDerrickNode(signX, signZ, 0), qpuDerrickNode(signX, signZ, 1), 0.036);
+    leg.name = "qpu-derrick-leg";
+    parts.push(leg);
+    const sleeve = strutPart(
+      policy,
+      qpuDerrickNode(signX, signZ, 0.03),
+      qpuDerrickNode(signX, signZ, 0.1),
+      0.044,
+    );
+    sleeve.name = "qpu-derrick-hazard-sleeve";
+    parts.push(paint(sleeve, STATION_PALETTE.trim));
+  }
+  for (const [[aX, aZ], [bX, bZ]] of QPU_DERRICK_FACES) {
+    for (const girtT of [0.3, 0.6, 0.85]) {
+      const girt = strut(qpuDerrickNode(aX, aZ, girtT), qpuDerrickNode(bX, bZ, girtT), 0.021);
+      girt.name = "qpu-derrick-brace";
+      parts.push(girt);
+    }
+    for (const [lowT, highT] of [[0, 0.3], [0.3, 0.6], [0.6, 0.85]]) {
+      for (const brace of [
+        strut(qpuDerrickNode(aX, aZ, lowT), qpuDerrickNode(bX, bZ, highT), 0.018),
+        strut(qpuDerrickNode(bX, bZ, lowT), qpuDerrickNode(aX, aZ, highT), 0.018),
+      ]) {
+        brace.name = "qpu-derrick-brace";
+        parts.push(brace);
+      }
+    }
+  }
+  parts.push(
+    steelPart(roundedPart(policy, [0.36, 0.12, 0.32], [QPU_BOREHOLE_X, QPU_CROWN_Y + 0.08, 0], [0, 0, 0], 0.025)),
+  );
+  for (const sheaveZ of [-0.07, 0.07]) {
+    const sheave = torusPart(policy, 0.085, 0.024, [QPU_BOREHOLE_X, QPU_CROWN_Y - 0.02, sheaveZ]);
+    sheave.name = "qpu-crown-block";
+    parts.push(steelPart(sheave));
+  }
+  parts.push(
+    steelPart(roundedPart(policy, [0.3, 0.04, 0.05], [QPU_BOREHOLE_X, QPU_CROWN_Y + 0.16, 0], [0, 0, 0], 0.014)),
+  );
+
+  // Drawworks winch on a skid: bunded base, machinery cabinet, spooled drum.
+  parts.push(steelPart(roundedPart(policy, [0.66, 0.08, 0.46], [-0.15, QPU_GROUND_Y + 0.04, -0.46], [0, 0, 0], 0.02)));
+  parts.push(
     paint(
-      roundedPart(policy, [0.66, 0.09, 0.78], [-1.52, -0.44, 0], [0, 0, 0], 0.04),
-      STATION_PALETTE.qpuCladding,
-    ),
-    paint(
-      roundedPart(policy, [0.66, 0.09, 0.78], [1.52, -0.44, 0], [0, 0, 0], 0.04),
+      roundedPart(policy, [0.5, 0.26, 0.38], [-0.15, -0.41, -0.46], [0, 0, 0], 0.03),
       STATION_PALETTE.qpuCladdingAlt,
     ),
-  ];
-  // Coral edge striping along both landings and one ember marker lamp each:
-  // the causeway reads as a maintained crossing, not an abstract ramp.
-  for (const side of [-1, 1]) {
-    for (const edgeZ of [-0.42, 0.42]) {
-      const trim = roundedPart(
-        policy,
-        [0.68, 0.035, 0.05],
-        [side * 1.52, -0.4, edgeZ],
-        [0, 0, 0],
-        0.014,
-      );
-      trim.name = "qpu-landing-trim";
-      parts.push(paint(trim, STATION_PALETTE.trim));
-    }
-    const marker = roundedPart(
-      policy,
-      [0.09, 0.1, 0.09],
-      [side * 1.78, -0.36, -0.28],
-      [0, 0, 0],
-      0.025,
-    );
-    marker.name = "qpu-landing-marker-lamp";
-    parts.push(paint(marker, STATION_PALETTE.window));
+  );
+  parts.push(
+    paint(
+      roundedPart(policy, [0.52, 0.03, 0.05], [-0.15, -0.3, -0.66], [0, 0, 0], 0.012),
+      STATION_PALETTE.trim,
+    ),
+  );
+  // Machined facets so the drum reads as a spooled winch, not a smooth pipe.
+  const drum = facetedPart(0.13, 0.13, 0.34, quality === "low" ? 8 : 12, [-0.15, -0.2, -0.46], [
+    Math.PI / 2,
+    0,
+    0,
+  ]);
+  drum.name = "qpu-winch-drum";
+  parts.push(steelPart(drum));
+  for (const flangeZ of [-0.63, -0.29]) {
+    const flange = torusPart(policy, 0.135, 0.024, [-0.15, -0.2, flangeZ]);
+    flange.name = "qpu-winch-drum";
+    parts.push(steelPart(flange));
   }
-  for (const x of [-1.58, 1.58]) {
+  for (const grooveZ of [-0.55, -0.46, -0.37]) {
+    const groove = torusPart(policy, 0.132, 0.008, [-0.15, -0.2, grooveZ]);
+    groove.name = "qpu-winch-drum";
+    parts.push(steelPart(groove));
+  }
+
+  // Winch cable: the haul line up to the crown sheave, then the drill line down
+  // into the collar. This is the same polyline the telemetry lights ride.
+  const haulLine = strut(QPU_CABLE_DRUM, QPU_CABLE_CROWN, 0.012);
+  haulLine.name = "qpu-winch-cable";
+  parts.push(haulLine);
+  const drillLine = strut(QPU_CABLE_CROWN, [QPU_BOREHOLE_X, QPU_DECK_Y + 0.04, 0], 0.012);
+  drillLine.name = "qpu-winch-cable";
+  parts.push(drillLine);
+
+  // Slender catwalk abutments between the shack and the platform.
+  for (const abutmentX of [-0.62, 0.62]) {
     parts.push(
-      paint(
+      steelPart(
         cylinderPart(
           policy,
-          QPU_ABUTMENT_RADIUS * 0.78,
+          QPU_ABUTMENT_RADIUS * 0.8,
           QPU_ABUTMENT_RADIUS,
           QPU_ABUTMENT_HEIGHT,
-          [x, -0.18, 0],
+          [abutmentX, QPU_GROUND_Y + QPU_ABUTMENT_HEIGHT / 2, 0],
         ),
-        STATION_PALETTE.steel,
       ),
     );
   }
-  // Clustered angular crystal pylons at each abutment: one faceted root spike
-  // reaching down toward the ice, one tall mast shard, two leaning fore/aft
-  // shards, and a landing collar. Faceted normals keep them reading as cut
-  // crystal instead of smooth posts.
-  for (const side of [-1, 1]) {
-    const x = side * 1.52;
-    const shard = (part) => {
-      part.name = "qpu-crystal-pylon-cluster";
-      parts.push(paint(part, STATION_PALETTE.qpuGlass));
-    };
-    shard(facetedPart(0.15, 0.05, 1.15, shardFacets, [x, -0.55, 0]));
-    shard(
-      facetedPart(0.035, 0.145, 1.55, shardFacets, [x, 0.55, 0], [0, side * 0.4, side * 0.07]),
+
+  // Drill shack: panel-clad hut on skid runners, corner posts, proud seams.
+  for (const runnerZ of [-0.4, 0.4]) {
+    parts.push(
+      steelPart(roundedPart(policy, [1.18, 0.09, 0.13], [QPU_SHACK_X, QPU_GROUND_Y + 0.045, runnerZ], [0, 0, 0], 0.03)),
     );
-    shard(
-      facetedPart(0.028, 0.105, 0.95, shardFacets, [x * 0.96, 0.16, 0.31], [0.12, 0, -side * 0.1]),
-    );
-    shard(
-      facetedPart(0.024, 0.09, 0.78, shardFacets, [x * 0.96, 0.08, -0.31], [-0.12, 0, -side * 0.06]),
-    );
-    const collar = torusPart(policy, 0.24, 0.028, [x, 0.15, 0], [Math.PI / 2, 0, 0]);
-    collar.name = "qpu-crystal-pylon-cluster";
-    parts.push(paint(collar, STATION_PALETTE.steel));
   }
+  for (const postX of [QPU_SHACK_X - 0.4, QPU_SHACK_X + 0.4]) {
+    for (const postZ of [-0.4, 0.4]) {
+      parts.push(steelPart(roundedPart(policy, [0.08, 0.29, 0.08], [postX, -0.43, postZ], [0, 0, 0], 0.02)));
+    }
+  }
+  parts.push(
+    paint(
+      roundedPart(policy, [0.98, 0.62, 0.88], [QPU_SHACK_X, 0.03, 0], [0, 0, 0], 0.045),
+      STATION_PALETTE.qpuCladding,
+    ),
+  );
+  parts.push(
+    paint(
+      roundedPart(policy, [1.06, 0.06, 0.96], [QPU_SHACK_X, 0.37, 0], [0, 0, 0], 0.025),
+      STATION_PALETTE.qpuCladdingAlt,
+    ),
+  );
+  for (const postX of [QPU_SHACK_X - 0.49, QPU_SHACK_X + 0.49]) {
+    for (const postZ of [-0.44, 0.44]) {
+      parts.push(steelPart(roundedPart(policy, [0.09, 0.66, 0.09], [postX, 0.03, postZ], [0, 0, 0], 0.02)));
+    }
+  }
+  // Proud vertical seams down the windward wall; the dock wall is full of
+  // equipment, so it carries a horizontal panel base channel instead.
+  for (const seamOffset of [-0.28, 0.02, 0.32]) {
+    const seam = roundedPart(
+      policy,
+      [0.045, 0.58, 0.05],
+      [QPU_SHACK_X + seamOffset, 0.03, 0.465],
+      [0, 0, 0],
+      0.015,
+    );
+    seam.name = "qpu-panel-seam";
+    parts.push(steelPart(seam));
+  }
+  const baseChannel = roundedPart(policy, [1.0, 0.045, 0.05], [QPU_SHACK_X, -0.25, -0.47], [0, 0, 0], 0.015);
+  baseChannel.name = "qpu-panel-seam";
+  parts.push(steelPart(baseChannel));
+
+  // Dock-facing wall: door in a coral frame, warm windows, the mint indicator
+  // panel, one thin mint livery line and the coral eave stripe above it.
+  parts.push(
+    steelPart(roundedPart(policy, [0.34, 0.46, 0.04], [QPU_SHACK_X + 0.24, -0.02, -0.48], [0, 0, 0], 0.015)),
+  );
+  for (const jambOffset of [0.04, 0.44]) {
+    parts.push(
+      paint(
+        roundedPart(policy, [0.04, 0.5, 0.05], [QPU_SHACK_X + jambOffset, -0.02, -0.485], [0, 0, 0], 0.012),
+        STATION_PALETTE.trim,
+      ),
+    );
+  }
+  parts.push(
+    paint(
+      roundedPart(policy, [0.44, 0.03, 0.06], [QPU_SHACK_X + 0.24, -0.27, -0.49], [0, 0, 0], 0.01),
+      STATION_PALETTE.trim,
+    ),
+  );
+  const doorVisionPanel = roundedPart(
+    policy,
+    [0.13, 0.08, 0.045],
+    [QPU_SHACK_X + 0.24, 0.14, -0.49],
+    [0, 0, 0],
+    0.012,
+  );
+  doorVisionPanel.name = "qpu-shack-window";
+  parts.push(paint(doorVisionPanel, STATION_PALETTE.window));
+  const indicatorPanel = roundedPart(
+    policy,
+    [0.2, 0.13, 0.045],
+    [QPU_SHACK_X - 0.3, -0.13, -0.475],
+    [0, 0, 0],
+    0.014,
+  );
+  indicatorPanel.name = "qpu-indicator-panel";
+  parts.push(paint(indicatorPanel, QPU_IDENTITY_MINT));
+  parts.push(
+    paint(
+      roundedPart(policy, [1.0, 0.032, 0.045], [QPU_SHACK_X, 0.29, -0.47], [0, 0, 0], 0.012),
+      QPU_IDENTITY_MINT,
+    ),
+  );
+  parts.push(
+    paint(
+      roundedPart(policy, [1.06, 0.038, 0.05], [QPU_SHACK_X, 0.355, -0.475], [0, 0, 0], 0.014),
+      STATION_PALETTE.trim,
+    ),
+  );
+  for (const [windowSize, windowPosition] of [
+    [[0.36, 0.2, 0.05], [QPU_SHACK_X - 0.3, 0.12, -0.465]],
+    [[0.05, 0.17, 0.28], [QPU_SHACK_X - 0.52, 0.12, 0.1]],
+    [[0.28, 0.15, 0.05], [QPU_SHACK_X + 0.06, 0.12, 0.465]],
+  ]) {
+    const shackWindow = roundedPart(policy, windowSize, windowPosition, [0, 0, 0], 0.02);
+    shackWindow.name = "qpu-shack-window";
+    parts.push(paint(shackWindow, STATION_PALETTE.window));
+  }
+  parts.push(
+    steelPart(roundedPart(policy, [0.5, 0.05, 0.34], [QPU_SHACK_X + 0.22, -0.31, -0.66], [0, 0, 0], 0.02)),
+  );
+  for (const rungY of [-0.44, -0.55]) {
+    parts.push(
+      steelPart(cylinderPart(policy, 0.015, 0.015, 0.3, [QPU_SHACK_X + 0.22, rungY, -0.7], [0, 0, Math.PI / 2])),
+    );
+  }
+
+  // Core crate stacks beside the shack: banded boxes of recovered ice core.
+  for (const [crateX, crateY, crateZ] of [
+    [-0.86, QPU_GROUND_Y + 0.1, -0.72],
+    [-0.86, QPU_GROUND_Y + 0.31, -0.72],
+    [-1.34, QPU_GROUND_Y + 0.1, -0.8],
+  ]) {
+    const crate = roundedPart(policy, [0.44, 0.2, 0.34], [crateX, crateY, crateZ], [0, 0, 0], 0.02);
+    crate.name = "qpu-core-crate";
+    parts.push(paint(crate, STATION_PALETTE.qpuCladdingAlt));
+    parts.push(
+      steelPart(roundedPart(policy, [0.46, 0.03, 0.36], [crateX, crateY + 0.06, crateZ], [0, 0, 0], 0.01)),
+    );
+  }
+
+  // Drill rod rack on the windward side, plus the cable tray feeding the shack.
+  for (const standX of [-0.5, 0.62]) {
+    parts.push(steelPart(roundedPart(policy, [0.09, 0.3, 0.1], [standX, -0.47, 0.6], [0, 0, 0], 0.02)));
+  }
+  parts.push(steelPart(roundedPart(policy, [1.3, 0.06, 0.14], [0.06, -0.3, 0.6], [0, 0, 0], 0.02)));
+  for (const [rodY, rodZ] of [
+    [-0.235, 0.5],
+    [-0.235, 0.6],
+    [-0.235, 0.7],
+    [-0.14, 0.55],
+    [-0.14, 0.65],
+  ]) {
+    const rod = cylinderPart(policy, 0.043, 0.043, 1.24, [0.06, rodY, rodZ], [0, 0, Math.PI / 2]);
+    rod.name = "qpu-drill-rod-rack";
+    parts.push(steelPart(rod));
+  }
+  const tray = roundedPart(policy, [2.3, 0.08, 0.12], [-0.2, -0.34, 0.4], [0, 0, 0], 0.025);
+  tray.name = "qpu-cable-tray";
+  parts.push(steelPart(tray));
+  for (const trayStandX of [-1.1, 0.7]) {
+    parts.push(steelPart(roundedPart(policy, [0.07, 0.24, 0.07], [trayStandX, -0.5, 0.4], [0, 0, 0], 0.02)));
+  }
+
+  // Windward drift banked against the rod rack, a wedge at the shack gable, and
+  // a low apron of blown snow the dock side of the rig sits in.
+  // Each wedge is banked into the structure it collects against and dips below
+  // the contact plane, so only its scoured shoulder stands proud of the snow.
+  for (const [driftSize, driftPosition, driftRotation] of [
+    [[2.5, 0.3, 0.66], [0.1, QPU_GROUND_Y - 0.14, 0.86], [-0.18, 0, 0.16]],
+    [[0.62, 0.24, 1.0], [-2.14, QPU_GROUND_Y - 0.15, 0.02], [0, 0, -0.12]],
+    [[1.6, 0.28, 0.56], [-1.42, QPU_GROUND_Y - 0.14, -0.5], [0, 0, 0.1]],
+    [[1.06, 0.26, 0.46], [QPU_BOREHOLE_X, QPU_GROUND_Y - 0.13, -0.5], [0, 0, -0.09]],
+  ]) {
+    const drift = roundedPart(policy, driftSize, driftPosition, driftRotation, 0.05);
+    drift.name = "qpu-snow-drift";
+    parts.push(paint(drift, STATION_PALETTE.drift));
+  }
+
   return mergeParts(
     parts,
-    "qpu-jade-cyan-coherence-causeway qpu-stable-visitor-dock-band-and-slender-abutments",
+    "qpu-ice-core-drill-rig qpu-stable-visitor-dock-band-and-slender-abutments",
     STATION_PALETTE.qpuCladding,
   );
 }
 
+// The catwalk/gantry plate between the drill shack and the borehole platform:
+// one continuously sampled cambered deck, triangles ordered in symmetric
+// endpoint-to-center bands so the construction reveal lays it from both
+// landings toward midspan.
 function createQpuContinuousManifoldGeometry(quality) {
   const uSegments = quality === "high" ? 48 : quality === "medium" ? 32 : 20;
   const vSegments = quality === "high" ? 16 : quality === "medium" ? 12 : 8;
@@ -908,7 +1541,7 @@ function createQpuContinuousManifoldGeometry(quality) {
         const crest = qpuCrestLift(x / QPU_MANIFOLD_LAYOUT.halfSpan);
         positions.push(
           point.x,
-          point.y + crest - surface * QPU_MANIFOLD_LAYOUT.floorThickness,
+          QPU_CATWALK_BASE_Y + point.y + crest - surface * QPU_MANIFOLD_LAYOUT.floorThickness,
           point.z,
         );
       }
@@ -960,26 +1593,31 @@ function createQpuContinuousManifoldGeometry(quality) {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(orderedIndices);
   geometry.computeVertexNormals();
-  geometry.name = "qpu-one-piece-global-sampled-double-curved-riemann-floor-and-shell";
+  geometry.name = "qpu-one-piece-continuously-sampled-catwalk-deck-plate";
   const baked = bakeGeometry(geometry);
   baked.userData.constructionStepEndVertexCounts = constructionStepEndVertexCounts;
   return baked;
 }
 
+// One catwalk hoop guard: the inverted-U frame a walkway bay hangs its rails
+// from. Thirteen bays ride the deck and rise with the construction envelope.
 function createQpuManifoldRibGeometry(quality) {
   const policy = geometryPolicy(quality);
   return tubePart(
     policy,
     new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(0, 0.02, -QPU_MANIFOLD_LAYOUT.halfDepth),
-      new THREE.Vector3(0, 0.26, 0),
-      new THREE.Vector3(0, 0.02, QPU_MANIFOLD_LAYOUT.halfDepth),
+      new THREE.Vector3(0, 0, -QPU_MANIFOLD_LAYOUT.halfDepth),
+      new THREE.Vector3(0, 0.46, 0),
+      new THREE.Vector3(0, 0, QPU_MANIFOLD_LAYOUT.halfDepth),
     ),
-    0.03,
-    "qpu-endpoint-to-center-reconstruction-rib",
+    0.017,
+    "qpu-endpoint-to-center-catwalk-hoop",
   );
 }
 
+// The one-draw rig body: the grounded drill rig merged with the progressively
+// revealed catwalk deck, keeping the stable/construction vertex ranges the
+// draw-range reveal depends on.
 function createQpuCausewayFrameGeometry(quality) {
   const stableGeometry = createQpuStableDockBandGeometry(quality);
   const constructionGeometry = createQpuContinuousManifoldGeometry(quality);
@@ -990,8 +1628,8 @@ function createQpuCausewayFrameGeometry(quality) {
   ];
   const geometry = mergeParts(
     [stableGeometry, constructionGeometry],
-    "qpu-jade-cyan-coherence-causeway qpu-continuous-global-riemann-manifold qpu-contiguous-floor-shell-and-ribs",
-    STATION_PALETTE.qpuGlass,
+    "qpu-ice-core-drill-rig qpu-continuous-catwalk-deck qpu-contiguous-catwalk-plate-and-hoops",
+    STATION_PALETTE.qpuCladding,
   );
   geometry.userData.stableVertexCount = stableVertexCount;
   geometry.userData.constructionVertexCount = constructionVertexCount;
@@ -999,52 +1637,85 @@ function createQpuCausewayFrameGeometry(quality) {
   return geometry;
 }
 
+// One catwalk handrail bay: hoop guard, its deck foot, and the two longitudinal
+// rail bars that meet the neighbouring bays into a continuous run.
 function createQpuCoherencePlateGeometry(quality) {
   const policy = geometryPolicy(quality);
-  // Floating coherence stabilizer ring hovering beside the span; alternate
-  // plate instances yaw half a turn so the rings flank both deck edges.
-  const ring = torusPart(
-    policy,
-    0.15,
-    0.02,
-    [0, 0.3, QPU_MANIFOLD_LAYOUT.halfDepth + 0.26],
-    [0, Math.PI / 2, 0],
-  );
-  ring.name = "qpu-floating-coherence-stabilizer-ring";
-  return mergeParts(
-    [
-      createQpuManifoldRibGeometry(quality),
-      tubePart(
-        policy,
-        new THREE.LineCurve3(
-          new THREE.Vector3(-0.08, 0, 0),
-          new THREE.Vector3(0.08, 0, 0),
-        ),
-        0.018,
-        "qpu-rib-edge-lock",
+  const parts = [
+    createQpuManifoldRibGeometry(quality),
+    tubePart(
+      policy,
+      new THREE.LineCurve3(
+        new THREE.Vector3(-0.06, 0, 0),
+        new THREE.Vector3(0.06, 0, 0),
       ),
-      ring,
-    ],
-    "qpu-manifold-reconstruction-ribs qpu-alien-iridescent-interference-fins",
-  );
+      0.016,
+      "qpu-catwalk-hoop-foot",
+    ),
+  ];
+  for (const railZ of [-QPU_MANIFOLD_LAYOUT.halfDepth * 0.92, QPU_MANIFOLD_LAYOUT.halfDepth * 0.92]) {
+    const rail = roundedPart(policy, [0.23, 0.03, 0.03], [0, 0.2, railZ], [0, 0, 0], 0.01);
+    rail.name = "qpu-catwalk-handrail-bay";
+    parts.push(rail);
+  }
+  return mergeParts(parts, "qpu-catwalk-handrail-bays qpu-endpoint-to-center-build-field");
 }
 
+// One telemetry light: a lozenge bead that rides the winch cable. The wireline
+// verification sonde is the same shape scaled up.
 function createQpuSignalGeometry(quality) {
   const policy = geometryPolicy(quality);
   return bakeGeometry(
-    new THREE.CapsuleGeometry(0.045, 0.34, policy.cap, policy.radial),
+    new THREE.CapsuleGeometry(0.026, 0.07, policy.cap, policy.radial),
     { rotation: [0, 0, Math.PI / 2] },
   );
+}
+
+// The winch cable as a two-segment polyline with its orientation baked once.
+// Both the static cable members and the travelling telemetry lights read this,
+// so the light always sits exactly on the wire a viewer can see.
+const QPU_CABLE_SEGMENTS = Object.freeze(
+  [
+    [QPU_CABLE_DRUM, QPU_CABLE_CROWN],
+    [QPU_CABLE_CROWN, QPU_CABLE_HOLE],
+  ].map(([from, to]) => {
+    const deltaX = to[0] - from[0];
+    const deltaY = to[1] - from[1];
+    const deltaZ = to[2] - from[2];
+    return Object.freeze({
+      from,
+      length: Math.hypot(deltaX, deltaY, deltaZ),
+      pitch: Math.atan2(deltaY, Math.hypot(deltaX, deltaZ)),
+      to,
+      yaw: Math.atan2(-deltaZ, deltaX),
+    });
+  }),
+);
+const QPU_CABLE_TOTAL_LENGTH = QPU_CABLE_SEGMENTS[0].length + QPU_CABLE_SEGMENTS[1].length;
+const QPU_CABLE_CROWN_T = QPU_CABLE_SEGMENTS[0].length / QPU_CABLE_TOTAL_LENGTH;
+const qpuCablePose = { pitch: 0, x: 0, y: 0, yaw: 0, z: 0 };
+
+function sampleQpuCable(travel) {
+  const distance = THREE.MathUtils.clamp(travel, 0, 1) * QPU_CABLE_TOTAL_LENGTH;
+  const onHaulLine = distance <= QPU_CABLE_SEGMENTS[0].length;
+  const segment = onHaulLine ? QPU_CABLE_SEGMENTS[0] : QPU_CABLE_SEGMENTS[1];
+  const ratio =
+    (onHaulLine ? distance : distance - QPU_CABLE_SEGMENTS[0].length) / segment.length;
+  qpuCablePose.x = segment.from[0] + (segment.to[0] - segment.from[0]) * ratio;
+  qpuCablePose.y = segment.from[1] + (segment.to[1] - segment.from[1]) * ratio;
+  qpuCablePose.z = segment.from[2] + (segment.to[2] - segment.from[2]) * ratio;
+  qpuCablePose.pitch = segment.pitch;
+  qpuCablePose.yaw = segment.yaw;
+  return qpuCablePose;
 }
 
 function patchAwardSurface(
   material,
   {
+    ambientGain = 0.045,
     effectMode = 0,
     effectStrength = 0,
     macroStrength,
-    orbitalColor,
-    orbitalStrength = 0,
     phaseColor,
     rimColor,
     rimStrength,
@@ -1052,6 +1723,7 @@ function patchAwardSurface(
   },
 ) {
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.uAwardAmbientGain = { value: ambientGain };
     shader.uniforms.uAwardWindowGain = { value: windowGain };
     shader.uniforms.uAwardMacroStrength = { value: macroStrength };
     shader.uniforms.uAwardRimColor = { value: new THREE.Color(rimColor) };
@@ -1060,8 +1732,6 @@ function patchAwardSurface(
     shader.uniforms.uAwardEffectStrength = { value: effectStrength };
     shader.uniforms.uAwardActivity = { value: 0 };
     shader.uniforms.uAwardPhaseColor = { value: new THREE.Color(phaseColor || rimColor) };
-    shader.uniforms.uAwardOrbitalColor = { value: new THREE.Color(orbitalColor || rimColor) };
-    shader.uniforms.uAwardOrbitalStrength = { value: orbitalStrength };
     shader.uniforms.uAwardTime = { value: 0 };
     material.userData.awardUniforms = shader.uniforms;
     shader.vertexShader = shader.vertexShader
@@ -1078,6 +1748,7 @@ uniform float uAwardTime;`,
         "#include <begin_vertex>",
         `#include <begin_vertex>
 vAwardLocalPosition = position;
+float awardAetherMask = step(1.5, uAwardEffectMode) * (1.0 - step(2.5, uAwardEffectMode));
 float awardFieldMask = step(2.5, uAwardEffectMode) * (1.0 - step(3.5, uAwardEffectMode));
 float awardQpuMask = step(3.5, uAwardEffectMode);
 float awardThermalBand = sin(position.y * 17.0 + position.x * 3.0 - uAwardTime * 3.2);
@@ -1090,6 +1761,20 @@ float awardFieldOffset = clamp(
   FIELD_VERTEX_DISPLACEMENT_LIMIT
 );
 transformed += objectNormal * awardFieldOffset * awardFieldMask;
+
+// Generator-hall stack plume: a world-space heat shimmer confined to the
+// condensate shells authored above the stack cap, thickening while docked.
+// It never touches the hall itself, and it is not a fullscreen pass.
+float awardPlumeGate = smoothstep(0.94, 1.06, position.y);
+float awardPlumeSwell = sin(position.y * 9.0 + position.x * 5.0 - uAwardTime * 1.4)
+  * cos(position.z * 7.0 + uAwardTime * 0.9);
+const float AETHER_PLUME_DISPLACEMENT_LIMIT = 0.06;
+float awardPlumeOffset = clamp(
+  awardPlumeSwell * awardPlumeGate * (0.016 + awardMotionActivity * 0.044),
+  -AETHER_PLUME_DISPLACEMENT_LIMIT,
+  AETHER_PLUME_DISPLACEMENT_LIMIT
+);
+transformed += objectNormal * awardPlumeOffset * awardAetherMask;
 
 float awardQpuFold = sin(position.y * 8.0 + position.z * 13.0 + uAwardTime * 1.25)
   * cos(position.x * 9.0 - uAwardTime * 0.85)
@@ -1120,13 +1805,12 @@ varying vec3 vAwardWorldPosition;
 varying vec3 vAwardLocalPosition;
 uniform vec3 uAwardRimColor;
 uniform vec3 uAwardPhaseColor;
-uniform vec3 uAwardOrbitalColor;
-uniform float uAwardOrbitalStrength;
 uniform float uAwardRimStrength;
 uniform float uAwardMacroStrength;
 uniform float uAwardEffectMode;
 uniform float uAwardEffectStrength;
 uniform float uAwardTime;
+uniform float uAwardAmbientGain;
 uniform float uAwardWindowGain;
 
 float awardSignal(vec3 p) {
@@ -1166,7 +1850,12 @@ float awardFacing = clamp(abs(dot(normalize(normal), normalize(vViewPosition))),
 float awardFresnel = pow(1.0 - awardFacing, 3.0);
 float awardWrappedDiffuse = clamp(normal.y * 0.5 + 0.5, 0.0, 1.0);
 float awardStationSignal = awardStationField(vAwardWorldPosition);
-reflectedLight.indirectDiffuse += diffuseColor.rgb * (0.045 + awardWrappedDiffuse * 0.075);
+// Sky-dome wrap fill. Antarctic light is overwhelmingly bounced off snow and
+// cloud, so a station lit only by the key light collapses into a black
+// silhouette whenever the camera lands on its shaded side. This gain is what
+// keeps the LAW 3 value ladder (structure / cladding / hardware) readable.
+reflectedLight.indirectDiffuse +=
+  diffuseColor.rgb * uAwardAmbientGain * (1.0 + awardWrappedDiffuse * 1.7);
 reflectedLight.indirectDiffuse *= 1.0 + awardMacro * uAwardMacroStrength;
 reflectedLight.indirectDiffuse += uAwardPhaseColor * awardStationSignal * uAwardEffectStrength;
 reflectedLight.indirectSpecular += uAwardRimColor * awardFresnel * uAwardRimStrength;
@@ -1176,21 +1865,17 @@ reflectedLight.indirectSpecular += uAwardRimColor * awardFresnel * uAwardRimStre
 float awardWindowWarmth = clamp(diffuseColor.r - diffuseColor.b, 0.0, 1.0);
 float awardWindowMask =
   smoothstep(0.16, 0.34, awardWindowWarmth) * smoothstep(0.30, 0.46, diffuseColor.g);
-totalEmissiveRadiance += diffuseColor.rgb * awardWindowMask * uAwardWindowGain;
-// Orbital caustic recolor: material-gated, keyed on authored local radius so
-// the golden seed core stays golden while its orbital ribbons turn violet.
-float awardOrbitalMask = uAwardOrbitalStrength * smoothstep(0.5, 0.72, length(vAwardLocalPosition.xz));
-totalEmissiveRadiance = mix(totalEmissiveRadiance, uAwardOrbitalColor * (0.5 + awardStationSignal * 0.5), awardOrbitalMask);
-reflectedLight.indirectDiffuse = mix(reflectedLight.indirectDiffuse, uAwardOrbitalColor * 0.32, awardOrbitalMask);`,
+totalEmissiveRadiance += diffuseColor.rgb * awardWindowMask * uAwardWindowGain;`,
       );
   };
-  material.customProgramCacheKey = () => "polar-ne-award-surface-v5";
+  material.customProgramCacheKey = () => "polar-ne-award-surface-v6";
   material.userData.surfaceMath =
     "gain 0.35 low-pass macro / wrapped diffuse / Fresnel containment / authored station field";
   return material;
 }
 
 function makeArchitecturalSurface({
+  ambientGain,
   color,
   effectMode = 0,
   effectStrength = 0,
@@ -1199,8 +1884,6 @@ function makeArchitecturalSurface({
   macroStrength = 0.022,
   metalness,
   opacity = 0.96,
-  orbitalColor,
-  orbitalStrength = 0,
   phaseColor,
   rimColor,
   rimStrength = 0.18,
@@ -1221,11 +1904,10 @@ function makeArchitecturalSurface({
       vertexColors,
     }),
     {
+      ambientGain,
       effectMode,
       effectStrength,
       macroStrength,
-      orbitalColor,
-      orbitalStrength,
       phaseColor,
       rimColor,
       rimStrength,
@@ -1256,17 +1938,18 @@ function createRenderResources(quality, detailed) {
     });
   }
   const materials = {
+    // Burner core and the hall's warm indicator lamps: the only saturated gold
+    // on the generator hall, and the brightest thing on the whole station.
     aetherBead: makeArchitecturalSurface({
+      ambientGain: 0.3,
       color: "#FFF6E2",
       effectMode: 2,
-      effectStrength: 0.12,
+      effectStrength: 0.1,
       emissive: "#FFAB33",
-      emissiveIntensity: 1.3,
+      emissiveIntensity: 0.95,
       macroStrength: 0.008,
       metalness: 0,
-      opacity: 0.55,
-      orbitalColor: "#8D69D6",
-      orbitalStrength: 1,
+      opacity: 0.92,
       phaseColor: "#FFE9B8",
       rimColor: "#FFFFFF",
       rimStrength: 0.12,
@@ -1278,12 +1961,13 @@ function createRenderResources(quality, detailed) {
     // They are lit, not luminous - the identity emissive belongs to the
     // signature mechanism pools.
     aetherFrame: makeArchitecturalSurface({
+      ambientGain: 0.42,
       color: "#FFFFFF",
       effectMode: 2,
       effectStrength: 0.03,
       emissive: "#1B2C46",
       emissiveIntensity: 0.05,
-      metalness: 0.34,
+      metalness: 0.1,
       opacity: 0.98,
       phaseColor: "#2D6FA3",
       rimColor: "#2D6FA3",
@@ -1292,19 +1976,22 @@ function createRenderResources(quality, detailed) {
       vertexColors: true,
       windowGain: 1.15,
     }),
+    // Roller-door slats: ribbed steel, a touch above the graphite structure so
+    // the door reads as a moving part rather than a hole in the wall.
     aetherRibbon: makeArchitecturalSurface({
-      color: "#0B2A56",
+      ambientGain: 0.42,
+      color: "#4A5464",
       effectMode: 2,
-      effectStrength: 0.05,
-      emissive: "#122F5E",
-      emissiveIntensity: 0.2,
-      macroStrength: 0.014,
-      metalness: 0.28,
-      opacity: 0.985,
+      effectStrength: 0.02,
+      emissive: "#16202E",
+      emissiveIntensity: 0.04,
+      macroStrength: 0.012,
+      metalness: 0.24,
+      opacity: 0.99,
       phaseColor: "#2D6FA3",
-      rimColor: "#2D6FA3",
-      rimStrength: 0.82,
-      roughness: 0.52,
+      rimColor: "#8FA6BD",
+      rimStrength: 0.32,
+      roughness: 0.44,
     }),
     fieldCoil: makeArchitecturalSurface({
       color: "#B85D2A",
@@ -1346,83 +2033,107 @@ function createRenderResources(quality, detailed) {
       rimStrength: 0.24,
       roughness: 0.12,
     }),
+    // Drill-rig body: white base multiplied by the per-vertex camp palette
+    // (graphite steel derrick and cable, desaturated panel cladding on the
+    // shack and crates, coral hazard trim, ember windows, one mint indicator
+    // panel and livery line). Lit by the scene, never a lamp.
     qpuFrame: makeArchitecturalSurface({
-      color: "#2EC9B4",
+      ambientGain: 0.42,
+      color: "#FFFFFF",
       effectMode: 4,
-      effectStrength: 0.16,
-      emissive: "#0E8F84",
-      emissiveIntensity: 0.62,
-      macroStrength: 0.014,
-      metalness: 0.3,
-      opacity: 0.8,
-      phaseColor: "#36D8FF",
-      rimColor: "#C9FFEC",
-      rimStrength: 0.85,
-      roughness: 0.14,
+      effectStrength: 0.03,
+      emissive: "#16302C",
+      emissiveIntensity: 0.05,
+      metalness: 0.12,
+      opacity: 0.98,
+      phaseColor: "#3FBF8E",
+      rimColor: "#9FE6C6",
+      rimStrength: 0.46,
+      roughness: 0.46,
+      vertexColors: true,
+      windowGain: 1.15,
     }),
+    // Catwalk handrail bays: steel hardware a touch above the structure zone so
+    // the walkway reads as a fitted run rather than a hole in the deck.
     qpuPlate: makeArchitecturalSurface({
-      color: "#1E6157",
+      ambientGain: 0.4,
+      color: "#4A5464",
       effectMode: 0,
       effectStrength: 0,
-      emissive: "#1FAE93",
-      emissiveIntensity: 0.5,
-      metalness: 0.78,
-      opacity: 0.97,
-      phaseColor: "#65D6FF",
-      rimColor: "#7DF0B4",
-      rimStrength: 0.85,
-      roughness: 0.28,
+      emissive: "#161F2B",
+      emissiveIntensity: 0.04,
+      macroStrength: 0.012,
+      metalness: 0.28,
+      opacity: 0.99,
+      phaseColor: "#8FA6BD",
+      rimColor: "#C4D3E2",
+      rimStrength: 0.36,
+      roughness: 0.42,
     }),
+    // Cable telemetry lights and the wireline sonde: the rig's signature
+    // mechanism and the one place its mint identity is a light source.
     qpuSignal: makeArchitecturalSurface({
-      color: "#F2FFF7",
+      ambientGain: 0.24,
+      color: "#A8F5C8",
       effectMode: 4,
-      effectStrength: 0.3,
-      emissive: "#4BFFAF",
-      emissiveIntensity: 1.45,
+      effectStrength: 0.24,
+      emissive: "#55CE85",
+      emissiveIntensity: 1.15,
       macroStrength: 0.006,
       metalness: 0,
       opacity: 0.98,
-      phaseColor: "#B9FFE2",
+      phaseColor: "#B6FFD6",
       rimColor: "#FFFFFF",
       rimStrength: 0.3,
       roughness: 0.08,
     }),
+    // Server-hut body: white base multiplied by the per-vertex boot-camp
+    // palette, lit rather than luminous, with the ember windows carried by the
+    // shared warm-vertex window gain.
     s2Frame: makeArchitecturalSurface({
-      color: "#7FB9DE",
+      ambientGain: 0.42,
+      color: "#FFFFFF",
       effectMode: 1,
-      effectStrength: 0.1,
-      emissive: "#2B4FC9",
-      emissiveIntensity: 0.62,
-      metalness: 0.48,
-      opacity: 0.97,
+      effectStrength: 0.03,
+      emissive: "#1D2740",
+      emissiveIntensity: 0.05,
+      metalness: 0.1,
+      opacity: 0.98,
       phaseColor: "#56D7FF",
       rimColor: "#9FDFFF",
-      rimStrength: 0.34,
-      roughness: 0.3,
+      rimStrength: 0.44,
+      roughness: 0.44,
+      vertexColors: true,
+      windowGain: 1.15,
     }),
+    // Cooling fan rotors: machined pale metal hardware, never a lamp.
     s2Shell: makeArchitecturalSurface({
-      color: "#5573E0",
+      ambientGain: 0.4,
+      color: "#C6D0DD",
       effectMode: 1,
-      effectStrength: 0.1,
-      emissive: "#3550C8",
-      emissiveIntensity: 0.55,
-      metalness: 0.6,
-      opacity: 0.96,
+      effectStrength: 0.02,
+      emissive: "#2A3140",
+      emissiveIntensity: 0.05,
+      metalness: 0.3,
+      opacity: 0.99,
       phaseColor: "#55CFFF",
-      rimColor: "#BFD8FF",
-      rimStrength: 0.42,
-      roughness: 0.2,
+      rimColor: "#EAF1FF",
+      rimStrength: 0.4,
+      roughness: 0.28,
     }),
+    // Rack indicator banks: the hut's signature mechanism and the one place its
+    // cobalt identity is allowed to be a light source.
     s2Signal: makeArchitecturalSurface({
-      color: "#E5FAFF",
+      ambientGain: 0.24,
+      color: "#C6D2FA",
       effectMode: 1,
-      effectStrength: 0.18,
-      emissive: "#56D7FF",
-      emissiveIntensity: 1.12,
+      effectStrength: 0.16,
+      emissive: "#5573E0",
+      emissiveIntensity: 1.15,
       macroStrength: 0.008,
       metalness: 0,
-      opacity: 0.97,
-      phaseColor: "#36D8FF",
+      opacity: 0.98,
+      phaseColor: "#7C9BFF",
       rimColor: "#FFFFFF",
       rimStrength: 0.24,
       roughness: 0.1,
@@ -1501,195 +2212,172 @@ function updateQpuFrameDrawRange(frame, buildProgress) {
   geometry.setDrawRange(0, visibleVertexCount);
 }
 
+function bodyEmissive(base, activity) {
+  return Math.min(BODY_EMISSIVE_CEILING, base + activity * 0.03);
+}
+
 function applyS2Instances(state, pools, scratch, rotorAngle) {
   const brownian = state.brownianCoordinates;
   const brownianBlend = state.brownianBlend || 0;
-  const swayX = (brownian?.[4] || 0) * brownianBlend;
-  const swayZ = (brownian?.[5] || 0) * brownianBlend;
+  // The hut is plant on stilts: only a wind-load micro-sway moves the box.
+  // The "running" tell lives entirely in the fans and the rack lights.
+  const swayX = (brownian?.[4] || 0) * brownianBlend * 0.06;
+  const swayZ = (brownian?.[5] || 0) * brownianBlend * 0.06;
   const closure = state.shellClosure || 0;
-  // The merged citadel rotor (faceted kernel drum, six cache blades, tiered
-  // crown) spins about its Y bearing via this one instance matrix; the
-  // circular plinth inside the same merge is rotation-invariant so it reads
-  // as a stationary base. Rotation is independent of the reveal scale and of
-  // the contact-plane Y compensation in applyStationRootReveal.
-  setInstance(pools.frame, 0, scratch, swayX * 0.4, 0, swayZ * 0.4, 0, rotorAngle, 0, 1, 1, 1);
-  // Static diagnostic-gate coil pylons flank the port beamline and tighten
-  // toward the citadel as the kernel closes; they never inherit rotor spin.
-  const pylonReach = S2_DIAGNOSTIC_HALF_SPAN - S2_KERNEL_SHELL_GAP + (1 - closure) * 0.12;
-  const pylonLean = 0.04 + closure * 0.03;
-  setInstance(pools.shells, 0, scratch, -pylonReach, 0, S2_PORT_RAIL_Z, 0, 0, pylonLean, 1, 1, 1);
-  setInstance(pools.shells, 1, scratch, pylonReach, 0, S2_PORT_RAIL_Z, 0, Math.PI, pylonLean, 1, 1, 1);
-  // Crown light arms: co- and counter-rotating sweeps that prove the spin
-  // even at thumbnail scale.
-  setInstance(
-    pools.signals,
-    0,
-    scratch,
-    swayX * 0.4,
-    S2_CROWN_BEACON_Y,
-    swayZ * 0.4,
-    0,
-    rotorAngle,
-    0,
-    1.5,
-    1.05,
-    1.5,
-  );
-  setInstance(
-    pools.signals,
-    1,
-    scratch,
-    swayX * 0.4,
-    S2_CROWN_BEACON_Y - 0.28,
-    swayZ * 0.4,
-    0,
-    -rotorAngle * S2_CROWN_COUNTER_RATE + 1.25,
-    0,
-    2,
-    0.9,
-    2,
-  );
+  setInstance(pools.frame, 0, scratch, swayX, 0, swayZ, 0, 0, 0, 1, 1, 1);
+  // Cooling fans, geared nine to one off the same deterministic rotor bearing
+  // that used to drive the citadel spin: a lazy idle turn that springs up to a
+  // hard extract while the seal is docked. Counter-paired so the bank reads as
+  // two independent units, and pinned by reduced motion exactly as before.
+  const fanAngle = rotorAngle * S2_FAN_GEAR_RATIO;
+  for (let index = 0; index < S2_FAN_CENTERS_Z.length; index += 1) {
+    setInstance(
+      pools.shells,
+      index,
+      scratch,
+      S2_FAN_WALL_X,
+      S2_FAN_Y,
+      S2_FAN_CENTERS_Z[index],
+      index % 2 === 0 ? fanAngle : 0.7 - fanAngle,
+      0,
+      0,
+      1,
+      1,
+      1,
+    );
+  }
+  // Rack indicator banks behind the window strip. Each bank's lit run blinks on
+  // its own incommensurate multiple of the deterministic proof-bit phase, so
+  // the compute signature never marches, and docking storms both banks.
   const bitPhase = state.proofBitPhase;
+  for (let index = 0; index < S2_RACK_BANK_Z.length; index += 1) {
+    const blink = 0.5 + 0.5 * Math.sin(bitPhase * (3 + index * 2) + index * 2.17);
+    const lit = 0.5 + blink * (0.5 + closure * 0.7);
+    setInstance(
+      pools.signals,
+      index,
+      scratch,
+      S2_RACK_LIGHT_X,
+      S2_RACK_WINDOW_Y,
+      S2_RACK_BANK_Z[index],
+      0,
+      0,
+      0,
+      1,
+      1,
+      lit,
+    );
+  }
+  // One activity scan travelling the length of the strip.
   const s2AxialTravel = (bitPhase + Math.PI) / TWO_PI;
-  const bitScale = state.capExchange ? 1.18 : 0.6;
+  const scanScale = state.capExchange ? 0.9 : 0.5;
   setInstance(
     pools.signals,
     2,
     scratch,
-    -S2_DIAGNOSTIC_HALF_SPAN + s2AxialTravel * S2_DIAGNOSTIC_HALF_SPAN * 2,
-    0.05 + Math.sin(bitPhase * 2) * 0.05,
-    S2_PORT_RAIL_Z + Math.sin(bitPhase) * 0.04,
-    bitPhase,
+    S2_RACK_LIGHT_X,
+    S2_RACK_WINDOW_Y,
+    S2_RACK_WINDOW_Z - S2_DIAGNOSTIC_HALF_SPAN + s2AxialTravel * S2_DIAGNOSTIC_HALF_SPAN * 2,
     0,
     0,
-    bitScale,
-    bitScale,
-    bitScale,
+    0,
+    scanScale,
+    scanScale,
+    scanScale * 0.45,
   );
-  if (pools.shells?.material) {
-    pools.shells.material.emissiveIntensity = 0.42 + closure * 0.46;
-  }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.2 + closure * 0.22;
+    pools.frame.material.emissiveIntensity = bodyEmissive(0.03, closure);
   }
-  setAwardSurfaceActivity(pools.frame?.material, closure);
-  setAwardSurfaceActivity(pools.shells?.material, closure);
+  if (pools.signals?.material) {
+    pools.signals.material.emissiveIntensity = 1.05 + closure * 0.95;
+  }
+  setAwardSurfaceActivity(pools.frame?.material, closure * 0.3);
+  setAwardSurfaceActivity(pools.shells?.material, closure * 0.2);
   setAwardSurfaceActivity(pools.signals?.material, state.capExchange ? 1 : closure * 0.5);
   commitPool(pools.frame);
   commitPool(pools.shells);
   commitPool(pools.signals);
 }
 
-function aetherShieldYaw(bearing) {
-  // Orient the cup geometry (opens toward local +X) so its mouth faces the
-  // seed from a placement bearing measured off local +Z.
-  return Math.atan2(Math.cos(bearing), -Math.sin(bearing));
-}
-
 function applyAetherInstances(state, pools, scratch, reducedMotion) {
   setIdentityInstance(pools.frame, scratch);
   const bloom = state.sanctuaryBloom || 0;
-  // Eclipse aperture ritual: idle keeps the cups biased toward the dock line;
-  // docking parts and swings them open toward the visitor, revealing more of
-  // the seed. Reduced motion pins the aperture mid-open.
+  // Roller-door ritual: idle leaves the door mostly down over the burner;
+  // docking rolls all three slats up and nests them behind the lintel.
+  // Reduced motion pins the door half open.
   const aperture = reducedMotion ? 0.5 : bloom;
-  const shieldReach = 0.58 + aperture * 0.16;
-  const shieldSwing = 1.2 + aperture * 0.37;
-  for (const [index, side, shieldScale, roll] of [
-    [0, 1, 1, -0.05],
-    [1, -1, 0.9, 0.05],
-  ]) {
-    const bearing = AETHER_DOCK_YAW + side * shieldSwing;
+  for (let index = 0; index < AETHER_DOOR_SLATS.length; index += 1) {
+    const [closedY, openY] = AETHER_DOOR_SLATS[index];
     setInstance(
       pools.ribbons,
       index,
       scratch,
-      Math.sin(bearing) * shieldReach,
-      AETHER_SEED_HEIGHT,
-      Math.cos(bearing) * shieldReach,
+      AETHER_DOOR_X,
+      closedY + (openY - closedY) * aperture,
+      AETHER_DOOR_Z + 0.13,
       0,
-      aetherShieldYaw(bearing),
-      roll,
-      shieldScale,
-      shieldScale,
-      shieldScale,
+      0,
+      0,
+      1,
+      1,
+      1,
     );
   }
-  // Backdrop shield: the dark eclipse disc behind the seed on the dock axis.
-  const backBearing = AETHER_DOCK_YAW + Math.PI;
-  setInstance(
-    pools.ribbons,
-    2,
-    scratch,
-    Math.sin(backBearing) * 0.74,
-    AETHER_SEED_HEIGHT + 0.05,
-    Math.cos(backBearing) * 0.74,
-    0,
-    aetherShieldYaw(backBearing),
-    0,
-    1.16,
-    1.16,
-    1.16,
-  );
 
-  // Deterministic orbit and seed pulse both derive from the fixed-step
-  // circulation phase, which the mechanism authority already freezes under
-  // reduced motion and accelerates with proximity/docking.
-  const orbit = state.circulationPhase;
-  const pulse = 0.5 + 0.5 * Math.sin(orbit * 4);
-  const seedScale = 0.95 + pulse * 0.05 + bloom * 0.05;
+  // Burner and lamp brightness both derive from the fixed-step circulation
+  // phase, which the mechanism authority already freezes under reduced motion
+  // and accelerates with proximity/docking.
+  const cycle = state.circulationPhase;
+  const burn = 0.5 + 0.5 * Math.sin(cycle * 4);
+  // Small, bright and contained: the burner is a mechanism seen through a door,
+  // never a glowing ball parked in front of the building.
+  const burnerScale = 0.5 + burn * 0.05 + bloom * 0.1;
   setInstance(
     pools.beads,
     0,
     scratch,
+    AETHER_BURNER[0],
+    AETHER_BURNER[1],
+    AETHER_BURNER[2],
     0,
-    AETHER_SEED_HEIGHT,
     0,
     0,
-    orbit,
-    0,
-    seedScale,
-    seedScale,
-    seedScale,
+    burnerScale,
+    burnerScale,
+    burnerScale,
   );
-  const cosOrbit = Math.cos(orbit);
-  const sinOrbit = Math.sin(orbit);
-  const sinTilt = Math.sin(AETHER_ORBITAL_TILT);
-  const cosTilt = Math.cos(AETHER_ORBITAL_TILT);
   for (let index = 1; index < state.beadVisibility.length; index += 1) {
-    const pathPhase = orbit * 1.6 + ((index - 1) / 6) * TWO_PI;
-    const x0 = Math.cos(pathPhase) * AETHER_ORBITAL_RADIUS;
-    const y0 = Math.sin(pathPhase) * AETHER_ORBITAL_RADIUS * sinTilt;
-    const z0 = Math.sin(pathPhase) * AETHER_ORBITAL_RADIUS * cosTilt;
-    const visibility = 0.35 + state.beadVisibility[index] * 0.65;
-    const moteScale = (0.055 + bloom * 0.02) * visibility;
+    const lamp = AETHER_INDICATOR_LAMPS[index - 1];
+    const flicker = 0.88 + 0.12 * Math.sin(cycle * 2.3 + index * 1.9);
+    const lampScale = 0.17 * flicker * (0.66 + state.beadVisibility[index] * 0.34);
     setInstance(
       pools.beads,
       index,
       scratch,
-      cosOrbit * x0 + sinOrbit * z0,
-      AETHER_SEED_HEIGHT + y0,
-      -sinOrbit * x0 + cosOrbit * z0,
+      lamp[0],
+      lamp[1],
+      lamp[2],
       0,
-      pathPhase,
       0,
-      moteScale,
-      moteScale,
-      moteScale,
+      0,
+      lampScale,
+      lampScale,
+      lampScale,
     );
   }
   if (pools.ribbons?.material) {
-    pools.ribbons.material.emissiveIntensity = 0.16 + bloom * 0.12;
+    pools.ribbons.material.emissiveIntensity = bodyEmissive(0.02, aperture);
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity = 0.5 + bloom * 0.25;
+    pools.frame.material.emissiveIntensity = bodyEmissive(0.03, bloom);
   }
   if (pools.beads?.material) {
-    pools.beads.material.emissiveIntensity = 1.15 + pulse * 0.4 + bloom * 0.45;
+    pools.beads.material.emissiveIntensity = 0.82 + burn * 0.24 + bloom * 0.4;
   }
+  // Frame activity drives the world-space stack plume shimmer only.
   setAwardSurfaceActivity(pools.frame?.material, bloom);
-  setAwardSurfaceActivity(pools.ribbons?.material, bloom * 0.5);
-  setAwardSurfaceActivity(pools.beads?.material, Math.max(bloom, pulse * 0.6));
+  setAwardSurfaceActivity(pools.ribbons?.material, 0);
+  setAwardSurfaceActivity(pools.beads?.material, Math.max(bloom, burn * 0.6));
   commitPool(pools.frame);
   commitPool(pools.ribbons);
   commitPool(pools.beads);
@@ -1838,121 +2526,118 @@ function applyFieldInstances(state, pools, scratch, symbiote) {
 
 function applyQpuInstances(state, pools, scratch, traffic, reducedMotion) {
   updateQpuFrameDrawRange(pools.frame, state.manifoldBuild);
-  setInstance(
-    pools.frame,
-    0,
-    scratch,
-    0,
-    QPU_INVERSE_BRIDGE_LIFT,
-    0,
-    0,
-    0,
-    0,
-    QPU_FRAME_SCALE,
-    QPU_FRAME_SCALE,
-    QPU_FRAME_SCALE,
-  );
+  // The rig stands on the snow: the frame pool is an identity instance and its
+  // lowest authored point is the station's STATION_LOWEST_LOCAL_Y contact.
+  setIdentityInstance(pools.frame, scratch);
   const trafficBlend = reducedMotion ? 1 : traffic.blend;
   const lastSlice = state.manifoldSliceBuild.length - 1;
   const sliceSpacing = (QPU_BRIDGE_HALF_SPAN * 2) / lastSlice;
   for (let index = 0; index < state.manifoldSliceBuild.length; index += 1) {
     const build = state.manifoldSliceBuild[index];
-    const normalizedX = index / lastSlice * 2 - 1;
+    const normalizedX = (index / lastSlice) * 2 - 1;
     const x = -QPU_BRIDGE_HALF_SPAN + index * sliceSpacing;
-    const arch = QPU_DECK_ARCH * (1 - normalizedX * normalizedX) + qpuCrestLift(normalizedX);
-    const reweave = Math.sin(state.reweavePhase + index * 0.42) * 0.012 * state.manifoldBuild;
-    // Deterministic stabilizer bob rides the same fixed-step reweave phase;
-    // reduced motion holds the ribs and rings perfectly still.
+    // Handrail bays sit on the same sampled camber the deck plate is built
+    // from, so bay feet never float above or sink through the walkway.
+    const deckY = QPU_CATWALK_BASE_Y + sampleQpuManifoldHeight(x, 0) + qpuCrestLift(normalizedX);
+    const reweave = Math.sin(state.reweavePhase + index * 0.42) * 0.005 * state.manifoldBuild;
+    // Deterministic wind sway rides the same fixed-step reweave phase; reduced
+    // motion holds every bay perfectly still.
     const bob = reducedMotion
       ? 0
-      : Math.sin(state.reweavePhase * 0.8 + index * 1.7) * 0.02 * state.manifoldBuild;
+      : Math.sin(state.reweavePhase * 0.8 + index * 1.7) * 0.006 * state.manifoldBuild;
     setInstance(
       pools.plates,
       index,
       scratch,
       x,
-      QPU_INVERSE_BRIDGE_LIFT + arch + reweave + bob,
+      deckY + reweave + bob,
       0,
       0,
-      index % 2 === 0 ? 0 : Math.PI,
-      normalizedX * -0.21 + reweave * 0.8,
-      1.04,
+      0,
+      normalizedX * -0.16 + reweave * 0.8,
+      1,
       0.045 + build * 0.955,
       1,
     );
   }
-  // Signal traffic ritual: light pulses travel the deck in both directions
-  // with phase offsets. Idle keeps sparse slow carriers; docking multiplies
-  // the traffic and roughly doubles its cadence, with interference brightening
-  // toward midspan. Reduced motion pins a static standing-wave pattern of
-  // bright nodes along the deck instead of travel.
-  const deckSlope = 2 * (QPU_DECK_ARCH + QPU_CREST_BOOST) * QPU_FRAME_SCALE / QPU_BRIDGE_HALF_SPAN;
+  // Telemetry ritual: logging lights ride the winch cable, half of them running
+  // down the hole and half coming back up, all on the deterministic fixed-step
+  // traffic phase. Idle keeps a sparse carrier set on the wire; docking spins
+  // the winch up, fills every lane and roughly doubles the cadence, brightest
+  // as each light rounds the crown sheave. Reduced motion pins a static node
+  // pattern along the cable instead of travel.
   for (let index = 0; index < QPU_PULSE_COUNT; index += 1) {
     const direction = index % 2 === 0 ? 1 : -1;
     const offset = index / QPU_PULSE_COUNT;
     const travel = reducedMotion
       ? (index + 0.5) / QPU_PULSE_COUNT
       : (((traffic.phase * direction + offset) % 1) + 1) % 1;
-    const normalizedX = travel * 2 - 1;
-    const x = normalizedX * QPU_BRIDGE_HALF_SPAN;
-    const deckLocalY = 0.14 + (QPU_DECK_ARCH + QPU_CREST_BOOST) * (1 - normalizedX * normalizedX);
+    const pose = sampleQpuCable(travel);
     const idleCarrier = index % 3 === 0 ? 1 : 0.22;
     const presence = idleCarrier + (1 - idleCarrier) * trafficBlend;
+    // Lights swell out of the drum and shrink into the borehole, so nothing
+    // pops when the travel phase wraps at either end of the run.
+    const emergence = Math.pow(Math.sin(Math.PI * travel), 0.45);
     const interference = reducedMotion
-      ? 0.5 + 0.5 * Math.cos(normalizedX * Math.PI * 5)
-      : (1 - Math.abs(normalizedX)) * trafficBlend;
+      ? 0.5 + 0.5 * Math.cos((travel * 2 - 1) * Math.PI * 5)
+      : (1 - Math.abs(travel * 2 - 1)) * trafficBlend;
     const pulseScale =
-      (0.26 + trafficBlend * 0.16 + interference * 0.24) *
+      (0.42 + trafficBlend * 0.2 + interference * 0.24) *
       presence *
+      emergence *
       (0.35 + state.manifoldBuild * 0.65);
     setInstance(
       pools.signals,
       index,
       scratch,
-      x,
-      QPU_INVERSE_BRIDGE_LIFT + QPU_FRAME_SCALE * deckLocalY + 0.075,
-      direction * 0.17,
+      pose.x,
+      pose.y,
+      pose.z,
       0,
-      0,
-      Math.atan(-deckSlope * normalizedX),
-      pulseScale * 1.3,
+      pose.yaw,
+      pose.pitch,
+      pulseScale * 1.25,
       pulseScale,
       pulseScale,
     );
   }
+  // Wireline verification sonde: the logging tool the coherent dock actually
+  // runs, descending the drill line from the crown sheave into the hole.
   const progress = state.verificationBeamProgress;
-  const coherenceSpan = 0.2 + Math.max(state.coherence, progress) * 0.8;
-  const beamLength = QPU_BRIDGE_HALF_SPAN * 2 * coherenceSpan;
+  const depth = Math.max(state.coherence, progress);
+  const sonde = sampleQpuCable(QPU_CABLE_CROWN_T + (0.985 - QPU_CABLE_CROWN_T) * depth);
+  const sondeScale = 0.95 + progress * 0.4;
   setInstance(
     pools.signals,
     QPU_PULSE_COUNT,
     scratch,
-    -QPU_BRIDGE_HALF_SPAN + beamLength * 0.5,
-    QPU_INVERSE_BRIDGE_LIFT + QPU_FRAME_SCALE * (0.14 + QPU_DECK_ARCH + QPU_CREST_BOOST) + 0.24,
+    sonde.x,
+    sonde.y,
+    sonde.z,
     0,
-    0,
-    0,
-    0,
-    Math.max(0.05, beamLength / QPU_SIGNAL_BASE_LENGTH),
-    0.6 + progress * 0.5,
-    0.6 + progress * 0.5,
+    sonde.yaw,
+    sonde.pitch,
+    sondeScale * 0.75,
+    sondeScale,
+    sondeScale,
   );
   if (pools.plates?.material) {
-    pools.plates.material.emissiveIntensity =
-      0.24 + state.sanctumPulse * 0.3 + trafficBlend * 0.22;
+    pools.plates.material.emissiveIntensity = bodyEmissive(0.02, trafficBlend);
   }
   if (pools.signals?.material) {
-    pools.signals.material.emissiveIntensity =
-      1.05 + trafficBlend * 0.7 + Math.max(state.coherence, progress) * 0.6;
+    pools.signals.material.emissiveIntensity = 0.82 + trafficBlend * 0.46 + depth * 0.38;
   }
   if (pools.frame?.material) {
-    pools.frame.material.emissiveIntensity =
-      0.5 + state.sanctumPulse * 0.34 + trafficBlend * 0.4;
+    pools.frame.material.emissiveIntensity = bodyEmissive(0.03, trafficBlend);
+    // The shack window warms as the winch spins up: somebody is working inside.
+    const windowGain = pools.frame.material.userData.awardUniforms?.uAwardWindowGain;
+    if (windowGain) windowGain.value = 1.15 + trafficBlend * 0.6;
   }
-  const qpuActivity = Math.max(state.coherence, progress, state.sanctumPulse, trafficBlend);
-  setAwardSurfaceActivity(pools.frame?.material, qpuActivity);
-  setAwardSurfaceActivity(pools.plates?.material, qpuActivity);
-  setAwardSurfaceActivity(pools.signals?.material, qpuActivity);
+  // A drill rig is rigid plant, so the bounded spatial fold stays off the
+  // structure entirely and only jitters the lights riding the cable.
+  setAwardSurfaceActivity(pools.frame?.material, 0);
+  setAwardSurfaceActivity(pools.plates?.material, 0);
+  setAwardSurfaceActivity(pools.signals?.material, Math.min(0.3, Math.max(depth, trafficBlend) * 0.3));
   commitPool(pools.frame);
   commitPool(pools.plates);
   commitPool(pools.signals);
@@ -2204,9 +2889,9 @@ export default function PolarStationMechanismsNE({
       scratch,
       symbiote,
     );
-    // Coherent-causeway signal traffic: like the S2 rotor, the pulse phase
-    // integrates only against the fixed-step simulation clock, easing toward
-    // roughly double cadence and full lane occupancy while the seal is docked.
+    // Drill-rig winch: like the S2 rotor, the cable telemetry phase integrates
+    // only against the fixed-step simulation clock, easing toward roughly
+    // double cadence and full lane occupancy as the winch spins up on dock.
     const traffic = qpuTrafficRef.current;
     const qpuDocked =
       exclusiveStationId === "qpu-ice-bridge" || pose?.dockedId === "qpu-ice-bridge";
@@ -2376,7 +3061,7 @@ export default function PolarStationMechanismsNE({
       </group>
 
       <group
-        name="qpu-continuous-riemann-manifold-pavilion"
+        name="qpu-ice-core-drill-rig"
         position={qpuTransform.position}
         ref={(node) => {
           stationRootRefs.current["qpu-ice-bridge"] = node;
@@ -2390,7 +3075,7 @@ export default function PolarStationMechanismsNE({
           frustumCulled
           geometry={resources.geometries.qpuFrame}
           material={resources.materials.qpuFrame}
-          name="qpu-stable-visitor-dock-band-and-slender-abutments"
+          name="qpu-ice-core-drill-rig-borehole-derrick-and-shack"
           receiveShadow
           ref={qpuFrame}
         />
@@ -2402,7 +3087,7 @@ export default function PolarStationMechanismsNE({
               frustumCulled
               geometry={resources.geometries.qpuPlate}
               material={resources.materials.qpuPlate}
-              name="qpu-manifold-reconstruction-ribs qpu-endpoint-to-center-build-field"
+              name="qpu-catwalk-handrail-bays qpu-endpoint-to-center-build-field"
               receiveShadow
               ref={qpuPlates}
             />
@@ -2411,7 +3096,7 @@ export default function PolarStationMechanismsNE({
               frustumCulled={false}
               geometry={resources.geometries.qpuSignal}
               material={resources.materials.qpuSignal}
-              name="qpu-manifold-verification-beam qpu-coherence-beam-path verification-beam"
+              name="qpu-winch-cable-telemetry qpu-wireline-verification-sonde verification-beam"
               ref={qpuSignals}
             />
           </>

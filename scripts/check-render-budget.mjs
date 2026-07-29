@@ -354,6 +354,15 @@ const checks = [
     pattern: /SCENE_LIGHT_BUDGET\s*=\s*"two biome-driven directionals plus quiet ambient hemisphere"[\s\S]*PolarBiomeWorld[\s\S]*keyLightRef[\s\S]*fillLightRef[\s\S]*scene\.fog/,
   },
   {
+    // A docked station drives key/fill/rim at full weight from its own identity hue.
+    // Unclamped, that dyes every material one colour (the monochrome-building bug).
+    // The rig must stay near-neutral and let the sky/fog carry the dusk instead.
+    name: "world light rig stays near-neutral so material albedo reads",
+    file: `${files.scene}\n${files.biome}`,
+    pattern:
+      /<ambientLight color="#C6C8CE"[\s\S]*<hemisphereLight color="#BCCADF" groundColor="#6E6154"[\s\S]*RIG_NEUTRALITY = Object\.freeze\(\{[\s\S]*key: \{ saturationCap: 0\.16[\s\S]*neutralizeRigColor\(environmentScratch\.keyColor[\s\S]*neutralizeRigColor\(environmentScratch\.rimColor[\s\S]*neutralizeRigColor\(environmentScratch\.fillColor/,
+  },
+  {
     name: "biome compositor owns bounded terrain sky geography and singular weather",
     file: `${files.biomeFields}\n${files.biome}`,
     pattern: /POLAR_BIOME_SHADER_POLICY[\s\S]*textures:\s*0[\s\S]*maxCompiledPrograms:\s*2[\s\S]*maxDrawCalls:\s*3[\s\S]*weatherOwners:\s*1[\s\S]*new THREE\.InstancedMesh/,
@@ -371,7 +380,7 @@ const checks = [
   {
     name: "anime post quality tiers retain exact bounded effect caps",
     file: `${files.post}\n${files.polarArtDirection}`,
-    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.003[\s\S]*chroma:\s*0\.55[\s\S]*ink:\s*0\.14[\s\S]*scanline:\s*0\.004[\s\S]*pixel:\s*1\.7[\s\S]*quantize:\s*0\.18[\s\S]*gradeBase:\s*0\.56[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.005[\s\S]*chroma:\s*0\.8[\s\S]*ink:\s*0\.18[\s\S]*scanline:\s*0\.007[\s\S]*pixel:\s*2\.2[\s\S]*quantize:\s*0\.24[\s\S]*gradeBase:\s*0\.6[\s\S]*gradeCurve:\s*0\.4/,
+    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.001[\s\S]*chroma:\s*0\.12[\s\S]*ink:\s*0\.05[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1\.3[\s\S]*quantize:\s*0\.04[\s\S]*gradeBase:\s*0\.56[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.0015[\s\S]*chroma:\s*0\.15[\s\S]*ink:\s*0\.06[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1\.4[\s\S]*quantize:\s*0\.05[\s\S]*gradeBase:\s*0\.6[\s\S]*gradeCurve:\s*0\.4/,
   },
   {
     name: "low-tier paper grade restores a bounded luminance toe without dimming highlights",

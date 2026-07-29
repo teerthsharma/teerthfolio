@@ -19,9 +19,25 @@ import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
 const AURORA_UNIFIER_PROFILE =
   "aurora-unifier sky glue / mint-to-violet horizon ring / junni guide threads toward active station azimuth";
 
+// The world camera sits low and looks near-horizontally, so the sky the player
+// actually sees is a strip just above the remote ridge line. A 24-high shell put
+// every curtain off the top of the frame — measured, the visible band was only
+// elevation 0..0.14 at spawn. The shell now spans world y 2..10 so the whole
+// 0..1 elevation range lands inside frame and the curtains hang over the ridge.
 const AURORA_SHELL_RADIUS = 30;
-const AURORA_SHELL_HEIGHT = 24;
-const AURORA_SHELL_CENTER_Y = 14;
+const AURORA_SHELL_HEIGHT = 8;
+const AURORA_SHELL_CENTER_Y = 6;
+// SHADER LAW 1: the aurora is weather on ONE END of the sky, not a dome-wide
+// light show. Fixed world bearing (the shell only translates with the traveler,
+// it never rotates) so the curtains stay a compass landmark you can turn away
+// from. Half-width 0.79rad -> a ~90 degree sector; the rest of the sky is clean.
+// -1.12rad is polarSkyAnchor's 0.45rad aurora bearing converted from that
+// shader's atan(x, -z) convention into this one's atan(z, x) (offset -PI/2), so
+// this near shell lands exactly on the sky anchor's sector instead of fighting
+// it. The shared sky owns the always-on curtains; this shell is the closer,
+// brighter accent that only exists while the traveler is exploring.
+const AURORA_SECTOR_CENTER = -1.12;
+const AURORA_SECTOR_HALF_WIDTH = 0.62;
 const AURORA_REDUCED_MOTION_TIME_PIN = 12.0;
 const AURORA_FALLBACK_ACCENT = "#5CC9C2";
 const TWO_PI = Math.PI * 2;
@@ -76,22 +92,32 @@ void main() {
 
   float edgeFade = smoothstep(0.04, 0.12, elevation) * (1.0 - smoothstep(0.8, 0.97, elevation));
 
+  // One-end sector window. Flat-topped (4th power) so the middle of the sector
+  // is a solid curtain wall and both flanks fade out well before wrapping.
+  float sectorDelta = azimuth - (${AURORA_SECTOR_CENTER.toFixed(2)});
+  sectorDelta = atan(sin(sectorDelta), cos(sectorDelta));
+  float sectorPhase = sectorDelta / ${AURORA_SECTOR_HALF_WIDTH.toFixed(2)};
+  float sector = exp(-pow(abs(sectorPhase), 4.0) * 1.6);
+
+  // Vertical curtains, not horizontal bands: the visible sky is a thin strip
+  // above the ridge, so the aurora has to hang DOWN into it — dense near the
+  // curtain foot, thinning toward the zenith, striated across azimuth. Each
+  // layer drifts at its own slow rate, which is the whole motion budget out here.
   float ribbonCount = uQualityTier < 0.5 ? 1.0 : (uQualityTier < 1.5 ? 2.0 : 3.0);
   float alpha = 0.0;
   vec3 col = vec3(0.0);
   for (int i = 0; i < 3; i++) {
     if (float(i) >= ribbonCount) break;
     float fi = float(i);
-    float drift = pn_fbm(vec2(azimuth * 2.4 + fi * 9.31, uWorldTime * 0.06 + fi * 3.7)) - 0.5;
-    float wiggle = sin(azimuth * 6.0 + uWorldTime * 0.24 + fi * 2.4) * 0.04;
-    float centerElevation = 0.27 + fi * 0.125 + drift * 0.16 + wiggle;
-    float bandDelta = (elevation - centerElevation) * (12.0 - fi * 1.4);
-    float band = exp(-bandDelta * bandDelta);
-    float curtain = 0.32 + 0.68 * pn_noise(vec2(azimuth * 26.0 + fi * 13.0, elevation * 2.4 - uWorldTime * 0.11));
-    float weight = (1.1 - fi * 0.24) * (uQualityTier < 0.5 ? 0.72 : 1.0);
-    float ribbonAlpha = band * curtain * weight;
+    float layerAzimuth = azimuth * (7.0 + fi * 4.5) + uWorldTime * (0.05 + fi * 0.022) + fi * 4.7;
+    float fold = pn_fbm(vec2(layerAzimuth, elevation * 0.85 + uWorldTime * 0.018 + fi * 2.3));
+    fold = smoothstep(0.40, 0.80, fold);
+    float footFade = smoothstep(0.03, 0.24 + fi * 0.06, elevation);
+    float riseFade = 1.0 - smoothstep(0.30 + fi * 0.18, 0.98, elevation);
+    float weight = (0.92 - fi * 0.2) * (uQualityTier < 0.5 ? 0.72 : 1.0);
+    float ribbonAlpha = fold * footFade * riseFade * weight * sector;
     vec3 ribbonTint = mix(auroraMint, auroraViolet, 0.5 + 0.5 * sin(horizonPhase + fi * 2.1));
-    col += mix(ribbonTint, deepCore, 0.18) * ribbonAlpha;
+    col += mix(ribbonTint, deepCore, 0.1) * ribbonAlpha;
     alpha += ribbonAlpha;
   }
 
@@ -114,8 +140,10 @@ void main() {
     float glintPulse = mix(0.55 + 0.45 * sin(uWorldTime * 1.7 + pn_hash(cell) * 6.2831), 0.8, uReducedMotion);
     float glint = exp(-dot(q, q) * 80.0) * glintPulse;
     float threadStrength = uQualityTier > 1.5 ? 1.0 : 0.62;
-    float threadAlpha = thread * 0.5 * guideWindow * threadStrength;
-    float glintAlpha = glint * 0.62 * guideWindow * threadStrength;
+    // Threads are navigation, not decoration: kept faint so the sky outside the
+    // aurora sector still reads as clean open air.
+    float threadAlpha = thread * 0.26 * guideWindow * threadStrength;
+    float glintAlpha = glint * 0.34 * guideWindow * threadStrength;
     col += mix(horizonTint, uStationAccent, 0.4) * threadAlpha;
     col += uStationAccent * glintAlpha;
     alpha += threadAlpha + glintAlpha;

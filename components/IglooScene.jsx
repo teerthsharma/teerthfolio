@@ -675,8 +675,11 @@ export default function IglooScene({
     >
       <color attach="background" args={["#5A6E9C"]} />
       <fogExp2 attach="fog" args={[POLAR_PALETTE.fog, 0.0085]} />
-      <ambientLight color="#8FA2CC" intensity={0.46} />
-      <hemisphereLight color="#B6C8EC" groundColor="#5A6684" intensity={1.15} />
+      {/* Near-neutral ambient: a strongly blue ambient is the main hue-collapsing term,
+          it clips the blue channel and every albedo converges on the light. Dusk mood
+          comes from the sky dome and fog, not from dyeing every surface. */}
+      <ambientLight color="#C6C8CE" intensity={0.42} />
+      <hemisphereLight color="#BCCADF" groundColor="#6E6154" intensity={1.02} />
       <Suspense fallback={null}>
         <SceneDiagnostics
           observatoryDistance={observatoryDistance}

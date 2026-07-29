@@ -419,6 +419,96 @@ for (const shader of [POLAR_BIOME_VERTEX_SHADER, POLAR_BIOME_FRAGMENT_SHADER]) {
   assert.ok(shader.includes("void main()"));
   assert.equal((shader.match(/{/g) || []).length, (shader.match(/}/g) || []).length);
 }
+// GROUND NEUTRALITY. The mirror of RIG_NEUTRALITY (see check-render-budget.mjs):
+// station identity may TINT the snow, it may never DYE it. The regression this
+// locks out is a docked station driving the terrain palette at full weight, which
+// painted olive ground under the generator hall and mint lily pads under the drill
+// rig. Every identity colour that reaches the ground must pass the saturation cap
+// and lightness floor first, and no field may author more than a third of it.
+assert.match(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /const float GROUND_SATURATION_CAP = 0\.10;[\s\S]*vec3 neutralizeGroundColor\(vec3 color, float saturationCap, float lightnessFloor\)[\s\S]*vec3 groundPrimaryBase = neutralizeGroundColor\(primaryBase, GROUND_SATURATION_CAP, GROUND_LIGHTNESS_FLOOR\)[\s\S]*vec3 groundPrimaryAccent = neutralizeGroundColor\(primaryAccent, GROUND_ACCENT_SATURATION_CAP, GROUND_ACCENT_LIGHTNESS_FLOOR\)/,
+  "the ground must neutralize station identity colour before it reaches the snow",
+);
+for (const dyeSource of [
+  "groundPrimaryBase",
+  "groundPrimarySecondary",
+  "groundPrimaryAccent",
+  "groundPrimaryGlow",
+  "groundSecondaryBase",
+  "groundSecondarySecondary",
+  "groundSecondaryAccent",
+  "groundSecondaryGlow",
+]) {
+  assert.ok(
+    POLAR_BIOME_FRAGMENT_SHADER.includes(dyeSource),
+    `ground colour path bypasses the neutrality gate for ${dyeSource}`,
+  );
+}
+assert.doesNotMatch(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /authoredTerrainColor\(\s*u(?:Primary|Secondary)FieldKind,\s*v(?:Primary|Secondary)Field,\s*(?:primary|secondary)Base,/,
+  "authored terrain colour must be fed neutralized identity, never the raw station palette",
+);
+const readFieldShares = (functionName) => {
+  const start = POLAR_BIOME_FRAGMENT_SHADER.indexOf(`float ${functionName}(`);
+  assert.ok(start >= 0, `${functionName} is missing from the biome fragment shader`);
+  const body = POLAR_BIOME_FRAGMENT_SHADER.slice(start);
+  return body
+    .slice(0, body.indexOf("\n}"))
+    .match(/return (\d*\.?\d+);/g)
+    .map((entry) => Number.parseFloat(entry.replace(/[^\d.]/g, "")));
+};
+{
+  const authorship = readFieldShares("biomeTerrainAuthorship");
+  assert.equal(authorship.length, 8, "every field must declare a terrain authorship share");
+  assert.ok(
+    authorship.every((share) => share <= 0.34),
+    `no station may author more than a third of the ground albedo: ${authorship.join(", ")}`,
+  );
+  const geographyAccent = readFieldShares("biomeLocalGeographyAccent");
+  assert.equal(geographyAccent.length, 8, "every field must declare an ice-prop accent whisper");
+  assert.ok(
+    geographyAccent.every((share) => share <= 0.08),
+    `ice props take a whisper of station hue, not a dye: ${geographyAccent.join(", ")}`,
+  );
+}
+assert.ok(
+  POLAR_BIOME_FRAGMENT_SHADER.includes("vec3 iceSlab = mix(shadowIce, sunCrust,"),
+  "local geography props must read as snow/ice slabs, not station-coloured pads",
+);
+// Colour alone does not un-pad a pad: a 0.04-tall disc on a 1.1-wide polygon is a
+// lily pad whatever it is painted. The salt-crust and floe instances must keep
+// real slab thickness and a heave tilt.
+for (const [label, minimumThickness] of [
+  ["scaleY = 0.24 + seedB * 0.30", 0.24],
+  ["scaleY = 0.32 + seedB * 0.40", 0.32],
+]) {
+  assert.ok(
+    source.includes(label),
+    `ice slab instances lost their thickness (expected a >= ${minimumThickness} base scaleY)`,
+  );
+}
+assert.ok(
+  /transform\.rotation\.set\(0, yaw, kind === 2 \? \(seedA - 0\.5\) \* 0\.16 : roll\)/.test(source),
+  "ice slabs must keep their deterministic heave tilt",
+);
+// The terrain plane ships a constant up normal, so the toon ramp alone leaves the
+// ground a dead sheet. Relief has to come from the displaced surface height.
+assert.ok(
+  POLAR_BIOME_FRAGMENT_SHADER.includes(
+    "float groundRelief = clamp((vWorldPosition.y + 0.42) / 0.42, 0.0, 1.0);",
+  ),
+  "snow must take cool shadow in the hollows and warm bounce on the crests",
+);
+// Derivatives are not available in the WebGL1 compile-verify context; the ground
+// shading must stay inside the ES 1.00 core so verify:biome-shaders keeps passing.
+assert.doesNotMatch(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /dFdx\(|dFdy\(|fwidth\(/,
+  "biome shaders must not depend on GL_OES_standard_derivatives",
+);
+
 for (const shaderIdentity of [
   "plaqueField",
   "s2PressureField",
