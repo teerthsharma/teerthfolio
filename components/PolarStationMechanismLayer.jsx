@@ -85,6 +85,7 @@ export default function PolarStationMechanismLayer({
   mechanismStateRef = null,
   ritualStateRef = null,
   onEvidenceReady = null,
+  warmupFamily = null,
 }) {
   const [mountedFamily, setMountedFamily] = useState(null);
   const canvas = useThree((state) => state.gl.domElement);
@@ -161,6 +162,17 @@ export default function PolarStationMechanismLayer({
     writeCanvasMechanismDiagnostics(canvas, null, null, MECHANISM_LAYER_BUDGET.safe);
   }, [canvas, mechanismStateRef, ritualStateRef, safeMode, visible]);
 
+  useLayoutEffect(() => {
+    // Warm-compile pre-pass: the scene mounts each family once (hidden, canvas
+    // covered) so its shader programs link before the first visible frame.
+    if (!warmupFamily || safeMode || !visible) return;
+    if (mountedFamilyRef.current === warmupFamily) return;
+    mountedFamilyRef.current = warmupFamily;
+    handoffRef.current.alpha = 0;
+    setMountedFamily(warmupFamily);
+    clearOutputRefs(mechanismStateRef, ritualStateRef);
+  }, [mechanismStateRef, ritualStateRef, safeMode, visible, warmupFamily]);
+
   useFrame((_, delta) => {
     if (!visible || safeMode) {
       writeCanvasMechanismDiagnostics(
@@ -168,6 +180,22 @@ export default function PolarStationMechanismLayer({
         null,
         null,
         MECHANISM_LAYER_BUDGET.safe,
+        0,
+      );
+      return;
+    }
+
+    if (warmupFamily) {
+      // Warm-compile frames hold the mounted family hidden at zero alpha; the
+      // normal nearest-family selection resumes once the pre-pass ends.
+      const warmRoot = familyRootRef.current;
+      if (warmRoot) warmRoot.visible = false;
+      handoffRef.current.alpha = 0;
+      writeCanvasMechanismDiagnostics(
+        canvas,
+        mountedFamilyRef.current,
+        null,
+        resolveFamilyBudget(mountedFamilyRef.current, quality, safeMode),
         0,
       );
       return;
@@ -224,6 +252,11 @@ export default function PolarStationMechanismLayer({
     if (
       currentFamily &&
       !sameFamily &&
+      // A null desired family keeps the faded-out family mounted (zero draws,
+      // zero alpha): its compiled programs survive open roaming, so re-entering
+      // the same family never relinks shaders. Only the opposite family taking
+      // ownership swaps the mount.
+      desiredFamily &&
       handoff.alpha <= HANDOFF_ALPHA_EPSILON
     ) {
       mountedFamilyRef.current = desiredFamily;

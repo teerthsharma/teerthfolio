@@ -1,9 +1,17 @@
 "use client";
 
-import { Line } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as THREE from "three";
+import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
 import {
   CAMERA_COMPOSITION,
   POLAR_PALETTE,
@@ -51,6 +59,114 @@ export const SCENE_POST_PROFILE = GLOBAL_RETRO_POST_PROFILE;
 export const CAMERA_DAMPING_PROFILE = "Abeto-style frame-rate independent camera damping with smoothed look target";
 
 const EMPTY_PROJECTS = Object.freeze([]);
+
+// Warm-compile pre-pass. While the splash hand-off / loading bridge still owns
+// the viewport (canvas kept at CSS opacity 0, camera warped away so nothing
+// survives frustum culling), the full scene graph is force-compiled with
+// renderer.compileAsync so no shader program links after the first visible
+// frame. Only the spawn-side northeast family is pre-mounted: the layer keeps
+// it mounted (hidden) after the pre-pass so its programs stay alive, whereas a
+// warmed-then-swapped family would dispose its materials and delete the very
+// programs the pre-pass just linked.
+const WARM_COMPILE_FAMILY_SEQUENCE = Object.freeze(["northeast"]);
+const WARM_COMPILE_PHASE_TIMEOUT_MS = 8000;
+const WARMUP_CAMERA_FAR = 0.11;
+const WARMUP_CAMERA_DEPTH = -4000;
+const SCENE_CAMERA_FAR = 94;
+// Shared fat-line materials for the route lead. Module singletons are never
+// disposed, so the LineMaterial programs compile once during the warm pre-pass
+// and survive every dock/undock remount of PolarRouteNetwork. The previous
+// drei <Line> disposed its material on every points change, relinking the
+// fat-line program ~10x/s during travel (the measured travel hitch source).
+const ROUTE_LINE_MATERIALS = {
+  accent: new LineMaterial({ opacity: 0.46, transparent: true }),
+  base: new LineMaterial({ color: "#dffdf7", opacity: 0.28, transparent: true }),
+};
+const ROUTE_LEAD_POINT_COUNT = 3;
+const WARMUP_LINE_POINTS = Object.freeze([
+  [0, 0, 0],
+  [0, 0.5, 0],
+  [0, 1, 0],
+]);
+
+function RouteLeadLine({ lineWidth, material, points }) {
+  const size = useThree((state) => state.size);
+  const line = useMemo(() => {
+    const geometry = new LineGeometry();
+    geometry.setPositions(new Float32Array(ROUTE_LEAD_POINT_COUNT * 3));
+    const routeLine = new Line2(geometry, material);
+    // Three-point lead ribbon: skip bounding-volume upkeep entirely.
+    routeLine.frustumCulled = false;
+    return routeLine;
+  }, [material]);
+
+  useEffect(() => () => line.geometry.dispose(), [line]);
+
+  useLayoutEffect(() => {
+    // Rewrite the segment pairs in place. Rebuilding the geometry (or the
+    // material) per travel frame is what forced the fat-line shader to relink
+    // continuously while the seal moved.
+    const segments = line.geometry.attributes.instanceStart.data;
+    const array = segments.array;
+    for (let index = 0; index < ROUTE_LEAD_POINT_COUNT - 1; index += 1) {
+      const start = points[index];
+      const end = points[index + 1];
+      const offset = index * 6;
+      array[offset] = start[0];
+      array[offset + 1] = start[1];
+      array[offset + 2] = start[2];
+      array[offset + 3] = end[0];
+      array[offset + 4] = end[1];
+      array[offset + 5] = end[2];
+    }
+    segments.needsUpdate = true;
+  }, [line, points]);
+
+  useLayoutEffect(() => {
+    material.linewidth = lineWidth;
+    material.resolution.set(size.width, size.height);
+  }, [lineWidth, material, size]);
+
+  return <primitive object={line} />;
+}
+
+function ShaderWarmupCompiler({ onPhaseComplete, phase }) {
+  const { camera, gl, invalidate, scene } = useThree();
+
+  useEffect(() => {
+    if (phase >= WARM_COMPILE_FAMILY_SEQUENCE.length) {
+      invalidate();
+      return undefined;
+    }
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      onPhaseComplete(phase);
+    };
+    // Never let a wedged driver hold the world hostage; the phase advances and
+    // any straggling program finishes linking behind the loading bridge.
+    const timeout = window.setTimeout(settle, WARM_COMPILE_PHASE_TIMEOUT_MS);
+    try {
+      if (typeof gl.compileAsync === "function") {
+        // KHR_parallel_shader_compile keeps the main thread free while the
+        // driver links in its own worker threads.
+        gl.compileAsync(scene, camera).then(settle, settle);
+      } else {
+        gl.compile(scene, camera);
+        settle();
+      }
+    } catch {
+      settle();
+    }
+    return () => {
+      settled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [camera, gl, invalidate, onPhaseComplete, phase, scene]);
+
+  return null;
+}
 
 // Local camera-rig idle life. These are rig-only breathing terms layered on top
 // of the pinned CAMERA_COMPOSITION solve; all of them read zero under reduced
@@ -186,6 +302,7 @@ function CameraRig({
   reducedMotion,
   renderEnabled,
   sealPosition,
+  shaderWarmupActive = false,
   traversalPoseRef,
 }) {
   const { camera, gl, size } = useThree();
@@ -207,6 +324,9 @@ function CameraRig({
   // Smoothed travel heading in radians; null until the first frame seeds it
   // from the dock azimuth so the chase blend starts without a swing.
   const headingRef = useRef(null);
+  // True while the warm-compile pre-pass parked the camera away from the world;
+  // the first live frame snaps to the solved pose instead of lerping across it.
+  const warmupParkedRef = useRef(false);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -263,6 +383,22 @@ function CameraRig({
   }, [camera, dockComposition.camera.verticalFovDegrees]);
 
   useFrame(({ clock }, delta) => {
+    if (shaderWarmupActive) {
+      // Park the camera in an empty tiny frustum: every cullable mesh skips
+      // rendering (so nothing sync-compiles on these frames) while lights stay
+      // gathered, keeping the async-compiled program variants exact.
+      warmupParkedRef.current = true;
+      camera.position.set(0, WARMUP_CAMERA_DEPTH, 0);
+      if (camera.far !== WARMUP_CAMERA_FAR) {
+        camera.far = WARMUP_CAMERA_FAR;
+        camera.updateProjectionMatrix();
+      }
+      return;
+    }
+    if (camera.far !== SCENE_CAMERA_FAR) {
+      camera.far = SCENE_CAMERA_FAR;
+      camera.updateProjectionMatrix();
+    }
     const t = clock.elapsedTime;
     const seal = sealPosition.current;
     const traversalPose = traversalPoseRef?.current;
@@ -368,8 +504,14 @@ function CameraRig({
     const lookDamping = reducedMotion
       ? 1
       : 1 - Math.exp(-delta * CAMERA_COMPOSITION.lookDamping);
-    camera.position.lerp(desired, cameraDamping);
-    lookTarget.lerp(desiredLook, lookDamping);
+    if (warmupParkedRef.current) {
+      warmupParkedRef.current = false;
+      camera.position.copy(desired);
+      lookTarget.copy(desiredLook);
+    } else {
+      camera.position.lerp(desired, cameraDamping);
+      lookTarget.lerp(desiredLook, lookDamping);
+    }
     camera.lookAt(lookTarget);
 
     const rendererCanvas = gl.domElement;
@@ -434,6 +576,7 @@ function SceneDiagnostics({
   onGpuEvent,
   quality,
   reducedMotion,
+  shaderWarmupActive,
   streamEpochMsRef,
 }) {
   const { gl } = useThree();
@@ -447,6 +590,18 @@ function SceneDiagnostics({
       reducedMotion,
     });
   }, [gl, observatoryDistance, observatoryDomeVisible, quality, reducedMotion]);
+
+  useEffect(() => {
+    // The warm-compile pre-pass renders only empty parked-camera frames; keep
+    // the canvas visually absent so the splash poster and loading bridge stay
+    // byte-identical to the pre-warmup boot (no new visible flash).
+    if (!shaderWarmupActive) return undefined;
+    const canvas = gl.domElement;
+    canvas.style.opacity = "0";
+    return () => {
+      canvas.style.opacity = "";
+    };
+  }, [gl, shaderWarmupActive]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -484,6 +639,19 @@ function SceneDiagnostics({
   }, [gl, onGpuEvent]);
 
   useFrame(({ clock }) => {
+    // Program census for diagnostics/measurement: late links after the first
+    // visible frame are the boot-stall signature this pre-pass eliminates.
+    const canvas = gl.domElement;
+    const programCount = String(gl.info.programs?.length ?? 0);
+    if (canvas.dataset.programCount !== programCount) {
+      canvas.dataset.programCount = programCount;
+    }
+    if (shaderWarmupActive) {
+      // Warm-compile frames render an empty parked frustum; hold the epoch and
+      // the ready census until the world is actually renderable.
+      if (streamEpochMsRef) streamEpochMsRef.current = clock.elapsedTime * 1000;
+      return;
+    }
     if (readyFrames.current >= 2) return;
     readyFrames.current += 1;
     // Re-pin the world-stream reveal epoch through the warm-up frames. Those
@@ -556,24 +724,25 @@ function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }
   }, [activeId, axisX, depthZ]);
   const accent = activeArtifact?.accent || "#5ff8e7";
 
+  useLayoutEffect(() => {
+    // Accent hue rides a uniform on the shared material; never a new program.
+    ROUTE_LINE_MATERIALS.accent.color.set(accent);
+  }, [accent]);
+
   return (
     <group name="BrunoOpenWorldNavigation local-route-lead max-two-station-promises">
       {routePoints.length > 1 && (
-        <Line
-          color="#dffdf7"
+        <RouteLeadLine
           lineWidth={quality === "high" ? 2.2 : 1.4}
-          opacity={0.28}
+          material={ROUTE_LINE_MATERIALS.base}
           points={routePoints}
-          transparent
         />
       )}
       {routePoints.length > 1 && (
-        <Line
-          color={accent}
+        <RouteLeadLine
           lineWidth={quality === "high" ? 1.2 : 0.82}
-          opacity={0.46}
+          material={ROUTE_LINE_MATERIALS.accent}
           points={routePoints}
-          transparent
         />
       )}
       {visibleStations.map(({ artifact, index, worldX, worldZ }) => {
@@ -649,6 +818,14 @@ export default function IglooScene({
   const SealMascot = debugFlags.legacySeal ? SealAvatar : TopologicalSealMascot;
   const sealRef = useRef(null);
   const streamEpochMsRef = useRef(null);
+  const [warmCompilePhase, setWarmCompilePhase] = useState(0);
+  const shaderWarmupActive = warmCompilePhase < WARM_COMPILE_FAMILY_SEQUENCE.length;
+  const warmupFamily = shaderWarmupActive
+    ? WARM_COMPILE_FAMILY_SEQUENCE[warmCompilePhase]
+    : null;
+  const handleWarmCompilePhaseDone = useCallback((phase) => {
+    setWarmCompilePhase((current) => (current === phase ? current + 1 : current));
+  }, []);
   const domeRevealProgressRef = useRef(reducedMotion ? 1 : 0);
   const mechanismStateRef = useRef(null);
   const mechanismRitualStateRef = useRef(null);
@@ -712,7 +889,7 @@ export default function IglooScene({
         position: [OBSERVATORY_WORLD.dock.x - 4.8, 2.1, OBSERVATORY_WORLD.dock.z + 3.2],
         fov: OBSERVATORY_WORLD.camera.verticalFovDegrees,
         near: 0.1,
-        far: 94,
+        far: SCENE_CAMERA_FAR,
       }}
       shadows
       gl={{
@@ -738,6 +915,7 @@ export default function IglooScene({
           onGpuEvent={onGpuEvent}
           quality={quality}
           reducedMotion={reducedMotion}
+          shaderWarmupActive={shaderWarmupActive}
           streamEpochMsRef={streamEpochMsRef}
         />
         <ForceCanvasResize />
@@ -750,6 +928,7 @@ export default function IglooScene({
           reducedMotion={reducedMotion}
           renderEnabled={renderEnabled}
           sealPosition={sealRef}
+          shaderWarmupActive={shaderWarmupActive}
           traversalPoseRef={traversalPoseRef}
         />
         {!debugFlags.noTerrain && (
@@ -808,12 +987,16 @@ export default function IglooScene({
             ) : null}
           </WorldStreamReveal>
         )}
-        {renderEnabled && moving && !debugFlags.noSmashables && (
-          <PolarTravelDebris
-            quality={quality}
-            reducedMotion={reducedMotion}
-            traversalPoseRef={traversalPoseRef}
-          />
+        {renderEnabled && !debugFlags.noSmashables && (
+          // Smashable debris stays mounted so its programs compile in the warm
+          // pre-pass and survive travel stops; it only renders while moving.
+          <group name="travel-debris-render-gate" visible={moving}>
+            <PolarTravelDebris
+              quality={quality}
+              reducedMotion={reducedMotion}
+              traversalPoseRef={traversalPoseRef}
+            />
+          </group>
         )}
         {!debugFlags.noTopology && (
           <WorldStreamReveal
@@ -867,6 +1050,17 @@ export default function IglooScene({
               traversalPoseRef={traversalPoseRef}
             />
           </WorldStreamReveal>
+        )}
+        {(debugFlags.noDome || !observatoryDomeVisible) && (
+          // The dome carries the scene's three point lights. Point-light count
+          // is a program define: without these intensity-zero placeholders the
+          // dome unmount forced every lit material in the world to relink a new
+          // variant mid-travel (the measured departure hitch storm).
+          <group name="observatory-light-topology-stabilizer">
+            <pointLight intensity={0} />
+            <pointLight intensity={0} />
+            <pointLight intensity={0} />
+          </group>
         )}
         {!debugFlags.noDome && observatoryDomeVisible && (
           <WorldStreamReveal
@@ -924,6 +1118,7 @@ export default function IglooScene({
             ritualStateRef={mechanismRitualStateRef}
             safeMode={!renderEnabled}
             visible={worldActive}
+            warmupFamily={warmupFamily}
           />
         )}
         {!debugFlags.noSignals && (
@@ -940,6 +1135,26 @@ export default function IglooScene({
           motionPoseRef={traversalPoseRef}
           quality={quality}
           reducedMotion={reducedMotion}
+        />
+        {shaderWarmupActive && (
+          // Route lead lines are unmounted while docked at spawn; prime their
+          // shared fat-line materials so the first undock never links a program.
+          <group name="route-line-warm-compile-primer" visible={false}>
+            <RouteLeadLine
+              lineWidth={1}
+              material={ROUTE_LINE_MATERIALS.base}
+              points={WARMUP_LINE_POINTS}
+            />
+            <RouteLeadLine
+              lineWidth={1}
+              material={ROUTE_LINE_MATERIALS.accent}
+              points={WARMUP_LINE_POINTS}
+            />
+          </group>
+        )}
+        <ShaderWarmupCompiler
+          onPhaseComplete={handleWarmCompilePhaseDone}
+          phase={warmCompilePhase}
         />
       </Suspense>
     </Canvas>

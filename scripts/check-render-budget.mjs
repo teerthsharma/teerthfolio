@@ -217,9 +217,11 @@ const checks = [
     pattern: /WORLD_RENDER_WINDOW_NOTE/,
   },
   {
+    // The debris pool stays mounted (so its programs warm-compile once and
+    // survive travel stops) but only renders while the seal is moving.
     name: "smashables only render during active movement",
     file: files.scene,
-    pattern: /renderEnabled && moving && !debugFlags\.noSmashables/,
+    pattern: /renderEnabled && !debugFlags\.noSmashables[\s\S]{0,260}visible=\{moving\}[\s\S]{0,160}<PolarTravelDebris/,
   },
   {
     name: "polar dome rows remain finite",
