@@ -27,6 +27,10 @@ export const POLAR_TRAVEL_DEBRIS_PROFILE =
  */
 const TRAVEL_WARP_SPEED_THRESHOLD = 0.25;
 const MANUAL_SPEED_REFERENCE = 4;
+// ponytail: mirrors lib/polar-travel-debris.js SPEED_REFERENCE + cycle law so
+// the spawn/despawn fade envelope stays phase-locked with the arc sampler;
+// fold into the lib if the cycle law ever changes.
+const ARC_SPEED_REFERENCE = 5.8;
 
 const VERTEX_SHADER = `
   attribute vec3 instanceTint;
@@ -128,15 +132,23 @@ const FRAGMENT_SHADER = `
     vec3 auroraMint = vec3(0.4353, 0.9059, 0.7843);
     vec3 auroraViolet = vec3(0.5529, 0.4118, 0.8392);
     vec3 warpTint = mix(auroraViolet, auroraMint, clamp(filaments * 0.72 + head * 0.4, 0.0, 1.0));
+    // Wind-torn snow, not sci-fi plasma: the streak stays dominantly frost
+    // white with only a whisper of aurora in its filaments.
+    warpTint = mix(warpTint, frostWhite, 0.62);
 
     float dockPulse = smoothstep(0.62, 0.97, uDockProgress);
-    warpTint = mix(warpTint, uStationAccent, dockPulse * 0.6);
+    warpTint = mix(warpTint, uStationAccent, dockPulse * 0.5);
 
     float warpEnergy = band * (0.35 + filaments * 0.65) * head * warp;
     color = mix(color, warpTint, clamp(warpEnergy * 0.72, 0.0, 0.7));
-    color += warpTint * warpEnergy * (0.3 + dockPulse * 0.14);
+    color += warpTint * warpEnergy * (0.24 + dockPulse * 0.14);
 
-    gl_FragColor = vec4(color, 1.0);
+    // Taper: the streak dissolves toward its tail while warping, and the
+    // filament field erodes the body so long streaks break into torn wisps.
+    float taper = mix(1.0, clamp(smoothstep(-0.86, 0.5, vLocalPosition.z) + 0.16, 0.0, 1.0), warp);
+    taper *= mix(1.0, 0.55 + 0.45 * filaments, warp * 0.85);
+
+    gl_FragColor = vec4(color, taper);
     #include <fog_fragment>
   }
 `;
@@ -179,8 +191,10 @@ function PolarTravelDebrisPool({ quality, reducedMotion, traversalPoseRef }) {
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
+        depthWrite: false,
         fog: true,
         fragmentShader: FRAGMENT_SHADER,
+        transparent: true,
         uniforms: THREE.UniformsUtils.merge([
           THREE.UniformsLib.fog,
           {
@@ -249,13 +263,16 @@ function PolarTravelDebrisPool({ quality, reducedMotion, traversalPoseRef }) {
       );
     }
 
-    // streak anisotropy: elongate along the velocity heading as speed rises,
-    // thin the cross-section; dock convergence pulls the wake station-ward
-    const stretch = 1 + warp * 5.5 * (1 - converge * 0.7);
+    // streak anisotropy: elongate along the velocity heading as speed rises
+    // (a touch of stretch already below the warp threshold, full streaks
+    // above it), thin the cross-section; dock convergence pulls the wake
+    // station-ward
+    const stretch = 1 + (travelSpeed * 0.7 + warp * 4.9) * (1 - converge * 0.7);
     const thin = 1 / (1 + warp * 0.9);
     const pull = 1 - converge * 0.55;
     const heading = Math.atan2(pose.vx || 0, pose.vz || 0);
     const align = warp * 0.85;
+    const arcMotion = THREE.MathUtils.clamp(speed / ARC_SPEED_REFERENCE, 0, 1);
 
     for (let index = 0; index < budget.instances; index += 1) {
       const sample = sampleWeightedDebrisArc(
@@ -264,6 +281,15 @@ function PolarTravelDebrisPool({ quality, reducedMotion, traversalPoseRef }) {
         clock.elapsedTime,
         arcScratch.current,
       );
+      // Fade each flake in as it spawns at the wake head and out before its
+      // cycle wraps, so respawns never pop into view mid-air.
+      const cycleRate = 0.34 + arcMotion * 0.3 + (1 - seeds[index].mass) * 0.06;
+      const cycle = (clock.elapsedTime * cycleRate + seeds[index].phase) % 1;
+      const envelope =
+        THREE.MathUtils.smoothstep(cycle, 0, 0.14) *
+        (1 - THREE.MathUtils.smoothstep(cycle, 0.8, 1));
+      // Lighter flakes tear into longer streaks than dense shards.
+      const instanceStretch = 1 + (stretch - 1) * (0.8 + (1 - seeds[index].mass) * 0.8);
       transform.position.set(
         originX + (sample.x - originX) * pull,
         sample.y + warp * (0.16 + seeds[index].height * 0.5),
@@ -284,9 +310,9 @@ function PolarTravelDebrisPool({ quality, reducedMotion, traversalPoseRef }) {
         rollWrapped * tumble,
       );
       transform.scale.set(
-        sample.scale * (0.82 + seeds[index].mass * 0.28) * thin,
-        sample.scale * (0.72 + (1 - seeds[index].mass) * 0.22) * thin,
-        sample.scale * stretch,
+        sample.scale * (0.82 + seeds[index].mass * 0.28) * thin * envelope,
+        sample.scale * (0.72 + (1 - seeds[index].mass) * 0.22) * thin * envelope,
+        sample.scale * instanceStretch * envelope,
       );
       transform.updateMatrix();
       mesh.current.setMatrixAt(index, transform.matrix);

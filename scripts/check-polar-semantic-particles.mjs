@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  POLAR_PARTICLE_FRAGMENT_SHADER,
   POLAR_PARTICLE_LANGUAGE,
   POLAR_PARTICLE_QUALITY,
   POLAR_PARTICLE_SOURCE_CREDIT,
   POLAR_PARTICLE_STATION_ORDER,
+  POLAR_PARTICLE_VERTEX_SHADER,
   createPolarSemanticParticleAttributes,
 } from "../lib/polar-semantic-particles.js";
 
@@ -62,8 +64,34 @@ for (const [quality, budget] of Object.entries(expectedQualityBudgets)) {
 assert.deepEqual(counts, [512, 1536, 4096]);
 
 for (const stationId of POLAR_PARTICLE_STATION_ORDER) {
-  const semantic = POLAR_PARTICLE_LANGUAGE[stationId].semantic;
-  assert.ok(semantic.length > 24, `${stationId} must have a specific particle meaning`);
+  const language = POLAR_PARTICLE_LANGUAGE[stationId];
+  assert.ok(language.semantic.length > 24, `${stationId} must have a specific particle meaning`);
+  // Facility emitter contract: every station anchors its matter to a real
+  // rebuilt-facility feature, with rotated local anchors and bounded motion.
+  assert.equal(language.anchor.length, 3, `${stationId} needs a local emitter anchor`);
+  assert.equal(language.spread.length, 3, `${stationId} needs emitter half-extents`);
+  assert.ok(Number.isFinite(language.yawDegrees), `${stationId} needs the station yaw`);
+  assert.ok(language.whiten >= 0 && language.whiten <= 0.6, `${stationId} whiten stays bounded`);
+  assert.ok(["box", "disc"].includes(language.emitterShape));
+}
+// Soft round sprite: a gaussian alpha disc, never a hard square point.
+assert.match(POLAR_PARTICLE_FRAGMENT_SHADER, /exp\(-radiusSquared/);
+assert.match(POLAR_PARTICLE_FRAGMENT_SHADER, /if \(radiusSquared > 1\.0\) discard;/);
+// Looping lifetimes fade in and out so station matter never pops.
+assert.match(POLAR_PARTICLE_VERTEX_SHADER, /lifeEnvelope/);
+// The eight facility behaviors stay authored: snow, data motes, embers,
+// shimmer sparks, ice chips, signal motes, frost breath, weld sparks.
+for (const marker of [
+  /snow motes/i,
+  /data motes/i,
+  /embers/i,
+  /shimmer sparks/i,
+  /ice chips/i,
+  /signal motes/i,
+  /frost breath/i,
+  /weld-spark/i,
+]) {
+  assert.match(POLAR_PARTICLE_VERTEX_SHADER, marker);
 }
 assert.equal(POLAR_PARTICLE_LANGUAGE["manifold-reactor"].color, "#FFD05A");
 assert.match(
@@ -71,7 +99,7 @@ assert.match(
   /golden[\s\S]*(seed|atom)/i,
 );
 
-assert.match(component, /THREE\.AdditiveBlending/);
+assert.match(component, /THREE\.NormalBlending/);
 assert.match(component, /depthWrite:\s*false/);
 assert.match(component, /geometry\.dispose\(\)[\s\S]*material\.dispose\(\)/);
 assert.match(component, /uMotion\.value\s*=\s*reducedMotion\s*\?\s*0\s*:\s*1/);
