@@ -11,6 +11,7 @@ const splash = read("components/SdfSealSplash.jsx");
 const splashShader = read("components/AntarcticSplashShader.jsx");
 const blackHole = read("components/BlackHoleTransition.jsx");
 const biome = read("components/PolarBiomeWorld.jsx");
+const dome = read("components/PolarObservatoryDome.jsx");
 const capabilityProbe = splash.slice(
   splash.indexOf("function probeWebglCapability"),
   splash.indexOf("export default function SdfSealSplash"),
@@ -104,6 +105,24 @@ contract("offscreen biome unmount replaces the redundant manual atmosphere buffe
   assert.doesNotMatch(world, /useAtmosphereCanvas|igloo-atmosphere-canvas/, "manual atmosphere canvas still allocates a backing buffer");
   expectMatch(biome, /if \(!visible \|\| safeMode\) return null/, "biome GPU stage ignores visibility or safe mode");
   expectMatch(biome, /terrainGeometry\.dispose\(\)[\s\S]*skyGeometry\.dispose\(\)[\s\S]*solidMaterial\.dispose\(\)[\s\S]*skyMaterial\.dispose\(\)/, "biome resources are retained after unmount");
+});
+
+contract("dome demolition allocates no per-hit GPU resources", () => {
+  expectMatch(
+    dome,
+    /function createEntryCacheGeometry[\s\S]*mergeGeometries\(pieces, false\)[\s\S]*for \(const piece of pieces\) piece\.dispose\(\)/,
+    "entry cache merge leaks its source geometries",
+  );
+  expectMatch(
+    dome,
+    /function BuriedEntryCache[\s\S]*useEffect\(\(\) => \(\) => geometry\.dispose\(\), \[geometry\]\)/,
+    "entry cache geometry is retained after the shell rebuilds",
+  );
+  assert.doesNotMatch(
+    dome,
+    /function (knockBlocksNearContact|collapseRemainingBlocks|stepDetachedBlocks)[\s\S]*?new THREE\.(Instanced)?(Mesh|BufferGeometry|Material)/,
+    "brick knock-off must reuse the existing instance pool instead of allocating",
+  );
 });
 
 contract("R3F teardown begins early enough for Fiber's delayed context loss", () => {

@@ -181,6 +181,14 @@ for (const domePrimitive of [
   "fwidth(domeJointDistance)",
   "IntegratedAirlock",
   "NeutralContactPlinth",
+  "DOME_PROXIMITY_RESPONSE_PROFILE",
+  "DOME_RAM_KNOCK_PROFILE",
+  "DOME_DEMOLITION_PROFILE",
+  "OBSERVATORY_ENTRY_CACHE_PROFILE",
+  "BuriedEntryCache",
+  "knockBlocksNearContact",
+  "collapseRemainingBlocks",
+  "observatoryDomeDamage",
 ]) {
   expectIncludes("components/PolarObservatoryDome.jsx", polarObservatoryDome, domePrimitive, `polar observatory dome must define ${domePrimitive}`);
 }

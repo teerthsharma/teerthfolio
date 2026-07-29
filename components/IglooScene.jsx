@@ -8,7 +8,6 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import * as THREE from "three";
 import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
@@ -60,18 +59,16 @@ export const CAMERA_DAMPING_PROFILE = "Abeto-style frame-rate independent camera
 
 const EMPTY_PROJECTS = Object.freeze([]);
 
-// Warm-compile pre-pass. While the splash hand-off / loading bridge still owns
-// the viewport (canvas kept at CSS opacity 0, camera warped away so nothing
-// survives frustum culling), the full scene graph is force-compiled with
-// renderer.compileAsync so no shader program links after the first visible
-// frame. Only the spawn-side northeast family is pre-mounted: the layer keeps
-// it mounted (hidden) after the pre-pass so its programs stay alive, whereas a
-// warmed-then-swapped family would dispose its materials and delete the very
-// programs the pre-pass just linked.
-const WARM_COMPILE_FAMILY_SEQUENCE = Object.freeze(["northeast"]);
-const WARM_COMPILE_PHASE_TIMEOUT_MS = 8000;
-const WARMUP_CAMERA_FAR = 0.11;
-const WARMUP_CAMERA_DEPTH = -4000;
+// Background shader warm-up. The world presents as soon as it can render;
+// program linking then continues one object at a time across idle callbacks so
+// compiles land before the traveller reaches a station instead of before they
+// see anything. This replaces a blocking renderer.compileAsync pre-pass: three's
+// compileAsync is only asynchronous in its readiness poll, the actual
+// compile+link of every program is one synchronous call, which measured as a
+// ~25-40s frozen main thread between webgl-created and webgl-scene-ready.
+const WARM_START_FRAME_DELAY = 12;
+const WARM_SLICE_BUDGET_MS = 4;
+const WARM_IDLE_TIMEOUT_MS = 240;
 const SCENE_CAMERA_FAR = 94;
 // Shared fat-line materials for the route lead. Module singletons are never
 // disposed, so the LineMaterial programs compile once during the warm pre-pass
@@ -169,40 +166,62 @@ function RouteLeadLine({ lineWidth, material, points, trackRouteLead = false }) 
   return <primitive object={line} />;
 }
 
-function ShaderWarmupCompiler({ onPhaseComplete, phase }) {
-  const { camera, gl, invalidate, scene } = useThree();
+function BackgroundShaderWarmup({ enabled }) {
+  const { camera, gl, scene } = useThree();
+  const startedRef = useRef(false);
+  const frameRef = useRef(0);
+  const cancelledRef = useRef(false);
 
-  useEffect(() => {
-    if (phase >= WARM_COMPILE_FAMILY_SEQUENCE.length) {
-      invalidate();
-      return undefined;
-    }
-    let settled = false;
-    const settle = () => {
-      if (settled) return;
-      settled = true;
-      onPhaseComplete(phase);
-    };
-    // Never let a wedged driver hold the world hostage; the phase advances and
-    // any straggling program finishes linking behind the loading bridge.
-    const timeout = window.setTimeout(settle, WARM_COMPILE_PHASE_TIMEOUT_MS);
-    try {
-      if (typeof gl.compileAsync === "function") {
-        // KHR_parallel_shader_compile keeps the main thread free while the
-        // driver links in its own worker threads.
-        gl.compileAsync(scene, camera).then(settle, settle);
-      } else {
-        gl.compile(scene, camera);
-        settle();
+  useEffect(() => () => {
+    // A queued slice must never touch a renderer that is tearing down.
+    cancelledRef.current = true;
+  }, []);
+
+  useFrame(() => {
+    // Self-armed off the render loop: no prop plumbing and no extra React
+    // render just to learn the world became visible. A few presented frames of
+    // slack keeps the world-stream reveal choreography clean before any
+    // compile slice can steal a frame.
+    if (!enabled || startedRef.current) return;
+    frameRef.current += 1;
+    if (frameRef.current < WARM_START_FRAME_DELAY) return;
+    startedRef.current = true;
+
+    // One object per step, budgeted per idle slice. A single program link can
+    // overshoot the budget on a slow driver, so this is a floor on progress,
+    // not a ceiling on any one compile: the alternative is that exact link
+    // happening mid-travel instead of while the traveller is parked.
+    const queue = [];
+    scene.traverse((object) => {
+      if (object.isMesh || object.isPoints || object.isLine || object.isSprite) {
+        queue.push(object);
       }
-    } catch {
-      settle();
-    }
-    return () => {
-      settled = true;
-      window.clearTimeout(timeout);
+    });
+    let index = 0;
+    const idle = window.requestIdleCallback || window.setTimeout;
+    const pump = () => {
+      if (cancelledRef.current) return;
+      const sliceStart = performance.now();
+      while (index < queue.length) {
+        try {
+          // targetScene = scene keeps the light/shadow context identical to the
+          // real render, so these programs are the variants actually used.
+          gl.compile(queue[index], camera, scene);
+        } catch {
+          // A disposed or mid-remount object is not worth failing the pass for.
+        }
+        index += 1;
+        if (performance.now() - sliceStart >= WARM_SLICE_BUDGET_MS) break;
+      }
+      if (index < queue.length) {
+        idle(pump, { timeout: WARM_IDLE_TIMEOUT_MS });
+        return;
+      }
+      gl.domElement.dataset.shaderWarmComplete = "true";
     };
-  }, [camera, gl, invalidate, onPhaseComplete, phase, scene]);
+    gl.domElement.dataset.shaderWarmComplete = "false";
+    idle(pump, { timeout: WARM_IDLE_TIMEOUT_MS });
+  });
 
   return null;
 }
@@ -341,7 +360,6 @@ function CameraRig({
   reducedMotion,
   renderEnabled,
   sealPosition,
-  shaderWarmupActive = false,
   traversalPoseRef,
 }) {
   const { camera, gl, size } = useThree();
@@ -363,9 +381,10 @@ function CameraRig({
   // Smoothed travel heading in radians; null until the first frame seeds it
   // from the dock azimuth so the chase blend starts without a swing.
   const headingRef = useRef(null);
-  // True while the warm-compile pre-pass parked the camera away from the world;
-  // the first live frame snaps to the solved pose instead of lerping across it.
-  const warmupParkedRef = useRef(false);
+  // The very first rendered frame snaps to the solved dock pose instead of
+  // lerping in from the Canvas seed position, so the world's first paint is
+  // already composed rather than gliding into place.
+  const snapPoseRef = useRef(true);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -422,18 +441,6 @@ function CameraRig({
   }, [camera, dockComposition.camera.verticalFovDegrees]);
 
   useFrame(({ clock }, delta) => {
-    if (shaderWarmupActive) {
-      // Park the camera in an empty tiny frustum: every cullable mesh skips
-      // rendering (so nothing sync-compiles on these frames) while lights stay
-      // gathered, keeping the async-compiled program variants exact.
-      warmupParkedRef.current = true;
-      camera.position.set(0, WARMUP_CAMERA_DEPTH, 0);
-      if (camera.far !== WARMUP_CAMERA_FAR) {
-        camera.far = WARMUP_CAMERA_FAR;
-        camera.updateProjectionMatrix();
-      }
-      return;
-    }
     if (camera.far !== SCENE_CAMERA_FAR) {
       camera.far = SCENE_CAMERA_FAR;
       camera.updateProjectionMatrix();
@@ -543,8 +550,8 @@ function CameraRig({
     const lookDamping = reducedMotion
       ? 1
       : 1 - Math.exp(-delta * CAMERA_COMPOSITION.lookDamping);
-    if (warmupParkedRef.current) {
-      warmupParkedRef.current = false;
+    if (snapPoseRef.current) {
+      snapPoseRef.current = false;
       camera.position.copy(desired);
       lookTarget.copy(desiredLook);
     } else {
@@ -615,7 +622,6 @@ function SceneDiagnostics({
   onGpuEvent,
   quality,
   reducedMotion,
-  shaderWarmupActive,
   streamEpochMsRef,
 }) {
   const { gl } = useThree();
@@ -629,18 +635,6 @@ function SceneDiagnostics({
       reducedMotion,
     });
   }, [gl, observatoryDistance, observatoryDomeVisible, quality, reducedMotion]);
-
-  useEffect(() => {
-    // The warm-compile pre-pass renders only empty parked-camera frames; keep
-    // the canvas visually absent so the splash poster and loading bridge stay
-    // byte-identical to the pre-warmup boot (no new visible flash).
-    if (!shaderWarmupActive) return undefined;
-    const canvas = gl.domElement;
-    canvas.style.opacity = "0";
-    return () => {
-      canvas.style.opacity = "";
-    };
-  }, [gl, shaderWarmupActive]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -679,25 +673,17 @@ function SceneDiagnostics({
 
   useFrame(({ clock }) => {
     // Program census for diagnostics/measurement: late links after the first
-    // visible frame are the boot-stall signature this pre-pass eliminates.
+    // visible frame are the travel-hitch signature the background warm chases.
     const canvas = gl.domElement;
     const programCount = String(gl.info.programs?.length ?? 0);
     if (canvas.dataset.programCount !== programCount) {
       canvas.dataset.programCount = programCount;
     }
-    if (shaderWarmupActive) {
-      // Warm-compile frames render an empty parked frustum; hold the epoch and
-      // the ready census until the world is actually renderable.
-      if (streamEpochMsRef) streamEpochMsRef.current = clock.elapsedTime * 1000;
-      return;
-    }
     if (readyFrames.current >= 2) return;
     readyFrames.current += 1;
-    // Re-pin the world-stream reveal epoch through the warm-up frames. Those
-    // frames run behind the splash hand-off while shaders compile, so an epoch
-    // seeded there would finish the whole materialize choreography (terrain,
-    // stations, dome courses) before the first visible paint. Stamping until
-    // the scene-ready frame starts the choreography at real visibility.
+    // Pin the world-stream reveal epoch to the scene-ready frame so the
+    // materialize choreography (terrain, stations, dome courses) starts at real
+    // visibility rather than partway through.
     if (streamEpochMsRef) streamEpochMsRef.current = clock.elapsedTime * 1000;
     if (readyFrames.current === 2) {
       onGpuEvent?.({
@@ -892,14 +878,6 @@ export default function IglooScene({
   const SealMascot = debugFlags.legacySeal ? SealAvatar : TopologicalSealMascot;
   const sealRef = useRef(null);
   const streamEpochMsRef = useRef(null);
-  const [warmCompilePhase, setWarmCompilePhase] = useState(0);
-  const shaderWarmupActive = warmCompilePhase < WARM_COMPILE_FAMILY_SEQUENCE.length;
-  const warmupFamily = shaderWarmupActive
-    ? WARM_COMPILE_FAMILY_SEQUENCE[warmCompilePhase]
-    : null;
-  const handleWarmCompilePhaseDone = useCallback((phase) => {
-    setWarmCompilePhase((current) => (current === phase ? current + 1 : current));
-  }, []);
   const domeRevealProgressRef = useRef(reducedMotion ? 1 : 0);
   const mechanismStateRef = useRef(null);
   const mechanismRitualStateRef = useRef(null);
@@ -925,6 +903,12 @@ export default function IglooScene({
       gl.domElement.dataset.renderer = "webgl";
       gl.domElement.dataset.quality = quality;
       gl.domElement.dataset.reducedMotion = reducedMotion ? "true" : "false";
+      // three's shader-error debug path calls getProgramInfoLog/getShaderInfoLog
+      // on every program at first use, and those calls block the main thread
+      // until ANGLE has finished the D3D compile. Leaving it on serialised every
+      // boot program link into one synchronous stall (measured 16.5s of a ~19s
+      // cold boot). Off, the driver links on its own worker threads.
+      gl.debug.checkShaderErrors = false;
       gl.shadowMap.enabled = true;
       gl.shadowMap.type = THREE.PCFSoftShadowMap;
       gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -989,7 +973,6 @@ export default function IglooScene({
           onGpuEvent={onGpuEvent}
           quality={quality}
           reducedMotion={reducedMotion}
-          shaderWarmupActive={shaderWarmupActive}
           streamEpochMsRef={streamEpochMsRef}
         />
         <ForceCanvasResize />
@@ -1002,7 +985,6 @@ export default function IglooScene({
           reducedMotion={reducedMotion}
           renderEnabled={renderEnabled}
           sealPosition={sealRef}
-          shaderWarmupActive={shaderWarmupActive}
           traversalPoseRef={traversalPoseRef}
         />
         {!debugFlags.noTerrain && (
@@ -1193,7 +1175,6 @@ export default function IglooScene({
             ritualStateRef={mechanismRitualStateRef}
             safeMode={!renderEnabled}
             visible={worldActive}
-            warmupFamily={warmupFamily}
           />
         )}
         {!debugFlags.noSignals && (
@@ -1211,26 +1192,23 @@ export default function IglooScene({
           quality={quality}
           reducedMotion={reducedMotion}
         />
-        {shaderWarmupActive && (
-          // Route lead lines are unmounted while docked at spawn; prime their
-          // shared fat-line materials so the first undock never links a program.
-          <group name="route-line-warm-compile-primer" visible={false}>
-            <RouteLeadLine
-              lineWidth={1}
-              material={ROUTE_LINE_MATERIALS.base}
-              points={WARMUP_LINE_POINTS}
-            />
-            <RouteLeadLine
-              lineWidth={1}
-              material={ROUTE_LINE_MATERIALS.accent}
-              points={WARMUP_LINE_POINTS}
-            />
-          </group>
-        )}
-        <ShaderWarmupCompiler
-          onPhaseComplete={handleWarmCompilePhaseDone}
-          phase={warmCompilePhase}
-        />
+        {/* Route lead lines are unmounted while docked at spawn; this hidden
+            pair keeps their shared fat-line materials reachable by the
+            background warm so the first undock never links a program. Never
+            rendered, so it costs no draw calls. */}
+        <group name="route-line-warm-compile-primer" visible={false}>
+          <RouteLeadLine
+            lineWidth={1}
+            material={ROUTE_LINE_MATERIALS.base}
+            points={WARMUP_LINE_POINTS}
+          />
+          <RouteLeadLine
+            lineWidth={1}
+            material={ROUTE_LINE_MATERIALS.accent}
+            points={WARMUP_LINE_POINTS}
+          />
+        </group>
+        <BackgroundShaderWarmup enabled={renderEnabled && worldActive} />
       </Suspense>
     </Canvas>
   );

@@ -483,7 +483,10 @@ async function collectSectionMetrics(page) {
         archiveGrid: visible(archiveGrid, 160, 160),
         archiveHead: visible(archiveHead, 160, 80),
         projectDetail: visible(projectDetail, 160, 120),
-        projectHead: visible(projectHead, 160, 80),
+        // 74px at 1024px-wide: .project-index-head became a two-column grid
+        // (title beside description) in a74e08b, so the block is shorter than
+        // the stacked-layout era 80px floor while still fully in viewport.
+        projectHead: visible(projectHead, 160, 60),
         projectList: visible(projectList, 160, 60),
         repoTape: visible(repoTape, 160, 60),
       },

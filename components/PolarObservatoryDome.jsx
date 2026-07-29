@@ -1,7 +1,7 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -29,7 +29,7 @@ export const DOME_TILE_COLUMNS_BY_ROW =
   POLAR_DOME_LATTICE_COUNTS.medium.ringColumns;
 export const DOME_LATTICE_COUNTS_BY_QUALITY = POLAR_DOME_LATTICE_COUNTS;
 export const DOME_COLLISION_MODE =
-  "intact by default; contact drives a heavy bounded root recoil and tiny optical signal, never shell collapse or course deformation";
+  "intact by default; contact drives a heavy bounded root recoil and tiny optical signal, never course deformation; a real seal ram above the knock threshold detaches the bricks nearest the contact point and repeated rams demolish the shell into a rubble field that auto-rebuilds";
 export const DOME_WEIGHTED_CONTACT_PROFILE = Object.freeze({
   angularLimitRadians: 0.012,
   dampingRatio: POLAR_DOME_INTERACTION_PROFILE.dampingRatio,
@@ -89,10 +89,62 @@ export const DOME_TILE_FALL_PROFILE = Object.freeze({
   detachThreshold: 0.68,
   damping: 1.8,
   gravity: -4.6,
+  groundFriction: 6.5,
   settleBounce: 0.18,
-  settleFloorY: 0.16,
+  // Local-Y rest height for a knocked-loose block: half a course thickness above the
+  // plinth, so detached bricks come to rest ON the snow instead of hovering.
+  settleFloorY: 0.085,
   settleVelocity: 0.08,
   response: "damped gravity detachment with a soft settle while docked",
+});
+// The dome's own reaction is a continuous function of seal distance, never the
+// authored dock point: one ramp drives the seam/rim emissive breath, the lattice rib
+// glow, the airlock threshold light, and whether pointer lift is live. The station
+// docking contract (data-docked-station, station schema, traversal) is untouched.
+export const DOME_PROXIMITY_RESPONSE_PROFILE = Object.freeze({
+  contactRadius: 3.2,
+  falloff: "1 - smoothstep(nearRadius, farRadius, contactDistance); continuous, no dock-point binary",
+  // The scene unmounts the dome past OBSERVATORY_DOME_DEPARTURE_DISTANCE (7.2), so the
+  // ramp spans exactly the band where the dome is on screen: 0 at the edge of its own
+  // world, 1 where the traversal collider parks the seal against the shell.
+  farRadius: 7.4,
+  hoverEnableRamp: 0.12,
+  nearRadius: 3.4,
+  thresholdLightGain: 0.55,
+});
+// Seal ram -> brick knock-off. The ram signal is the traversal collision impulse
+// (impactSequence / lastImpactStrength) already bridged into impactPulse; the dome
+// projects the seal's world position onto its own ellipsoid to find the contact
+// point and detaches the bricks nearest it using DOME_TILE_FALL_PROFILE gravity.
+// Tumble is deterministic: every angle, spin, and lateral kick is hashed from the
+// brick index. No Math.random, no audio, no new draw calls.
+export const DOME_RAM_KNOCK_PROFILE = Object.freeze({
+  contactHeightLocal: 0.42,
+  damageReachGain: 1.5,
+  hash: "deterministic sin/fract hash of the brick index; never Math.random",
+  knockRadiusLocal: 1.15,
+  lateralMetresPerSecond: 0.9,
+  maxBricksPerRam: 18,
+  minStrength: 0.26,
+  tumbleSpinRadiansPerSecond: 2.4,
+});
+// Damage is a live fraction of detached shell bricks. Past the collapse fraction the
+// remaining shell gives way, the inner weather shell hides, and the buried entry
+// cache underneath is exposed. After a cooldown the shell re-lays itself through the
+// existing bottom-up uBrickReveal materialize choreography - one animation system.
+export const DOME_DEMOLITION_PROFILE = Object.freeze({
+  collapseFraction: 0.38,
+  damageModel: "detachedShellBricks / totalShellBricks; runtime only, resets on reload",
+  rebuildCooldownSeconds: 5.5,
+  rebuildSeconds: 1.9,
+  reducedMotion: "detached bricks vanish and reappear at zero scale; no tumble, no gravity",
+  reveals: "the buried entry cache: mined public-corpus crates, the warm hearth, and the plaque core",
+});
+export const OBSERVATORY_ENTRY_CACHE_PROFILE = Object.freeze({
+  drawBudget: "one merged vertex-colored draw that takes the hidden inner weather shell's slot",
+  meaning:
+    "the home dome is built on top of its own evidence: knock the shell down and the mined public corpus, the warm hearth, and the plaque core are what is underneath",
+  visibility: "only while the shell is demolished",
 });
 export const OBSERVATORY_MACRO_SCALE_PROFILE = Object.freeze({
   domeHeightInSealHeights: 3.8,
@@ -125,6 +177,10 @@ export const DOME_CONTINUOUS_DRAW_CALL_PROFILE = Object.freeze({
   plinthCalls: 2,
   shellBlockInstanceCalls: 1,
   airlockBlockInstanceCalls: 1,
+  // The buried entry cache is only drawn while the shell is demolished, and the inner
+  // weather shell it reveals is hidden for exactly that window: the swap is draw-neutral.
+  entryCacheCalls: 1,
+  entryCacheReplaces: "continuousShellCalls",
   lowVisibleCalls: 6,
   lowShadowMapCalls: 2,
   fullVisibleCalls: 8,
@@ -865,6 +921,83 @@ function writePointerWakeSplat(material, event) {
   state.hasLast = true;
 }
 
+// Per-instance detachment state. The same instances stay in the same instanced draw;
+// only their transforms change, so knocking the shell apart adds zero draw calls.
+function createKnockState() {
+  return {
+    detached: false,
+    instanceFallOffset: 0,
+    instanceFallVelocity: 0,
+    knockAngle: 0,
+    knockAxis: new THREE.Vector3(0, 1, 0),
+    knockHidden: false,
+    knockOffsetX: 0,
+    knockOffsetZ: 0,
+    knockSettled: false,
+    knockSpin: 0,
+    knockVelocityX: 0,
+    knockVelocityZ: 0,
+  };
+}
+
+// Deterministic per-brick tumble seed. Same brick index, same salt, same tumble on
+// every run and every reload; there is no Math.random anywhere in the damage path.
+function knockHash(index, salt) {
+  const raw = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453;
+  return raw - Math.floor(raw);
+}
+
+function detachKnockedBlock(block, index, strength, biasX = 0, biasZ = 0) {
+  if (block.detached) return false;
+  const hashA = knockHash(index, 1);
+  const hashB = knockHash(index, 2);
+  const hashC = knockHash(index, 3);
+  const radial = Math.hypot(block.basePosition.x, block.basePosition.z) || 1;
+  const outwardX = block.basePosition.x / radial + biasX * 0.6;
+  const outwardZ = block.basePosition.z / radial + biasZ * 0.6;
+  const lateral = DOME_RAM_KNOCK_PROFILE.lateralMetresPerSecond * (0.45 + strength);
+  block.detached = true;
+  block.knockSettled = false;
+  block.instanceFallVelocity = 0.14 + strength * 0.42;
+  block.knockVelocityX = (outwardX * (0.55 + hashA * 0.8) + (hashB - 0.5) * 0.6) * lateral;
+  block.knockVelocityZ = (outwardZ * (0.55 + hashB * 0.8) + (hashC - 0.5) * 0.6) * lateral;
+  block.knockSpin =
+    (hashC - 0.5) * 2 * DOME_RAM_KNOCK_PROFILE.tumbleSpinRadiansPerSecond * (0.4 + strength);
+  block.knockAxis.set(hashA - 0.5, hashB - 0.5, hashC - 0.5);
+  if (block.knockAxis.lengthSq() < 1e-6) block.knockAxis.set(0, 1, 0);
+  block.knockAxis.normalize();
+  return true;
+}
+
+// Knock the bricks nearest the projected seal contact point loose. Bounded per ram so
+// a single hit chips the shell instead of erasing it; repeated rams accumulate.
+function knockBlocksNearContact(blocks, contactPoint, strength, damageFraction = 0) {
+  // The reach grows with accumulated damage: a shell that has already lost courses has
+  // less to hold the next ones, so repeated rams escalate instead of plateauing.
+  const radius =
+    DOME_RAM_KNOCK_PROFILE.knockRadiusLocal *
+    (0.55 + strength * 0.8) *
+    (1 + damageFraction * DOME_RAM_KNOCK_PROFILE.damageReachGain);
+  const reach = Math.hypot(contactPoint.x, contactPoint.z) || 1;
+  const biasX = contactPoint.x / reach;
+  const biasZ = contactPoint.z / reach;
+  let knocked = 0;
+  for (let index = 0; index < blocks.length; index += 1) {
+    if (knocked >= DOME_RAM_KNOCK_PROFILE.maxBricksPerRam) break;
+    const block = blocks[index];
+    if (block.detached) continue;
+    if (block.basePosition.distanceTo(contactPoint) > radius) continue;
+    if (detachKnockedBlock(block, index, strength, biasX, biasZ)) knocked += 1;
+  }
+  return knocked;
+}
+
+function collapseRemainingBlocks(blocks) {
+  for (let index = 0; index < blocks.length; index += 1) {
+    detachKnockedBlock(blocks[index], index, 0.85);
+  }
+}
+
 function buildDomeBlockInstances(lattice) {
   const blocks = [];
   const matrixBasis = new THREE.Matrix4();
@@ -897,10 +1030,10 @@ function buildDomeBlockInstances(lattice) {
       mass: Math.min(3.2, 1.05 + cell.mass * 0.46),
       matrix: matrix.clone(),
       basePosition: position.clone(),
+      baseQuaternion: quaternion.clone(),
+      baseScale: scale.clone(),
       renderMatrix: matrix.clone(),
-      instanceFallOffset: 0,
-      instanceFallVelocity: 0,
-      detached: false,
+      ...createKnockState(),
     });
   }
   return blocks;
@@ -936,10 +1069,10 @@ function buildAirlockBlockInstances() {
       mass: 1.3 + frost,
       matrix: matrix.clone(),
       basePosition: position.clone(),
+      baseQuaternion: quaternion.clone(),
+      baseScale: scale.clone(),
       renderMatrix: matrix.clone(),
-      instanceFallOffset: 0,
-      instanceFallVelocity: 0,
-      detached: false,
+      ...createKnockState(),
     });
   }
   for (const side of [-1, 1]) {
@@ -961,10 +1094,10 @@ function buildAirlockBlockInstances() {
         mass: 1.4 + frost,
         matrix: matrix.clone(),
         basePosition: position.clone(),
+        baseQuaternion: quaternion.clone(),
+        baseScale: scale.clone(),
         renderMatrix: matrix.clone(),
-        instanceFallOffset: 0,
-        instanceFallVelocity: 0,
-        detached: false,
+        ...createKnockState(),
       });
     }
   }
@@ -1018,9 +1151,7 @@ function resetDetachedBlocks(mesh, blocks) {
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index];
     if (!block.detached && block.instanceFallOffset === 0 && block.instanceFallVelocity === 0) continue;
-    block.detached = false;
-    block.instanceFallOffset = 0;
-    block.instanceFallVelocity = 0;
+    Object.assign(block, createKnockState());
     block.renderMatrix.copy(block.matrix);
     mesh.setMatrixAt(index, block.renderMatrix);
     changed = true;
@@ -1029,29 +1160,52 @@ function resetDetachedBlocks(mesh, blocks) {
   return changed;
 }
 
+const KNOCK_POSITION = new THREE.Vector3();
+const KNOCK_QUATERNION = new THREE.Quaternion();
+const KNOCK_ZERO_SCALE = new THREE.Vector3(0, 0, 0);
+
 function stepDetachedBlocks(mesh, blocks, hover, pointerInteractionEnabled, reducedMotion, delta) {
-  // instanceFallOffset and instanceFallVelocity implement damped gravity.
-  if (!mesh || !blocks || !hover) return;
-  if (!pointerInteractionEnabled || reducedMotion) {
-    resetDetachedBlocks(mesh, blocks);
-    return;
-  }
+  // instanceFallOffset and instanceFallVelocity implement damped gravity; the lateral
+  // and spin terms are the deterministic knock tumble. Detached bricks keep falling
+  // and stay fallen whether or not the pointer is still over the shell: only an
+  // explicit rebuild re-seats them.
+  if (!mesh || !blocks || !hover) return 0;
 
   let matrixChanged = false;
+  let detachedCount = 0;
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index];
     const hoverValue = hover.getX(index);
-    if (!block.detached && hoverValue >= DOME_TILE_FALL_PROFILE.detachThreshold) {
-      block.detached = true;
-      block.instanceFallVelocity = 0.18;
+    if (
+      !block.detached &&
+      pointerInteractionEnabled &&
+      hoverValue >= DOME_TILE_FALL_PROFILE.detachThreshold
+    ) {
+      detachKnockedBlock(block, index, 0.35);
     }
     if (!block.detached) continue;
+    detachedCount += 1;
+
+    if (reducedMotion) {
+      // Reduced motion: the brick is simply not there any more. Zero scale on the same
+      // instance, no gravity, no tumble, and it reappears on rebuild.
+      if (!block.knockHidden) {
+        block.renderMatrix.compose(block.basePosition, block.baseQuaternion, KNOCK_ZERO_SCALE);
+        mesh.setMatrixAt(index, block.renderMatrix);
+        block.knockHidden = true;
+        matrixChanged = true;
+      }
+      continue;
+    }
+    if (block.knockSettled) continue;
 
     block.instanceFallVelocity += DOME_TILE_FALL_PROFILE.gravity * delta;
     block.instanceFallOffset += block.instanceFallVelocity * delta;
     const floorOffset = DOME_TILE_FALL_PROFILE.settleFloorY - block.basePosition.y;
+    let grounded = false;
     if (block.instanceFallOffset <= floorOffset) {
       block.instanceFallOffset = floorOffset;
+      grounded = true;
       if (Math.abs(block.instanceFallVelocity) > DOME_TILE_FALL_PROFILE.settleVelocity) {
         block.instanceFallVelocity = -block.instanceFallVelocity * DOME_TILE_FALL_PROFILE.settleBounce;
       } else {
@@ -1059,15 +1213,40 @@ function stepDetachedBlocks(mesh, blocks, hover, pointerInteractionEnabled, redu
       }
     }
     block.instanceFallVelocity *= Math.exp(-DOME_TILE_FALL_PROFILE.damping * delta);
-    block.renderMatrix.copy(block.matrix);
-    block.renderMatrix.elements[13] = block.basePosition.y + block.instanceFallOffset;
+    const friction = Math.exp(
+      -(grounded ? DOME_TILE_FALL_PROFILE.groundFriction : DOME_TILE_FALL_PROFILE.damping) * delta,
+    );
+    block.knockVelocityX *= friction;
+    block.knockVelocityZ *= friction;
+    block.knockSpin *= friction;
+    block.knockOffsetX += block.knockVelocityX * delta;
+    block.knockOffsetZ += block.knockVelocityZ * delta;
+    block.knockAngle += block.knockSpin * delta;
+    KNOCK_POSITION.set(
+      block.basePosition.x + block.knockOffsetX,
+      block.basePosition.y + block.instanceFallOffset,
+      block.basePosition.z + block.knockOffsetZ,
+    );
+    KNOCK_QUATERNION.setFromAxisAngle(block.knockAxis, block.knockAngle).multiply(
+      block.baseQuaternion,
+    );
+    block.renderMatrix.compose(KNOCK_POSITION, KNOCK_QUATERNION, block.baseScale);
     mesh.setMatrixAt(index, block.renderMatrix);
     matrixChanged = true;
+    if (
+      grounded &&
+      block.instanceFallVelocity === 0 &&
+      Math.abs(block.knockSpin) < 0.01 &&
+      Math.hypot(block.knockVelocityX, block.knockVelocityZ) < 0.01
+    ) {
+      block.knockSettled = true;
+    }
   }
   if (matrixChanged) {
     mesh.instanceMatrix.needsUpdate = true;
     mesh.computeBoundingSphere();
   }
+  return detachedCount;
 }
 
 function updateHoverTargets(targets, blocks, nextIndex) {
@@ -1094,13 +1273,42 @@ function useSmoothHoverAttribute(
   targetsRef,
   pointerInteractionEnabled,
   reducedMotion,
+  proximityRef,
+  damageRef,
 ) {
+  const knockSequenceRef = useRef(0);
+  const rebuildSequenceRef = useRef(0);
   useFrame((_, delta) => {
-    const hover = meshRef.current?.geometry?.getAttribute("instanceHover");
+    const mesh = meshRef.current;
+    const hover = mesh?.geometry?.getAttribute("instanceHover");
     if (!hover) return;
+    const damage = damageRef?.current;
+    if (damage) {
+      // The shell re-lays itself: every brick returns to its seated matrix and the
+      // existing bottom-up uBrickReveal materialize replays from zero.
+      if (damage.rebuildSequence !== rebuildSequenceRef.current) {
+        rebuildSequenceRef.current = damage.rebuildSequence;
+        resetDetachedBlocks(mesh, blocks);
+        damage.detachedCount = 0;
+      }
+      // A real seal ram: knock the bricks nearest the projected contact point loose.
+      if (damage.knockSequence !== knockSequenceRef.current) {
+        knockSequenceRef.current = damage.knockSequence;
+        knockBlocksNearContact(
+          blocks,
+          damage.knockPoint,
+          damage.knockStrength,
+          blocks.length ? damage.detachedCount / blocks.length : 0,
+        );
+      }
+    }
+    // Pointer lift ramps with nearness rather than switching on at a dock point.
+    const proximityGain = proximityRef ? THREE.MathUtils.clamp(proximityRef.current ?? 0, 0, 1) : 1;
     let changed = false;
     for (let index = 0; index < hover.count; index += 1) {
-      const target = pointerInteractionEnabled ? targetsRef.current[index] ?? 0 : 0;
+      const target = pointerInteractionEnabled
+        ? (targetsRef.current[index] ?? 0) * proximityGain
+        : 0;
       const current = hover.getX(index);
       const response = target > current
         ? DOME_POINTER_LIFT_PROFILE.approachResponse
@@ -1111,18 +1319,32 @@ function useSmoothHoverAttribute(
       changed = true;
     }
     if (changed) hover.needsUpdate = true;
-    stepDetachedBlocks(
-      meshRef.current,
+    const detachedCount = stepDetachedBlocks(
+      mesh,
       blocks,
       hover,
       pointerInteractionEnabled,
       reducedMotion,
       delta,
     );
+    if (!damage) return;
+    damage.totalCount = blocks.length;
+    damage.detachedCount = detachedCount;
+    if (!damage.demolished && detachedCount >= blocks.length * DOME_DEMOLITION_PROFILE.collapseFraction) {
+      collapseRemainingBlocks(blocks);
+      damage.demolished = true;
+    }
   });
 }
 
-function InstancedDomeBlocks({ assets, lattice, pointerInteractionEnabled, reducedMotion }) {
+function InstancedDomeBlocks({
+  assets,
+  damageRef,
+  lattice,
+  pointerInteractionEnabled,
+  proximityRef,
+  reducedMotion,
+}) {
   const meshRef = useRef(null);
   const hoveredRef = useRef(-1);
   const blocks = useMemo(() => buildDomeBlockInstances(lattice), [lattice]);
@@ -1136,6 +1358,8 @@ function InstancedDomeBlocks({ assets, lattice, pointerInteractionEnabled, reduc
     hoverTargetsRef,
     pointerInteractionEnabled,
     reducedMotion,
+    proximityRef,
+    damageRef,
   );
   useLayoutEffect(() => {
     if (!meshRef.current) return;
@@ -1166,17 +1390,19 @@ function InstancedDomeBlocks({ assets, lattice, pointerInteractionEnabled, reduc
   );
 }
 
-function InstancedAirlockBlocks({ assets, pointerInteractionEnabled, reducedMotion }) {
+function InstancedAirlockBlocks({ assets, pointerInteractionEnabled, proximityRef, reducedMotion }) {
   const meshRef = useRef(null);
   const hoveredRef = useRef(-1);
   const blocks = useMemo(() => buildAirlockBlockInstances(), []);
   const hoverTargetsRef = useRef(new Float32Array(blocks.length));
+  // The arch is the doorway frame and is never demolished: no damage ref here.
   useSmoothHoverAttribute(
     meshRef,
     blocks,
     hoverTargetsRef,
     pointerInteractionEnabled,
     reducedMotion,
+    proximityRef,
   );
   useLayoutEffect(() => {
     if (!meshRef.current) return;
@@ -1339,7 +1565,7 @@ function ContinuousDomeIceMaterial({ material }) {
   return <primitive attach="material" object={material} />;
 }
 
-function ContinuousDomeTopology({ castShadow = true, material, quality }) {
+function ContinuousDomeTopology({ castShadow = true, material, quality, visible = true }) {
   const widthSegments = quality === "high" ? 96 : quality === "medium" ? 72 : 48;
   const heightSegments = quality === "high" ? 48 : quality === "medium" ? 36 : 24;
   const mortarFill = quality === "low" ? 1 : 1.004;
@@ -1355,6 +1581,7 @@ function ContinuousDomeTopology({ castShadow = true, material, quality }) {
         DOME_RADIUS.z * mortarFill,
       ]}
       userData={{ className: "ice-block igloo-dome shader-course-shell" }}
+      visible={visible}
     >
       <sphereGeometry args={[1, widthSegments, heightSegments, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
       <ContinuousDomeIceMaterial material={material} />
@@ -1401,6 +1628,7 @@ function IntegratedAirlock({
   assets,
   material,
   pointerInteractionEnabled,
+  proximityRef,
   quality,
   reducedMotion,
   showBlocks,
@@ -1410,18 +1638,25 @@ function IntegratedAirlock({
   const thresholdLightRef = useRef(null);
   const baseThresholdIntensity = OBSERVATORY_HOME_LIGHT_PROFILE.intensity[quality];
 
-  // Standing warm interior glow: always on (idle and undocked), gently breathing.
-  // Reduced motion holds the constant mid-glow instead of pulsing.
+  // Standing warm interior glow: always on (idle and undocked), gently breathing, and
+  // lifting continuously with how near the seal is. The threshold brightening is the
+  // dome's own "arrived" signal and is a function of distance, not of a dock event.
   useFrame(({ clock }) => {
     const glowPulse = reducedMotion
       ? 0.78
       : 0.78 + Math.sin(clock.elapsedTime * 1.4) * 0.22;
+    const proximity = THREE.MathUtils.clamp(proximityRef?.current ?? 0, 0, 1);
+    const approachLift = 1 + proximity * DOME_PROXIMITY_RESPONSE_PROFILE.thresholdLightGain;
     if (doorGlowRef.current) {
-      doorGlowRef.current.color.lerpColors(DOOR_GLOW_DIM, DOOR_GLOW_BRIGHT, glowPulse);
+      doorGlowRef.current.color.lerpColors(
+        DOOR_GLOW_DIM,
+        DOOR_GLOW_BRIGHT,
+        THREE.MathUtils.clamp(glowPulse * approachLift, 0, 1),
+      );
     }
     if (thresholdLightRef.current) {
       thresholdLightRef.current.intensity =
-        baseThresholdIntensity * (0.72 + glowPulse * 0.42);
+        baseThresholdIntensity * (0.72 + glowPulse * 0.42) * approachLift;
     }
   });
 
@@ -1440,6 +1675,7 @@ function IntegratedAirlock({
         <InstancedAirlockBlocks
           assets={assets}
           pointerInteractionEnabled={pointerInteractionEnabled}
+          proximityRef={proximityRef}
           reducedMotion={reducedMotion}
         />
       )}
@@ -1605,6 +1841,128 @@ function NeutralContactPlinth({ impact, quality }) {
   );
 }
 
+// The buried entry cache. It only exists while the shell is down, and it takes the
+// hidden inner weather shell's draw slot, so the full-frame budget is unchanged. The
+// point is meaning, not spectacle: the home dome is standing on the mined public
+// corpus it was built from, and knocking it apart is what shows you that.
+function createEntryCacheGeometry(quality) {
+  const pieces = [];
+  const radialSegments = quality === "low" ? 14 : quality === "medium" ? 22 : 32;
+  // Excavated floor. The dome's own ground dressing carries a deliberate dark shelf
+  // under the shell; with the shell down that shelf is suddenly the whole read, so the
+  // cache lays its own pale packed-snow floor over it and keeps the scene glacial.
+  pieces.push(
+    transformedGeometry(
+      new THREE.CylinderGeometry(1, 1, 1, radialSegments),
+      DOME_CRYSTAL_PALETTE.frostIvory,
+      [0, 0.055, 0],
+      [1.5, 0.05, 1.05],
+    ),
+  );
+  // Hearth: a low blue-grey basin with one warm ember core. This is the only warm
+  // element down here, so the eye lands on it first.
+  pieces.push(
+    transformedGeometry(
+      new THREE.CylinderGeometry(1, 0.88, 1, radialSegments),
+      DOME_CRYSTAL_PALETTE.seamBlueGrey,
+      [0, 0.115, 0.06],
+      [0.4, 0.11, 0.4],
+    ),
+  );
+  pieces.push(
+    transformedGeometry(
+      new THREE.SphereGeometry(1, radialSegments, Math.max(6, Math.round(radialSegments * 0.5))),
+      DOOR_GLOW_BRIGHT,
+      [0, 0.2, 0.06],
+      [0.25, 0.18, 0.25],
+    ),
+  );
+  // Plaque core: the station marker the shell was built around.
+  pieces.push(
+    transformedGeometry(
+      new THREE.BoxGeometry(1, 1, 1),
+      DOME_CRYSTAL_PALETTE.windCap,
+      [0, 0.44, -0.66],
+      [0.6, 0.66, 0.06],
+      0.16,
+    ),
+  );
+  pieces.push(
+    transformedGeometry(
+      new THREE.BoxGeometry(1, 1, 1),
+      DOME_CRYSTAL_PALETTE.seamBlueGrey,
+      [0, 0.14, -0.66],
+      [0.72, 0.16, 0.2],
+      0.16,
+    ),
+  );
+  // Mined public-corpus crates, ringed around the hearth: same ice family as the shell
+  // so they read as part of the station rather than imported cargo.
+  const corpusCrates = [
+    [-1.1, 0.36, 0.3, -0.42],
+    [-0.66, -0.78, 0.24, 0.24],
+    [0.4, -0.94, 0.32, 0.62],
+    [1.14, -0.24, 0.26, -0.18],
+    [0.96, 0.62, 0.22, 0.34],
+    [0.16, 0.92, 0.28, -0.54],
+    [-0.82, 0.82, 0.2, 0.18],
+  ];
+  for (const [x, z, height, rotation] of corpusCrates) {
+    pieces.push(
+      transformedGeometry(
+        new THREE.BoxGeometry(1, 1, 1),
+        DOME_CRYSTAL_PALETTE.iceBlue,
+        [x, 0.08 + height * 0.5, z],
+        [0.32, height, 0.26],
+        rotation,
+      ),
+    );
+    pieces.push(
+      transformedGeometry(
+        new THREE.BoxGeometry(1, 1, 1),
+        DOME_CRYSTAL_PALETTE.windCap,
+        [x, 0.08 + height + 0.016, z],
+        [0.34, 0.032, 0.28],
+        rotation,
+      ),
+    );
+  }
+  const merged = mergeGeometries(pieces, false);
+  for (const piece of pieces) piece.dispose();
+  if (!merged) {
+    return colorGeometry(
+      new THREE.CylinderGeometry(0.46, 0.46, 0.18, 12),
+      DOME_CRYSTAL_PALETTE.frostIvory,
+    );
+  }
+  merged.computeVertexNormals();
+  return merged;
+}
+
+function BuriedEntryCache({ quality }) {
+  const geometry = useMemo(() => createEntryCacheGeometry(quality), [quality]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh
+      geometry={geometry}
+      name="observatory-buried-entry-cache mined-public-corpus hearth plaque-core one-draw"
+      renderOrder={2}
+      userData={{
+        cache: OBSERVATORY_ENTRY_CACHE_PROFILE,
+        className: "observatory-entry-cache",
+      }}
+    >
+      <meshStandardMaterial
+        emissive={DOME_CRYSTAL_PALETTE.subsurfaceCyan}
+        emissiveIntensity={0.09}
+        metalness={0}
+        roughness={0.8}
+        vertexColors
+      />
+    </mesh>
+  );
+}
+
 function updateDomeUniforms(material, { accent, impact, reveal, time }) {
   const uniforms = material.userData.domeUniforms;
   if (!uniforms) return;
@@ -1727,22 +2085,121 @@ export default function PolarObservatoryDome({
     resolvedAxisX - resolvedHomeX,
     resolvedDepthZ - resolvedHomeZ,
   );
+  // Continuous contact band. The traversal collider stops the seal a little outside the
+  // shell, so the old 0.34m near-band could never be entered and this term was dead:
+  // the dome only ever reacted to the pulse the world handed it. It now ramps with real
+  // nearness, which is what makes contact feel like contact rather than a dock event.
+  const contactBand =
+    1 -
+    THREE.MathUtils.smoothstep(
+      contactDistance,
+      DOME_PROXIMITY_RESPONSE_PROFILE.contactRadius,
+      DOME_PROXIMITY_RESPONSE_PROFILE.nearRadius + 1.4,
+    );
   const collisionImpact =
-    Math.max(0, 1 - contactDistance / 0.34) *
-    Math.min(1, Math.max(0, Math.abs(axisVelocity) - 0.72) * 2.1);
+    contactBand * Math.min(1, Math.max(0, Math.abs(axisVelocity) - 0.72) * 2.1);
   const impact = Math.max(collisionImpact, Math.max(0, Math.min(1, impactPulse)));
-  // Approach reactivity: 0 far from the observatory, 1 at the shell. Reused for the
-  // seam/rim emissive breath and the lattice rib glow; no new RAF loops.
-  const approachProximity = THREE.MathUtils.clamp(1 - contactDistance / 5.4, 0, 1);
+  // Approach reactivity: 0 far from the observatory, 1 at the shell, smooth in between.
+  // One ramp drives the seam/rim emissive breath, the lattice rib glow, the airlock
+  // threshold lift, and whether pointer lift is live. No dock point anywhere in it.
+  const approachProximity =
+    1 -
+    THREE.MathUtils.smoothstep(
+      contactDistance,
+      DOME_PROXIMITY_RESPONSE_PROFILE.nearRadius,
+      DOME_PROXIMITY_RESPONSE_PROFILE.farRadius,
+    );
   const proximityBreathRef = useRef(0);
+  const proximityRef = useRef(0);
+  const damageRef = useRef({
+    cooldown: 0,
+    demolished: false,
+    detachedCount: 0,
+    knockPoint: new THREE.Vector3(),
+    knockSequence: 0,
+    knockStrength: 0,
+    rebuildProgress: 1,
+    rebuildSequence: 0,
+    totalCount: 0,
+  });
+  const previousPulseRef = useRef(0);
+  const [shellDemolished, setShellDemolished] = useState(false);
+  // Same canvas-dataset diagnostic channel the scene already uses for dome distance and
+  // visibility, so the runtime damage fraction is observable without a debug overlay.
+  const canvas = useThree((threeState) => threeState.gl.domElement);
+  // Reduced motion runs the canvas on frameloop="demand", so an idle dome gets no
+  // frames and a damage cooldown would never elapse. While anything is detached or a
+  // rebuild is in flight the dome asks for the next frame itself; once the shell is
+  // whole again it stops and the canvas goes back to sleep.
+  const invalidate = useThree((threeState) => threeState.invalidate);
+  const damageSignatureRef = useRef("");
+  // The dome reacts to nearness on its own; the scene prop only widens the window.
+  const proximityInteractive =
+    pointerInteractionEnabled ||
+    approachProximity > DOME_PROXIMITY_RESPONSE_PROFILE.hoverEnableRamp;
 
   useFrame(({ clock }, delta) => {
     const elapsed = reducedMotion ? 0 : clock.elapsedTime;
-    const reveal = streamRevealProgressRef?.current ?? initialStreamRevealProgress;
+    const damage = damageRef.current;
+    // Seal ram: the traversal collision impulse arrives as a rising impactPulse edge.
+    // Project the seal's world position onto the dome ellipsoid to get the hit point.
+    const pulse = Math.max(0, Math.min(1, impactPulse));
+    if (
+      !damage.demolished &&
+      pulse >= DOME_RAM_KNOCK_PROFILE.minStrength &&
+      pulse > previousPulseRef.current + 0.01
+    ) {
+      const worldScale = OBSERVATORY_MACRO_SCALE_PROFILE.worldScale;
+      const localX = (resolvedAxisX - resolvedHomeX) / worldScale;
+      const localZ = (resolvedDepthZ - resolvedHomeZ) / worldScale;
+      const ellipsoidReach = Math.max(
+        1e-4,
+        Math.hypot(localX / DOME_RADIUS.x, localZ / DOME_RADIUS.z),
+      );
+      damage.knockPoint.set(
+        localX / ellipsoidReach,
+        DOME_RAM_KNOCK_PROFILE.contactHeightLocal,
+        localZ / ellipsoidReach,
+      );
+      damage.knockStrength = pulse;
+      damage.knockSequence += 1;
+    }
+    previousPulseRef.current = pulse;
+    // Auto-rebuild so the world can never be permanently broken: cooldown, then replay
+    // the existing bottom-up materialize by ramping the same uBrickReveal register.
+    if (damage.demolished) {
+      if (damage.rebuildProgress >= 1) {
+        damage.cooldown += delta;
+        if (damage.cooldown >= DOME_DEMOLITION_PROFILE.rebuildCooldownSeconds) {
+          damage.cooldown = 0;
+          damage.rebuildProgress = 0;
+          damage.rebuildSequence += 1;
+        }
+      } else {
+        damage.rebuildProgress = Math.min(
+          1,
+          damage.rebuildProgress + delta / DOME_DEMOLITION_PROFILE.rebuildSeconds,
+        );
+        if (damage.rebuildProgress >= 1) damage.demolished = false;
+      }
+    }
+    if (shellDemolished !== damage.demolished) setShellDemolished(damage.demolished);
+    if (damage.demolished || damage.detachedCount > 0 || damage.rebuildProgress < 1) invalidate();
+    const damageFraction = damage.totalCount ? damage.detachedCount / damage.totalCount : 0;
+    const signature = `${damageFraction.toFixed(2)}|${damage.demolished ? 1 : 0}|${damage.rebuildProgress.toFixed(2)}`;
+    if (canvas && signature !== damageSignatureRef.current) {
+      damageSignatureRef.current = signature;
+      canvas.dataset.observatoryDomeDamage = damageFraction.toFixed(3);
+      canvas.dataset.observatoryDomeDemolished = damage.demolished ? "true" : "false";
+      canvas.dataset.observatoryDomeRebuild = damage.rebuildProgress.toFixed(3);
+    }
+    const streamReveal = streamRevealProgressRef?.current ?? initialStreamRevealProgress;
+    const reveal = Math.min(streamReveal, damage.rebuildProgress);
     const proximityBreath = reducedMotion
       ? approachProximity
       : approachProximity * (0.78 + 0.22 * Math.sin(clock.elapsedTime * 1.5));
     proximityBreathRef.current = proximityBreath;
+    proximityRef.current = approachProximity;
     updateDomeUniforms(shellMaterial, { accent, impact, reveal, time: elapsed });
     updateDomeUniforms(airlockMaterial, { accent, impact, reveal, time: elapsed });
     if (!rootRef.current) return;
@@ -1776,6 +2233,11 @@ export default function PolarObservatoryDome({
         className: "igloo-polar-dome igloo-dome",
         collision: lattice.collision,
         construction: DOME_BRICK_SHADER_PROFILE,
+        // Live runtime damage state (same mutable object the frame loop writes), so the
+        // demolition fraction is inspectable without a second bookkeeping copy.
+        damage: damageRef.current,
+        demolition: DOME_DEMOLITION_PROFILE,
+        entryCache: OBSERVATORY_ENTRY_CACHE_PROFILE,
         homeDressing: OBSERVATORY_HOME_DRESSING_PROFILE,
         homeWorld: OBSERVATORY_HOME_WORLD_PROFILE,
         lattice: {
@@ -1813,12 +2275,18 @@ export default function PolarObservatoryDome({
         castShadow={tier === "low"}
         material={tier === "low" ? shellMaterial : innerShellMaterial}
         quality={tier}
+        // Demolished: the inner weather shell steps aside so the buried cache under it
+        // is what you see, and hands its draw slot straight to the cache mesh.
+        visible={!shellDemolished}
       />
+      {shellDemolished && <BuriedEntryCache quality={tier} />}
       {tier !== "low" && (
         <InstancedDomeBlocks
           assets={instancedAssets}
+          damageRef={damageRef}
           lattice={lattice}
-          pointerInteractionEnabled={pointerInteractionEnabled}
+          pointerInteractionEnabled={proximityInteractive}
+          proximityRef={proximityRef}
           reducedMotion={reducedMotion}
         />
       )}
@@ -1833,7 +2301,8 @@ export default function PolarObservatoryDome({
       <IntegratedAirlock
         assets={instancedAssets}
         material={airlockMaterial}
-        pointerInteractionEnabled={pointerInteractionEnabled}
+        pointerInteractionEnabled={proximityInteractive}
+        proximityRef={proximityRef}
         quality={tier}
         reducedMotion={reducedMotion}
         showBlocks={tier !== "low"}

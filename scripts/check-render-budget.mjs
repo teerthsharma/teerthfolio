@@ -264,6 +264,16 @@ const checks = [
     pattern: /DOME_CONTINUOUS_DRAW_CALL_PROFILE[\s\S]*continuousShellCalls:\s*1[\s\S]*shellBlockInstanceCalls:\s*1[\s\S]*airlockBlockInstanceCalls:\s*1[\s\S]*maxFullFrameCalls:\s*8/,
   },
   {
+    name: "the revealed entry cache is draw-neutral against the hidden inner shell",
+    file: files.dome,
+    pattern: /entryCacheCalls:\s*1[\s\S]*entryCacheReplaces:\s*"continuousShellCalls"[\s\S]*maxFullFrameCalls:\s*8/,
+  },
+  {
+    name: "brick knock-off and demolition reuse the existing instance pool",
+    file: files.dome,
+    pattern: /DOME_RAM_KNOCK_PROFILE[\s\S]*DOME_DEMOLITION_PROFILE[\s\S]*mesh\.setMatrixAt\(index, block\.renderMatrix\)[\s\S]*mesh\.instanceMatrix\.needsUpdate = true/,
+  },
+  {
     name: "polar dome uses real curved instanced blocks at full density",
     file: files.dome,
     pattern: /DOME_INSTANCED_CONSTRUCTION_PROFILE[\s\S]*shellBlocksByQuality:[\s\S]*POLAR_DOME_LATTICE_COUNTS\.high\.visibleCells[\s\S]*POLAR_DOME_LATTICE_COUNTS\.medium\.visibleCells[\s\S]*RoundedBoxGeometry[\s\S]*setMatrixAt[\s\S]*InstancedDomeBlocks/,

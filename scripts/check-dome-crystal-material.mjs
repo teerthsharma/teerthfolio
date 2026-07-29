@@ -193,6 +193,103 @@ requires(
   /instanceFallOffset[\s\S]*instanceFallVelocity[\s\S]*damped gravity/,
   "tile detachment must carry per-instance fall state instead of collapsing the dome",
 );
+// Proximity, not dock point: the dome's own reactions must ramp with continuous seal
+// distance. A binary docked/near switch is the regression this pins out.
+requires(
+  /DOME_PROXIMITY_RESPONSE_PROFILE[\s\S]*contactRadius:\s*3\.2[\s\S]*farRadius:\s*7\.4[\s\S]*hoverEnableRamp:\s*0\.12[\s\S]*nearRadius:\s*3\.4[\s\S]*thresholdLightGain:\s*0\.55/,
+  "the dome must publish a continuous distance-falloff response profile",
+);
+requires(
+  /approachProximity\s*=\s*\n?\s*1 -\s*\n?\s*THREE\.MathUtils\.smoothstep\(\s*\n?\s*contactDistance,\s*\n?\s*DOME_PROXIMITY_RESPONSE_PROFILE\.nearRadius,\s*\n?\s*DOME_PROXIMITY_RESPONSE_PROFILE\.farRadius/,
+  "approach reactivity must be a smooth distance falloff rather than a dock-point binary",
+);
+requires(
+  /proximityInteractive\s*=\s*\n?\s*pointerInteractionEnabled \|\|\s*\n?\s*approachProximity > DOME_PROXIMITY_RESPONSE_PROFILE\.hoverEnableRamp/,
+  "hover enable must come from the dome's own proximity ramp, not only the scene prop",
+);
+requires(
+  /const target = pointerInteractionEnabled\s*\n?\s*\? \(targetsRef\.current\[index\] \?\? 0\) \* proximityGain/,
+  "pointer lift targets must scale with the proximity ramp",
+);
+requires(
+  /approachLift = 1 \+ proximity \* DOME_PROXIMITY_RESPONSE_PROFILE\.thresholdLightGain[\s\S]*thresholdLightRef\.current\.intensity =[\s\S]*\* approachLift/,
+  "the airlock threshold must brighten continuously with nearness",
+);
+// Rammable: a real seal collision must knock bricks loose deterministically.
+requires(
+  /DOME_RAM_KNOCK_PROFILE[\s\S]*contactHeightLocal:\s*0\.42[\s\S]*damageReachGain:\s*1\.5[\s\S]*never Math\.random[\s\S]*knockRadiusLocal:\s*1\.15[\s\S]*lateralMetresPerSecond:\s*0\.9[\s\S]*maxBricksPerRam:\s*18[\s\S]*minStrength:\s*0\.26[\s\S]*tumbleSpinRadiansPerSecond:\s*2\.4/,
+  "the dome must publish a bounded deterministic seal-ram knock profile",
+);
+requires(
+  /function knockHash\(index, salt\)[\s\S]*Math\.sin\(index \* 12\.9898 \+ salt \* 78\.233\) \* 43758\.5453/,
+  "knock tumble must be hashed from the brick index",
+);
+assert.doesNotMatch(
+  source,
+  /Math\.random\(/,
+  "the damage path must stay deterministic; no Math.random() call anywhere in the dome",
+);
+requires(
+  /pulse >= DOME_RAM_KNOCK_PROFILE\.minStrength &&\s*\n?\s*pulse > previousPulseRef\.current[\s\S]*damage\.knockPoint\.set\([\s\S]*damage\.knockSequence \+= 1/,
+  "a rising seal-impact edge above the speed threshold must publish a dome-local knock point",
+);
+requires(
+  /function knockBlocksNearContact[\s\S]*block\.basePosition\.distanceTo\(contactPoint\) > radius[\s\S]*detachKnockedBlock/,
+  "the ram must detach only the bricks nearest the contact point",
+);
+requires(
+  /KNOCK_QUATERNION\.setFromAxisAngle\(block\.knockAxis, block\.knockAngle\)[\s\S]*block\.renderMatrix\.compose\(KNOCK_POSITION, KNOCK_QUATERNION, block\.baseScale\)/,
+  "knocked bricks must tumble on the same instances rather than spawning new meshes",
+);
+requires(
+  /DOME_TILE_FALL_PROFILE\.groundFriction[\s\S]*knockVelocityX \*= friction/,
+  "knocked bricks must lose lateral energy and settle on the snow",
+);
+// Destructible with a use-case, and never permanently broken.
+requires(
+  /DOME_DEMOLITION_PROFILE[\s\S]*collapseFraction:\s*0\.38[\s\S]*detachedShellBricks \/ totalShellBricks; runtime only, resets on reload[\s\S]*rebuildCooldownSeconds:\s*5\.5[\s\S]*rebuildSeconds:\s*1\.9[\s\S]*vanish and reappear at zero scale; no tumble[\s\S]*mined public-corpus crates, the warm hearth, and the plaque core/,
+  "the dome must publish its damage, rebuild, and reduced-motion demolition contract",
+);
+requires(
+  /detachedCount >= blocks\.length \* DOME_DEMOLITION_PROFILE\.collapseFraction[\s\S]*collapseRemainingBlocks\(blocks\)[\s\S]*damage\.demolished = true/,
+  "passing the collapse fraction must bring the rest of the shell down",
+);
+requires(
+  /OBSERVATORY_ENTRY_CACHE_PROFILE[\s\S]*one merged vertex-colored draw that takes the hidden inner weather shell's slot[\s\S]*mined public corpus, the warm hearth, and the plaque core/,
+  "full demolition must reveal a meaningful buried entry cache, not a toy hole",
+);
+requires(
+  /function BuriedEntryCache[\s\S]*observatory-buried-entry-cache mined-public-corpus hearth plaque-core one-draw/,
+  "the revealed cache must stay one draw",
+);
+requires(
+  /visible=\{!shellDemolished\}[\s\S]*\{shellDemolished && <BuriedEntryCache quality=\{tier\} \/>\}/,
+  "the cache must take the hidden inner weather shell's draw slot",
+);
+requires(
+  /damage\.cooldown >= DOME_DEMOLITION_PROFILE\.rebuildCooldownSeconds[\s\S]*damage\.rebuildProgress = 0[\s\S]*damage\.rebuildSequence \+= 1/,
+  "the dome must auto-rebuild after a cooldown so the world cannot be permanently broken",
+);
+requires(
+  /const reveal = Math\.min\(streamReveal, damage\.rebuildProgress\)/,
+  "the rebuild must replay the existing bottom-up materialize rather than add a second animation system",
+);
+requires(
+  /if \(reducedMotion\) \{[\s\S]*block\.renderMatrix\.compose\(block\.basePosition, block\.baseQuaternion, KNOCK_ZERO_SCALE\)/,
+  "reduced motion must make detached bricks disappear instead of tumbling",
+);
+requires(
+  /canvas\.dataset\.observatoryDomeDamage[\s\S]*canvas\.dataset\.observatoryDomeDemolished[\s\S]*canvas\.dataset\.observatoryDomeRebuild/,
+  "the damage fraction must be observable on the existing canvas diagnostic channel",
+);
+requires(
+  /signature !== damageSignatureRef\.current/,
+  "the damage diagnostic must only touch the DOM when the state actually changes",
+);
+requires(
+  /if \(damage\.demolished \|\| damage\.detachedCount > 0 \|\| damage\.rebuildProgress < 1\) invalidate\(\)/,
+  "a damaged dome must pump its own frames so the reduced-motion demand loop still rebuilds",
+);
 assert.match(
   sceneSource,
   /<PolarObservatoryDome[\s\S]*pointerInteractionEnabled=\{dockedStationId === "observatory-plaque" \|\| observatoryDistance <= 4\.6\}/,
