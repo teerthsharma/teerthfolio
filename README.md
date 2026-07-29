@@ -177,7 +177,6 @@ The render verifier must cover:
 | `components/PolarObservatoryDome.jsx` | Lattice-driven instanced crystal-brick observatory with weighted interaction |
 | `components/TopologicalSealMascot.jsx` | Procedural topology seal guide with five states, breathing, glumph travel wave, eyes, and semantic halo |
 | `components/PolarSemanticParticles.jsx` | One-draw bounded semantic particle/hologram field for all eight stations |
-| `components/IglooTerrain.jsx` | Repeating polar floor and terrain window |
 | `components/IglooArtifacts.jsx` | Project station objects |
 | `data/teerth-content.json` | Profile, live copy, station copy, links |
 | `data/project-intelligence.json` | Mined Teerth GitHub corpus |

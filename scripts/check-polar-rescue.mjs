@@ -188,7 +188,6 @@ expectIncludes("components/PolarBiomeWorld.jsx", [
   "simulationPaused",
   "safeMode",
 ]);
-expectIncludes("components/IglooTerrain.jsx", ["ANIME_TERRAIN_SHADER_PROFILE", "MeshToonMaterial"]);
 expectIncludes("components/PolarObservatoryDome.jsx", [
   "DOME_ANIME_ICE_PROFILE",
   "DOME_XZ_SHADER_PROFILE",
@@ -268,7 +267,6 @@ for (const relativePath of [
   "app/globals.css",
   "components/IglooWorld.jsx",
   "components/IglooScene.jsx",
-  "components/IglooTerrain.jsx",
   "components/PolarObservatoryDome.jsx",
   "components/SealAvatar.jsx",
   "components/RetroCinematicPostProcess.jsx",

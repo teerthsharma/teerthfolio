@@ -3,7 +3,7 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
-  { ignores: [".next", "dist", "node_modules"] },
+  { ignores: [".next", "dist", "node_modules", "donotcommit", "verification"] },
   js.configs.recommended,
   {
     files: ["scripts/**/*.mjs"],

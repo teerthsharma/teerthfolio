@@ -110,6 +110,10 @@ assert.match(componentSource, /if \(reducedMotion\) return null/);
 assert.match(sceneSource, /import PolarTravelDebris from "\.\/PolarTravelDebris"/);
 assert.match(sceneSource, /<PolarTravelDebris/);
 assert.match(sceneSource, /traversalPoseRef=\{traversalPoseRef\}/);
-assert.doesNotMatch(sceneSource, /SmashableObject|PolarSmashables|SMASHABLE_FIELD_OBJECTS/);
+assert.doesNotMatch(sceneSource, /SmashableObject|SMASHABLE_FIELD_OBJECTS/);
+// PolarSmashables survives only as the scene's documented no-op compatibility
+// marker; it must never regain a mounted implementation.
+assert.match(sceneSource, /export function PolarSmashables\(\) \{\r?\n\s*return null;\r?\n\}/);
+assert.doesNotMatch(sceneSource, /<PolarSmashables/);
 
 console.log("polar travel debris contract passed: 18 instances / 1 draw / 1 callback / 0 textures");

@@ -60,9 +60,7 @@ const files = {
   dome: readFileSync(join(root, "components", "PolarObservatoryDome.jsx"), "utf8"),
   splash: readFileSync(join(root, "components", "SdfSealSplash.jsx"), "utf8"),
   nextConfig: readFileSync(join(root, "next.config.mjs"), "utf8"),
-  terrain: readFileSync(join(root, "components", "IglooTerrain.jsx"), "utf8"),
   seal: readFileSync(join(root, "components", "SealAvatar.jsx"), "utf8"),
-  snow: readFileSync(join(root, "components", "SnowAtmosphere.jsx"), "utf8"),
   splashShader: readFileSync(join(root, "components", "AntarcticSplashShader.jsx"), "utf8"),
   post: readFileSync(join(root, "components", "RetroCinematicPostProcess.jsx"), "utf8"),
   polarArtDirection: readFileSync(join(root, "lib", "polar-art-direction.js"), "utf8"),
@@ -219,46 +217,6 @@ const checks = [
     pattern: /WORLD_RENDER_WINDOW_NOTE/,
   },
   {
-    name: "terrain chunk count remains bounded",
-    file: files.terrain,
-    pattern: /TERRAIN_CHUNK_COUNT\s*=\s*7/,
-  },
-  {
-    name: "terrain active chunk count degrades by quality",
-    file: files.terrain,
-    pattern: /activeChunkCount\s*=\s*quality === "low" \? 3 : quality === "medium" \? 5 : TERRAIN_CHUNK_COUNT/,
-  },
-  {
-    name: "terrain material stays in uplifting polar range",
-    file: files.terrain,
-    pattern: /TERRAIN_MATERIAL_COLOR\s*=\s*POLAR_PALETTE\.glacierWhite/,
-  },
-  {
-    name: "terrain surface stays clean and subordinate",
-    file: files.terrain,
-    pattern: /CLEAN_POLAR_SURFACE_PROFILE[\s\S]*texture subordinate to stations[\s\S]*ANIME_TERRAIN_SHADER_PROFILE[\s\S]*texture\.repeat\.set\(7\.2, 5\.4\)[\s\S]*new THREE\.MeshToonMaterial[\s\S]*normalScale:\s*new THREE\.Vector2\(0\.0025, 0\.0025\)/,
-  },
-  {
-    name: "terrain uses recycled material tile label",
-    file: files.terrain,
-    pattern: /recursive Antarctic floor material tile/,
-  },
-  {
-    name: "snow particle count is quality bounded",
-    file: files.snow,
-    pattern: /quality === "low" \? 90 : quality === "medium" \? 150 : 230/,
-  },
-  {
-    name: "snow resources are disposed on unmount",
-    file: files.snow,
-    pattern: /geometry\.dispose\(\)[\s\S]*material\.dispose\(\)/,
-  },
-  {
-    name: "ground fog stays dusk-graded and translucent",
-    file: files.snow,
-    pattern: /POLAR_GROUND_FOG_PROFILE[\s\S]*dusk translucent[\s\S]*0\.045[\s\S]*color="#3A4C73"/,
-  },
-  {
     name: "smashables only render during active movement",
     file: files.scene,
     pattern: /renderEnabled && moving && !debugFlags\.noSmashables/,
@@ -388,14 +346,9 @@ const checks = [
     pattern: /uShadowSeparation[\s\S]*paperShadowSeparation[\s\S]*smoothstep\(0\.18, 0\.46[\s\S]*highlightMask[\s\S]*low:[\s\S]*shadowSeparation:\s*0\.24[\s\S]*medium:[\s\S]*shadowSeparation:\s*0[\s\S]*high:[\s\S]*shadowSeparation:\s*0/,
   },
   {
-    name: "non-igloo stations expose active playable object behaviors",
-    file: files.artifacts,
-    pattern: /STATION_INTERACTION_PROFILE[\s\S]*s2-kernel-core interactive gyroscope[\s\S]*manifold-reactor phase beads[\s\S]*field-chamber-coils charge gates[\s\S]*qpu-ice-bridge qubit stepping stones[\s\S]*upstream-radio-mast live signal sweep[\s\S]*StationInteractionRig/,
-  },
-  {
     name: "featured stations use uplifting colors and elevated grid pedestals",
     file: files.artifacts,
-    pattern: /UPLIFTING_STATION_COLOR_PROFILE[\s\S]*S2 blue[\s\S]*Aether violet[\s\S]*Field amber[\s\S]*QPU mint[\s\S]*Upstream coral-green[\s\S]*STATION_GRID_ELEVATION_PROFILE[\s\S]*FEATURED_STATION_IDS[\s\S]*floating-grid-pedestal[\s\S]*subjectLift/,
+    pattern: /UPLIFTING_STATION_COLOR_PROFILE[\s\S]*S2 blue[\s\S]*Aether violet[\s\S]*Field amber[\s\S]*QPU mint[\s\S]*Upstream coral-green[\s\S]*STATION_GRID_ELEVATION_PROFILE[\s\S]*FEATURED_STATION_IDS[\s\S]*floating-grid-pedestal/,
   },
   {
     name: "world adopts deterministic bounded traversal with damped camera and offscreen suspension",

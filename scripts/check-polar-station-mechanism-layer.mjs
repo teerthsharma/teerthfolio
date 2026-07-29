@@ -358,7 +358,6 @@ for (const token of [
   "s2-cern-antimatter-cryostat",
   "aether-primordial-first-energy-sanctuary",
   "field-graphite-copper-contained-thermal-chamber",
-  "qpu-jade-cyan-coherence-causeway",
   "materials.s2Frame",
   "materials.aetherFrame",
   "materials.fieldFrame",

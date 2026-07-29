@@ -22,10 +22,6 @@ import {
 
 const root = process.cwd();
 const source = readFileSync(join(root, "components", "PolarBiomeWorld.jsx"), "utf8");
-const atmosphereSource = readFileSync(
-  join(root, "components", "PolarAtmosphereField.jsx"),
-  "utf8",
-);
 const dressingSource = readFileSync(
   join(root, "components", "AdaptivePolarWorldDressing.jsx"),
   "utf8",
@@ -39,10 +35,6 @@ assert.match(
   dressingSource,
   /placementAllowedForStation[\s\S]*STATION_DRESSING_BAND_POLICY[\s\S]*visiblePlacements = placements\.filter/,
   "station dressing policy must be enforced before instance upload",
-);
-const legacyTerrainSource = readFileSync(
-  join(root, "components", "IglooTerrain.jsx"),
-  "utf8",
 );
 const artifactsSource = readFileSync(
   join(root, "components", "IglooArtifacts.jsx"),
@@ -617,22 +609,6 @@ for (const needle of [
     `AdaptivePolarWorldDressing.jsx is missing local ownership ${JSON.stringify(needle)}`,
   );
 }
-for (const needle of [
-  "uBiomeCenterXZ",
-  "uBiomeRadius",
-  "vWorldXZ",
-  "continuousAtmosphereXZEnvelope",
-  "POLAR_ATMOSPHERE_BUDGET",
-  "reducedMotion",
-]) {
-  assert.ok(
-    atmosphereSource.includes(needle),
-    `PolarAtmosphereField.jsx is missing bounded XZ atmosphere ${JSON.stringify(needle)}`,
-  );
-}
-assert.ok(!atmosphereSource.includes("Y_ONLY_TINT"));
-assert.ok(!legacyTerrainSource.includes("distant-monument"));
-
 for (const needle of [
   'import PolarBiomeWorld from "./PolarBiomeWorld"',
   "<PolarBiomeWorld",

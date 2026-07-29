@@ -269,13 +269,6 @@ for (const file of canonicalConsumers) {
   );
 }
 
-const terrainSource = readFileSync(path.resolve("components/IglooTerrain.jsx"), "utf8");
-assert.doesNotMatch(
-  terrainSource,
-  /STATION_DEPTH_SCALE|WORLD_LOOP_LENGTH|nearestLoopedX|artifact\.position/,
-  "terrain may recycle around the player but must not reinterpret station coordinates",
-);
-
 const sceneSource = readFileSync(path.resolve("components/IglooScene.jsx"), "utf8");
 const artifactSource = readFileSync(path.resolve("components/IglooArtifacts.jsx"), "utf8");
 const worldSource = readFileSync(path.resolve("components/IglooWorld.jsx"), "utf8");

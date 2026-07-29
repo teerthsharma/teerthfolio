@@ -434,6 +434,7 @@ function SceneDiagnostics({
   onGpuEvent,
   quality,
   reducedMotion,
+  streamEpochMsRef,
 }) {
   const { gl } = useThree();
   const readyFrames = useRef(0);
@@ -482,9 +483,15 @@ function SceneDiagnostics({
     };
   }, [gl, onGpuEvent]);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (readyFrames.current >= 2) return;
     readyFrames.current += 1;
+    // Re-pin the world-stream reveal epoch through the warm-up frames. Those
+    // frames run behind the splash hand-off while shaders compile, so an epoch
+    // seeded there would finish the whole materialize choreography (terrain,
+    // stations, dome courses) before the first visible paint. Stamping until
+    // the scene-ready frame starts the choreography at real visibility.
+    if (streamEpochMsRef) streamEpochMsRef.current = clock.elapsedTime * 1000;
     if (readyFrames.current === 2) {
       onGpuEvent?.({
         detail: `canvas=${gl.domElement.width}x${gl.domElement.height} dpr=${gl.getPixelRatio().toFixed(2)}`,
@@ -731,6 +738,7 @@ export default function IglooScene({
           onGpuEvent={onGpuEvent}
           quality={quality}
           reducedMotion={reducedMotion}
+          streamEpochMsRef={streamEpochMsRef}
         />
         <ForceCanvasResize />
         <CameraRig
@@ -816,17 +824,18 @@ export default function IglooScene({
             startMs={WORLD_STREAM_TIMINGS.stationStartMs}
             streamEpochMsRef={streamEpochMsRef}
           >
-            {!dockedStationId ? (
-              <TopologyConstellation
-                activeArtifact={activeArtifact}
-                artifacts={artifacts}
-                axisX={axisX}
-                depthZ={depthZ}
-                quality={quality}
-                reducedMotion={reducedMotion}
-                showLabels={renderEnabled}
-              />
-            ) : null}
+            {/* The aurora shell stays mounted while docked so the sky does not
+                die at stations; with a docked activeArtifact the junni guide
+                threads keep leaning toward the owned station azimuth. */}
+            <TopologyConstellation
+              activeArtifact={activeArtifact}
+              artifacts={artifacts}
+              axisX={axisX}
+              depthZ={depthZ}
+              quality={quality}
+              reducedMotion={reducedMotion}
+              showLabels={renderEnabled}
+            />
           </WorldStreamReveal>
         )}
         {renderEnabled && sealAwake && !debugFlags.noSeal && (

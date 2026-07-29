@@ -1204,8 +1204,6 @@ const QPU_DERRICK_FACES = Object.freeze([
 // core crates, the rod rack, the cable tray and the windward drift. The catwalk
 // deck itself is the separately revealed construction geometry, so the two are
 // merged in createQpuCausewayFrameGeometry.
-// Legacy identity token retained for the mechanism-layer gate:
-// qpu-jade-cyan-coherence-causeway.
 function createQpuStableDockBandGeometry(quality) {
   const policy = geometryPolicy(quality);
   const parts = [];

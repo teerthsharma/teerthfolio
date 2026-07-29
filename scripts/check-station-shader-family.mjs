@@ -110,7 +110,7 @@ assert.ok(artifacts.includes("const stationZoneOrigin"));
 assert.ok(artifacts.includes("zoneOrigin={stationZoneOrigin}"));
 assert.equal(
   (artifacts.match(/useFrame\(/g) || []).length,
-  2,
+  1,
   "monument art must not add per-frame React/R3F update loops",
 );
 

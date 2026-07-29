@@ -156,7 +156,7 @@ function describeError(error) {
   return error.message || error.reason?.message || String(error);
 }
 
-function DiagnosticPanel({ events, rendererMode }) {
+function DiagnosticPanel({ events, onReloadWorld, rendererMode }) {
   const visibleEvents =
     rendererMode === "safe" || rendererMode === "probe"
       ? events
@@ -167,6 +167,18 @@ function DiagnosticPanel({ events, rendererMode }) {
   return (
     <div className="igloo-diagnostics" role="status" aria-live="polite">
       <span>renderer diagnostics / {rendererMode}</span>
+      {/* Probe recovery: a wedged probe (e.g. a killed R3F loop before
+          scene-ready) never resolves on its own, so the strip offers a clean
+          canvas remount instead of demanding a manual page reload. */}
+      {rendererMode === "probe" && onReloadWorld && (
+        <button
+          className="igloo-diagnostics-reload"
+          onClick={onReloadWorld}
+          type="button"
+        >
+          reload world
+        </button>
+      )}
       <ol>
         {visibleEvents.map((event) => (
           <li data-severity={event.severity} key={event.id}>
@@ -327,6 +339,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const [stationProximity, setStationProximity] = useState(0);
   const [worldInView, setWorldInView] = useState(true);
   const [gpuStageMounted, setGpuStageMounted] = useState(true);
+  const [worldRunId, setWorldRunId] = useState(0);
   const renderEnabledRef = useRef(false);
   const artifacts = useMemo(() => IGLOO_ARTIFACTS, []);
   const evidenceArtifact =
@@ -638,6 +651,19 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     setSdfRenderEnabled(true);
     setSealAwake(true);
   }, [reportGpuEvent, safeMode]);
+
+  const reloadWorld = useCallback(() => {
+    reportGpuEvent({
+      severity: "info",
+      type: "world-reload",
+      message: "User remounted the world canvas from the diagnostics strip.",
+    });
+    setWorldRunId((id) => id + 1);
+    setSceneReady(false);
+    setWorldLoadBridgeActive(true);
+    setSdfRenderEnabled(true);
+    setSealAwake(true);
+  }, [reportGpuEvent]);
 
   const startExplorationRender = useCallback(() => {
     if (safeMode) setQuality("low");
@@ -980,9 +1006,10 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       {!effectiveSafeMode && sdfRenderEnabled && gpuStageMounted && (
         <GpuErrorBoundary
           onGpuEvent={reportGpuEvent}
-          resetKey={`${intentArtifact.id}-${quality}-${safeMode ? "safe" : "live"}`}
+          resetKey={`${intentArtifact.id}-${quality}-${safeMode ? "safe" : "live"}-${worldRunId}`}
         >
           <IglooScene
+            key={worldRunId}
             activeArtifactId={intentArtifact.id}
             axisVelocity={axisVelocity}
             axisX={axisX}
@@ -1021,7 +1048,11 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
           <strong>{sealRouteHint}</strong>
         </div>
       )}
-      <DiagnosticPanel events={gpuDiagnostics} rendererMode={rendererMode} />
+      <DiagnosticPanel
+        events={gpuDiagnostics}
+        onReloadWorld={reloadWorld}
+        rendererMode={rendererMode}
+      />
       {!sdfRenderEnabled && (
         <SdfSealSplash
           active={worldInView}
