@@ -23,9 +23,15 @@ const PN_NOISE_GLSL = `
     return mix(mix(pn_hash(i), pn_hash(i + vec2(1.0, 0.0)), f.x),
                mix(pn_hash(i + vec2(0.0, 1.0)), pn_hash(i + vec2(1.0, 1.0)), f.x), f.y); }
   float pn_fbm(vec2 p){ float a = 0.5; float v = 0.0; for (int i = 0; i < 4; i++){ v += a * pn_noise(p); p *= 2.03; a *= 0.5; } return v; }
+  // Single-return form: the old early-return branch tripped ANGLE's
+  // "potentially uninitialized variable" warning on D3D targets.
   float pn_fbm_q(vec2 p, float tier){
-    if (tier < 0.5) { float a = 0.5; float v = 0.0; for (int i = 0; i < 2; i++){ v += a * pn_noise(p); p *= 2.03; a *= 0.5; } return v; }
-    return pn_fbm(p);
+    float octaves = tier < 0.5 ? 2.0 : 4.0;
+    float a = 0.5; float v = 0.0;
+    for (int i = 0; i < 4; i++){
+      if (float(i) < octaves) { v += a * pn_noise(p); p *= 2.03; a *= 0.5; }
+    }
+    return v;
   }
 `;
 
@@ -116,17 +122,23 @@ const sweepFragmentShader = `
     float wobble = (pn_fbm_q(vec2(lateral * 2.4, uWorldTime * 0.35), uQualityTier) - 0.5) * 0.16;
     float d = dot(c, axis) - sweepPos + wobble * sweepWindow;
 
-    // Thin gaussian lens-band (same family as the black hole horizonBand).
-    float band = exp(-pow(d * 7.5, 2.0));
-    float halo = exp(-pow(d * 2.6, 2.0)) * 0.4;
+    // Thin gaussian lens-band (same family as the black hole horizonBand):
+    // a tight core plus an independent, wider soft halo so the profile rolls
+    // off like a lens instead of a hard-edged stripe.
+    float band = exp(-pow(d * 8.5, 2.0));
+    float halo = exp(-pow(d * 2.1, 2.0));
 
     // Ahead of the front: not yet assembled — dimmed, refraction-shimmered.
     float ahead = smoothstep(0.02, 0.30, d);
     float shimmer = pn_fbm_q(c * 5.0 + vec2(uWorldTime * 0.22, -uWorldTime * 0.13), uQualityTier);
     float refract = ahead * (0.55 + 0.45 * shimmer);
 
-    // Behind the front: clean world, only a fading mint settle fringe.
-    float settle = exp(-pow((d + 0.10) * 12.0, 2.0));
+    // Behind the front: clean world, only a fading mint settle fringe. It
+    // trails the core slightly and eases out on its own later window so the
+    // frame reads as settling rather than being wiped.
+    float settle = exp(-pow((d + 0.13) * 9.0, 2.0));
+    float settleWindow = smoothstep(0.06, 0.20, progress) * (1.0 - smoothstep(0.88, 1.0, progress));
+    settleWindow *= (1.0 - uReducedMotion);
 
     // Polar-angle aurora modulation, tinted by the active station accent.
     float theta = atan(c.y, c.x);
@@ -135,11 +147,12 @@ const sweepFragmentShader = `
 
     vec3 color = DEEP_CORE;
     float alpha = refract * 0.22 * sweepWindow * vig;
-    float bandMask = clamp(band + halo, 0.0, 1.0);
-    color = mix(color, bandColor * 1.15, bandMask);
-    alpha += (band * 0.62 + halo * 0.2) * sweepWindow * vig;
+    // Core takes the accent aurora near full weight; the halo only breathes
+    // a softened share of it so the skirt never reads as a second stripe.
+    color = mix(color, bandColor * 1.06, clamp(band + halo * 0.35, 0.0, 1.0));
+    alpha += (band * 0.60 + halo * 0.14) * sweepWindow * vig;
     color = mix(color, AURORA_MINT, settle * 0.45);
-    alpha += settle * 0.07 * sweepWindow * vig;
+    alpha += settle * 0.06 * settleWindow * vig;
 
     // dock strength gives arrival sweeps a touch more presence than reveals.
     alpha *= 0.82 + 0.18 * clamp(uDockProgress, 0.0, 1.0);

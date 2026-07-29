@@ -7,7 +7,7 @@ import { POST_PROCESS_BUDGET } from "../lib/polar-art-direction";
 import { motionWarpFromVelocity } from "../lib/polar-world-cadence";
 
 export const GLOBAL_ANIME_POST_PROFILE =
-  "anime-soft depth pixel fog: camera-motion fisheye, linear depth, bounded luma/depth edge confidence, chromatic edge AA, toon quantization, stable dither, indigo ink, static scanline, wide vignette, tiered paper contrast grade; polar-dusk cinematic finish: thresholded highlight glow, filmic S-curve, teal-shadow warm-highlight split tone, warm-lifted vignette, luminance-weighted grain";
+  "anime-soft depth pixel fog: camera-motion fisheye, linear depth, bounded luma/depth edge confidence, chromatic edge AA, toon quantization, stable dither, indigo ink, static scanline, wide vignette, tiered paper contrast grade; polar-dusk cinematic finish: soft-knee dual-radius thresholded highlight glow, toe-guarded filmic S-curve, teal-shadow warm-highlight split tone, warm-lifted vignette, luminance-weighted grain";
 export const GLOBAL_RETRO_POST_PROFILE = GLOBAL_ANIME_POST_PROFILE;
 export const POINTER_VISUAL_EFFECTS = "none";
 
@@ -162,10 +162,13 @@ vec3 toonQuantize(vec3 color) {
 }
 
 vec3 filmicSCurve(vec3 color) {
-  // Gentle smoothstep S-curve blended in at low strength keeps the toe and
-  // shoulder soft instead of crushing the dusk shadows.
+  // Gentle smoothstep S-curve blended in at low strength. The toe guard
+  // fades the curve out below ~0.16 luma so the darkest dusk shadows keep
+  // their detail instead of compressing toward the floor; shoulder and
+  // midtone contrast stay untouched.
   vec3 curved = color * color * (3.0 - 2.0 * color);
-  return mix(color, curved, uSCurveStrength);
+  float toeGuard = smoothstep(0.035, 0.16, animeLuminance(color));
+  return mix(color, curved, uSCurveStrength * toeGuard);
 }
 
 vec3 duskSplitTone(vec3 color) {
@@ -180,25 +183,37 @@ vec3 duskSplitTone(vec3 color) {
   return mix(color, highlightTinted, splitHighlightMask * uSplitToneStrength);
 }
 
+vec3 glowSample(vec2 uv) {
+  vec3 tap = texture2D(tDiffuse, clamp(uv, 0.001, 0.999)).rgb;
+  // Soft-knee threshold at 0.80 (knee 0.045): the quadratic ramp-in removes
+  // the hard clip edge that banded the old glow, while the threshold stays
+  // high so only genuine highlights (window glass, indicator lights,
+  // telemetry, sun kiss) bloom. Lower thresholds smear the frame into haze.
+  vec3 knee = clamp(tap - vec3(0.755), vec3(0.0), vec3(0.09));
+  knee = knee * knee * (1.0 / 0.18);
+  return max(max(tap - vec3(0.80), vec3(0.0)), knee);
+}
+
 vec3 highlightGlow(vec2 uv, vec2 texel) {
-  // Cheap in-pass bloom approximation: eight thresholded ring taps. Callers
-  // only invoke this when uBloomStrength > 0 (medium/high tiers), so the low
+  // Cheap in-pass bloom approximation: still eight taps, now split across
+  // two radii — a tight cardinal cross (1.7 texels) plus a wider diagonal
+  // ring (3.3 texels) — with normalized gaussian-ish weights so the falloff
+  // rolls off smoothly instead of printing one hard ring. Callers only
+  // invoke this when uBloomStrength > 0 (medium/high tiers), so the low
   // tier never pays for the extra texture reads.
-  vec2 spread = texel * 2.4;
-  vec2 diagonal = spread * 0.7071;
-  // Threshold sits high so only genuine highlights (window glass, indicator
-  // lights, sun kiss) bloom. Lower thresholds smear the whole frame into haze.
-  vec3 glowThreshold = vec3(0.80);
-  vec3 accum = vec3(0.0);
-  accum += max(texture2D(tDiffuse, clamp(uv + vec2(spread.x, 0.0), 0.001, 0.999)).rgb - glowThreshold, 0.0);
-  accum += max(texture2D(tDiffuse, clamp(uv - vec2(spread.x, 0.0), 0.001, 0.999)).rgb - glowThreshold, 0.0);
-  accum += max(texture2D(tDiffuse, clamp(uv + vec2(0.0, spread.y), 0.001, 0.999)).rgb - glowThreshold, 0.0);
-  accum += max(texture2D(tDiffuse, clamp(uv - vec2(0.0, spread.y), 0.001, 0.999)).rgb - glowThreshold, 0.0);
-  accum += max(texture2D(tDiffuse, clamp(uv + diagonal, 0.001, 0.999)).rgb - glowThreshold, 0.0);
-  accum += max(texture2D(tDiffuse, clamp(uv - diagonal, 0.001, 0.999)).rgb - glowThreshold, 0.0);
-  accum += max(texture2D(tDiffuse, clamp(uv + vec2(diagonal.x, -diagonal.y), 0.001, 0.999)).rgb - glowThreshold, 0.0);
-  accum += max(texture2D(tDiffuse, clamp(uv - vec2(diagonal.x, -diagonal.y), 0.001, 0.999)).rgb - glowThreshold, 0.0);
-  return accum * 0.125;
+  vec2 inner = texel * 1.7;
+  vec2 outer = texel * 3.3 * 0.7071;
+  vec3 nearRing = glowSample(uv + vec2(inner.x, 0.0))
+    + glowSample(uv - vec2(inner.x, 0.0))
+    + glowSample(uv + vec2(0.0, inner.y))
+    + glowSample(uv - vec2(0.0, inner.y));
+  vec3 farRing = glowSample(uv + outer)
+    + glowSample(uv - outer)
+    + glowSample(uv + vec2(outer.x, -outer.y))
+    + glowSample(uv - vec2(outer.x, -outer.y));
+  // Weights sum to one: the near cross carries the core, the far ring the
+  // soft skirt.
+  return nearRing * 0.17 + farRing * 0.08;
 }
 
 float snowCellHash(vec2 cell) {

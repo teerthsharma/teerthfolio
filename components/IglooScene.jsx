@@ -88,9 +88,54 @@ const WARMUP_LINE_POINTS = Object.freeze([
   [0, 0.5, 0],
   [0, 1, 0],
 ]);
+// Shared dock-ring geometries. Station "promise" membership flickers during
+// travel; per-mount <ringGeometry> children made every flicker create and
+// dispose five GPU buffers (the measured route-side remount churn). Module
+// singletons upload once and survive every mount.
+const DOCK_GEOMETRIES = {
+  beacon: new THREE.OctahedronGeometry(1, 0),
+  flag: new THREE.ConeGeometry(1, 1, 3),
+  halo: new THREE.RingGeometry(0.62, 0.626, 72),
+  mast: new THREE.CylinderGeometry(1, 1, 1, 8),
+  ring: new THREE.RingGeometry(0.44, 0.47, 68),
+};
+// Route lead points live outside React: PolarRouteNetwork's frame loop writes
+// them from the 60Hz traversal pose and bumps `version` only when an endpoint
+// actually moved, so the two lead lines rewrite their fat-line buffers at most
+// once per moved frame and never re-render through React while traveling.
+const ROUTE_LEAD_STATE = {
+  points: [
+    [0, 0.035, 0],
+    [0, 0.085, 0],
+    [0, 0.035, 0],
+  ],
+  version: 0,
+};
+const ROUTE_LEAD_EPSILON = 0.002;
 
-function RouteLeadLine({ lineWidth, material, points }) {
+function writeRouteLeadSegments(line, points) {
+  // Rewrite the segment pairs in place. Rebuilding the geometry (or the
+  // material) per travel frame is what forced the fat-line shader to relink
+  // continuously while the seal moved.
+  const segments = line.geometry.attributes.instanceStart.data;
+  const array = segments.array;
+  for (let index = 0; index < ROUTE_LEAD_POINT_COUNT - 1; index += 1) {
+    const start = points[index];
+    const end = points[index + 1];
+    const offset = index * 6;
+    array[offset] = start[0];
+    array[offset + 1] = start[1];
+    array[offset + 2] = start[2];
+    array[offset + 3] = end[0];
+    array[offset + 4] = end[1];
+    array[offset + 5] = end[2];
+  }
+  segments.needsUpdate = true;
+}
+
+function RouteLeadLine({ lineWidth, material, points, trackRouteLead = false }) {
   const size = useThree((state) => state.size);
+  const writtenVersion = useRef(-1);
   const line = useMemo(() => {
     const geometry = new LineGeometry();
     geometry.setPositions(new Float32Array(ROUTE_LEAD_POINT_COUNT * 3));
@@ -103,24 +148,18 @@ function RouteLeadLine({ lineWidth, material, points }) {
   useEffect(() => () => line.geometry.dispose(), [line]);
 
   useLayoutEffect(() => {
-    // Rewrite the segment pairs in place. Rebuilding the geometry (or the
-    // material) per travel frame is what forced the fat-line shader to relink
-    // continuously while the seal moved.
-    const segments = line.geometry.attributes.instanceStart.data;
-    const array = segments.array;
-    for (let index = 0; index < ROUTE_LEAD_POINT_COUNT - 1; index += 1) {
-      const start = points[index];
-      const end = points[index + 1];
-      const offset = index * 6;
-      array[offset] = start[0];
-      array[offset + 1] = start[1];
-      array[offset + 2] = start[2];
-      array[offset + 3] = end[0];
-      array[offset + 4] = end[1];
-      array[offset + 5] = end[2];
-    }
-    segments.needsUpdate = true;
+    if (!points) return;
+    writeRouteLeadSegments(line, points);
   }, [line, points]);
+
+  useFrame(() => {
+    // Version-gated copy from the shared route lead state: no React re-render
+    // and no buffer upload on frames where the lead has not actually moved.
+    if (!trackRouteLead) return;
+    if (writtenVersion.current === ROUTE_LEAD_STATE.version) return;
+    writtenVersion.current = ROUTE_LEAD_STATE.version;
+    writeRouteLeadSegments(line, ROUTE_LEAD_STATE.points);
+  });
 
   useLayoutEffect(() => {
     material.linewidth = lineWidth;
@@ -673,15 +712,74 @@ function SceneDiagnostics({
   return null;
 }
 
-function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }) {
+function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, poseRef, quality }) {
   const activeId = activeArtifact?.id || artifacts[0]?.id;
+  // The parent streams axisX/depthZ into this subtree at the 10Hz semantic
+  // snapshot cadence. Station promise membership and dock-ring fades only need
+  // whole-unit resolution (thresholds are 12-14 units, fades 0.008/unit), so
+  // quantized coordinates keep every memo below (and the JSX they feed)
+  // referentially stable between crossings instead of rebuilding and
+  // reconciling the whole dock subtree on every snapshot. At full travel speed
+  // (4 u/s) that is a ~250ms dock refresh cadence; the lead line itself tracks
+  // the pose at 60Hz in the frame loop below.
+  const coarseX = Math.round(axisX);
+  const coarseZ = Math.round(depthZ);
+  const latestRouteInput = useRef({ activeId, axisX, depthZ });
+  latestRouteInput.current.activeId = activeId;
+  latestRouteInput.current.axisX = axisX;
+  latestRouteInput.current.depthZ = depthZ;
+
+  useFrame(() => {
+    // Route lead solve at 60Hz from the traversal pose (smoother than the old
+    // 10Hz React-prop stepping), written into the shared module state. The
+    // version only advances when an endpoint moved beyond epsilon, so parked
+    // frames upload nothing.
+    const input = latestRouteInput.current;
+    const pose = poseRef?.current;
+    const sealX = pose ? pose.x : input.axisX;
+    const sealZ = pose ? pose.z : input.depthZ;
+    const activeDock = STATION_WORLD_SCHEMA.stations[input.activeId]?.dock;
+    const activeDistance = activeDock
+      ? Math.hypot(activeDock.x - sealX, activeDock.z - sealZ)
+      : 0;
+    const activeIndex = STATION_WORLD_SCHEMA.order.indexOf(input.activeId);
+    const nextId = STATION_WORLD_SCHEMA.order[
+      (Math.max(0, activeIndex) + 1) % STATION_WORLD_SCHEMA.order.length
+    ];
+    const targetDock = activeDistance > 0.35
+      ? activeDock
+      : STATION_WORLD_SCHEMA.stations[nextId].dock;
+    const deltaX = targetDock.x - sealX;
+    const deltaZ = targetDock.z - sealZ;
+    const distance = Math.max(0.001, Math.hypot(deltaX, deltaZ));
+    const leadDistance = Math.min(7.5, distance);
+    const endX = sealX + (deltaX / distance) * leadDistance;
+    const endZ = sealZ + (deltaZ / distance) * leadDistance;
+    const points = ROUTE_LEAD_STATE.points;
+    if (
+      Math.abs(points[0][0] - sealX) < ROUTE_LEAD_EPSILON &&
+      Math.abs(points[0][2] - sealZ) < ROUTE_LEAD_EPSILON &&
+      Math.abs(points[2][0] - endX) < ROUTE_LEAD_EPSILON &&
+      Math.abs(points[2][2] - endZ) < ROUTE_LEAD_EPSILON
+    ) {
+      return;
+    }
+    points[0][0] = sealX;
+    points[0][2] = sealZ;
+    points[1][0] = (sealX + endX) * 0.5;
+    points[1][2] = (sealZ + endZ) * 0.5;
+    points[2][0] = endX;
+    points[2][2] = endZ;
+    ROUTE_LEAD_STATE.version += 1;
+  }, -1);
+
   const visibleStations = useMemo(() => {
     const ranked = artifacts
       .map((artifact, index) => {
         const dock = STATION_WORLD_SCHEMA.stations[artifact.id].dock;
         return {
           artifact,
-          distance: Math.hypot(dock.x - axisX, dock.z - depthZ),
+          distance: Math.hypot(dock.x - coarseX, dock.z - coarseZ),
           index,
           worldX: dock.x,
           worldZ: dock.z,
@@ -697,31 +795,7 @@ function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }
           ? ranked[1]
           : null;
     return [nearest, promise].filter(Boolean);
-  }, [activeId, artifacts, axisX, depthZ]);
-  const routePoints = useMemo(() => {
-    const activeDock = STATION_WORLD_SCHEMA.stations[activeId]?.dock;
-    const activeDistance = activeDock
-      ? Math.hypot(activeDock.x - axisX, activeDock.z - depthZ)
-      : 0;
-    const activeIndex = STATION_WORLD_SCHEMA.order.indexOf(activeId);
-    const nextId = STATION_WORLD_SCHEMA.order[
-      (Math.max(0, activeIndex) + 1) % STATION_WORLD_SCHEMA.order.length
-    ];
-    const targetDock = activeDistance > 0.35
-      ? activeDock
-      : STATION_WORLD_SCHEMA.stations[nextId].dock;
-    const deltaX = targetDock.x - axisX;
-    const deltaZ = targetDock.z - depthZ;
-    const distance = Math.max(0.001, Math.hypot(deltaX, deltaZ));
-    const leadDistance = Math.min(7.5, distance);
-    const endX = axisX + (deltaX / distance) * leadDistance;
-    const endZ = depthZ + (deltaZ / distance) * leadDistance;
-    return [
-      [axisX, 0.035, depthZ],
-      [(axisX + endX) * 0.5, 0.085, (depthZ + endZ) * 0.5],
-      [endX, 0.035, endZ],
-    ];
-  }, [activeId, axisX, depthZ]);
+  }, [activeId, artifacts, coarseX, coarseZ]);
   const accent = activeArtifact?.accent || "#5ff8e7";
 
   useLayoutEffect(() => {
@@ -729,25 +803,14 @@ function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }
     ROUTE_LINE_MATERIALS.accent.color.set(accent);
   }, [accent]);
 
-  return (
-    <group name="BrunoOpenWorldNavigation local-route-lead max-two-station-promises">
-      {routePoints.length > 1 && (
-        <RouteLeadLine
-          lineWidth={quality === "high" ? 2.2 : 1.4}
-          material={ROUTE_LINE_MATERIALS.base}
-          points={routePoints}
-        />
-      )}
-      {routePoints.length > 1 && (
-        <RouteLeadLine
-          lineWidth={quality === "high" ? 1.2 : 0.82}
-          material={ROUTE_LINE_MATERIALS.accent}
-          points={routePoints}
-        />
-      )}
-      {visibleStations.map(({ artifact, index, worldX, worldZ }) => {
+  // Stable element identities let React bail out of the dock subtree entirely
+  // on snapshots where nothing crossed a half-unit boundary. The geometries are
+  // module singletons (never disposed), so a membership flicker only allocates
+  // five small materials instead of five GPU geometry uploads.
+  const dockRings = useMemo(
+    () =>
+      visibleStations.map(({ artifact, distance, index, worldX, worldZ }) => {
         const active = artifact.id === activeId;
-        const distance = Math.hypot(worldX - axisX, worldZ - depthZ);
         const stationOpacity = active ? 0.86 : Math.max(0.16, 0.46 - distance * 0.008);
         return (
           <group
@@ -756,31 +819,42 @@ function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }
             position={[worldX, 0.045, worldZ]}
             userData={{ className: "station-dock", topology: artifact.topology }}
           >
-            <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[1.0, 0.58, 1]}>
-              <ringGeometry args={[0.44, 0.47, 68]} />
+            <mesh geometry={DOCK_GEOMETRIES.ring} rotation={[-Math.PI / 2, 0, 0]} scale={[1.0, 0.58, 1]}>
               <meshBasicMaterial color={artifact.accent} transparent opacity={stationOpacity} />
             </mesh>
-            <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[active ? 1.46 : 1.12, active ? 0.86 : 0.66, 1]}>
-              <ringGeometry args={[0.62, 0.626, 72]} />
+            <mesh geometry={DOCK_GEOMETRIES.halo} rotation={[-Math.PI / 2, 0, 0]} scale={[active ? 1.46 : 1.12, active ? 0.86 : 0.66, 1]}>
               <meshBasicMaterial color="#dffdf7" transparent opacity={active ? 0.48 : 0.12} />
             </mesh>
-            <mesh position={[0, 0.26, 0]} scale={[0.026, active ? 0.58 : 0.34, 0.026]}>
-              <cylinderGeometry args={[1, 1, 1, 8]} />
+            <mesh geometry={DOCK_GEOMETRIES.mast} position={[0, 0.26, 0]} scale={[0.026, active ? 0.58 : 0.34, 0.026]}>
               <meshBasicMaterial color={artifact.accent} transparent opacity={active ? 0.64 : 0.28} />
             </mesh>
-            <mesh position={[0, active ? 0.62 : 0.42, 0]} scale={[active ? 0.07 : 0.045, active ? 0.07 : 0.045, active ? 0.07 : 0.045]}>
-              <octahedronGeometry args={[1, 0]} />
+            <mesh geometry={DOCK_GEOMETRIES.beacon} position={[0, active ? 0.62 : 0.42, 0]} scale={[active ? 0.07 : 0.045, active ? 0.07 : 0.045, active ? 0.07 : 0.045]}>
               <meshBasicMaterial color={active ? "#dffdf7" : artifact.accent} transparent opacity={active ? 0.9 : 0.46} />
             </mesh>
             {index % 2 === 0 && (
-              <mesh position={[0.72, 0.05, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.08, 0.16, 0.08]}>
-                <coneGeometry args={[1, 1, 3]} />
+              <mesh geometry={DOCK_GEOMETRIES.flag} position={[0.72, 0.05, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.08, 0.16, 0.08]}>
                 <meshBasicMaterial color={artifact.accent} transparent opacity={0.32} />
               </mesh>
             )}
           </group>
         );
-      })}
+      }),
+    [activeId, visibleStations],
+  );
+
+  return (
+    <group name="BrunoOpenWorldNavigation local-route-lead max-two-station-promises">
+      <RouteLeadLine
+        lineWidth={quality === "high" ? 2.2 : 1.4}
+        material={ROUTE_LINE_MATERIALS.base}
+        trackRouteLead
+      />
+      <RouteLeadLine
+        lineWidth={quality === "high" ? 1.2 : 0.82}
+        material={ROUTE_LINE_MATERIALS.accent}
+        trackRouteLead
+      />
+      {dockRings}
     </group>
   );
 }
@@ -982,6 +1056,7 @@ export default function IglooScene({
                 artifacts={artifacts}
                 axisX={axisX}
                 depthZ={depthZ}
+                poseRef={traversalPoseRef}
                 quality={quality}
               />
             ) : null}

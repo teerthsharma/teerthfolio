@@ -596,6 +596,33 @@ assert.ok(POLAR_BIOME_FRAGMENT_SHADER.includes("fieldThermalPlasmaHaze"));
 assert.ok(POLAR_BIOME_FRAGMENT_SHADER.includes("neutralBlendWeight"));
 assert.ok(POLAR_BIOME_FRAGMENT_SHADER.includes("boundPolarHighlights"));
 assert.ok(POLAR_BIOME_FRAGMENT_SHADER.includes("clamp(color + dither, 0.03, 0.99)"));
+// SKY PARITY. The shared polar sky carries curtain-physics aurora, a
+// deterministic hash-cell starfield and a double-lobe dawn -- all value-only,
+// all inside fill-guarded branches, zero extra programs, draws or textures.
+assert.match(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /float macroFold = biomeFbm2\([\s\S]*float curtainFold = biomeFbm3\([\s\S]*macroFold[\s\S]*float curtainStreak = biomeFbm2\([\s\S]*float hemRim = exp\(-pow\(/,
+  "aurora must keep its nested curtain folds and the bright lower-edge hem rim",
+);
+assert.ok(
+  POLAR_BIOME_FRAGMENT_SHADER.includes("if (auroraWindow > 0.0002)"),
+  "the aurora fill guard must survive the curtain elevation",
+);
+assert.match(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /if \(direction\.y > 0\.20\) \{[\s\S]*vec2 starCell = floor\(starSpace\);[\s\S]*biomeHash21\(starCell\)/,
+  "the upper sky must carry the fill-guarded deterministic hash-cell starfield",
+);
+assert.match(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /vec3 dawnCore = [\s\S]*vec3 dawnBloom = /,
+  "the dawn kiss must keep its warm-core plus cool-bloom double lobe",
+);
+assert.match(
+  POLAR_BIOME_FRAGMENT_SHADER,
+  /vec3\(0\.4353, 0\.9059, 0\.7843\),\s*\n\s*vec3\(0\.2824, 0\.7412, 0\.7647\),[\s\S]*vec3\(0\.5529, 0\.4118, 0\.8392\),/,
+  "aurora emission ladder must band mint -> teal -> violet by altitude",
+);
 
 for (const needle of [
   "resolveLocalWorldOwnership",
