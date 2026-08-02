@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import {
   POLAR_DOME_WORLD_SCALE,
+  POLAR_LIGHT_POOL_COUNT,
   POLAR_SHADOW_CASTER_COUNT,
   POLAR_GROUND_GLSL,
   POLAR_GROUND_PAD_FALLOFF,
@@ -194,6 +195,29 @@ assert.ok(
     /if \(dot\(travelerDelta, travelerDelta\) </,
     "the traveler caster must sit behind its own XZ reject",
   );
+  // A lit building throws light as well as blocking it. One pool per station,
+  // applied after the shadow so a building's own shadow still catches the spill
+  // from its openings.
+  assert.equal(
+    POLAR_LIGHT_POOL_COUNT,
+    STATION_WORLD_SCHEMA.order.length,
+    "every station must contribute a ground light pool",
+  );
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    /color \+= polarGroundLightPools\(vWorldXZ\) \* 0\.\d+ \* \(1\.0 - horizonFade\)/,
+    "the terrain must add the pools it defines, bounded and faded at the horizon",
+  );
+  // The pool is a light source reading, not a second route for identity to dye
+  // the field — the guard neutralizeGroundColor exists for. Keep it bounded.
+  const poolGain = Number(
+    /polarGroundLightPools\(vWorldXZ\) \* ([\d.]+)/.exec(POLAR_BIOME_FRAGMENT_SHADER)[1],
+  );
+  assert.ok(
+    poolGain > 0 && poolGain <= 0.35,
+    `ground light pools must stay a local spill rather than a field-wide dye (gain ${poolGain})`,
+  );
+
   // The traveler's shadow has to ride the same surface the traveler rides, or it
   // slides off the body as the seal crosses a dune.
   assert.match(
