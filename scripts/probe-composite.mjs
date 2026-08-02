@@ -58,6 +58,27 @@ const cases = [
     css: "*, *::before, *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }",
   },
   {
+    // Narrowing, not adding: both selectors already carry blur(14px), and
+    // probe-blur-surfaces measures them as 9.2% and 6.7% of the viewport, the
+    // two largest blurred surfaces during play.
+    name: "route sheet + readout at 8px",
+    css: `.igloo-route-sheet, .igloo-readout {
+      backdrop-filter: blur(8px) !important;
+      -webkit-backdrop-filter: blur(8px) !important;
+    }`,
+  },
+  {
+    // The radius case above measured nothing, which points at the backdrop
+    // layer itself rather than the blur kernel: each backdrop-filtered element
+    // forces its own compositing surface. If that is the cost, dropping the two
+    // largest surfaces should buy most of what dropping all six buys.
+    name: "route sheet + readout unfiltered",
+    css: `.igloo-route-sheet, .igloo-readout {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }`,
+  },
+  {
     name: "no blend modes",
     css: "*, *::before, *::after { mix-blend-mode: normal !important; }",
   },
