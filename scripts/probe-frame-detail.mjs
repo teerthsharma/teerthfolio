@@ -52,6 +52,13 @@ const FREEZE = process.env.PROBE_LIVE ? "" : "?qa-freeze=1";
 const ROOT = "verification/frame-detail";
 const TIERS = (process.env.PROBE_TIERS || "medium,low").split(",");
 const FRAMES = Number(process.env.PROBE_FRAMES || 4);
+// Settle after a tier switch, not merely after the click. At 5200ms a null
+// control was exact at three tiers out of four and showed one pair adrift at
+// low, which reversing the capture order proved was the switch and not the tier:
+// low captured first is exact, low captured after medium is not. The post chain
+// re-allocates its target when `scale` changes and the first frames after that
+// are not yet the steady state.
+const TIER_SETTLE_MS = Number(process.env.PROBE_SETTLE_MS || 8000);
 const SPACING_MS = 1700;
 // The world area, with the HUD panel on the right and the hint text on the left
 // excluded: both are DOM, unaffected by anything in the render path, and they
@@ -138,7 +145,7 @@ if (mode === "capture") {
   await page.bringToFront();
   for (const tier of TIERS) {
     await page.locator("button", { hasText: new RegExp(`^${tier}$`, "i") }).first().click().catch(() => {});
-    await page.waitForTimeout(5200);
+    await page.waitForTimeout(TIER_SETTLE_MS);
     for (let k = 0; k < FRAMES; k += 1) {
       await page.bringToFront();
       await page.screenshot({ path: join(out, `${tier}-${k}.png`) });
@@ -198,9 +205,25 @@ if (mode === "capture") {
     }
     const mean = deltas.reduce((a, b) => a + b, 0) / deltas.length;
     const sd = Math.sqrt(deltas.reduce((a, b) => a + (b - mean) ** 2, 0) / deltas.length);
+    // Median and median absolute deviation, because roughly one capture in four
+    // lands on a transient the freeze does not cover and a single such frame
+    // moves the mean more than the effect being measured. With the clock stopped
+    // the concordant pairs agree to the third decimal, so the median is the
+    // estimate and the MAD is what decides whether it resolved; the mean and sd
+    // are still printed because a large gap between them and the median is
+    // itself the signal that a capture went wrong.
+    const sorted = [...deltas].sort((a, b) => a - b);
+    const median = sorted.length % 2
+      ? sorted[(sorted.length - 1) / 2]
+      : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+    const spread = [...deltas.map((d) => Math.abs(d - median))].sort((a, b) => a - b);
+    const mad = spread.length % 2
+      ? spread[(spread.length - 1) / 2]
+      : (spread[spread.length / 2 - 1] + spread[spread.length / 2]) / 2;
     console.log(`tier ${tier}  (${frames.length} matched pairs)`);
-    console.log(`  gradient   control ${controlMean.toFixed(3)}   treatment ${treatmentMean.toFixed(3)}   ${mean >= 0 ? "+" : ""}${((mean / controlMean) * 100).toFixed(1)}%`);
-    console.log(`  paired     delta ${mean >= 0 ? "+" : ""}${mean.toFixed(3)}  sd ${sd.toFixed(3)}  [${deltas.map((d) => (d >= 0 ? "+" : "") + d.toFixed(2)).join(" ")}]`);
+    console.log(`  gradient   control ${controlMean.toFixed(3)}   treatment ${treatmentMean.toFixed(3)}   ${median >= 0 ? "+" : ""}${((median / controlMean) * 100).toFixed(1)}%`);
+    console.log(`  paired     median ${median >= 0 ? "+" : ""}${median.toFixed(3)}  mad ${mad.toFixed(3)}   mean ${mean >= 0 ? "+" : ""}${mean.toFixed(3)}  sd ${sd.toFixed(3)}`);
+    console.log(`             deltas [${deltas.map((d) => (d >= 0 ? "+" : "") + d.toFixed(2)).join(" ")}]`);
     // Reported per pair, not just pooled. Index-matched frames come from two
     // browser sessions that started milliseconds apart, and the aurora and drift
     // pull them out of phase as the sequence runs — so the first pair is the
@@ -209,7 +232,7 @@ if (mode === "capture") {
     // change measured 0.16% on pair 0 and 1.10% pooled over four.
     console.log(`  ringing    ${((over / edge) * 100).toFixed(2)}% pooled, per pair [${perPair.map((v) => v.toFixed(2)).join(" ")}] — trust the first`);
     console.log(`  clipping   highlights ${((clipHi / px) * 100).toFixed(3)}%   shadows ${((clipLo / px) * 100).toFixed(3)}%`);
-    if (sd > Math.abs(mean)) {
+    if (mad > Math.abs(median)) {
       console.log(`  NOT RESOLVED: the pairwise spread exceeds the effect; more pairs, or the change does nothing`);
     }
     console.log("");
