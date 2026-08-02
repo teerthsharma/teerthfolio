@@ -523,7 +523,12 @@ function createCurvedBlockGeometry(quality) {
   // curved away from its neighbours, which widened every joint into a lit slot.
   // 0.052 keeps the softened weathered edge that separates cut snow from a
   // machined tile without opening the courses up.
-  const geometry = new RoundedBoxGeometry(1, 1, 1, quality === "high" ? 3 : 2, quality === "high" ? 0.055 : 0.046);
+  // Segments carry the curved face. At 3 the flat face is a 4x4 grid, which is
+  // too coarse to hold a bulge: the old 0.012 attempt shaded as a dark diagonal
+  // X across the triangulation and read as a plastic toy brick, and that was
+  // read as a reason not to curve the face at all rather than as a reason to
+  // give it vertices.
+  const geometry = new RoundedBoxGeometry(1, 1, 1, quality === "high" ? 5 : 3, quality === "high" ? 0.055 : 0.046);
   const position = geometry.getAttribute("position");
   for (let index = 0; index < position.count; index += 1) {
     let x = position.getX(index);
@@ -531,10 +536,13 @@ function createCurvedBlockGeometry(quality) {
     let z = position.getZ(index);
     const faceX = Math.max(0, 1 - x * x * 3.6);
     const faceY = Math.max(0, 1 - y * y * 3.6);
-    // Near-flat face. The old 0.012 centre bulge turned every block into a pillowed
-    // gem: once the shell is lit rather than self-glowing, that dome shades as a dark
-    // diagonal X across the face triangulation and reads as a plastic toy brick.
-    if (z > 0.28) z += faceX * faceY * 0.0015;
+    // A block cut from a dome is a slab off a spherical shell: its outer face is
+    // a patch of that sphere, not a plane. The sagitta is real geometry, not
+    // styling — a 0.85-wide block on a 2.10 radius stands 0.043 proud at its
+    // centre, which against a 0.205 block depth is 0.21 of the unit box. That is
+    // what separates a laid dome from a faceted ball, and a near-flat 0.0015 was
+    // giving every course a hard chord edge against its neighbours.
+    if (z > 0.28) z += faceX * faceY * 0.2;
     const wedge = 1 + z * 0.055;
     x *= wedge * (1 - (y + 0.5) * 0.018);
     y *= 1 + z * 0.026;
