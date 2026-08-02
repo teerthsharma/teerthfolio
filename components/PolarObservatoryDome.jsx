@@ -2417,7 +2417,13 @@ export default function PolarObservatoryDome({
         color={DOME_CRYSTAL_PALETTE.windCap}
         decay={2}
         distance={8.5}
-        intensity={tier === "high" ? 34 : tier === "medium" ? 28 : 14}
+        // Low matches medium. These two point lights are the observatory's local
+        // key and fill, and the mascot docks directly under them, so the tier
+        // that cut them to 14 and 4.5 was also the tier where the character
+        // measured 34 luma below its high-tier reading. The lights exist at
+        // every tier regardless — their count is a shader define — and a
+        // measured 0.43ms for all three is paid whether they are bright or not.
+        intensity={tier === "high" ? 34 : 28}
         name="cyan-white-observatory-key-light"
         position={[-2.1, 2.9, 1.7]}
       />
@@ -2429,7 +2435,7 @@ export default function PolarObservatoryDome({
         // Short range so the grazing fill stays on the shell instead of spilling onto
         // the seal and the surrounding snow.
         distance={6.5}
-        intensity={tier === "high" ? 11 : tier === "medium" ? 9 : 4.5}
+        intensity={tier === "high" ? 11 : 9}
         name="cold-observatory-fill-light"
         position={[2.6, 2.3, 1.5]}
       />
