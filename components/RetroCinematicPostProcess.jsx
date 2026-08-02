@@ -501,7 +501,20 @@ export default function RetroCinematicPostProcess({
     material.uniforms.uScanlineStrength.value = budget.scanline;
     material.uniforms.uPixelSize.value = budget.pixel;
     material.uniforms.uQuantizeStrength.value = budget.quantize;
-    material.uniforms.uSharpen.value = budget.sharpen;
+    // Sharpen follows the upscale, not the tier name. The per-tier values were
+    // chosen on a desktop whose display is one device pixel per CSS pixel, where
+    // `high` renders at scale 1 and dpr 1 and is therefore not upscaled at all —
+    // hence its 0. That reasoning does not survive a phone: a 390pt viewport on a
+    // dpr-3 screen clamps to 1.5 at `high`, so the browser stretches the canvas
+    // by 2x before the visitor sees it, which is more resampling than any desktop
+    // tier does. The tier most in need of the filter had it switched off.
+    //
+    // So a tier that authored 0 takes medium's strength whenever the canvas is
+    // actually being upscaled. Tiers that already sharpen keep the strength they
+    // were swept for; this only closes the hole.
+    const upscale = window.devicePixelRatio / Math.max(0.0001, gl.getPixelRatio() * budget.scale);
+    material.uniforms.uSharpen.value =
+      budget.sharpen > 0 || upscale <= 1.15 ? budget.sharpen : qualityBudget.medium.sharpen;
     const cinematic = CINEMATIC_GRADE[quality] || CINEMATIC_GRADE.high;
     material.uniforms.uVignetteStrength.value = cinematic.vignette;
     material.uniforms.uGrainStrength.value = reducedMotion ? cinematic.grain * 0.6 : cinematic.grain;
