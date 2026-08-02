@@ -793,11 +793,25 @@ float brickCrossFacet = polarXZNoise(
 // wind grain the first two carry: measured against the reference, this surface
 // held 7.60% normalised high-frequency energy against its 9.68%, which is the
 // difference between a smooth shell and one cut from drift.
+// 42, not 96. Measured at the docked framing the dome spans ~580px for 6.6
+// world units, so a 96-cycle octave puts one noise cell inside a single pixel:
+// what it adds there is aliasing, not grain, and the Laplacian energy it scored
+// was counting its own shimmer. 42 leaves a cell about two pixels wide at the
+// hero distance, which is the finest thing this camera can actually resolve.
+vec2 brickGrainFrame = brickFrostFrame * vec2(42.0, 38.0);
 float brickSnowGrain = polarXZNoise(
-  brickFrostFrame * vec2(96.0, 88.0) + vec2(vBrickFrost * 31.0, vBrickFacet * 23.0)
+  brickGrainFrame + vec2(vBrickFrost * 31.0, vBrickFacet * 23.0)
 );
+// Fade the grain as its cell approaches a pixel. The octave is authored in world
+// space, so a distant dome carries the same frequency and would alias into
+// shimmer long before it visually faded; fwidth on the grain's own frame is the
+// screen-space size of one cell, and the noise is worth nothing once that
+// crosses a pixel.
+float brickGrainCell = max(fwidth(brickGrainFrame.x), fwidth(brickGrainFrame.y));
+float brickGrainFade = 1.0 - smoothstep(0.35, 1.1, brickGrainCell);
 float brickCrystalHeight =
-  mix(brickAnisotropicFrost, brickCrossFacet, 0.24) + (brickSnowGrain - 0.5) * 0.42;
+  mix(brickAnisotropicFrost, brickCrossFacet, 0.24) +
+  (brickSnowGrain - 0.5) * 0.42 * brickGrainFade;
 vec3 brickNormal = normalize(vBrickWorldNormal);
 vec3 brickView = normalize(cameraPosition - vBrickWorldPosition);
 vec3 brickKeyDirection = normalize(vec3(-0.46, 0.82, 0.34));
