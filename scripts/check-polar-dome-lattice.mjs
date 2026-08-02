@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import {
   POLAR_DOME_AIRLOCK,
+  POLAR_DOME_BLOCK_SEAT_JITTER,
   POLAR_DOME_DOORWAY,
   POLAR_DOME_INTERACTION_PROFILE,
   POLAR_DOME_LATTICE_COUNTS,
@@ -60,6 +61,23 @@ function expectedColumnCount(theta, tier) {
 
 function assertSurfacePoint(point, message) {
   closeTo(polarDomeEllipsoidValue(point), 1, EPSILON, message);
+}
+
+// Radial distance from the shell, in local units, for a point near it.
+function shellDistance(point) {
+  return (
+    Math.abs(Math.sqrt(polarDomeEllipsoidValue(point)) - 1) *
+    Math.min(...POLAR_DOME_LATTICE_GEOMETRY.radii)
+  );
+}
+
+function assertSeatedPoint(point, message) {
+  const distance = shellDistance(point);
+  const bound = POLAR_DOME_BLOCK_SEAT_JITTER / 2 + 1e-6;
+  assert.ok(
+    distance <= bound,
+    `${message}: ${distance} exceeds the ${bound} lay tolerance`,
+  );
 }
 
 function assertSkeletonClearOfDoorway(lattice) {
@@ -176,7 +194,12 @@ for (const quality of QUALITY_TIERS) {
       dot(cell.normal, subtract(cell.position, POLAR_DOME_LATTICE_GEOMETRY.center)) > 0,
       `${key} normal must face outward`,
     );
-    assertSurfacePoint(cell.position, `${key} must lie on shell`);
+    // Blocks are laid by hand against the shell, not welded to it: each carries a
+    // bounded proud/recessed offset along its own normal so the dome's outline is
+    // masonry rather than a mathematically smooth sphere. The skeleton and the
+    // collision shell are still asserted exactly on the surface above, so this
+    // tolerance cannot hide a cell that has genuinely drifted off the dome.
+    assertSeatedPoint(cell.position, `${key} must stay seated on shell`);
     assert.equal(cell.weight, cell.responseWeight, `${key} public weight must be authoritative`);
     assert.ok(cell.weight >= 0.08 && cell.weight <= 0.9, `${key} response must be bounded`);
     assert.ok(cell.structuralSupport >= 0 && cell.structuralSupport <= 1, `${key} support must be bounded`);

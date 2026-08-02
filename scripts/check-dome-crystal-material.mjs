@@ -26,7 +26,7 @@ requires(
 // sunrise-gold hearth flooded orange once the courses became real blocks with
 // real gaps rather than tiles with hairline seams.
 requires(
-  /OBSERVATORY_INTERIOR_HEARTH_PROFILE[\s\S]*hearthColor: "#EDF4FF"[\s\S]*hearthIntensity[\s\S]*high: 0\.62[\s\S]*medium: 0\.52[\s\S]*shellColor: "#242A33"/,
+  /OBSERVATORY_INTERIOR_HEARTH_PROFILE[\s\S]*hearthColor: "#EDF4FF"[\s\S]*hearthIntensity[\s\S]*high: 0\.62[\s\S]*medium: 0\.52[\s\S]*shellColor: "#7E8C9C"/,
   "the dome interior must publish a near-white hearth profile that reads as a light source",
 );
 requires(
@@ -43,16 +43,19 @@ requires(
       `inward-facing dome surfaces must carry no cold blue tint: ${cold}`,
     );
   }
-  // The body stays a dark near-neutral: no channel may run away from the others,
-  // so the interior cannot drift back into a coloured lamp of either temperature.
+  // The body stays a near-neutral shadow tone: no channel may run away from the
+  // others, so the interior cannot drift back into a coloured lamp of either
+  // temperature, and it stays inside the value window where a course joint reads
+  // as a cut in snow rather than as a hole punched through the wall.
   const shellHex = /shellColor: "(#[0-9A-Fa-f]{6})"/.exec(source)[1];
   const shellChannels = [1, 3, 5].map((offset) =>
     parseInt(shellHex.slice(offset, offset + 2), 16),
   );
   const shellSpread = Math.max(...shellChannels) - Math.min(...shellChannels);
+  const shellMax = Math.max(...shellChannels);
   assert.ok(
-    shellSpread <= 24 && Math.max(...shellChannels) <= 96,
-    `inner shell body ${shellHex} must stay a dark near-neutral, never a coloured lamp`,
+    shellSpread <= 30 && shellMax >= 64 && shellMax <= 172,
+    `inner shell body ${shellHex} must stay a near-neutral shadow tone, never a void or a coloured lamp`,
   );
   // The glow must be near-white and bright enough to read as a source through the
   // block gaps. This is the whole inside/outside separation: value, not hue.

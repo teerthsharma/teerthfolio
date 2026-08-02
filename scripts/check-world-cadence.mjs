@@ -29,8 +29,22 @@ for (const [quality, budget] of Object.entries(WORLD_DRESSING_BUDGET)) {
     `${quality} total must match its three pooled bands`,
   );
 }
-assert.ok(WORLD_DRESSING_BUDGET.low.total <= 36, "low tier must stay at or below 36 objects");
-assert.ok(WORLD_DRESSING_BUDGET.high.total <= 84, "high tier must stay at or below 84 objects");
+// Ceilings are per band, because the bands are different things. Mid and far are
+// monuments and stay rare; near is ground cover on one instanced draw and is
+// budgeted by coverage. A single combined ceiling let the ground be starved to
+// keep the monument count honest.
+assert.ok(WORLD_DRESSING_BUDGET.low.total <= 200, "low tier must stay at or below 200 objects");
+assert.ok(WORLD_DRESSING_BUDGET.high.total <= 700, "high tier must stay at or below 700 objects");
+for (const [quality, budget] of Object.entries(WORLD_DRESSING_BUDGET)) {
+  assert.ok(
+    budget.mid <= 24 && budget.far <= 10,
+    `${quality} monument bands must stay rare (mid ${budget.mid}, far ${budget.far})`,
+  );
+  assert.ok(
+    budget.near >= 150,
+    `${quality} ground cover must stay a field rather than a route kerb (near ${budget.near})`,
+  );
+}
 assert.ok(
   WORLD_DRESSING_BUDGET.high.far <= 10,
   "far pool must not repeat platter silhouettes across the whole horizon",

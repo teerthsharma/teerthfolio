@@ -269,7 +269,13 @@ export const OBSERVATORY_INTERIOR_HEARTH_PROFILE = Object.freeze({
   // interior when the blocks come off.
   hearthIntensity: Object.freeze({ high: 0.62, medium: 0.52 }),
   read: "white-hot interior light read through the block gaps and the doorway",
-  shellColor: "#242A33",
+  // The shell has two jobs and they pull opposite ways: it is the room behind
+  // the doorway, and it is also the sliver that shows in every course joint. A
+  // near-black body served the first and made the second a void, so the courses
+  // stopped reading as one wall and became plates stuck on a ball. This is
+  // shadowed ice: dark enough to sit behind the masonry, light enough that a
+  // joint reads as a cut in snow rather than a hole through it.
+  shellColor: "#7E8C9C",
 });
 export const OBSERVATORY_HOME_DRESSING_PROFILE = Object.freeze({
   surface: "wind-carved sastrugi radiating from a grounded frost shelf",
@@ -512,7 +518,7 @@ function createCurvedBlockGeometry(quality) {
   // curved away from its neighbours, which widened every joint into a lit slot.
   // 0.052 keeps the softened weathered edge that separates cut snow from a
   // machined tile without opening the courses up.
-  const geometry = new RoundedBoxGeometry(1, 1, 1, quality === "high" ? 3 : 2, quality === "high" ? 0.052 : 0.044);
+  const geometry = new RoundedBoxGeometry(1, 1, 1, quality === "high" ? 3 : 2, quality === "high" ? 0.055 : 0.046);
   const position = geometry.getAttribute("position");
   for (let index = 0; index < position.count; index += 1) {
     let x = position.getX(index);
