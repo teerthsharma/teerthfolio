@@ -2444,7 +2444,13 @@ export default function PolarObservatoryDome({
         visible={!shellDemolished}
       />
       {shellDemolished && <BuriedEntryCache quality={tier} />}
-      {tier !== "low" && (
+      {/* All tiers, including low. The masonry is what makes this building an
+          igloo rather than a painted dome, and the quality ladder now steps down
+          to low on any machine that cannot hold 60fps at high — which is most of
+          them — so dropping the blocks there meant the frame rate target and the
+          building's identity were mutually exclusive. Low draws its own 32-cell
+          lattice against high's 75, in the same single instanced draw. */}
+      {(
         <InstancedDomeBlocks
           assets={instancedAssets}
           damageRef={damageRef}

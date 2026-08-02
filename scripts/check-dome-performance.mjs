@@ -90,7 +90,20 @@ assert.deepEqual(
 );
 assert.ok(/for \(const rib of lattice\.ribs\)/.test(domeSource), "the merged skeleton must consume the bounded lattice ribs");
 assert.ok(/DOME_FULL_QUALITY[\s\S]*domeFbmLowpass3/.test(domeSource), "noise must stay behind the full-quality compile gate");
-assert.ok(/tier !== "low"\s*&&\s*\(\s*<InstancedDomeBlocks/.test(domeSource), "medium/high must retain the full instanced construction");
+// Every tier draws the masonry, low included. The quality ladder steps down to
+// low on any machine that cannot hold 60fps at high, so gating the blocks on
+// medium/high made the frame-rate target and the building's identity mutually
+// exclusive: low rendered a painted dome with course lines on it. Low draws its
+// own 32-cell lattice against high's 75, in the same one instanced draw, which
+// the draw-call assertions above still hold to.
+assert.ok(
+  /<InstancedDomeBlocks/.test(domeSource),
+  "every tier must build the shell from real instanced blocks",
+);
+assert.ok(
+  !/tier !== "low"\s*&&\s*\(\s*<InstancedDomeBlocks/.test(domeSource),
+  "the instanced construction must not be gated away from the low tier again",
+);
 assert.ok(/for \(const cell of lattice\.visibleCells\)[\s\S]*blocks\.push/.test(domeSource), "every visible generated lattice cell must create one tangible block instance");
 assert.ok(/function stepWeightedContact[\s\S]*stepPolarDomeSpring\([\s\S]*state\.displacement = THREE\.MathUtils\.clamp/.test(domeSource), "contact must use the shared analytic near-critical spring instead of direct transform mapping");
 assert.ok(!/domeImpactWave|impact \* 0\.018/.test(domeSource), "impact must never elastically deform or directly offset the shell");

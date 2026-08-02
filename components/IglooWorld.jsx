@@ -89,11 +89,20 @@ const OPEN_WORLD_LOADING_SETTLE_MS = 1800;
 const AUTO_QUALITY_POLICY = Object.freeze({
   settleMs: 5200,
   sampleFrames: 90,
-  // Below ~48fps, drop off high. Below ~33fps, drop off medium too — that floor
-  // is deliberately lower, because low is a visible step down in the world's
-  // detail and is worth taking only when the frame is genuinely broken.
-  stepFromHighAboveMs: 21,
-  stepFromMediumAboveMs: 30,
+  // Both ceilings target 60fps rather than "not broken". The itemised frame
+  // budget is why: measured on a cool machine, no single subsystem is worth
+  // more than 3ms — observatory 2.97, all material cost 2.63, ground sheet
+  // 2.26, grade chain 1.86, sky 1.23 — against a ~15ms GPU frame that also
+  // carries ~3ms of JavaScript and ~2.9ms of compositor blur. There is no one
+  // thing to fix; the tier ladder is the only lever that cuts across all of
+  // them at once, and it only reaches 60fps if it is allowed to keep stepping.
+  //
+  // 19ms is about 53fps, which leaves headroom for the frame to vary without
+  // the world sitting just under the bar. The medium floor used to be 30ms —
+  // about 33fps — so a machine holding 41fps stopped there and never reached
+  // the target it was supposed to be chasing.
+  stepFromHighAboveMs: 19,
+  stepFromMediumAboveMs: 19,
   order: Object.freeze(["high", "medium", "low"]),
 });
 
