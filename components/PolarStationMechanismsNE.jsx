@@ -42,12 +42,33 @@ const STATION_PALETTE = Object.freeze({
   aetherCladding: "#77839E",
   aetherCladdingAlt: "#8591AC",
   drift: "#B3C2D2",
-  fieldCladding: "#59667A",
-  fieldCladdingAlt: "#65718A",
+  // Only the field family moved, and only to the top of the band it is allowed.
+  //
+  // Measured at a pinned tier, every building reads 37 to 83 luma darker than
+  // the snow it stands on, and three explanations were tested. The light rig is
+  // not it: ambient +71% moved the eight measurements by 0.1 to 5 luma. The
+  // station personality palettes are not it either: the reactor's
+  // world.colors.base went from #274F73 to #6E93B5 and the rendered building
+  // moved 0.1 luma. It is these cladding colours.
+  //
+  // But LAW 3 in check-polar-station-mechanisms-ne holds cladding between 92 and
+  // 145 luma, so that structure, panel and hardware stay three separated value
+  // zones. s2Cladding was already 137 and qpuCladding 140 — at the ceiling, with
+  // nothing to give. fieldCladding was 102, the outlier, and its station
+  // measured the darkest building in the world at 36.2. It goes to 138.
+  //
+  // So the buildings reading dark against the snow is authored, not accidental:
+  // the value ladder deliberately places them mid-value. Changing that is a
+  // decision about the ladder itself, not a colour tweak.
+  fieldCladding: "#7E8B9E",
+  fieldCladdingAlt: "#8892A4",
   qpuCladding: "#6E9190",
   qpuCladdingAlt: "#7CA1A0",
   s2Cladding: "#7D8CA6",
   s2CladdingAlt: "#8C9BB4",
+  // Unchanged. check-polar-station-mechanisms-ne holds the S2 hut's structure
+  // zone graphite-dark, and lifting this to #3E4759 took it to 70.4 and failed
+  // that contract. The frame is meant to read as frame against the panel.
   steel: "#2A3140",
   trim: "#E8705E",
   window: "#F2B96B",
