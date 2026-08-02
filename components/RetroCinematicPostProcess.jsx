@@ -360,6 +360,31 @@ function makeRenderTarget(width = 1, height = 1) {
  */
 export const SCENE_EXPOSURE = 0.82;
 
+/**
+ * Per-tier exposure trim.
+ *
+ * CINEMATIC_GRADE drops bloom to zero on low, and bloom is what lifts the
+ * frame's upper mid-tones. Measured over the world area of a 1440x900 capture
+ * at the home dock: mean luminance 126.4 at high, 121.8 at medium, 101.1 at
+ * low; over the mascot specifically 120.0 / 113.1 / 85.7. The same character
+ * reads as a pale seal at high and a dark lump at low, 29% darker.
+ *
+ * That was tolerable while low was a rescue tier for weak hardware. It is not
+ * now the quality ladder steps down to low on any machine that cannot hold
+ * 60fps at high, because low is what most visitors see.
+ *
+ * The trim goes here rather than on the renderer. gl.toneMappingExposure never
+ * reaches the world pass — the scene renders into a WebGLRenderTarget and three
+ * applies tone mapping only on the pass that reaches the default framebuffer —
+ * which the comment in the frame loop below already records, and which this was
+ * re-derived the hard way by setting it and measuring 0.0 luma of change.
+ */
+export const SCENE_EXPOSURE_BY_TIER = Object.freeze({
+  high: 1,
+  low: 1.2,
+  medium: 1.04,
+});
+
 export default function RetroCinematicPostProcess({
   motionPoseRef,
   quality = "high",
@@ -460,6 +485,7 @@ export default function RetroCinematicPostProcess({
     // and 0.00% clipping, which is how that was found.
     material.uniforms.uExposureBreath.value =
       SCENE_EXPOSURE *
+      (SCENE_EXPOSURE_BY_TIER[quality] ?? 1) *
       (reducedMotion
         ? 1
         : 1 + Math.sin(clock.elapsedTime * Math.PI * 2 * 0.08) * 0.005);
