@@ -49,12 +49,13 @@
     "start": "next start",
     "verify:biome-shaders": "node scripts/verify-polar-biome-shader-compile.mjs",
     "verify:biome-visuals": "node scripts/verify-polar-biome-visuals.mjs && node scripts/check-polar-color-continuity.mjs",
-    "verify:ci-browser": "npm run verify:biome-shaders",
+    "verify:ci-browser": "npm run verify:biome-shaders && npm run verify:render-frame",
     "verify:dome-crystal": "node scripts/verify-dome-crystal-live.mjs",
     "verify:hud": "node scripts/verify-hud-accessibility.mjs",
     "verify:particles": "node scripts/verify-polar-semantic-particles.mjs",
     "verify:portal-gpu": "node scripts/verify-portal-gpu-suspension.mjs",
     "verify:render": "node scripts/verify-cinematic-render.mjs",
+    "verify:render-frame": "node scripts/verify-render-frame.mjs",
     "verify:station-mechanisms": "node scripts/verify-polar-station-mechanisms.mjs"
   },
   "dependencies": {

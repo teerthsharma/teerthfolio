@@ -693,7 +693,13 @@ assert.equal(
 // Script paths, not npm keys - the build chains node calls directly.
 assert.ok(packageJson.scripts.build.includes("check-polar-biome-world.mjs"));
 assert.ok(!packageJson.scripts.build.includes("verify-polar-biome-shader-compile.mjs"));
-assert.equal(packageJson.scripts["verify:ci-browser"], "npm run verify:biome-shaders");
+assert.equal(
+  packageJson.scripts["verify:ci-browser"],
+  // Second half added with scripts/verify-render-frame.mjs: compiling is not
+  // rendering, and two optimisations in this branch passed every compile-side
+  // contract while the world came out wrong.
+  "npm run verify:biome-shaders && npm run verify:render-frame",
+);
 
 console.log(
   "Polar biome world contract verified: dominant local owner plus <=1 framed neighbor, 8 continuous-XZ atmospheres, no remote geography leakage, bounded highlights, 1 weather owner, 2 programs, <=3 draws, 0 textures.",

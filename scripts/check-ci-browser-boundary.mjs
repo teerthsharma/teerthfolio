@@ -16,7 +16,20 @@ assert.equal(
   packageJson.scripts["check:release-boundaries"],
   "npm run check:publication-packaging && npm run check:ci-browser-boundary",
 );
-assert.equal(packageJson.scripts["verify:ci-browser"], "npm run verify:biome-shaders");
+// The browser-side proof now has two halves: the biome shaders compile, and the
+// world they compile into still renders. The second exists because two
+// consecutive optimisations in this branch measured large wins on a silently
+// broken scene — checkShaderErrors is off by design, so a damaged shader renders
+// wrong rather than throwing, and every source-pattern contract in the build
+// chain missed it.
+assert.equal(
+  packageJson.scripts["verify:ci-browser"],
+  "npm run verify:biome-shaders && npm run verify:render-frame",
+);
+assert.ok(
+  packageJson.scripts["verify:render-frame"],
+  "the render-frame proof must stay runnable on its own",
+);
 
 const dependencyInstall = workflow.indexOf("run: npm ci");
 const releaseBoundaries = workflow.indexOf("run: npm run check:release-boundaries");
