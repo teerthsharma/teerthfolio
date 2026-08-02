@@ -54,7 +54,7 @@ export default function SdfSealSplash({
       ? "Requesting renderer access"
       : permissionState === "ready"
         ? "Route open"
-        : "START THE ADVENTURE INTO SEAL'S TOPOLOGICAL LAND";
+        : "Enter the world";
   const requestRenderAccess = useCallback(async () => {
     if (permissionLockRef.current) return;
     permissionLockRef.current = true;
@@ -156,7 +156,7 @@ export default function SdfSealSplash({
           <span>{actionLabel}</span>
           <i aria-hidden="true" />
         </button>
-        <small>Scroll left if boring</small>
+        <small>Or scroll straight to the work</small>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   useRef,
 } from "react";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
 import {
   CAMERA_COMPOSITION,
@@ -54,6 +55,38 @@ export const TERRAIN_CHUNK_LENGTH = 26;
 export const TERRAIN_CHUNK_COUNT = 7;
 export const WORLD_RENDER_WINDOW_NOTE = "Pokemon-style bounded render window over an infinite logical polar field";
 export const SCENE_LIGHT_BUDGET = "two biome-driven directionals plus quiet ambient hemisphere";
+export const SCENE_ENVIRONMENT_PROFILE =
+  "procedural PMREM room probe: no network HDRI, one 256px cube, disposed with the canvas";
+
+// Every standard/physical material in this world had a specular response of
+// exactly zero: no scene.environment, no envMap, no PMREM anywhere. PBR without
+// an irradiance probe cannot produce a reflection, which is why laid ice bricks
+// read as painted styrofoam. RoomEnvironment ships inside three, so the probe
+// costs one 256px cube render at mount and no network request.
+// Layout effect, not passive: `scene.environment` must be in place before the
+// first gl.render, because assigning it later marks every material for
+// recompile. Setting it after the fact relinked the whole scene a second time
+// and cost ~4s of an already slow boot.
+function SceneEnvironment({ intensity = 0.55 }) {
+  const gl = useThree((state) => state.gl);
+  const scene = useThree((state) => state.scene);
+
+  useLayoutEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const probe = pmrem.fromScene(room, 0.04);
+    scene.environment = probe.texture;
+    scene.environmentIntensity = intensity;
+    room.dispose();
+    pmrem.dispose();
+    return () => {
+      scene.environment = null;
+      probe.dispose();
+    };
+  }, [gl, intensity, scene]);
+
+  return null;
+}
 export const SCENE_POST_PROFILE = GLOBAL_RETRO_POST_PROFILE;
 export const CAMERA_DAMPING_PROFILE = "Abeto-style frame-rate independent camera damping with smoothed look target";
 
@@ -882,7 +915,10 @@ export default function IglooScene({
   const mechanismStateRef = useRef(null);
   const mechanismRitualStateRef = useRef(null);
   const mechanismEvidenceRef = useRef(null);
-  const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [0.75, 1];
+  // High is allowed past 1:1 now that the post target tracks the real ratio
+  // instead of clamping to 1; below that ceiling the world was rendered at CSS
+  // pixels and upscaled on every retina display.
+  const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [1, 1.5];
   const preserveDrawingBuffer =
     typeof window !== "undefined" &&
     (window.location.search.includes("qa=") ||
@@ -966,6 +1002,7 @@ export default function IglooScene({
           comes from the sky dome and fog, not from dyeing every surface. */}
       <ambientLight color="#C6C8CE" intensity={0.42} />
       <hemisphereLight color="#BCCADF" groundColor="#6E6154" intensity={1.02} />
+      <SceneEnvironment />
       <Suspense fallback={null}>
         <SceneDiagnostics
           observatoryDistance={observatoryDistance}

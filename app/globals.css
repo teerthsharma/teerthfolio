@@ -1,49 +1,105 @@
+/* ------------------------------------------------------------------------- */
+/* PALETTE                                                                    */
+/*                                                                            */
+/* The ramp below is the only place a colour value is written. Everything      */
+/* after it is an alias.                                                      */
+/*                                                                            */
+/* This block used to carry 28 names holding 10 distinct values, and a note    */
+/* reading "names frozen, values retuned for the night cinematic" - which is   */
+/* exactly how --glacier-white came to paint navy, --sky-mint dark blue and    */
+/* --horizon-blue orange. Five names asserted the opposite of what they did,   */
+/* so no rule could be read without resolving it in a browser first, and the   */
+/* 2D bands and the 3D world drifted into two unrelated palettes.              */
+/*                                                                            */
+/* The historical names all survive because ~790 selectors reference them and  */
+/* a rename is a far larger diff than the problem. They are now indirections   */
+/* onto the ramp, so a retune moves one line and every alias follows, and the  */
+/* names that lie are visibly labelled as lying instead of silently drifting.  */
+/* ------------------------------------------------------------------------- */
 :root {
-  /* POLAR DUSK regrade: names frozen, values retuned for the night cinematic. */
-  --polar-ivory: #F5C98A;
-  --glacier-white: #141C33;
-  --abeto-teal: #4FB3AE;
-  --dawn-cyan: #6FB8CE;
-  --sky-mint: #2C3F66;
-  --horizon-blue: #E89B5F;
-  --horizon-indigo: #A9BAE8;
-  --anime-ink: #E9F1FB;
-  --anime-shadow: #93A5C4;
-  --ember-amber: #F2B96B;
-  --evidence-magenta: #E060A4;
-  --kelp-chartreuse: #B7C94A;
-  --polar-panel: rgba(12, 18, 36, 0.55);
+  /* Ramp: night -> ice, plus the four signal hues. Nothing else defines a colour. */
+  --c-void: #0A0F1E;
+  --c-abyss: #0C1122;
+  --c-night: #131B33;
+  --c-night-2: #1A2440;
+  --c-dusk: #141C33;
+  --c-dusk-2: #2C3F66;
+  --c-fog: #35466B;
+  --c-faint: #5E6E8F;
+  --c-steel: #A9B8D4;
+  --c-ice-dim: #93A5C4;
+  --c-ice: #E9F1FB;
+  --c-mint: #6FE7C8;
+  --c-teal: #4FB3AE;
+  --c-cyan: #6FB8CE;
+  --c-indigo: #A9BAE8;
+  --c-violet: #A98FE3;
+  --c-violet-deep: #8D69D6;
+  --c-amber: #F2B96B;
+  --c-sun: #E89B5F;
+  --c-sun-light: #F5C98A;
+  --c-magenta: #E060A4;
+  --c-chartreuse: #B7C94A;
+  --c-danger: #F47D69;
+  --c-panel: rgba(12, 18, 36, 0.55);
+  --c-panel-strong: rgba(14, 21, 42, 0.78);
+  --c-line: rgba(230, 238, 248, 0.14);
+  --c-line-strong: rgba(230, 238, 248, 0.28);
+
+  /* Semantic aliases. */
+  --ink: var(--c-void);
+  --abyss: var(--c-abyss);
+  --ocean: var(--c-night);
+  --ocean-2: var(--c-night-2);
+  --ice: var(--c-ice);
+  --ice-dim: var(--c-ice-dim);
+  --signal: var(--c-mint);
+  --field: var(--c-mint);
+  --amber: var(--c-amber);
+  --violet: var(--c-violet);
+  --steel: var(--c-steel);
+  --danger: var(--c-danger);
+  --text-faint: var(--c-faint);
+  --panel: var(--c-panel);
+  --panel-strong: var(--c-panel-strong);
+  --line: var(--c-line);
+  --line-strong: var(--c-line-strong);
+
+  /* Dusk stage. */
+  --dusk-1: var(--c-dusk);
+  --dusk-2: var(--c-dusk-2);
+  --dusk-fog: var(--c-fog);
+  --dusk-horizon: var(--c-sun);
+  --dusk-horizon-light: var(--c-sun-light);
+  --aurora-mint: var(--c-mint);
+  --aurora-violet: var(--c-violet-deep);
+  --aurora-amber: var(--c-amber);
+
+  /* Legacy polar/anime names. The first four describe the daylight palette this
+     surface had before the dusk regrade and now paint their own opposites; they
+     are kept only because existing selectors call them. Prefer the ramp. */
+  --glacier-white: var(--c-dusk); /* NB: navy, not white */
+  --sky-mint: var(--c-dusk-2); /* NB: dark blue, not mint */
+  --horizon-blue: var(--c-sun); /* NB: orange, not blue */
+  --polar-ivory: var(--c-sun-light); /* NB: amber, not ivory */
+  --abeto-teal: var(--c-teal);
+  --dawn-cyan: var(--c-cyan);
+  --horizon-indigo: var(--c-indigo);
+  --anime-ink: var(--c-ice);
+  --anime-shadow: var(--c-ice-dim);
+  --ember-amber: var(--c-amber);
+  --evidence-magenta: var(--c-magenta);
+  --kelp-chartreuse: var(--c-chartreuse);
+  --polar-panel: var(--c-panel);
   --polar-panel-strong: rgba(12, 18, 36, 0.74);
-  --polar-line: rgba(230, 238, 248, 0.14);
-  --abyss: #0C1122;
-  --ocean: #131B33;
-  --ocean-2: #1A2440;
-  --ice: #E9F1FB;
-  --ice-dim: #93A5C4;
-  --signal: #6FE7C8;
-  --field: #6FE7C8;
-  --amber: #F2B96B;
-  --violet: #A98FE3;
-  --steel: #A9B8D4;
-  --danger: #F47D69;
-  --ink: #0A0F1E;
-  --panel: rgba(12, 18, 36, 0.55);
-  --panel-strong: rgba(14, 21, 42, 0.78);
-  --line: rgba(230, 238, 248, 0.14);
-  --line-strong: rgba(230, 238, 248, 0.28);
-  --dusk-1: #141C33;
-  --dusk-2: #2C3F66;
-  --dusk-fog: #35466B;
-  --dusk-horizon: #E89B5F;
-  --dusk-horizon-light: #F5C98A;
-  --aurora-mint: #6FE7C8;
-  --aurora-violet: #8D69D6;
-  --aurora-amber: #F2B96B;
-  --text-faint: #5E6E8F;
+  --polar-line: var(--c-line);
+
   --ease-cine: cubic-bezier(0.22, 1, 0.36, 1);
   --page-pad: clamp(16px, 4vw, 56px);
   --radius: 8px;
-  --font-display-fallback: Impact, Haettenschweiler, "Arial Black", sans-serif;
+  /* Geist is a geometric grotesque; Impact is a condensed poster face. When the
+     webfont failed the display line did not degrade, it changed typeface. */
+  --font-display-fallback: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 * {
@@ -2117,6 +2173,13 @@ img {
 .archive-panel,
 .project-list button,
 .repo-tape a {
+  /* Stack on the anchor, not on a child tag. The sibling rule below styles
+     `.repo-tape a strong`, but the markup renders span + small, so the name and
+     the file trace ran together as "EPSILON-HOLLOWREADME.md". Owning the axis
+     here keeps them on separate lines whatever tags the tape renders. */
+  display: grid;
+  align-content: start;
+  gap: 4px;
   background: rgba(9, 13, 28, 0.62);
   border: 1px solid rgba(230, 238, 248, 0.14);
   border-radius: var(--radius);
@@ -4287,6 +4350,18 @@ img {
   border: 1px solid var(--hud-line);
   border-radius: 10px;
   background: var(--hud-paper);
+  /* Renderer tier and contrast are settings, not scenery. At rest the cluster
+     recedes so the world holds the frame; pointer or keyboard focus brings it
+     back at full strength. Opacity only - the 44px targets and the tab order
+     are untouched, so it stays operable while invisible. */
+  opacity: 0.24;
+  transition: opacity 260ms var(--ease-cine);
+}
+
+.igloo-controls:hover,
+.igloo-controls:focus-within,
+.igloo-world[data-high-contrast="true"] .igloo-controls {
+  opacity: 1;
 }
 
 .igloo-controls button {

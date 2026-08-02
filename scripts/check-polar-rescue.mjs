@@ -104,8 +104,8 @@ assert.deepEqual(WORLD_STREAM_TIMINGS, {
 
 assert.deepEqual(POST_PROCESS_BUDGET, {
   low: { scale: 0.82, fisheye: 0, chroma: 0, ink: 0.08, scanline: 0, pixel: 1, quantize: 0.12, gradeBase: 0.04, gradeCurve: 0.9, shadowSeparation: 0.24 },
-  medium: { scale: 0.94, fisheye: 0.001, chroma: 0.12, ink: 0.05, scanline: 0, pixel: 1.3, quantize: 0.04, gradeBase: 0.56, gradeCurve: 0.4, shadowSeparation: 0 },
-  high: { scale: 1, fisheye: 0.0015, chroma: 0.15, ink: 0.06, scanline: 0, pixel: 1.4, quantize: 0.05, gradeBase: 0.6, gradeCurve: 0.4, shadowSeparation: 0 },
+  medium: { scale: 0.94, fisheye: 0.001, chroma: 0.04, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.56, gradeCurve: 0.4, shadowSeparation: 0 },
+  high: { scale: 1, fisheye: 0.0015, chroma: 0.05, ink: 0.06, scanline: 0, pixel: 1, quantize: 0.05, gradeBase: 0.6, gradeCurve: 0.4, shadowSeparation: 0 },
 });
 
 assert.ok(Object.isFrozen(POLAR_PALETTE), "POLAR_PALETTE must be frozen");

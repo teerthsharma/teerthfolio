@@ -34,11 +34,8 @@ contract("safe gate preserves its public callback contract", () => {
 contract("one native primary action supports keyboard activation", () => {
   assert.equal((splash.match(/className="sdf-render-button"/g) || []).length, 1);
   assert.match(splash, /<button[\s\S]*type="button"[\s\S]*onClick=\{requestRenderAccess\}/);
-  assert.equal(
-    (splash.match(/START THE ADVENTURE INTO SEAL'S TOPOLOGICAL LAND/g) || []).length,
-    1,
-  );
-  assert.equal((splash.match(/Scroll left if boring/g) || []).length, 1);
+  assert.equal((splash.match(/"Enter the world"/g) || []).length, 1);
+  assert.equal((splash.match(/Or scroll straight to the work/g) || []).length, 1);
 });
 
 contract("loading narrative reports real gate work rather than elapsed-time completion", () => {

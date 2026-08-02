@@ -140,20 +140,25 @@ const FRAGMENT_SHADER = `
     // plus one expanding phase-wave pair whose collisions strike amber fringes.
     vec2 gateCenter = vec2(0.0, 0.04);
     float hexD = hexDistance(gateP - gateCenter);
+    // Gaussian sigma, not a blur filter, is what made this gate read as an
+    // out-of-focus blob: at *26.0 the lattice bands are ~0.04 wide in gate
+    // space and mixed at 0.3, so the crisp hex structure never resolved and the
+    // wide travelling waves became the whole image. Tightening the falloff
+    // lets the drawn lattice carry the frame.
     float staticRings = 0.0;
     for (int ring = 1; ring <= 4; ring++) {
       float radius = 0.18 * float(ring);
-      staticRings += exp(-pow((hexD - radius) * 26.0, 2.0)) * (0.5 - float(ring) * 0.07);
+      staticRings += exp(-pow((hexD - radius) * 60.0, 2.0)) * (0.5 - float(ring) * 0.07);
     }
     float gateAngle = atan(gateP.y - gateCenter.y, gateP.x - gateCenter.x);
     float spokes = pow(abs(cos(gateAngle * 3.0)), 24.0) * smoothstep(0.8, 0.18, hexD);
     float waveA = mod(time * 0.22, 1.1);
     float waveB = mod(time * 0.22 + 0.55, 1.1);
-    float ringsA = exp(-pow((hexD - waveA) * 18.0, 2.0));
-    float ringsB = exp(-pow((hexD - waveB) * 18.0, 2.0));
+    float ringsA = exp(-pow((hexD - waveA) * 34.0, 2.0));
+    float ringsB = exp(-pow((hexD - waveB) * 34.0, 2.0));
     float collision = phaseNegation(ringsA, ringsB);
     float gateFade = 1.0 - smoothstep(0.55, 1.0, hexD);
-    sky = mix(sky, mint * 0.8, clamp(staticRings, 0.0, 1.0) * 0.3 * gateFade);
+    sky = mix(sky, mint * 0.8, clamp(staticRings, 0.0, 1.0) * 0.5 * gateFade);
     sky = mix(sky, mint, clamp(spokes, 0.0, 1.0) * 0.16 * gateFade);
     sky = mix(sky, iceRim * 0.75, clamp(ringsA, 0.0, 1.0) * 0.45 * gateFade);
     sky = mix(sky, amber, clamp(collision + ringsB * 0.4, 0.0, 1.0) * 0.4 * gateFade);

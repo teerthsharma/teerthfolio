@@ -834,7 +834,7 @@ function assertSafeGate(result) {
   }
   if (!buttonVisible(initial.buttonBounds)) failures.push(`safe gate button is not visible: ${JSON.stringify(initial.buttonBounds)}`);
   if (overlaps(initial.buttonBounds, initial.diagnosticsBounds)) failures.push("safe gate diagnostics overlap the start button");
-  if (!/start (?:exploring|the adventure)/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
+  if (!/enter the world/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
   if (initial.renderEnabled !== "false") failures.push(`safe gate initially enabled renderer: ${initial.renderEnabled}`);
   if (initial.rendererMode !== "safe") failures.push(`safe gate initial mode is ${initial.rendererMode}`);
   if (initial.sealAwake !== "false") failures.push(`safe gate initially woke seal: ${initial.sealAwake}`);
