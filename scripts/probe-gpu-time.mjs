@@ -34,6 +34,12 @@ const CASES = [
   { name: "no-signals", query: "qa-no-signals=1" },
   { name: "no-seal", query: "qa-no-seal=1" },
   { name: "no-shadows", query: "qa-no-shadows=1" },
+  // Repeat of the first case, last. The cases run in sequence in one browser
+  // over several minutes, and a GPU that clocks down under sustained load makes
+  // later cases look more expensive than earlier ones — which reads as a
+  // subsystem saving negative time. If this disagrees with the opening
+  // baseline, every share in the run is suspect.
+  { name: "baseline-repeat", query: "" },
 ].filter((testCase) => !ONLY || ONLY.includes(testCase.name));
 
 const browser = await chromium.launch({
@@ -47,7 +53,16 @@ for (const testCase of CASES) {
   const context = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT } });
   const page = await context.newPage();
   await page.addInitScript(() => {
-    const state = { samples: [], disjoint: 0, gl: null, ext: null, pool: [], pending: [] };
+    const state = {
+      samples: [],
+      disjoint: 0,
+      gl: null,
+      ext: null,
+      pool: [],
+      pending: [],
+      frameTotal: 0,
+      lastFlush: 0,
+    };
     window.__gpu = state;
     // The page creates more than one WebGL2 context (a capability probe runs
     // before the world), and the first one is discarded. Always adopt the most
@@ -70,6 +85,11 @@ for (const testCase of CASES) {
     window.requestAnimationFrame = (callback) =>
       rawRaf((time) => {
         const { gl, ext } = state;
+        if (time !== state.lastFlush) {
+          if (state.lastFlush !== 0 && state.frameTotal > 0) state.samples.push(state.frameTotal);
+          state.frameTotal = 0;
+          state.lastFlush = time;
+        }
         if (!gl || gl.isContextLost()) return callback(time);
         let query = state.pool.pop() || gl.createQuery();
         let active = false;
@@ -93,7 +113,15 @@ for (const testCase of CASES) {
           if (!gl.getQueryParameter(head, gl.QUERY_RESULT_AVAILABLE)) break;
           state.pending.shift();
           if (gl.getParameter(ext.GPU_DISJOINT_EXT)) state.disjoint += 1;
-          else state.samples.push(gl.getQueryParameter(head, gl.QUERY_RESULT) / 1e6);
+          else {
+            // Bucket by the frame the query belonged to, not into one flat
+            // population. Several rAF subscribers run per frame and more than
+            // one of them issues GL work, so a population median reports the
+            // largest single pass rather than the frame — which is how a 30ms
+            // frame first read as 21ms.
+            const value = gl.getQueryParameter(head, gl.QUERY_RESULT) / 1e6;
+            state.frameTotal += value;
+          }
           state.pool.push(head);
         }
         return result;
@@ -118,9 +146,8 @@ for (const testCase of CASES) {
   await page.waitForTimeout(6000);
 
   const row = await page.evaluate(() => {
-    // Several rAF subscribers run per frame and most issue no GL commands at
-    // all, so their queries return a few microseconds. Only the render callback
-    // is a frame; 0.5ms separates it from the bookkeeping ones cleanly.
+    // Already summed per frame by the wrapper; the floor only drops frames in
+    // which nothing was drawn at all.
     const samples = window.__gpu.samples.filter((value) => value > 0.5 && value < 500);
     samples.sort((a, b) => a - b);
     const at = (q) => samples[Math.floor(samples.length * q)] ?? null;
@@ -144,6 +171,11 @@ if (baseline?.medianMs) {
   console.log(`\nGPU budget against a ${baseline.medianMs}ms baseline:`);
   for (const row of results) {
     if (row.case === "baseline" || row.medianMs == null) continue;
+    if (row.case === "baseline-repeat") {
+      const drift = Math.round((row.medianMs - baseline.medianMs) * 100) / 100;
+      console.log(`baseline-repeat   drift ${drift}ms — shares above are only trustworthy if this is small`);
+      continue;
+    }
     const saved = Math.round((baseline.medianMs - row.medianMs) * 100) / 100;
     console.log(
       `${row.case.padEnd(16)} ${String(saved).padStart(7)}ms  ` +
