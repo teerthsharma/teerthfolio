@@ -587,7 +587,11 @@ for (const forbidden of ["useTexture", "TextureLoader", "/assets/", "map:", "Can
 }
 assert.ok(POLAR_BIOME_FRAGMENT_SHADER.includes("exp(-polarDistance * blendedFogDensity)"));
 assert.ok(POLAR_BIOME_FRAGMENT_SHADER.includes("floor(wrappedLight * 4.0 + 0.5) / 4.0"));
-assert.ok(POLAR_BIOME_VERTEX_SHADER.includes("polarMacroHeight(worldPosition.xz)"));
+// The terrain is displaced by the shared ground field, which lib/polar-ground.js
+// emits into this shader from the same table its JS evaluator reads. Correctness
+// of that field is check-polar-ground's job; this only pins that the terrain is
+// still displaced by it rather than left flat.
+assert.ok(POLAR_BIOME_VERTEX_SHADER.includes("polarGroundHeight(worldPosition.xz)"));
 assert.ok(POLAR_BIOME_VERTEX_SHADER.includes("combinedLocalInfluence"));
 assert.ok(POLAR_BIOME_FRAGMENT_SHADER.includes("biomeLocalColorEnvelope"));
 assert.ok(POLAR_BIOME_FRAGMENT_SHADER.includes("continuousAtmosphereXZEnvelope"));

@@ -1,3 +1,4 @@
+import { polarGroundHeight } from "../lib/polar-ground.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
@@ -141,7 +142,10 @@ for (const [band, placements] of Object.entries(layout.bands)) {
 assert.ok(
   layout.bands.far.every(
     (placement) =>
-      placement.position[1] + geometryMetrics.far.minY * placement.scale[1] <= -0.06 &&
+      placement.position[1] -
+        polarGroundHeight(placement.position[0], placement.position[2]) +
+        geometryMetrics.far.minY * placement.scale[1] <=
+        -0.06 &&
       placement.rotation[0] === 0 &&
       placement.rotation[2] === 0 &&
       (geometryMetrics.far.height * placement.scale[1]) /
@@ -156,7 +160,10 @@ assert.ok(
 assert.ok(
   layout.bands.mid.every(
     (placement) =>
-      placement.position[1] + geometryMetrics.mid.minY * placement.scale[1] <= 0 &&
+      placement.position[1] -
+        polarGroundHeight(placement.position[0], placement.position[2]) +
+        geometryMetrics.mid.minY * placement.scale[1] <=
+        0 &&
       placement.rotation[0] === 0 &&
       placement.rotation[2] === 0,
   ),

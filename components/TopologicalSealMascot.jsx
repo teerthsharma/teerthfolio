@@ -19,6 +19,7 @@ import {
   createSealManifoldGeometry,
 } from "../lib/seal-manifold";
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
+import { polarGroundHeight } from "../lib/polar-ground";
 import { SEAL_GUIDE_STATES } from "../lib/seal-guide-state";
 import { criticallyDampedStep } from "../lib/polar-world-cadence";
 import { resolveSealPresentationScale } from "../lib/polar-camera-composition";
@@ -1272,7 +1273,13 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
     }
     const resolvedAxisX = traversalPose?.x ?? axisX;
     const resolvedDepthZ = traversalPose?.z ?? depthZ;
-    targetPosition.set(resolvedAxisX, GUIDE_HEIGHT, resolvedDepthZ);
+    // The seal rides the surface, not a fixed plane. GUIDE_HEIGHT is its
+    // clearance above whatever ground is under it.
+    targetPosition.set(
+      resolvedAxisX,
+      GUIDE_HEIGHT + polarGroundHeight(resolvedAxisX, resolvedDepthZ),
+      resolvedDepthZ,
+    );
     root.current.position.copy(targetPosition);
     velocity.current.set(
       traversalPose?.vx ?? axisVelocity * MAX_TRANSLATION_SPEED,

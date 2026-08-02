@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { MOTION_TIMINGS } from "../lib/polar-art-direction";
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
+import { polarGroundHeight } from "../lib/polar-ground";
 import { SEAL_GUIDE_STATES } from "../lib/seal-guide-state";
 
 export { SEAL_GUIDE_STATES } from "../lib/seal-guide-state";
@@ -521,7 +522,9 @@ const SealAvatar = forwardRef(function SealAvatar(
     if (!root.current) return;
     const t = clock.elapsedTime;
     const speed = Math.min(1, Math.hypot(axisVelocity, depthVelocity));
-    const targetY = 0.45 + Math.sin(axisX * 0.13) * 0.08 + Math.cos(depthZ * 0.21) * 0.05;
+    // Was a private 0.45 + sin/cos bob that described no surface anything else
+    // knew about, so the legacy seal floated over its own idea of the ground.
+    const targetY = 0.45 + polarGroundHeight(axisX, depthZ);
     target.set(axisX, targetY, depthZ);
     const rootAlpha = reducedMotion ? 1 : 1 - Math.exp(-delta * (moving ? 12 : 8));
     root.current.position.copy(target);
