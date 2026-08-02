@@ -548,16 +548,24 @@ function paletteValue(key) {
 // LAW 3 - lit, not glowing. Every station must resolve into three separated
 // value zones: graphite structure, mid-value panel cladding, and bright
 // hardware/glass, with at least 0.2 luma (51/255) between neighbouring zones.
+//
+// The panel band reached 145 until every station was measured against the snow
+// it stands on: at tier medium the eight buildings read 38 to 83 luma darker,
+// with the cladding family already at 130-140 and nothing left to give. The band
+// now runs to 172 and the hardware floor rises with it, from 191 to 215, so the
+// separation that makes three zones legible is unchanged and only the whole
+// ladder's position moves. Widening the band without moving the hardware floor
+// would have bought brightness by collapsing the top of the ladder.
 function assertValueLadder(label, claddingKey, hardwareHex) {
   const structure = hexLuminance(paletteValue("steel"));
   const cladding = hexLuminance(paletteValue(claddingKey));
   const hardware = hexLuminance(hardwareHex);
   assert.ok(structure <= 64, `${label} structure zone must stay graphite dark (${structure})`);
   assert.ok(
-    cladding >= 92 && cladding <= 145,
+    cladding >= 92 && cladding <= 172,
     `${label} cladding zone must sit mid-value between structure and hardware (${cladding})`,
   );
-  assert.ok(hardware >= 191, `${label} hardware/glass zone must top the ladder (${hardware})`);
+  assert.ok(hardware >= 215, `${label} hardware/glass zone must top the ladder (${hardware})`);
   assert.ok(
     cladding - structure >= 51 && hardware - cladding >= 51,
     `${label} value ladder needs >= 0.2 luma between neighbouring zones`,

@@ -31,8 +31,14 @@ const POLAR_GROUND_Y = -0.22;
  * PolarBiomeWorld): that change lifted cladding response ~1.5-1.75x, so this
  * came 6 -> 3.5. At 6 the cladding overshot to luma ~183 and read salmon.
  * Re-measure with a docked screenshot if the world lighting rig changes again.
+ *
+ * Raised 3.5 -> 4.2 when the eight buildings were measured against the snow they
+ * stand on and the camp's two read 54.2 and 37.4 luma darker. The NE stations
+ * took the same lift through LAW 3's widened panel band; these two have no
+ * cladding hexes to widen, so the gain is their equivalent lever. 4.2 is well
+ * short of the 6 that overshot into salmon, and the hue is re-measured below.
  */
-const SW_LIGHT_RESPONSE_GAIN = 3.5;
+const SW_LIGHT_RESPONSE_GAIN = 4.2;
 /**
  * The camp's dusk rig is strongly blue (ambient #8FA2CC, hemisphere #B6C8EC,
  * blue fill), so a neutral albedo renders with its blue channel clipped — which

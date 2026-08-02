@@ -39,8 +39,8 @@ const TWO_PI = Math.PI * 2;
 // Painted per-vertex into the merged frame geometry, so a station shows four
 // distinct material zones inside its single existing draw call.
 const STATION_PALETTE = Object.freeze({
-  aetherCladding: "#77839E",
-  aetherCladdingAlt: "#8591AC",
+  aetherCladding: "#96A5C7",
+  aetherCladdingAlt: "#9EADCD",
   drift: "#B3C2D2",
   // Only the field family moved, and only to the top of the band it is allowed.
   //
@@ -51,21 +51,24 @@ const STATION_PALETTE = Object.freeze({
   // world.colors.base went from #274F73 to #6E93B5 and the rendered building
   // moved 0.1 luma. It is these cladding colours.
   //
-  // But LAW 3 in check-polar-station-mechanisms-ne holds cladding between 92 and
-  // 145 luma, so that structure, panel and hardware stay three separated value
-  // zones. s2Cladding was already 137 and qpuCladding 140 — at the ceiling, with
-  // nothing to give. fieldCladding was 102, the outlier, and its station
-  // measured the darkest building in the world at 36.2. It goes to 138.
+  // LAW 3 in check-polar-station-mechanisms-ne keeps structure, panel and
+  // hardware as three separated value zones, and it used to cap the panel zone
+  // at 145 luma. Measured at tier medium, that put every one of the eight
+  // buildings between 38 and 83 luma under the snow behind it, with the whole
+  // cladding family already pressed against the ceiling at 130-140.
   //
-  // So the buildings reading dark against the snow is authored, not accidental:
-  // the value ladder deliberately places them mid-value. Changing that is a
-  // decision about the ladder itself, not a colour tweak.
-  fieldCladding: "#7E8B9E",
-  fieldCladdingAlt: "#8892A4",
-  qpuCladding: "#6E9190",
-  qpuCladdingAlt: "#7CA1A0",
-  s2Cladding: "#7D8CA6",
-  s2CladdingAlt: "#8C9BB4",
+  // The band was widened rather than the ladder abandoned: the panel zone now
+  // reaches 172 and the hardware zone starts at 215 instead of 191, so the >=51
+  // separation that makes the three zones legible is preserved while the whole
+  // building moves up against the snow. Each colour below was lifted by scaling
+  // its channels together, so every station keeps the hue that identifies it and
+  // only its value changes.
+  fieldCladding: "#96A6BC",
+  fieldCladdingAlt: "#A1ADC2",
+  qpuCladding: "#83ADAC",
+  qpuCladdingAlt: "#8BB5B4",
+  s2Cladding: "#94A6C4",
+  s2CladdingAlt: "#9DAECA",
   // Unchanged. check-polar-station-mechanisms-ne holds the S2 hut's structure
   // zone graphite-dark, and lifting this to #3E4759 took it to 70.4 and failed
   // that contract. The frame is meant to read as frame against the panel.
@@ -2144,7 +2147,7 @@ function createRenderResources(quality, detailed) {
     // cobalt identity is allowed to be a light source.
     s2Signal: makeArchitecturalSurface({
       ambientGain: 0.24,
-      color: "#C6D2FA",
+      color: "#CFDCFF",
       effectMode: 1,
       effectStrength: 0.16,
       emissive: "#5573E0",
