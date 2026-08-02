@@ -98,6 +98,19 @@ const AUTO_QUALITY_POLICY = Object.freeze({
   // a 19ms ceiling; the floor keeps a slower machine from deciding on too few.
   sampleWindowMs: 2600,
   minSampleFrames: 16,
+  // A step down is permanent — the sampler runs once per tier and never revisits
+  // it — so a decision taken during a passing stall follows the visitor for the
+  // whole session. Background load alone moves this frame about 5ms: the same
+  // configuration has measured 14.5ms and 19.5ms on this machine, and the
+  // eight-station sweep 13.5-15.0ms and 15.8-17.7ms with GPU time unchanged.
+  // A reading just over the ceiling is therefore not evidence of a slow machine.
+  //
+  // So the band above each ceiling asks for a second opinion. Over the ceiling
+  // but inside the band, sample again and step only if both windows agree; past
+  // the band, step at once, because nothing that far over is noise — under 20x
+  // CPU throttling the median lands near 111ms against a 19ms ceiling.
+  confirmBandMs: 5,
+  confirmDelayMs: 1400,
   // Both ceilings target 60fps rather than "not broken". The itemised frame
   // budget is why: measured on a cool machine, no single subsystem is worth
   // more than 3ms — observatory 2.97, all material cost 2.63, ground sheet
@@ -681,10 +694,19 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     if (quality === "low") return undefined;
     let cancelled = false;
     let frameHandle = 0;
+    let confirming = false;
+    let confirmedFirst = 0;
+    let confirm = 0;
+    let restart = () => {};
     const settle = window.setTimeout(() => {
       const intervals = [];
-      const started = performance.now();
+      let started = performance.now();
       let last = started;
+      restart = () => {
+        started = performance.now();
+        last = started;
+        frameHandle = window.requestAnimationFrame(sample);
+      };
       const sample = () => {
         if (cancelled) return;
         const now = performance.now();
@@ -710,9 +732,24 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         const index = AUTO_QUALITY_POLICY.order.indexOf(quality);
         const next = AUTO_QUALITY_POLICY.order[index + 1];
         if (!next || qualityLockedRef.current) return;
+        // Marginal reading: take a second window before spending the tier.
+        if (median <= ceiling + AUTO_QUALITY_POLICY.confirmBandMs && !confirming) {
+          confirming = true;
+          confirmedFirst = median;
+          intervals.length = 0;
+          window.clearTimeout(confirm);
+          confirm = window.setTimeout(() => {
+            if (cancelled) return;
+            intervals.length = 0;
+            restart();
+          }, AUTO_QUALITY_POLICY.confirmDelayMs);
+          return;
+        }
         setQuality(next);
         reportGpuEvent({
-          detail: `median frame ${median.toFixed(1)}ms over a ${ceiling}ms ceiling`,
+          detail: confirming
+            ? `median frame ${confirmedFirst.toFixed(1)}ms then ${median.toFixed(1)}ms, both over a ${ceiling}ms ceiling`
+            : `median frame ${median.toFixed(1)}ms over a ${ceiling}ms ceiling`,
           message: `Quality stepped from ${quality} to ${next} to hold the frame.`,
           severity: "info",
           type: "auto-quality-step",
@@ -723,6 +760,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     return () => {
       cancelled = true;
       window.clearTimeout(settle);
+      window.clearTimeout(confirm);
       window.cancelAnimationFrame(frameHandle);
     };
   }, [quality, reportGpuEvent, sceneDebugFlags, sceneReady]);

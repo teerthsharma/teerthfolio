@@ -166,6 +166,16 @@ expectIncludes("components/IglooWorld.jsx", [
   "now - started >= AUTO_QUALITY_POLICY.sampleWindowMs",
 ]);
 
+// A step down is permanent, so a reading only just over the ceiling has to be
+// confirmed by a second window before it costs the visitor a tier. Measured with
+// a matched counterfactual: a passing 8x stall across the sample window takes
+// medium to low without this, and does not with it.
+expectIncludes("components/IglooWorld.jsx", [
+  "confirmBandMs",
+  "confirmDelayMs",
+  "median <= ceiling + AUTO_QUALITY_POLICY.confirmBandMs",
+]);
+
 expectIncludes("components/IglooWorld.jsx", [
   "deriveSealGuideState",
   "hasCurrentFatalRenderEvent",
