@@ -698,7 +698,7 @@ assert.equal(
   // Second half added with scripts/verify-render-frame.mjs: compiling is not
   // rendering, and two optimisations in this branch passed every compile-side
   // contract while the world came out wrong.
-  "npm run verify:biome-shaders && npm run verify:render-frame",
+  "npm run verify:biome-shaders && npm run verify:render-frame && npm run verify:station-frames",
 );
 
 console.log(

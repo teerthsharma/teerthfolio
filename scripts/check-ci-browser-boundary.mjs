@@ -24,11 +24,17 @@ assert.equal(
 // chain missed it.
 assert.equal(
   packageJson.scripts["verify:ci-browser"],
-  "npm run verify:biome-shaders && npm run verify:render-frame",
+  "npm run verify:biome-shaders && npm run verify:render-frame && npm run verify:station-frames",
 );
 assert.ok(
   packageJson.scripts["verify:render-frame"],
   "the render-frame proof must stay runnable on its own",
+);
+// Third half: the home frame guards the observatory and nothing else. Seven
+// other buildings can stop drawing with every repository contract still passing.
+assert.ok(
+  packageJson.scripts["verify:station-frames"],
+  "every station must be guarded, not only the one the visitor spawns at",
 );
 
 const dependencyInstall = workflow.indexOf("run: npm ci");
