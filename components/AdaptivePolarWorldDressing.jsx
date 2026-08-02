@@ -44,7 +44,11 @@ export const HORIZON_THEATRE_LAYERS = Object.freeze([
     follow: 0.965,
     drift: 0.0016,
     baseY: -2.2,
-    haze: [0.62, 0.78],
+    // Atmospheric perspective, at the strength the eye expects over tens of
+    // kilometres of polar air. At 0.62-0.78 the far ring kept a quarter of its
+    // own value and read as painted cardboard standing behind the field; the
+    // reference dissolves its farthest ridge almost entirely into the sky.
+    haze: [0.88, 0.95],
     width: [7.2, 11.5],
     height: [4.6, 7.4],
   }),
@@ -56,7 +60,7 @@ export const HORIZON_THEATRE_LAYERS = Object.freeze([
     follow: 0.9,
     drift: -0.0011,
     baseY: -1.9,
-    haze: [0.44, 0.58],
+    haze: [0.72, 0.84],
     width: [5.2, 8.4],
     height: [3.1, 5.2],
   }),
@@ -68,7 +72,7 @@ export const HORIZON_THEATRE_LAYERS = Object.freeze([
     follow: 0.82,
     drift: 0.0007,
     baseY: -1.7,
-    haze: [0.26, 0.4],
+    haze: [0.52, 0.66],
     width: [3.6, 6.2],
     height: [2.0, 3.6],
   }),
@@ -96,14 +100,20 @@ const HORIZON_VERTEX_SHADER = `
   }
 `;
 
+const HORIZON_SKY_TINT = new THREE.Color("#E2E9F4");
+
 const HORIZON_FRAGMENT_SHADER = `
   uniform vec2 uTravelerXZ;
+  // The haze the rings dissolve into is the scene's own fog colour, not a
+  // baked constant: each station carries its own atmosphere, and a fixed haze
+  // left the horizon reading as cardboard pasted over whichever sky was live.
+  uniform vec3 uHazeColor;
   varying vec3 vInstanceColor;
   varying float vCrest;
   varying vec3 vWorldPosition;
 
   void main() {
-    vec3 hazeColor = vec3(0.740, 0.778, 0.882);
+    vec3 hazeColor = uHazeColor;
     // Base color already carries the layer haze mix; the skirt dissolves
     // further into the horizon haze so bergs never cut a hard ground line.
     vec3 color = mix(vInstanceColor, hazeColor, (1.0 - vCrest) * 0.42);
@@ -385,7 +395,10 @@ export default function AdaptivePolarWorldDressing({
         fragmentShader: HORIZON_FRAGMENT_SHADER,
         side: THREE.DoubleSide,
         toneMapped: false,
-        uniforms: { uTravelerXZ: { value: new THREE.Vector2() } },
+        uniforms: {
+          uHazeColor: { value: new THREE.Color("#BDC7E1") },
+          uTravelerXZ: { value: new THREE.Vector2() },
+        },
         vertexColors: true,
         vertexShader: HORIZON_VERTEX_SHADER,
       }),
@@ -443,7 +456,7 @@ export default function AdaptivePolarWorldDressing({
     [geometries, horizonGeometry, horizonMaterial, material],
   );
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, scene }) => {
     const pose = traversalPoseRef?.current;
     positionScratch.current[0] = Number.isFinite(pose?.x) ? pose.x : 0;
     positionScratch.current[1] = Number.isFinite(pose?.z) ? pose.z : 0;
@@ -492,6 +505,16 @@ export default function AdaptivePolarWorldDressing({
       positionScratch.current[0],
       positionScratch.current[1],
     );
+    if (scene.fog?.color) {
+      // Toward the sky the rings actually stand against, not the fog constant.
+      // scene.fog.color is the mid-depth extinction tint (#697CA6 at the home
+      // field); the sky it meets at the horizon is far lighter, so dissolving
+      // straight into the fog value left the ridges reading as dark cardboard
+      // instead of disappearing.
+      horizonMaterial.uniforms.uHazeColor.value
+        .copy(scene.fog.color)
+        .lerp(HORIZON_SKY_TINT, 0.55);
+    }
     for (let index = 0; index < horizonLayerCount; index += 1) {
       const ring = horizonRings.current[index];
       const layer = HORIZON_THEATRE_LAYERS[index];
