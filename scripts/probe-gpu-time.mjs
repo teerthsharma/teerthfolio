@@ -175,17 +175,24 @@ for (const testCase of CASES) {
     saved.push(Math.round((before.medianMs - after.medianMs) * 100) / 100);
   }
   if (!saved.length) continue;
-  const ordered = [...saved].sort((a, b) => a - b);
+  // Discard the first pair. Across every case measured, run one reads several
+  // milliseconds high and runs two onward agree to within a tenth — no-ground
+  // went [7.58, 2.23, 2.27, 2.29], no-dome [2.99, 2.98]. That is the browser and
+  // driver warming, not the scene, and keeping it in the median is how the
+  // ground sheet was reported at 4.82ms and then 7.81ms in earlier runs.
+  const settled = saved.length > 1 ? saved.slice(1) : saved;
+  const ordered = [...settled].sort((a, b) => a - b);
   const row = {
     case: testCase.name,
     savedMs: ordered[Math.floor(ordered.length / 2)],
     runs: saved,
+    settledRuns: settled,
     spreadMs: Math.round((ordered.at(-1) - ordered[0]) * 100) / 100,
   };
   results.push(row);
   console.log(
     `${testCase.name.padEnd(16)} saves ${String(row.savedMs).padStart(7)}ms  ` +
-      `runs [${saved.join(", ")}]  spread ${row.spreadMs}ms`,
+      `runs [${saved.join(", ")}]  settled spread ${row.spreadMs}ms`,
   );
 }
 
