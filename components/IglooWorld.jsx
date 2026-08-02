@@ -97,6 +97,9 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   // its component with the ground sheet, so without this the two cannot be
   // told apart in a frame budget.
   ["qa-no-sky", "noSky"],
+  // Hides the ground mesh while the component, and therefore the scene light
+  // rig, stays mounted. qa-no-terrain unmounts both together.
+  ["qa-no-ground", "noGround"],
 ];
 const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),

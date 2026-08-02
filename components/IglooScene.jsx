@@ -1132,6 +1132,7 @@ export default function IglooScene({
             safeMode={!renderEnabled}
             simulationPaused={!worldActive || !renderEnabled}
             skyVisible={!debugFlags.noSky}
+            terrainVisible={!debugFlags.noGround}
             travelerRef={traversalPoseRef}
             visible={worldActive}
           />

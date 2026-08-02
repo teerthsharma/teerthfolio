@@ -453,6 +453,7 @@ function PolarBiomeWorldStage({
   // and one component, so qa-no-terrain removes both and cannot say which of
   // the two owns the frame time it saves.
   skyVisible = true,
+  terrainVisible = true,
   travelerRef,
 }) {
   const skyRef = useRef(null);
@@ -789,7 +790,10 @@ function PolarBiomeWorldStage({
         ref={fillLightRef}
         target={fillLightTarget}
       />
-      <primitive dispose={null} object={terrainMesh} />
+      {/* Ablation only, alongside skyVisible. qa-no-terrain unmounts this whole
+          component, which also takes the scene's two directional lights with
+          it, so it was never measuring the ground sheet on its own. */}
+      <primitive dispose={null} object={terrainMesh} visible={terrainVisible} />
       {/* Early-z fill guard: the sky dome is opaque, depth-tested, and never
           writes depth, so drawing it AFTER the terrain (-19 vs -20) lets the
           depth buffer reject every heavy sky fragment the terrain already
@@ -817,6 +821,7 @@ export default function PolarBiomeWorld({
   quality = "medium",
   reducedMotion = false,
   skyVisible = true,
+  terrainVisible = true,
   safeMode = false,
   simulationPaused = false,
   travelerRef = null,
@@ -834,6 +839,7 @@ export default function PolarBiomeWorld({
       safeMode={safeMode}
       simulationPaused={simulationPaused}
       skyVisible={skyVisible}
+      terrainVisible={terrainVisible}
       travelerRef={travelerRef}
     />
   );
