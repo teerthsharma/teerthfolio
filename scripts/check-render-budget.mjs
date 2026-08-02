@@ -3,6 +3,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import {
   OBSERVATORY_DOME_DEPARTURE_DISTANCE,
+  POST_PROCESS_BUDGET,
   shouldRenderObservatoryDome,
 } from "../lib/polar-art-direction.js";
 import { STATION_PERSONALITY_PROFILES } from "../lib/polar-station-personality.js";
@@ -47,6 +48,14 @@ assert.equal(
   }),
   true,
   "Observatory must remain visible while an outbound traveler is still inside its home field",
+);
+
+// Tier presence only. Exact numeric caps for low/medium/high are pinned once,
+// by assert.deepEqual(POST_PROCESS_BUDGET, {...}) in check-polar-rescue.mjs.
+assert.deepEqual(
+  Object.keys(POST_PROCESS_BUDGET).sort(),
+  ["high", "low", "medium"],
+  "POST_PROCESS_BUDGET must define exactly the low/medium/high tiers",
 );
 
 const files = {
@@ -348,14 +357,15 @@ const checks = [
     pattern: /RetroCinematicPostProcess[\s\S]*GLOBAL_ANIME_POST_PROFILE[\s\S]*anime-soft depth pixel fog[\s\S]*gaussianEdgeConfidence[\s\S]*depthEdgeConfidence[\s\S]*chromaticEdgeAA[\s\S]*toonQuantize[\s\S]*DepthTexture[\s\S]*useFrame/,
   },
   {
-    name: "anime post quality tiers stay consumed with low/medium/high present",
-    file: `${files.post}\n${files.polarArtDirection}`,
-    // The tiers' exact numeric caps (scale/fisheye/chroma/ink/scanline/pixel/
-    // quantize/gradeBase/gradeCurve/shadowSeparation) are pinned once, by
+    name: "anime post quality tiers stay consumed via the frozen budget",
+    file: files.post,
+    // Tier presence is asserted directly against the imported
+    // POST_PROCESS_BUDGET above (not by regex, so it can't rubber-stamp
+    // against an unrelated object elsewhere in the concatenated source).
+    // Exact numeric caps are pinned once, by
     // assert.deepEqual(POST_PROCESS_BUDGET, {...}) in
-    // scripts/check-polar-rescue.mjs. This check only guards that the post
-    // shader still reads the frozen budget and that all three tiers exist.
-    pattern: /POST_PROCESS_BUDGET[\s\S]*qualityBudget\[quality\] \|\| qualityBudget\.high[\s\S]*low:[\s\S]*medium:[\s\S]*high:/,
+    // scripts/check-polar-rescue.mjs.
+    pattern: /POST_PROCESS_BUDGET[\s\S]*qualityBudget\[quality\] \|\| qualityBudget\.high/,
   },
   {
     name: "low-tier paper grade restores a bounded luminance toe without dimming highlights",
