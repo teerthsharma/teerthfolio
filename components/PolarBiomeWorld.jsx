@@ -358,6 +358,14 @@ function makeUniforms(shaderDetail) {
 function makeMaterial(uniforms, role) {
   const sky = role === "sky";
   const material = new THREE.ShaderMaterial({
+    // The sky dome and the ground sheet share one authored shader but not one
+    // program: the role used to be a per-vertex attribute branched at runtime,
+    // which meant both programs handed ANGLE all 60k characters and each paid
+    // ~4.2s translating the other role's half on a cold visit. As a define, the
+    // preprocessor drops the unused half before the translator ever sees it.
+    // The ground program keeps its own runtime test between terrain and local
+    // geography, which do share a draw.
+    defines: sky ? { BIOME_ROLE_SKY: "" } : {},
     depthTest: true,
     depthWrite: !sky,
     fragmentShader: POLAR_BIOME_FRAGMENT_SHADER,

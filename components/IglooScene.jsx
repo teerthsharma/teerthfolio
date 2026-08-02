@@ -1099,7 +1099,23 @@ export default function IglooScene({
           sealPosition={sealRef}
           traversalPoseRef={traversalPoseRef}
         />
-        {!debugFlags.noTerrain && (
+        {/* Cold-start stand-in for the authored ground. The two biome programs
+            take ~6.6s of driver link on a first visit (measured; see
+            lib/render-buckets.js), and the hero read does not need them: it
+            needs a horizon and something for the igloo to sit on. This is one
+            plane on a stock lit material — one program, tens of milliseconds —
+            and it is gone the moment the real sheet is admitted. */}
+        {!debugFlags.noTerrain && bucket < RENDER_BUCKETS.field && (
+          <mesh
+            name="cold-start-ground-stand-in"
+            position={[axisX, -0.42, depthZ]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <planeGeometry args={[220, 220]} />
+            <meshStandardMaterial color="#E4EAF2" roughness={0.94} metalness={0} />
+          </mesh>
+        )}
+        {!debugFlags.noTerrain && bucket >= RENDER_BUCKETS.field && (
           <PolarBiomeWorld
             axisX={axisX}
             depthZ={depthZ}
