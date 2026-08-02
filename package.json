@@ -47,6 +47,7 @@
     "probe:shader-blame": "node scripts/probe-shader-blame.mjs",
     "probe:stall": "node scripts/probe-stall.mjs",
     "probe:station-contrast": "node scripts/probe-station-contrast.mjs",
+    "probe:station-frame-cost": "node scripts/probe-station-frame-cost.mjs",
     "probe:station-survey": "node scripts/probe-station-survey.mjs",
     "start": "next start",
     "verify:biome-shaders": "node scripts/verify-polar-biome-shader-compile.mjs",
