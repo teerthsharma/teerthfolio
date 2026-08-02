@@ -18,13 +18,16 @@ requires(
   /DOME_CRYSTAL_PALETTE[\s\S]*iceBlue[\s\S]*frostIvory[\s\S]*seamBlueGrey[\s\S]*subsurfaceCyan/,
   "dome must expose separated ice, frost, seam, and subsurface colors",
 );
-// Warm hearth inside, cold ice outside. Everything visible through the brick
-// suspension gaps and the doorway is the continuous inner shell, so it must be a dark
-// warm-neutral body with a sunrise-gold self-glow. The old slate-blue body plus
-// subsurface-cyan emissive turned every gap into a cold blue lamp.
+// Inside and outside separate by VALUE, not hue. Everything visible through the
+// block gaps and the doorway is the continuous inner shell, so it must be a dark
+// near-neutral body carrying a near-white self-glow bright enough to read as a
+// light source. Two hue-split regressions are pinned out by this: a slate-blue
+// body plus subsurface-cyan emissive made every gap a cold blue lamp, and a
+// sunrise-gold hearth flooded orange once the courses became real blocks with
+// real gaps rather than tiles with hairline seams.
 requires(
-  /OBSERVATORY_INTERIOR_HEARTH_PROFILE[\s\S]*hearthColor: OBSERVATORY_PERSONALITY\.palette\.glow[\s\S]*hearthIntensity[\s\S]*high: 0\.72[\s\S]*medium: 0\.64[\s\S]*shellColor: "#2E2620"/,
-  "the dome interior must publish a warm-neutral hearth profile lit by the sunrise-gold glow",
+  /OBSERVATORY_INTERIOR_HEARTH_PROFILE[\s\S]*hearthColor: "#EDF4FF"[\s\S]*hearthIntensity[\s\S]*high: 0\.62[\s\S]*medium: 0\.52[\s\S]*shellColor: "#242A33"/,
+  "the dome interior must publish a near-white hearth profile that reads as a light source",
 );
 requires(
   /function useInnerShellMaterial[\s\S]{0,600}color: OBSERVATORY_INTERIOR_HEARTH_PROFILE\.shellColor[\s\S]{0,120}emissive: OBSERVATORY_INTERIOR_HEARTH_PROFILE\.hearthColor/,
@@ -40,10 +43,36 @@ requires(
       `inward-facing dome surfaces must carry no cold blue tint: ${cold}`,
     );
   }
-  // Warm means warm: R > B on the hearth body colour, not a neutral grey.
+  // The body stays a dark near-neutral: no channel may run away from the others,
+  // so the interior cannot drift back into a coloured lamp of either temperature.
   const shellHex = /shellColor: "(#[0-9A-Fa-f]{6})"/.exec(source)[1];
-  const [red, , blue] = [1, 3, 5].map((offset) => parseInt(shellHex.slice(offset, offset + 2), 16));
-  assert.ok(red > blue, `inner shell body ${shellHex} must be warm-neutral, never blue`);
+  const shellChannels = [1, 3, 5].map((offset) =>
+    parseInt(shellHex.slice(offset, offset + 2), 16),
+  );
+  const shellSpread = Math.max(...shellChannels) - Math.min(...shellChannels);
+  assert.ok(
+    shellSpread <= 24 && Math.max(...shellChannels) <= 96,
+    `inner shell body ${shellHex} must stay a dark near-neutral, never a coloured lamp`,
+  );
+  // The glow must be near-white and bright enough to read as a source through the
+  // block gaps. This is the whole inside/outside separation: value, not hue.
+  const hearthHex = /hearthColor: "(#[0-9A-Fa-f]{6})"/.exec(source)[1];
+  const hearthChannels = [1, 3, 5].map((offset) =>
+    parseInt(hearthHex.slice(offset, offset + 2), 16),
+  );
+  const hearthMax = Math.max(...hearthChannels);
+  assert.ok(
+    hearthMax >= 225 && hearthMax - Math.min(...hearthChannels) <= 26,
+    `inner shell glow ${hearthHex} must stay a near-white high-value tone`,
+  );
+  // Bounded on both sides. Too dim and the interior stops existing once the
+  // wall comes off; too bright and it haloes every seated block, because the
+  // shell sits directly behind the courses rather than deep inside the room.
+  const hearthHigh = Number(/hearthIntensity[\s\S]*?high: ([\d.]+)/.exec(source)[1]);
+  assert.ok(
+    hearthHigh >= 0.4 && hearthHigh <= 0.85,
+    `inner shell glow must read as light without haloing the seated courses (got ${hearthHigh})`,
+  );
 }
 // Professional glacial register: the brick face family must stay desaturated pale
 // white-blue. A saturated primary/cornflower face color is the exact regression that

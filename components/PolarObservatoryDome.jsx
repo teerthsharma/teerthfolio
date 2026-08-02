@@ -240,21 +240,36 @@ export const OBSERVATORY_HOME_LIGHT_PROFILE = Object.freeze({
   intensity: Object.freeze({ high: 2.1, medium: 1.55, low: 0.9 }),
 });
 /**
- * Interior hearth, not a blue cave. Everything the viewer sees THROUGH the brick
- * suspension gaps and the doorway is the continuous inner shell, so that shell
- * carries the warm read: a dark warm-neutral body lit by a low sunrise-gold
- * self-glow. It used to be slate blue (#3D5680) with a 0.5 subsurface-cyan
- * emissive, which turned every gap into a cold blue lamp and made the dome read
- * as blue inside the bricks. The cold blue now lives only on the outer ice —
- * shell shader, brick instances, and the cyan key light — while the inside is
- * amber. Emissive, not another point light: the scene's point-light count is a
- * shader define and must stay invariant for the whole session.
+ * Interior light, not a blue cave and not a jack-o'-lantern. Everything the
+ * viewer sees THROUGH the block gaps and the doorway is the continuous inner
+ * shell, so that shell is the only thing standing in for the light inside.
+ *
+ * Two earlier attempts and why each failed. Slate blue (#3D5680) with a 0.5
+ * subsurface-cyan emissive turned every gap into a cold blue lamp and made the
+ * dome read as blue all the way through. Replacing it with a dark warm body and
+ * a 0.72 sunrise-gold glow fixed that while the courses were thin tiles whose
+ * seams were hairlines — but the masonry now stands off the shell as real
+ * blocks with real gaps, and at that gap width the amber floods out and the
+ * whole igloo reads as a pumpkin.
+ *
+ * The reference separates inside from outside by VALUE, not hue: a near-white
+ * interior an order of magnitude brighter than the lit ice, so the gaps read as
+ * slits of light rather than as coloured paint. That also survives any gap
+ * width, which the hue split did not. Emissive, not another point light: the
+ * scene's point-light count is a shader define and must stay invariant for the
+ * whole session.
  */
 export const OBSERVATORY_INTERIOR_HEARTH_PROFILE = Object.freeze({
-  hearthColor: OBSERVATORY_PERSONALITY.palette.glow,
-  hearthIntensity: Object.freeze({ high: 0.72, medium: 0.64 }),
-  read: "warm amber hearth seen through the brick gaps and the doorway",
-  shellColor: "#2E2620",
+  hearthColor: "#EDF4FF",
+  // Tuned for the state the visitor is actually in. The shell sits directly
+  // behind the courses rather than deep inside the room, so an emissive strong
+  // enough to look right through a demolished wall haloes every seated block
+  // and turns the intact igloo into a lantern with tiles glued on. This level
+  // leaves the resting joints reading as dark cut lines and still carries the
+  // interior when the blocks come off.
+  hearthIntensity: Object.freeze({ high: 0.62, medium: 0.52 }),
+  read: "white-hot interior light read through the block gaps and the doorway",
+  shellColor: "#242A33",
 });
 export const OBSERVATORY_HOME_DRESSING_PROFILE = Object.freeze({
   surface: "wind-carved sastrugi radiating from a grounded frost shelf",
@@ -491,7 +506,13 @@ function useAnimeIceMaterial(quality, surface = "shell") {
 }
 
 function createCurvedBlockGeometry(quality) {
-  const geometry = new RoundedBoxGeometry(1, 1, 1, quality === "high" ? 3 : 2, quality === "high" ? 0.032 : 0.026);
+  // The bevel is authored on the unit box and then stretched by the per-cell
+  // scale, so it lands anisotropically. It also eats the flat face from both
+  // sides: at 0.085 a block's face shrank to 83% of its cell and the shoulders
+  // curved away from its neighbours, which widened every joint into a lit slot.
+  // 0.052 keeps the softened weathered edge that separates cut snow from a
+  // machined tile without opening the courses up.
+  const geometry = new RoundedBoxGeometry(1, 1, 1, quality === "high" ? 3 : 2, quality === "high" ? 0.052 : 0.044);
   const position = geometry.getAttribute("position");
   for (let index = 0; index < position.count; index += 1) {
     let x = position.getX(index);
@@ -557,9 +578,13 @@ function createInstancedIceMaterial(quality) {
     },
   };
   const material = new THREE.MeshPhysicalMaterial({
-    clearcoat: quality === "high" ? 0.34 : 0.26,
-    // Tighter coat lobe: glass-frost specular, never a wide plastic sheen.
-    clearcoatRoughness: 0.36,
+    // Cut snow, not cast glass. The blocks used to carry a 0.34 clearcoat over a
+    // 0.34 roughness, which put a hard white highlight on every face; with each
+    // face its own bright plate, the courses stopped reading as one wall and the
+    // dome read as a shell of separate panels. Snow scatters: high roughness, a
+    // wide low sheen for the wind-packed surface, and only a trace of coat.
+    clearcoat: quality === "high" ? 0.12 : 0.08,
+    clearcoatRoughness: 0.62,
     // Cool near-neutral base: multiplying the warm personality key (#FFD9A3) against the
     // sage instance colors was the exact product that produced the olive brick read.
     color: "#E1E9F2",
@@ -570,12 +595,12 @@ function createInstancedIceMaterial(quality) {
     emissiveIntensity: quality === "high" ? 0.012 : 0.01,
     ior: 1.31,
     metalness: 0,
-    roughness: quality === "high" ? 0.34 : 0.42,
-    sheen: quality === "high" ? 0.06 : 0.04,
+    roughness: quality === "high" ? 0.68 : 0.74,
+    sheen: quality === "high" ? 0.22 : 0.16,
     sheenColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
-    sheenRoughness: 0.62,
+    sheenRoughness: 0.86,
     specularColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
-    specularIntensity: quality === "high" ? 0.58 : 0.5,
+    specularIntensity: quality === "high" ? 0.26 : 0.22,
     vertexColors: true,
   });
   material.userData.brickUniforms = uniforms;
@@ -872,12 +897,17 @@ function colorForDomeBlock(position, seed) {
   const ivory = new THREE.Color(DOME_CRYSTAL_PALETTE.frostIvory);
   const cyan = new THREE.Color(POLAR_PALETTE.dawnCyan);
   const windCap = new THREE.Color(DOME_CRYSTAL_PALETTE.windCap);
-  const color = iceBlue.clone().lerp(ivory, 0.3 + seed * 0.46).lerp(cyan, 0.012);
+  // A narrow band, walked from near the ivory end. Spanning 0.30-0.76 of the
+  // ice-to-ivory ramp gave neighbouring blocks a full value step between them,
+  // and on courses of ~13 large blocks that checkerboards: each face reads as
+  // its own plate instead of the wall reading as one mass cut from one drift.
+  // Cut snow varies, but within a few percent.
+  const color = iceBlue.clone().lerp(ivory, 0.52 + seed * 0.16).lerp(cyan, 0.012);
   // Occasional near-white wind-packed frost block (~7% of the shell) breaks the uniform
   // toy read without adding hue. Deterministic: same frost seed the lattice already has.
-  if (seed > 0.93) color.lerp(windCap, 0.6);
-  // +/-6% per-instance value variation, saturation pulled down hard.
-  color.offsetHSL(0, -0.07, (seed - 0.5) * 0.12);
+  if (seed > 0.93) color.lerp(windCap, 0.32);
+  // +/-3% per-instance value variation, saturation pulled down hard.
+  color.offsetHSL(0, -0.07, (seed - 0.5) * 0.06);
   return color;
 }
 
