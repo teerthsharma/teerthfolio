@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import {
   POLAR_DOME_AIRLOCK,
+  POLAR_DOME_BLOCK_SEAT_FLOOR,
   POLAR_DOME_BLOCK_SEAT_JITTER,
   POLAR_DOME_DOORWAY,
   POLAR_DOME_INTERACTION_PROFILE,
@@ -73,7 +74,10 @@ function shellDistance(point) {
 
 function assertSeatedPoint(point, message) {
   const distance = shellDistance(point);
-  const bound = POLAR_DOME_BLOCK_SEAT_JITTER / 2 + 1e-6;
+  // The lay offset is outward-only now, so the bound is the whole range rather
+  // than half of it: a block may sit anywhere from the floor to floor + jitter
+  // proud of the shell, and never inside it.
+  const bound = POLAR_DOME_BLOCK_SEAT_FLOOR + POLAR_DOME_BLOCK_SEAT_JITTER + 1e-6;
   assert.ok(
     distance <= bound,
     `${message}: ${distance} exceeds the ${bound} lay tolerance`,
