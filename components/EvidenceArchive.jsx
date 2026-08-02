@@ -56,7 +56,13 @@ const EVIDENCE_PANELS = Object.freeze({
 });
 
 export default function EvidenceArchive({ content, domainRows, liveSummary, projects }) {
-  const [activePanel, setActivePanel] = useState("source");
+  // Opens on upstream work, not on the source-mode enum. The default panel used
+  // to be a 797x360 card whose entire payload was the internal identifier
+  // "live-github" set at display size with 203px of empty space under it, while
+  // the merged contributions to triton-lang, pytorch and nemo-relay - the only
+  // evidence here a stranger cannot fabricate - sat behind the third tab, 4,320px
+  // of horizontal scroll from the entry gate.
+  const [activePanel, setActivePanel] = useState("upstream");
   const tabRefs = useRef(new Map());
   const upstream = content.upstream || [];
   const panels = Object.values(EVIDENCE_PANELS);
