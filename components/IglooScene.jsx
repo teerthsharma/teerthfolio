@@ -243,6 +243,73 @@ function RenderBucketPump({ level, onAdvance }) {
  * nothing else. It is a measurement, not a proposal — the output is wrong on
  * purpose.
  */
+/**
+ * Ablation only, behind qa-overdraw. Counts how many times each pixel is
+ * written, which is the last standing explanation for a frame that scales with
+ * resolution while being indifferent to what shader runs at each pixel.
+ *
+ * A count, not a duration, so it is immune to the thermal drift that now bounds
+ * every timing measurement here. Every surface contributes a fixed additive
+ * increment with depth testing off; the red channel read back is the write
+ * count. Three earlier attempts failed for three separate reasons, all fixed
+ * here: the tone-mapping and sRGB transfer remapped the values before readback,
+ * the world's clear colour floored them, and the material swap was being undone
+ * between frames — IglooScene re-renders whenever station proximity changes,
+ * which is most frames, so a timer-based re-apply always loses. The swap runs
+ * in the frame loop.
+ */
+const OVERDRAW_STEP = 4 / 255;
+
+function OverdrawProbe({ enabled }) {
+  const gl = useThree((state) => state.gl);
+  const scene = useThree((state) => state.scene);
+  const material = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        blending: THREE.AdditiveBlending,
+        color: new THREE.Color(OVERDRAW_STEP, 0, 0),
+        depthTest: false,
+        depthWrite: false,
+        fog: false,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+        transparent: true,
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const previous = {
+      background: scene.background,
+      toneMapping: gl.toneMapping,
+      outputColorSpace: gl.outputColorSpace,
+    };
+    // Imperative, so the world's own background colour and its no-pure-black
+    // contract are untouched: the counter needs a zero floor and a linear path
+    // to the framebuffer, and asserting either declaratively would change the
+    // world rather than the measurement.
+    scene.background = null;
+    gl.setClearColor(0x000000, 1);
+    gl.toneMapping = THREE.NoToneMapping;
+    gl.outputColorSpace = THREE.LinearSRGBColorSpace;
+    gl.domElement.dataset.overdrawActive = "true";
+    return () => {
+      scene.background = previous.background;
+      gl.toneMapping = previous.toneMapping;
+      gl.outputColorSpace = previous.outputColorSpace;
+      delete gl.domElement.dataset.overdrawActive;
+      material.dispose();
+    };
+  }, [enabled, gl, material, scene]);
+  useFrame(() => {
+    if (!enabled) return;
+    scene.traverse((object) => {
+      if (object.material && object.material !== material) object.material = material;
+    });
+  });
+  return null;
+}
+
 function CheapMaterialProbe({ enabled }) {
   const scene = useThree((state) => state.scene);
   useEffect(() => {
@@ -1155,6 +1222,7 @@ export default function IglooScene({
         <ForceCanvasResize />
         {staged && <RenderBucketPump level={rawBucket} onAdvance={advanceBucket} />}
         <CheapMaterialProbe enabled={Boolean(debugFlags.cheapMaterials)} />
+        <OverdrawProbe enabled={Boolean(debugFlags.overdraw)} />
         <CameraRig
           activeArtifact={activeArtifact}
           axisX={axisX}

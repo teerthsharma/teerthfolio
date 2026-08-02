@@ -39,6 +39,7 @@
     "probe:gl-cost": "node scripts/probe-gl-cost.mjs",
     "probe:gpu-time": "node scripts/probe-gpu-time.mjs",
     "probe:link-timeline": "node scripts/probe-link-timeline.mjs",
+    "probe:overdraw": "node scripts/probe-overdraw.mjs",
     "probe:pacing": "node scripts/probe-pacing.mjs",
     "probe:render-timeline": "node scripts/probe-render-timeline.mjs",
     "probe:shader-blame": "node scripts/probe-shader-blame.mjs",
