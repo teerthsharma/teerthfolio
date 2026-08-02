@@ -8,6 +8,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -28,6 +29,12 @@ import {
   solveCameraOcclusionFactor,
   solvePolarCameraComposition,
 } from "../lib/polar-camera-composition";
+import {
+  RENDER_BUCKETS,
+  RENDER_BUCKET_FRAME_GAP,
+  RENDER_BUCKET_MAX,
+  shouldStageRenderBuckets,
+} from "../lib/render-buckets";
 import AdaptivePolarWorldDressing from "./AdaptivePolarWorldDressing";
 import ActiveTheoryVeil from "./ActiveTheoryVeil";
 import IglooArtifacts, { IGLOO_ARTIFACTS } from "./IglooArtifacts";
@@ -199,6 +206,24 @@ function RouteLeadLine({ lineWidth, material, points, trackRouteLead = false }) 
   }, [lineWidth, material, size]);
 
   return <primitive object={line} />;
+}
+
+/**
+ * Advances the scene-admission bucket one step per RENDER_BUCKET_FRAME_GAP
+ * presented frames. Lives inside the Canvas because only useFrame knows a frame
+ * actually reached the screen: a timer would happily queue the next bucket's
+ * program links on top of the stall the previous bucket is still inside.
+ */
+function RenderBucketPump({ level, onAdvance }) {
+  const framesRef = useRef(0);
+  useFrame(() => {
+    if (level >= RENDER_BUCKET_MAX) return;
+    framesRef.current += 1;
+    if (framesRef.current < RENDER_BUCKET_FRAME_GAP) return;
+    framesRef.current = 0;
+    onAdvance();
+  });
+  return null;
 }
 
 function BackgroundShaderWarmup({ enabled }) {
@@ -998,6 +1023,14 @@ export default function IglooScene({
     },
     [onGpuEvent, quality, reducedMotion],
   );
+  // Staged scene admission. See lib/render-buckets.js: mounting all 76 programs
+  // in one commit put every driver link inside the first frame.
+  const staged = shouldStageRenderBuckets({ reducedMotion, renderEnabled, worldActive });
+  const [rawBucket, setRawBucket] = useState(RENDER_BUCKETS.hero);
+  const bucket = staged ? rawBucket : RENDER_BUCKET_MAX;
+  const advanceBucket = useCallback(() => {
+    setRawBucket((current) => Math.min(RENDER_BUCKET_MAX, current + 1));
+  }, []);
   const handleMechanismEvidenceReady = useCallback((stationId, state) => {
     if (state?.evidenceReady !== true) return;
     mechanismEvidenceRef.current = {
@@ -1015,6 +1048,7 @@ export default function IglooScene({
   return (
     <Canvas
       className="igloo-scene"
+      data-render-bucket={bucket}
       data-seal-awake={sealAwake ? "true" : "false"}
       data-station-proximity={stationProximity.toFixed(3)}
       dpr={dpr}
@@ -1053,6 +1087,7 @@ export default function IglooScene({
           streamEpochMsRef={streamEpochMsRef}
         />
         <ForceCanvasResize />
+        {staged && <RenderBucketPump level={rawBucket} onAdvance={advanceBucket} />}
         <CameraRig
           activeArtifact={activeArtifact}
           axisX={axisX}
@@ -1078,8 +1113,8 @@ export default function IglooScene({
           />
         )}
         <IglooTouch onTouchIgloo={onTouchIgloo} />
-        {!reducedMotion && !debugFlags.noVeil && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}
-        {!debugFlags.noTerrain && (
+        {!reducedMotion && !debugFlags.noVeil && bucket >= RENDER_BUCKETS.systems && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}
+        {!debugFlags.noTerrain && bucket >= RENDER_BUCKETS.field && (
           <WorldStreamReveal
             durationMs={WORLD_STREAM_TIMINGS.terrainRevealMs}
             fromScale={0.02}
@@ -1100,7 +1135,7 @@ export default function IglooScene({
             {activeArtifact.id === "observatory-plaque" && <ForegroundExpeditionKit />}
           </WorldStreamReveal>
         )}
-        {!debugFlags.noSignals && (
+        {!debugFlags.noSignals && bucket >= RENDER_BUCKETS.field && (
           <WorldStreamReveal
             durationMs={WORLD_STREAM_TIMINGS.stationRevealMs}
             name="signal field / 200ms"
@@ -1121,7 +1156,7 @@ export default function IglooScene({
             ) : null}
           </WorldStreamReveal>
         )}
-        {renderEnabled && !debugFlags.noSmashables && (
+        {renderEnabled && !debugFlags.noSmashables && bucket >= RENDER_BUCKETS.finish && (
           // Smashable debris stays mounted so its programs compile in the warm
           // pre-pass and survive travel stops; it only renders while moving.
           <group name="travel-debris-render-gate" visible={moving}>
@@ -1132,7 +1167,7 @@ export default function IglooScene({
             />
           </group>
         )}
-        {!debugFlags.noTopology && (
+        {!debugFlags.noTopology && bucket >= RENDER_BUCKETS.systems && (
           <WorldStreamReveal
             durationMs={WORLD_STREAM_TIMINGS.stationRevealMs}
             name="topology routes / 200ms"
@@ -1224,7 +1259,7 @@ export default function IglooScene({
             />
           </WorldStreamReveal>
         )}
-        {!debugFlags.noArtifacts && (
+        {!debugFlags.noArtifacts && bucket >= RENDER_BUCKETS.field && (
           <IglooArtifacts
             activeArtifactId={activeArtifact.id}
             artifacts={artifacts}
@@ -1238,7 +1273,7 @@ export default function IglooScene({
             streamEpochMsRef={streamEpochMsRef}
           />
         )}
-        {!debugFlags.noMechanisms && (
+        {!debugFlags.noMechanisms && bucket >= RENDER_BUCKETS.systems && (
           <PolarStationMechanismLayer
             traversalPoseRef={traversalPoseRef}
             activeArtifactId={activeArtifact.id}
@@ -1254,7 +1289,7 @@ export default function IglooScene({
             visible={worldActive}
           />
         )}
-        {!debugFlags.noSignals && (
+        {!debugFlags.noSignals && bucket >= RENDER_BUCKETS.systems && (
           <PolarSemanticParticles
             activeStationId={dockedStationId || activeArtifact.id}
             enabled={renderEnabled && worldActive}
@@ -1273,6 +1308,7 @@ export default function IglooScene({
             pair keeps their shared fat-line materials reachable by the
             background warm so the first undock never links a program. Never
             rendered, so it costs no draw calls. */}
+        {bucket >= RENDER_BUCKETS.finish && (
         <group name="route-line-warm-compile-primer" visible={false}>
           <RouteLeadLine
             lineWidth={1}
@@ -1285,7 +1321,8 @@ export default function IglooScene({
             points={WARMUP_LINE_POINTS}
           />
         </group>
-        <BackgroundShaderWarmup enabled={renderEnabled && worldActive} />
+        )}
+        <BackgroundShaderWarmup enabled={renderEnabled && worldActive && bucket >= RENDER_BUCKETS.finish} />
       </Suspense>
     </Canvas>
   );

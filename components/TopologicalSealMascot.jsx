@@ -1298,8 +1298,19 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
       );
     }
 
-    let headingX = velocity.current.x || axisVelocity;
-    let headingZ = velocity.current.z || depthVelocity;
+    // Face the body heading traversal publishes, not the velocity. They are the
+    // same until a corner, and through one they differ by up to ~31 degrees:
+    // that difference IS the drift, and taking facing from the velocity would
+    // rotate the seal to wherever it happened to be sliding and hide it.
+    const bodyHeading = traversalPose?.heading;
+    let headingX =
+      Number.isFinite(bodyHeading) && velocity.current.lengthSq() > 1e-4
+        ? Math.cos(bodyHeading)
+        : velocity.current.x || axisVelocity;
+    let headingZ =
+      Number.isFinite(bodyHeading) && velocity.current.lengthSq() > 1e-4
+        ? Math.sin(bodyHeading)
+        : velocity.current.z || depthVelocity;
     // Camera-weight facing applies only while semantically docked (station or
     // observatory poses). At rest in open snow the last travel heading holds,
     // preserving the chase-camera read instead of spinning toward the lens.

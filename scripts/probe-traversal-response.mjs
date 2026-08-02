@@ -40,6 +40,10 @@ function cornerResponse(seconds = 0.67) {
     const velocityAngle = Math.atan2(state.vz, state.vx);
     samples.push({
       slip: Math.abs(degrees(wrap(inputAngle - velocityAngle))),
+      // Drift: how far the body is pointed away from where it is travelling.
+      // This is the number a grip model has to move; slip against the input
+      // moves whether or not the body and the velocity ever disagree.
+      drift: Math.abs(degrees(wrap(state.heading - velocityAngle))),
       speed: Math.hypot(state.vx, state.vz),
     });
   }
@@ -49,6 +53,8 @@ function cornerResponse(seconds = 0.67) {
     turned: 90 - last.slip,
     exitSpeed: last.speed,
     scrub: cruise - last.speed,
+    peakDrift: samples.reduce((peak, sample) => Math.max(peak, sample.drift), 0),
+    driftAtQuarterSecond: samples[Math.round(0.25 / FRAME) - 1]?.drift ?? 0,
   };
 }
 
@@ -75,6 +81,11 @@ console.log(`  cruise speed     ${corner.cruise.toFixed(2)} m/s`);
 console.log(`  turn in 0.67s    ${corner.turned.toFixed(1)} deg`);
 console.log(
   `  corner cost      ${corner.scrub.toFixed(2)} m/s (exit ${corner.exitSpeed.toFixed(2)})`,
+);
+console.log(
+  `  body vs travel   peak ${corner.peakDrift.toFixed(1)} deg, ${corner.driftAtQuarterSecond.toFixed(
+    1,
+  )} deg at 0.25s`,
 );
 console.log(
   `  coast to rest    ${coast.distance.toFixed(2)} m over ${coast.seconds.toFixed(2)}s`,
