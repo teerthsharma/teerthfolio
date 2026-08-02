@@ -603,14 +603,13 @@ function createInstancedIceMaterial(quality) {
       value: DOME_FLOAT_PROFILE.wake.sigmaLocal * OBSERVATORY_MACRO_SCALE_PROFILE.worldScale,
     },
   };
-  const material = new THREE.MeshPhysicalMaterial({
-    // Cut snow, not cast glass. The blocks used to carry a 0.34 clearcoat over a
-    // 0.34 roughness, which put a hard white highlight on every face; with each
-    // face its own bright plate, the courses stopped reading as one wall and the
-    // dome read as a shell of separate panels. Snow scatters: high roughness, a
-    // wide low sheen for the wind-packed surface, and only a trace of coat.
-    clearcoat: quality === "high" ? 0.12 : 0.08,
-    clearcoatRoughness: 0.62,
+  // MeshStandardMaterial, not MeshPhysicalMaterial. Measured: the dome is 6.7ms
+  // of a 30.9ms frame at 1440x900, and the physical lobes are why — clearcoat,
+  // sheen and specular each add a BRDF evaluation per fragment, on 56 instanced
+  // blocks with heavy overdraw. Cut snow is a rough scattering dielectric, which
+  // is exactly the standard model; the traces that were left were paying three
+  // extra lobes for a contribution no screenshot could separate.
+  const material = new THREE.MeshStandardMaterial({
     // Neutral, and a value step down out of the clipping ceiling. Two separate
     // measurements drove this. 17.41% of the dome's pixels were pinned at pure
     // 255,255,255 against 0.00% in the reference, so the body had to come down
@@ -626,14 +625,12 @@ function createInstancedIceMaterial(quality) {
     // recesses, and the interior spill, never on the brick faces.
     emissive: DOME_CRYSTAL_PALETTE.subsurfaceCyan,
     emissiveIntensity: quality === "high" ? 0.012 : 0.01,
-    ior: 1.31,
+    // The scene probe carries what the coat used to: a rough dielectric under an
+    // irradiance probe still catches a broad sky reflection, for one lobe rather
+    // than four.
+    envMapIntensity: quality === "high" ? 1.15 : 1,
     metalness: 0,
-    roughness: quality === "high" ? 0.68 : 0.74,
-    sheen: quality === "high" ? 0.14 : 0.11,
-    sheenColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
-    sheenRoughness: 0.86,
-    specularColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
-    specularIntensity: quality === "high" ? 0.16 : 0.14,
+    roughness: quality === "high" ? 0.64 : 0.7,
     vertexColors: true,
   });
   material.userData.brickUniforms = uniforms;

@@ -983,6 +983,10 @@ export default function IglooScene({
   // High is allowed past 1:1 now that the post target tracks the real ratio
   // instead of clamping to 1; below that ceiling the world was rendered at CSS
   // pixels and upscaled on every retina display.
+  // Fixed per tier, deliberately. A frame-time-driven ratio was measured and
+  // removed: the fill term is only ~4.6ms per megapixel against a ~24ms
+  // resolution-independent cost, so the loop bought about 10% of the frame
+  // while visibly walking the world's resolution up and down.
   const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [1, 1.5];
   const preserveDrawingBuffer =
     typeof window !== "undefined" &&
@@ -1010,7 +1014,7 @@ export default function IglooScene({
       // boot program link into one synchronous stall (measured 16.5s of a ~19s
       // cold boot). Off, the driver links on its own worker threads.
       gl.debug.checkShaderErrors = false;
-      gl.shadowMap.enabled = true;
+      gl.shadowMap.enabled = !debugFlags.noShadows;
       gl.shadowMap.type = THREE.PCFSoftShadowMap;
       gl.toneMapping = THREE.ACESFilmicToneMapping;
       gl.toneMappingExposure = 0.94;
@@ -1021,7 +1025,7 @@ export default function IglooScene({
         type: "webgl-created",
       });
     },
-    [onGpuEvent, quality, reducedMotion],
+    [debugFlags.noShadows, onGpuEvent, quality, reducedMotion],
   );
   // Staged scene admission. See lib/render-buckets.js: mounting all 76 programs
   // in one commit put every driver link inside the first frame.
@@ -1315,11 +1319,13 @@ export default function IglooScene({
             visible={worldActive}
           />
         )}
-        <RetroCinematicPostProcess
-          motionPoseRef={traversalPoseRef}
-          quality={quality}
-          reducedMotion={reducedMotion}
-        />
+        {!debugFlags.noPost && (
+          <RetroCinematicPostProcess
+            motionPoseRef={traversalPoseRef}
+            quality={quality}
+            reducedMotion={reducedMotion}
+          />
+        )}
         {/* Route lead lines are unmounted while docked at spawn; this hidden
             pair keeps their shared fat-line materials reachable by the
             background warm so the first undock never links a program. Never

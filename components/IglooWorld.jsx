@@ -85,6 +85,14 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-no-topology", "noTopology"],
   ["qa-no-seal", "noSeal"],
   ["qa-no-artifacts", "noArtifacts"],
+  // Ablation switch for the fullscreen grade. The frame is fragment-bound, and
+  // separating the post chain's share from the world's share is not inferable
+  // from draw counts, so it needs a real toggle to measure against.
+  ["qa-no-post", "noPost"],
+  // Ablation switch for the shadow pass. It re-renders every caster into a
+  // depth map at a resolution the canvas ratio does not touch, so it is the one
+  // candidate a device-pixel-ratio sweep cannot rule in or out.
+  ["qa-no-shadows", "noShadows"],
 ];
 const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),
