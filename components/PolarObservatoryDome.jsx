@@ -596,15 +596,16 @@ function createInstancedIceMaterial(quality) {
     // wide low sheen for the wind-packed surface, and only a trace of coat.
     clearcoat: quality === "high" ? 0.12 : 0.08,
     clearcoatRoughness: 0.62,
-    // Cool near-neutral base, taken down out of the clipping ceiling. Measured on
-    // a 1440x900 capture of the docked shot, 17.41% of the dome's pixels were
-    // pinned at pure 255,255,255 against 0.00% in the reference — a clipped face
-    // carries no form, and a shell whose upward courses are all the same flat
-    // white cannot read as laid blocks no matter how the seams are cut. #E1E9F2
-    // sits at luma 230 before the key even reaches it. This is the same hue a
-    // value step down; the warm-key-times-sage product that produced the old
-    // olive brick read is still avoided.
-    color: "#A9B4C2",
+    // Neutral, and a value step down out of the clipping ceiling. Two separate
+    // measurements drove this. 17.41% of the dome's pixels were pinned at pure
+    // 255,255,255 against 0.00% in the reference, so the body had to come down
+    // from #E1E9F2's luma 230. Doing that in the same cool hue then pushed mean
+    // saturation across the dome from 0.321 to 0.428, because the ice tint was
+    // being carried TWICE — once here and once by the per-instance colours from
+    // colorForDomeBlock — and two cool colours multiplied compound. This is the
+    // same class of error as the warm-key-times-sage product that produced the
+    // old olive brick read. The tint now lives only on the instances.
+    color: "#B4B5B7",
     // Body emissive is effectively off. The shell must be LIT by the scene rig so the
     // seam/face/crown value ladder survives; glow stays in the airlock, the seam
     // recesses, and the interior spill, never on the brick faces.
