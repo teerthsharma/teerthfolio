@@ -144,6 +144,9 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-overdraw", "overdraw"],
   // Same counter, but only counting fragments that survive depth rejection.
   ["qa-overdraw-depth", "overdrawDepth"],
+  // Removes the three point lights. Their count is a shader define, so even at
+  // intensity zero they are three more light evaluations on every lit fragment.
+  ["qa-no-point-lights", "noPointLights"],
 ];
 const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),

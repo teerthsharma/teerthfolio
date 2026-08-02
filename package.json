@@ -35,6 +35,7 @@
     "probe:blur-surfaces": "node scripts/probe-blur-surfaces.mjs",
     "probe:composite": "node scripts/probe-composite.mjs",
     "probe:cpu-frame": "node scripts/probe-cpu-frame.mjs",
+    "probe:fill-calibration": "node scripts/probe-fill-calibration.mjs",
     "probe:frame-ablation": "node scripts/probe-frame-ablation.mjs",
     "probe:gl-cost": "node scripts/probe-gl-cost.mjs",
     "probe:gpu-time": "node scripts/probe-gpu-time.mjs",

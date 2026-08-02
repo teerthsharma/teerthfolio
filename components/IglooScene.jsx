@@ -1388,9 +1388,13 @@ export default function IglooScene({
           // dome unmount forced every lit material in the world to relink a new
           // variant mid-travel (the measured departure hitch storm).
           <group name="observatory-light-topology-stabilizer">
-            <pointLight intensity={0} />
-            <pointLight intensity={0} />
-            <pointLight intensity={0} />
+            {!debugFlags.noPointLights && (
+              <>
+                <pointLight intensity={0} />
+                <pointLight intensity={0} />
+                <pointLight intensity={0} />
+              </>
+            )}
           </group>
         )}
         {!debugFlags.noDome && observatoryDomeVisible && (

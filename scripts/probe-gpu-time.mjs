@@ -35,6 +35,7 @@ const CASES = [
   { name: "no-sky", query: "qa-no-sky=1" },
   { name: "no-dome", query: "qa-no-dome=1" },
   { name: "dome-plain-material", query: "qa-dome-plain=1" },
+  { name: "no-point-lights", query: "qa-no-point-lights=1" },
   { name: "no-shadows", query: "qa-no-shadows=1" },
   { name: "hard-shadows", query: "qa-hard-shadows=1" },
   { name: "no-env", query: "qa-no-env=1" },

@@ -288,6 +288,12 @@ export const OBSERVATORY_HOME_DRESSING_PROFILE = Object.freeze({
   drawBudget: "one merged vertex-colored draw",
 });
 
+// Ablation only. Point lights are a per-fragment cost on every lit surface in
+// the scene, and their count is a shader define, so three intensity-zero
+// placeholders are not free — they are three more light evaluations per pixel.
+const DOME_POINT_LIGHTS_ABLATED =
+  typeof window !== "undefined" && window.location?.search.includes("qa-no-point-lights");
+
 const HALF_PI = Math.PI * 0.5;
 const DOME_CENTER_Y = POLAR_DOME_LATTICE_GEOMETRY.center[1];
 const DOME_RADIUS = Object.freeze({
@@ -1841,6 +1847,7 @@ function IntegratedAirlock({
           toneMapped={false}
         />
       </mesh>
+      {!DOME_POINT_LIGHTS_ABLATED && (
       <pointLight
         color={OBSERVATORY_HOME_LIGHT_PROFILE.color}
         decay={2}
@@ -1852,6 +1859,7 @@ function IntegratedAirlock({
         position={[0, 0.3, 0.34]}
         ref={thresholdLightRef}
       />
+      )}
     </group>
   );
 }
@@ -2401,6 +2409,7 @@ export default function PolarObservatoryDome({
         texturePolicy: DOME_TEXTURE_POLICY,
       }}
     >
+      {!DOME_POINT_LIGHTS_ABLATED && (
       <pointLight
         // Cold near-white key, not the saturated station accent: the shell carries
         // almost no body emissive now, so this local light IS the dome's colour. A
@@ -2412,6 +2421,8 @@ export default function PolarObservatoryDome({
         name="cyan-white-observatory-key-light"
         position={[-2.1, 2.9, 1.7]}
       />
+      )}
+      {!DOME_POINT_LIGHTS_ABLATED && (
       <pointLight
         color={DOME_CRYSTAL_PALETTE.frostIvory}
         decay={2}
@@ -2422,6 +2433,7 @@ export default function PolarObservatoryDome({
         name="cold-observatory-fill-light"
         position={[2.6, 2.3, 1.5]}
       />
+      )}
       <NeutralContactPlinth impact={impact} quality={tier} />
       <ContinuousDomeTopology
         castShadow={tier === "low"}
