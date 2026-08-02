@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import {
   POLAR_DOME_WORLD_SCALE,
+  POLAR_SHADOW_CASTER_COUNT,
   POLAR_GROUND_GLSL,
   POLAR_GROUND_PAD_FALLOFF,
   POLAR_GROUND_PAD_RADIUS,
@@ -168,10 +169,25 @@ assert.ok(
     /heroShadow = polarHeroShadow\(/,
     "the terrain must apply the hero shadow it defines",
   );
-  // A ground point on the far side of the dome from the light is in shadow; one
-  // well clear of the building is not. Solved here the same way the GLSL does.
-  const litSample = polarGroundHeight(24, -24);
-  assert.ok(Number.isFinite(litSample), "ground field must stay finite far from the dome");
+  // Every facility casts, not just the hero. One emitted ellipsoid test per
+  // station, each behind its own XZ reject so an open-field fragment pays eight
+  // dot products rather than eight ray solves.
+  assert.equal(
+    POLAR_SHADOW_CASTER_COUNT,
+    STATION_WORLD_SCHEMA.order.length,
+    "every station must contribute a ground shadow caster",
+  );
+  assert.equal(
+    (POLAR_BIOME_FRAGMENT_SHADER.match(/shadow = max\(shadow, polarShadowFromEllipsoid/g) || [])
+      .length,
+    STATION_WORLD_SCHEMA.order.length,
+    "the terrain shader must solve one ellipsoid per station",
+  );
+  assert.equal(
+    (POLAR_BIOME_FRAGMENT_SHADER.match(/if \(dot\(delta, delta\) </g) || []).length,
+    STATION_WORLD_SCHEMA.order.length,
+    "every caster must sit behind its own XZ reject",
+  );
 }
 
 console.log(
