@@ -298,6 +298,35 @@ measured 28.9ms against a 19ms ceiling, and no amount of idle time changes that.
 
 `check-polar-rescue` pins every one of these.
 
+### What is known about phones, and what is not
+
+No measurement here comes from real mobile hardware. Playwright emulates the
+viewport, the device pixel ratio and touch, but the drawing is still done by this
+desktop's GPU, so a frame rate measured that way is not a phone's frame rate and
+is not quoted as one. CPU throttling is the usual stand-in for a phone's
+processor and it is used below on that understanding: it models a slower main
+thread, not a slower GPU.
+
+What the emulation does establish is how much work a phone is asked to do, which
+is a property of the viewport and the tier tables rather than of the hardware.
+
+| Case | Result |
+| --- | --- |
+| 390x844, CPU 4x | settles on `high`, never steps, buffer 585x1266 = 0.74 Mpx |
+| 390x844, CPU 20x | `high→medium` at 10s, `medium→low` at 20s, buffer 292x633 = 0.18 Mpx |
+
+A phone reaching the top tier is not a mistake. `high` clamps the device pixel
+ratio at 1.5, so a 390pt viewport asks for 0.74 Mpx — the same pixel count this
+desktop draws at its `low` tier. The fill work is comparable; whether a phone's
+GPU holds it is a question about that GPU, and if it does not, the ladder steps
+down exactly as it does here.
+
+The second row shows the ladder's boundary. It trades resolution, which helps a
+frame limited by fill. Under 20x CPU throttling the frame stays at 41.5ms even
+after dropping to 0.18 Mpx — a quarter of the pixels — because the bottleneck is
+the main thread and no amount of resolution buys it back. A device that is CPU
+bound is not something this ladder can rescue.
+
 ### Read every frame number with its tier
 
 The quality ladder is a resolution ladder: at a 1440x900 window the drawing
