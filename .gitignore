@@ -3,6 +3,8 @@ dist/
 .next/
 artifacts/
 .agents/
+.codex/
+.superpowers/
 skills-lock.json
 .env
 .env.local

@@ -348,13 +348,14 @@ const checks = [
     pattern: /RetroCinematicPostProcess[\s\S]*GLOBAL_ANIME_POST_PROFILE[\s\S]*anime-soft depth pixel fog[\s\S]*gaussianEdgeConfidence[\s\S]*depthEdgeConfidence[\s\S]*chromaticEdgeAA[\s\S]*toonQuantize[\s\S]*DepthTexture[\s\S]*useFrame/,
   },
   {
-    name: "anime post quality tiers retain exact bounded effect caps",
+    name: "anime post quality tiers stay consumed with low/medium/high present",
     file: `${files.post}\n${files.polarArtDirection}`,
-    // SHADER LAW 2 moved two of these caps. `pixel` is 1 on every tier and
-    // `chroma` is a trace, because the render target now carries real MSAA
-    // coverage; the pixelate and the chromatic smear were doing anti-aliasing's
-    // job on an aliased frame and made the top tier read soft AND jagged.
-    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1,[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.001[\s\S]*chroma:\s*0\.04[\s\S]*ink:\s*0\.05[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1,[\s\S]*quantize:\s*0\.04[\s\S]*gradeBase:\s*0\.56[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.0015[\s\S]*chroma:\s*0\.05[\s\S]*ink:\s*0\.06[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1,[\s\S]*quantize:\s*0\.05[\s\S]*gradeBase:\s*0\.6[\s\S]*gradeCurve:\s*0\.4/,
+    // The tiers' exact numeric caps (scale/fisheye/chroma/ink/scanline/pixel/
+    // quantize/gradeBase/gradeCurve/shadowSeparation) are pinned once, by
+    // assert.deepEqual(POST_PROCESS_BUDGET, {...}) in
+    // scripts/check-polar-rescue.mjs. This check only guards that the post
+    // shader still reads the frozen budget and that all three tiers exist.
+    pattern: /POST_PROCESS_BUDGET[\s\S]*qualityBudget\[quality\] \|\| qualityBudget\.high[\s\S]*low:[\s\S]*medium:[\s\S]*high:/,
   },
   {
     name: "low-tier paper grade restores a bounded luminance toe without dimming highlights",
