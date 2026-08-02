@@ -4,12 +4,16 @@ import { join } from "node:path";
 
 import {
   POLAR_DOME_WORLD_SCALE,
+  POLAR_GROUND_DRIFT_HEIGHT,
+  POLAR_GROUND_DRIFT_INNER_RADIUS,
+  POLAR_GROUND_DRIFT_OUTER_RADIUS,
   POLAR_LIGHT_POOL_COUNT,
   POLAR_SHADOW_CASTER_COUNT,
   POLAR_GROUND_GLSL,
   POLAR_GROUND_PAD_FALLOFF,
   POLAR_GROUND_PAD_RADIUS,
   POLAR_GROUND_PEAK,
+  polarGroundDrift,
   polarGroundHeight,
   polarGroundPadMask,
 } from "../lib/polar-ground.js";
@@ -74,6 +78,18 @@ assert.ok(
   POLAR_GROUND_PEAK >= 0.45 && POLAR_GROUND_PEAK <= 0.9,
   `ground relief must be visible without breaking contact (peak ${POLAR_GROUND_PEAK})`,
 );
+// The drift bank must be compactly supported, or its tail lifts the graded
+// shelves off flat and leaves a fraction of its height out in the open field.
+assert.equal(polarGroundDrift(0, 0), 0, "drift must vanish at a station centre");
+assert.equal(
+  polarGroundDrift(STATION_WORLD_SCHEMA.stations["qpu-ice-bridge"].center.x + 40, 0),
+  0,
+  "drift must vanish far from every facility",
+);
+assert.ok(
+  POLAR_GROUND_DRIFT_HEIGHT > 0.1 && POLAR_GROUND_DRIFT_HEIGHT < 0.5,
+  `a drift bank must be findable without becoming a wall (${POLAR_GROUND_DRIFT_HEIGHT})`,
+);
 let openFieldPeak = 0;
 for (let x = -29; x <= 29; x += 0.5) {
   for (let z = -29; z <= 29; z += 0.5) {
@@ -89,11 +105,28 @@ assert.ok(
 // A hand-edit to either side that breaks the correspondence fails here.
 const glslToJs = POLAR_GROUND_GLSL.replace(/\bfloat\b|\bvec2\b/g, "")
   .replace(/distance\(worldXZ, \(([^)]*)\)\)/g, "Math.hypot(x - ($1s0), y - ($1s1))");
+// Scope the centre extraction to the pad-mask function: the drift ring emits an
+// identical nearest-station sweep of its own, and counting both would report
+// sixteen shelves for eight stations.
+const padMaskSource = /float polarGroundPadMask[\s\S]*?\n\}/.exec(POLAR_GROUND_GLSL)[0];
+const driftSource = /float polarGroundDrift[\s\S]*?\n\}/.exec(POLAR_GROUND_GLSL)[0];
 const padBody = /nearest = min\(nearest, distance\(worldXZ, vec2\(([-\d.]+), ([-\d.]+)\)\)\);/g;
-const padPoints = [...POLAR_GROUND_GLSL.matchAll(padBody)].map(([, x, z]) => [
+const padPoints = [...padMaskSource.matchAll(padBody)].map(([, x, z]) => [
   Number(x),
   Number(z),
 ]);
+assert.equal(
+  (driftSource.match(/nearest = min\(nearest, distance/g) || []).length,
+  STATION_WORLD_SCHEMA.order.length,
+  "the drift ring must sweep the same station set as the pad mask",
+);
+const driftBounds = /t = \(nearest - ([\d.]+)\) \/ ([\d.]+)/.exec(driftSource);
+assert.ok(driftBounds, "the drift ring must publish its inner radius and span");
+assert.equal(Number(driftBounds[1]), POLAR_GROUND_DRIFT_INNER_RADIUS);
+assert.equal(
+  Number(driftBounds[2]),
+  POLAR_GROUND_DRIFT_OUTER_RADIUS - POLAR_GROUND_DRIFT_INNER_RADIUS,
+);
 assert.equal(
   padPoints.length,
   STATION_WORLD_SCHEMA.order.length,
@@ -130,7 +163,11 @@ const evaluateEmitted = (x, z) => {
   for (const term of terms) {
     height += term.amplitude * Math.sin(term.ax * x + term.az * z + term.phase);
   }
-  return height * mask;
+  const driftT =
+    (nearest - POLAR_GROUND_DRIFT_INNER_RADIUS) /
+    (POLAR_GROUND_DRIFT_OUTER_RADIUS - POLAR_GROUND_DRIFT_INNER_RADIUS);
+  const driftShape = driftT <= 0 || driftT >= 1 ? 0 : Math.sin(Math.PI * driftT);
+  return height * mask + POLAR_GROUND_DRIFT_HEIGHT * driftShape * driftShape;
 };
 
 let worstDelta = 0;
