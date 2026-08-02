@@ -35,6 +35,15 @@ for (let run = 0; run < RUNS; run += 1) {
     // appearing while the main thread is inside a multi-second driver link, so
     // it reports when it was next scheduled, not when the frame drew. Stamping
     // inside the draw call is recorded synchronously and survives starvation.
+    //
+    // firstWorldDraw is the milestone that matches what a visitor sees: paired
+    // captures put a fully composed world — masonry, character, terrain, sky and
+    // HUD — on screen 240ms after it. fortiethWorldDraw is NOT a "composed
+    // frame" marker and was wrongly read as one: the hero bucket draws the whole
+    // visible world in fewer than 40 calls, so the fortieth lands somewhere
+    // arbitrary in the streaming that follows and moves by seconds whenever the
+    // bucket's draw count changes. It is kept only as a coarse streaming
+    // milestone.
     {
       const proto = WebGL2RenderingContext.prototype;
       const marks = window.__probe.marks;
