@@ -137,6 +137,9 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   // against its own baseline in the same browser.
   ["qa-hard-shadows", "hardShadows"],
   ["qa-no-env", "noEnv"],
+  // Swaps every material for MeshLambert. Diagnostic only; the output is wrong
+  // on purpose, and what it measures is per-pixel shading cost.
+  ["qa-cheap-materials", "cheapMaterials"],
 ];
 const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),

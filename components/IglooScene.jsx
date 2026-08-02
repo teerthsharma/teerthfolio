@@ -226,6 +226,56 @@ function RenderBucketPump({ level, onAdvance }) {
   return null;
 }
 
+/**
+ * Ablation only, behind qa-cheap-materials.
+ *
+ * The frame is fill-bound at roughly 13.9ms per megapixel, which is an enormous
+ * per-pixel cost for a scene of ~54 draws and zero image textures, and no single
+ * subsystem accounts for it — each ablates out at a few milliseconds or less.
+ * The remaining explanation is that almost every surface is a standard or
+ * physical material carrying a large custom injection, under an environment
+ * probe and shadows, so each fragment runs hundreds of instructions.
+ *
+ * The reference this world is measured against solves that by not doing it:
+ * flat-shaded low-poly with colour baked into vertices. This swaps every
+ * material in the scene for the cheapest lit one three has, keeping every draw,
+ * instance, triangle and light, so the difference is per-pixel shading cost and
+ * nothing else. It is a measurement, not a proposal — the output is wrong on
+ * purpose.
+ */
+function CheapMaterialProbe({ enabled }) {
+  const scene = useThree((state) => state.scene);
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const swapped = [];
+    const handle = window.setTimeout(() => {
+      scene.traverse((object) => {
+        if (!object.material || object.userData?.cheapProbeSkip) return;
+        const original = object.material;
+        const source = Array.isArray(original) ? original[0] : original;
+        const cheap = new THREE.MeshLambertMaterial({
+          color: source.color ? source.color.clone() : new THREE.Color("#cfd8e4"),
+          side: source.side,
+          transparent: source.transparent,
+          opacity: source.opacity,
+          depthWrite: source.depthWrite,
+          vertexColors: Boolean(source.vertexColors),
+        });
+        swapped.push([object, original]);
+        object.material = cheap;
+      });
+    }, 7000);
+    return () => {
+      window.clearTimeout(handle);
+      for (const [object, original] of swapped) {
+        if (object.material?.dispose) object.material.dispose();
+        object.material = original;
+      }
+    };
+  }, [enabled, scene]);
+  return null;
+}
+
 function BackgroundShaderWarmup({ enabled }) {
   const { camera, gl, scene } = useThree();
   const startedRef = useRef(false);
@@ -1095,6 +1145,7 @@ export default function IglooScene({
         />
         <ForceCanvasResize />
         {staged && <RenderBucketPump level={rawBucket} onAdvance={advanceBucket} />}
+        <CheapMaterialProbe enabled={Boolean(debugFlags.cheapMaterials)} />
         <CameraRig
           activeArtifact={activeArtifact}
           axisX={axisX}
