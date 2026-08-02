@@ -109,9 +109,9 @@ assert.deepEqual(POST_PROCESS_BUDGET, {
   // 60fps at high, so it is what most visitors get. Its render scale, paper
   // grade and shadow toe are unchanged — those compensate for 0.82, and they
   // were not what made the world read as a cel-shaded diagram.
-  low: { scale: 0.82, fisheye: 0, chroma: 0, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.04, gradeCurve: 0.9, shadowSeparation: 0.24 },
-  medium: { scale: 0.94, fisheye: 0.001, chroma: 0.04, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.56, gradeCurve: 0.4, shadowSeparation: 0 },
-  high: { scale: 1, fisheye: 0.0015, chroma: 0.05, ink: 0.06, scanline: 0, pixel: 1, quantize: 0.05, gradeBase: 0.6, gradeCurve: 0.4, shadowSeparation: 0 },
+  low: { scale: 0.82, sharpen: 0.34, fisheye: 0, chroma: 0, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.04, gradeCurve: 0.9, shadowSeparation: 0.24 },
+  medium: { scale: 0.94, sharpen: 0.4, fisheye: 0.001, chroma: 0.04, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.56, gradeCurve: 0.4, shadowSeparation: 0 },
+  high: { scale: 1, sharpen: 0, fisheye: 0.0015, chroma: 0.05, ink: 0.06, scanline: 0, pixel: 1, quantize: 0.05, gradeBase: 0.6, gradeCurve: 0.4, shadowSeparation: 0 },
 });
 
 assert.ok(Object.isFrozen(POLAR_PALETTE), "POLAR_PALETTE must be frozen");

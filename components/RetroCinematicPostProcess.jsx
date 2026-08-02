@@ -50,6 +50,7 @@ uniform float uChromaticStrength;
 uniform float uInkStrength;
 uniform float uScanlineStrength;
 uniform float uQuantizeStrength;
+uniform float uSharpen;
 uniform float uGradeBase;
 uniform float uGradeCurve;
 uniform float uShadowSeparation;
@@ -271,6 +272,25 @@ void main() {
   vec2 normalizedScreen = vUv * 2.0 - 1.0;
   float outerScreenMask = smoothstep(0.18, 1.12, dot(normalizedScreen, normalizedScreen));
   vec3 color = chromaticEdgeAA(sampleUv, texel, edgeConfidence, outerScreenMask);
+
+  // 5b. Contrast-adaptive unsharp, before the stylisation rather than after, so
+  // it sharpens the rendered image and not the ink, scanline or vignette laid on
+  // top of it. Placed ahead of the quantize on purpose: a sharpened pixel is more
+  // likely to land on the far side of a band edge, which carries detail through
+  // the quantiser instead of flattening against it. The four taps are the same
+  // cardinal neighbours the edge fields already walk, and the correction is
+  // scaled down where local contrast is already high so edges do not ring.
+  if (uSharpen > 0.001) {
+    vec3 nT = texture2D(tDiffuse, clamp(sampleUv + vec2(0.0, texel.y), 0.001, 0.999)).rgb;
+    vec3 sT = texture2D(tDiffuse, clamp(sampleUv - vec2(0.0, texel.y), 0.001, 0.999)).rgb;
+    vec3 eT = texture2D(tDiffuse, clamp(sampleUv + vec2(texel.x, 0.0), 0.001, 0.999)).rgb;
+    vec3 wT = texture2D(tDiffuse, clamp(sampleUv - vec2(texel.x, 0.0), 0.001, 0.999)).rgb;
+    vec3 neighbourhood = (nT + sT + eT + wT) * 0.25;
+    vec3 detail = color - neighbourhood;
+    float localContrast = length(max(max(abs(nT - color), abs(sT - color)), max(abs(eT - color), abs(wT - color))));
+    float ringGuard = 1.0 - smoothstep(0.16, 0.42, localContrast);
+    color = clamp(color + detail * uSharpen * ringGuard, 0.0, 1.0);
+  }
   color = mix(color, vec3(0.2902, 0.3725, 0.5333), depthFogMask * 0.08);
 
   // 6-7. Ten luminance bands, 24 channel levels, then stable 0.0025 dither.
@@ -435,6 +455,7 @@ export default function RetroCinematicPostProcess({
           uShadowSeparation: { value: qualityBudget.high.shadowSeparation },
           uPixelSize: { value: qualityBudget.high.pixel },
           uQuantizeStrength: { value: qualityBudget.high.quantize },
+          uSharpen: { value: qualityBudget.high.sharpen },
           uResolution: { value: new THREE.Vector2(1, 1) },
           uScanlineStrength: { value: qualityBudget.high.scanline },
           uTime: { value: 0 },
@@ -480,6 +501,7 @@ export default function RetroCinematicPostProcess({
     material.uniforms.uScanlineStrength.value = budget.scanline;
     material.uniforms.uPixelSize.value = budget.pixel;
     material.uniforms.uQuantizeStrength.value = budget.quantize;
+    material.uniforms.uSharpen.value = budget.sharpen;
     const cinematic = CINEMATIC_GRADE[quality] || CINEMATIC_GRADE.high;
     material.uniforms.uVignetteStrength.value = cinematic.vignette;
     material.uniforms.uGrainStrength.value = reducedMotion ? cinematic.grain * 0.6 : cinematic.grain;
