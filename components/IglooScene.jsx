@@ -334,10 +334,22 @@ function OverdrawProbe({ enabled, respectDepth = false }) {
 // The time is arbitrary but must be non-zero: several surfaces phase their
 // motion off it and zero is a degenerate pose for some of them.
 const FROZEN_CLOCK_SECONDS = 8;
+// Frames the world is allowed to run before the freeze engages. Pinning delta
+// from the first frame stops the entry easings where they start, and the pose it
+// locks is one no visitor sees: the dome's blocks still detached and drifting to
+// their seats, the distant geography not yet admitted. Comparisons taken there
+// are still like-for-like, but they measure the wrong picture. Letting the scene
+// run first and freezing it afterwards locks the composed world instead.
+const FREEZE_AFTER_FRAMES = 420;
 
 function FrozenClock({ enabled }) {
+  const framesSeen = useRef(0);
   useFrame((state) => {
     if (!enabled) return;
+    if (framesSeen.current < FREEZE_AFTER_FRAMES) {
+      framesSeen.current += 1;
+      return;
+    }
     // Pinning elapsedTime alone is not a freeze. Twelve frame callbacks in this
     // scene take `delta` and ease toward a target with it, so with the clock
     // pinned but delta live they keep integrating: measured inside one frozen
