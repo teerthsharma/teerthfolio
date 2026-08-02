@@ -23,7 +23,9 @@ import {
   STATION_WORLD_SCHEMA,
 } from "../lib/polar-station-world";
 import {
+  CAMERA_OCCLUSION_MIN_FACTOR,
   resolvePolarTravelComposition,
+  solveCameraOcclusionFactor,
   solvePolarCameraComposition,
 } from "../lib/polar-camera-composition";
 import AdaptivePolarWorldDressing from "./AdaptivePolarWorldDressing";
@@ -418,6 +420,10 @@ function CameraRig({
   // lerping in from the Canvas seed position, so the world's first paint is
   // already composed rather than gliding into place.
   const snapPoseRef = useRef(true);
+  // Damped chase-distance scale that keeps the seal in view when a facility
+  // would otherwise come between it and the lens. 1 = the fully solved
+  // distance; lower values pull the camera in along its own axis.
+  const occlusionFactorRef = useRef(1);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -563,6 +569,40 @@ function CameraRig({
       target.y + Math.sin(elevation) * distance + idleHeight,
       target.z + Math.cos(swayedAzimuth) * horizontalDistance + Math.cos(t * 0.09) * 0.065 * drift,
     );
+    // Occlusion pull-in. The solve above places the lens purely by azimuth,
+    // elevation and distance around the seal, with no knowledge of world
+    // geometry, so driving forward from the home dock walked the observatory
+    // dome straight between the camera and the character being piloted.
+    // Recompute the offset against the facility envelopes and shorten it until
+    // the seal is visible again.
+    const rawFactor = solveCameraOcclusionFactor({
+      cameraX: desired.x,
+      cameraY: desired.y,
+      cameraZ: desired.z,
+      targetX: target.x,
+      targetY: target.y,
+      targetZ: target.z,
+    });
+    // Snap in, ease out: hiding the subject is a defect that must be corrected
+    // on the frame it happens, while returning to the full distance can afford
+    // to be gentle. Both use the rig's frame-rate-independent damping form.
+    const occlusionDamping =
+      reducedMotion || rawFactor < occlusionFactorRef.current
+        ? 1
+        : 1 - Math.exp(-delta * 2.2);
+    occlusionFactorRef.current +=
+      (rawFactor - occlusionFactorRef.current) * occlusionDamping;
+    const occlusionFactor = Math.max(
+      CAMERA_OCCLUSION_MIN_FACTOR,
+      Math.min(1, occlusionFactorRef.current),
+    );
+    if (occlusionFactor < 1) {
+      desired.set(
+        target.x + (desired.x - target.x) * occlusionFactor,
+        target.y + (desired.y - target.y) * occlusionFactor,
+        target.z + (desired.z - target.z) * occlusionFactor,
+      );
+    }
     desiredLook.copy(target);
     // Pointer reactivity lives on the look target only, capped below half a
     // degree so the authored composition never leaves its solved envelope.
