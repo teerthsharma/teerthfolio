@@ -32,6 +32,7 @@
     "check:world-cadence": "node scripts/check-world-cadence.mjs",
     "dev": "next dev",
     "lint": "eslint .",
+    "probe:composite": "node scripts/probe-composite.mjs",
     "probe:cpu-frame": "node scripts/probe-cpu-frame.mjs",
     "probe:frame-ablation": "node scripts/probe-frame-ablation.mjs",
     "probe:gl-cost": "node scripts/probe-gl-cost.mjs",
