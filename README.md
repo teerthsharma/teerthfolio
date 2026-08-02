@@ -281,6 +281,12 @@ much. Ablated at locked `high` on integrated graphics, no single pass dominates:
 dome 5.6ms, grade chain 4.6ms, ground sheet 3.9ms, sky 1.6ms, against a 28.6ms
 frame.
 
+Measured across all eight stations at tier `medium`, docking at each the way a
+visitor does, the presented frame runs 15.8-17.7ms — 56 to 63fps with a 1.9ms
+spread, GPU time 6.4-7.5ms. The world is uniformly fast rather than fast where
+you happen to spawn, and every station's median sits clear of medium's 21ms
+step-down ceiling, so arriving at a building cannot cost the visitor the tier.
+
 That is why the ladder exists and why `probe:*` and both frame gates pin a tier
 before they measure. A frame rate quoted without its tier says nothing, and two
 runs that settled on different tiers are not comparable — which happened once
