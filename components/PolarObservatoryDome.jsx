@@ -1100,47 +1100,68 @@ function buildDomeBlockInstances(lattice) {
   return blocks;
 }
 
+// Courses along the tunnel, not one ring at its mouth. The reference builds its
+// entrance out of the same laid blocks as the dome, so the passage reads as
+// masonry from every angle; a single face arch over a shader-banded barrel reads
+// as a pipe with a decorated end, which is what this was while the tunnel was
+// too short to see. Ring spacing sets the block depth so courses abut, and
+// alternate rings step half a block round the arch the way the dome's courses
+// stagger.
+const AIRLOCK_COURSE_COUNT = 4;
+
 function buildAirlockBlockInstances() {
   const blocks = [];
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
   const scale = new THREE.Vector3();
-  const z = AIRLOCK.depth + 0.075;
+  const mouthZ = AIRLOCK.depth + 0.075;
   const springY = AIRLOCK.springY;
   const radius = AIRLOCK.outerRadius + 0.018;
   const archCount = 11;
-  for (let index = 0; index < archCount; index += 1) {
-    const angle = (index / (archCount - 1)) * Math.PI;
-    const frost = (index * 0.61803398875) % 1;
-    quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle - HALF_PI);
-    scale.set((Math.PI * radius * 0.86) / (archCount - 1), 0.19, 0.135);
-    const position = new THREE.Vector3(Math.cos(angle) * radius, springY + Math.sin(angle) * radius, z);
-    matrix.compose(position, quaternion, scale);
-    blocks.push({
-      bevel: 0.42 + (index % 5) * 0.11,
-      color: colorForAirlockBlock(position, frost),
-      delay: index * 0.045,
-      facet: (index * 0.41421356237) % 1,
-      // The airlock arch stays mortared (float weight 0) so the always-on amber
-      // threshold keeps a seated masonry frame under the suspended shell.
-      floatAzimuth: Math.atan2(position.z, position.x),
-      floatHeight: 0,
-      floatPhase: suspensionPhaseFor(position),
-      frost,
-      mass: 1.3 + frost,
-      matrix: matrix.clone(),
-      basePosition: position.clone(),
-      baseQuaternion: quaternion.clone(),
-      baseScale: scale.clone(),
-      renderMatrix: matrix.clone(),
-      ...createKnockState(),
-    });
+  const courseDepth = mouthZ / AIRLOCK_COURSE_COUNT;
+  for (let course = 0; course < AIRLOCK_COURSE_COUNT; course += 1) {
+    const z = mouthZ - course * courseDepth;
+    const stagger = course % 2 === 0 ? 0 : 0.5;
+    for (let index = 0; index < archCount; index += 1) {
+      const angle = ((index + stagger) / (archCount - 1)) * Math.PI;
+      if (angle > Math.PI) continue;
+      const frost = ((index + course * 3) * 0.61803398875) % 1;
+      quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle - HALF_PI);
+      scale.set((Math.PI * radius * 0.86) / (archCount - 1), 0.19, courseDepth * 0.94);
+      const position = new THREE.Vector3(
+        Math.cos(angle) * radius,
+        springY + Math.sin(angle) * radius,
+        z,
+      );
+      matrix.compose(position, quaternion, scale);
+      blocks.push({
+        bevel: 0.42 + ((index + course) % 5) * 0.11,
+        color: colorForAirlockBlock(position, frost),
+        delay: course * 0.06 + index * 0.045,
+        facet: ((index + course * 2) * 0.41421356237) % 1,
+        // The airlock arch stays mortared (float weight 0) so the always-on amber
+        // threshold keeps a seated masonry frame under the suspended shell.
+        floatAzimuth: Math.atan2(position.z, position.x),
+        floatHeight: 0,
+        floatPhase: suspensionPhaseFor(position),
+        frost,
+        mass: 1.3 + frost,
+        matrix: matrix.clone(),
+        basePosition: position.clone(),
+        baseQuaternion: quaternion.clone(),
+        baseScale: scale.clone(),
+        renderMatrix: matrix.clone(),
+        ...createKnockState(),
+      });
+    }
   }
   for (const side of [-1, 1]) {
-    for (let row = 0; row < 3; row += 1) {
-      const frost = ((row + 1) * (side < 0 ? 0.271 : 0.731)) % 1;
+    for (let course = 0; course < AIRLOCK_COURSE_COUNT; course += 1) {
+     for (let row = 0; row < 3; row += 1) {
+      const z = mouthZ - course * courseDepth;
+      const frost = ((row + 1 + course) * (side < 0 ? 0.271 : 0.731)) % 1;
       quaternion.identity();
-      scale.set(0.19, 0.19, 0.135);
+      scale.set(0.19, 0.19, courseDepth * 0.94);
       const position = new THREE.Vector3(side * radius, 0.09 + row * 0.19, z);
       matrix.compose(position, quaternion, scale);
       blocks.push({
@@ -1160,6 +1181,7 @@ function buildAirlockBlockInstances() {
         renderMatrix: matrix.clone(),
         ...createKnockState(),
       });
+     }
     }
   }
   return blocks;
