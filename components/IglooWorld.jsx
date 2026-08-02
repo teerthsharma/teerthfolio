@@ -154,6 +154,18 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-no-topology", "noTopology"],
   ["qa-no-seal", "noSeal"],
   ["qa-no-artifacts", "noArtifacts"],
+  // Stops the world's clock so two builds render the same frame. Every animated
+  // surface here reads clock.elapsedTime as a property rather than calling
+  // getElapsedTime(), so pinning it once before the frame's other callbacks
+  // freezes the aurora, the drift, the particles and the mascot together.
+  //
+  // This exists for measurement. probe:frame-detail can difference a global
+  // statistic across a moving scene, because the motion cancels inside a pair,
+  // but it cannot compare individual pixels: two browser sessions cannot be
+  // phase-locked, so a moving aurora reads as ringing and the overshoot figure
+  // is an upper bound rather than a measurement. With the clock stopped the
+  // comparison becomes exact.
+  ["qa-freeze", "freezeClock"],
   // Ablation switch for the fullscreen grade. The frame is fragment-bound, and
   // separating the post chain's share from the world's share is not inferable
   // from draw counts, so it needs a real toggle to measure against.

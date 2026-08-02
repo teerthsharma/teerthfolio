@@ -328,6 +328,21 @@ function OverdrawProbe({ enabled, respectDepth = false }) {
   return null;
 }
 
+// Pins the shared clock to a fixed time before any other frame callback runs.
+// R3F advances state.clock and then invokes subscribers in ascending priority,
+// so the lowest priority here overwrites the value everything downstream reads.
+// The time is arbitrary but must be non-zero: several surfaces phase their
+// motion off it and zero is a degenerate pose for some of them.
+const FROZEN_CLOCK_SECONDS = 8;
+
+function FrozenClock({ enabled }) {
+  useFrame((state) => {
+    if (!enabled) return;
+    state.clock.elapsedTime = FROZEN_CLOCK_SECONDS;
+  }, -1000);
+  return null;
+}
+
 function CheapMaterialProbe({ enabled }) {
   const scene = useThree((state) => state.scene);
   useEffect(() => {
@@ -1260,6 +1275,7 @@ export default function IglooScene({
         />
         <ForceCanvasResize />
         {staged && <RenderBucketPump level={rawBucket} onAdvance={advanceBucket} />}
+        <FrozenClock enabled={Boolean(debugFlags.freezeClock)} />
         <CheapMaterialProbe enabled={Boolean(debugFlags.cheapMaterials)} />
         <OverdrawProbe
           enabled={Boolean(debugFlags.overdraw || debugFlags.overdrawDepth)}

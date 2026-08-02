@@ -45,6 +45,10 @@ import { join } from "node:path";
 import sharp from "sharp";
 
 const BASE = process.env.PROBE_BASE || "http://localhost:3100";
+// qa-freeze pins the world's clock, which is what makes per-pixel comparison
+// across two sessions valid at all. Set PROBE_LIVE=1 to measure the moving world
+// instead, and read the overshoot column as an upper bound when you do.
+const FREEZE = process.env.PROBE_LIVE ? "" : "?qa-freeze=1";
 const ROOT = "verification/frame-detail";
 const TIERS = (process.env.PROBE_TIERS || "medium,low").split(",");
 const FRAMES = Number(process.env.PROBE_FRAMES || 4);
@@ -119,7 +123,7 @@ if (mode === "capture") {
   });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
-  await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 180000 });
+  await page.goto(`${BASE}${FREEZE}`, { waitUntil: "domcontentloaded", timeout: 180000 });
   await page.waitForTimeout(1800);
   await page.locator("button", { hasText: /enter the world|start/i }).first().click().catch(() => {});
   const reached = await page
@@ -140,7 +144,7 @@ if (mode === "capture") {
       await page.screenshot({ path: join(out, `${tier}-${k}.png`) });
       await page.waitForTimeout(SPACING_MS);
     }
-    console.log(`${tag}: ${FRAMES} frames at tier ${tier}`);
+      console.log(`${tag}: ${FRAMES} frames at tier ${tier}${FREEZE ? " (clock frozen)" : " (live)"}`);
   }
   await browser.close();
   console.log(`\nnow change one thing, rebuild, capture the other tag, then:\n  node scripts/probe-frame-detail.mjs compare <control> ${tag}`);
