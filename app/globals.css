@@ -2085,14 +2085,10 @@ img {
   pointer-events: none;
 }
 
-.section-band::before {
-  left: var(--page-pad);
-  right: var(--page-pad);
-  top: 50%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(230, 238, 248, 0.18), transparent);
-  opacity: 0.42;
-}
+/* Removed: a 1px decorative rule pinned to top: 50% on every band. Placed by
+   percentage rather than by composition, it landed across the radar band's body
+   paragraph at y~450. A horizon line has to be positioned against the content
+   it sits behind, and nothing here knows where that is. */
 
 .section-band::after {
   inset: 0;
@@ -2269,6 +2265,11 @@ img {
 .project-list {
   max-height: min(580px, 62vh);
   overflow: auto;
+  /* Without this the wheel chains: scrolling this list to its end threw the
+     page a full band sideways mid-gesture (measured 2880 -> 3780 on the second
+     notch), so the wheel did two different things depending on which 433px of
+     the viewport the cursor happened to be over. */
+  overscroll-behavior: contain;
   padding-right: 4px;
 }
 

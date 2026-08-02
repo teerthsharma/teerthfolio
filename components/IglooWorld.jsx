@@ -51,6 +51,7 @@ const SEAL_ROUTE_HINT_VISIBLE_MS = 3800;
 const FATAL_RENDER_EVENT_TYPES = new Set(["webgl-context-lost", "webgl-create-failed", "canvas-error"]);
 const SAFE_RENDER_QUERY = "safe=1";
 const QA_AUTO_PROBE_RENDER_QUERY = "qa-auto-probe";
+const QA_DIAGNOSTICS_RENDER_QUERY = "qa-diagnostics";
 const QA_LOW_RENDER_QUERY = "qa-low";
 const SAFE_QA_AUTO_PROBE_DELAY_MS = 900;
 const IDLE_WORLD_FRAME_MS = 1000 / 20;
@@ -165,13 +166,20 @@ function describeError(error) {
   return error.message || error.reason?.message || String(error);
 }
 
-function DiagnosticPanel({ events, onReloadWorld, rendererMode }) {
-  const visibleEvents =
-    rendererMode === "safe" || rendererMode === "probe"
-      ? events
-      : events.filter((event) => event.severity === "error" || event.severity === "warn");
+function DiagnosticPanel({ events, forced, onReloadWorld, rendererMode }) {
+  // "probe" is the ordinary state during a cold shader compile, which can run
+  // 25-32s on a first visit. Treating it as a diagnostic condition meant a
+  // stranger spent that half-minute reading "renderer diagnostics / probe" and
+  // being offered a "reload world" button that restarts the compile from zero.
+  // A real failure still surfaces unprompted; the slow-but-working path does
+  // not, and ?qa-diagnostics brings the full strip back for debugging.
+  const errorEvents = events.filter(
+    (event) => event.severity === "error" || event.severity === "warn",
+  );
+  const verbose = forced || rendererMode === "safe";
+  const visibleEvents = verbose ? events : errorEvents;
 
-  if (!visibleEvents.length && rendererMode !== "safe" && rendererMode !== "probe") return null;
+  if (!visibleEvents.length && !verbose) return null;
 
   return (
     <div className="igloo-diagnostics" role="status" aria-live="polite">
@@ -179,7 +187,7 @@ function DiagnosticPanel({ events, onReloadWorld, rendererMode }) {
       {/* Probe recovery: a wedged probe (e.g. a killed R3F loop before
           scene-ready) never resolves on its own, so the strip offers a clean
           canvas remount instead of demanding a manual page reload. */}
-      {rendererMode === "probe" && onReloadWorld && (
+      {verbose && rendererMode === "probe" && onReloadWorld && (
         <button
           className="igloo-diagnostics-reload"
           onClick={onReloadWorld}
@@ -345,6 +353,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const [archivePortalOfferOpen, setArchivePortalOfferOpen] = useState(false);
   const [blackHoleActive, setBlackHoleActive] = useState(false);
   const [qaAutoProbe, setQaAutoProbe] = useState(false);
+  const [qaDiagnostics, setQaDiagnostics] = useState(false);
   const [stationProximity, setStationProximity] = useState(0);
   const [worldInView, setWorldInView] = useState(true);
   const [gpuStageMounted, setGpuStageMounted] = useState(true);
@@ -547,6 +556,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       {},
     );
     const nextQaAutoProbe = query.has(QA_AUTO_PROBE_RENDER_QUERY);
+    setQaDiagnostics(query.has(QA_DIAGNOSTICS_RENDER_QUERY));
     setQaAutoProbe(nextQaAutoProbe);
     if (query.has(QA_LOW_RENDER_QUERY)) {
       setQuality("low");
@@ -1059,6 +1069,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       )}
       <DiagnosticPanel
         events={gpuDiagnostics}
+        forced={qaDiagnostics}
         onReloadWorld={reloadWorld}
         rendererMode={rendererMode}
       />
