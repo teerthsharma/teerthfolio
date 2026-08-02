@@ -686,8 +686,9 @@ assert.equal(
   packageJson.scripts["verify:biome-shaders"],
   "node scripts/verify-polar-biome-shader-compile.mjs",
 );
-assert.ok(packageJson.scripts.build.includes("npm run check:biome-world"));
-assert.ok(!packageJson.scripts.build.includes("npm run verify:biome-shaders"));
+// Script paths, not npm keys - the build chains node calls directly.
+assert.ok(packageJson.scripts.build.includes("check-polar-biome-world.mjs"));
+assert.ok(!packageJson.scripts.build.includes("verify-polar-biome-shader-compile.mjs"));
 assert.equal(packageJson.scripts["verify:ci-browser"], "npm run verify:biome-shaders");
 
 console.log(

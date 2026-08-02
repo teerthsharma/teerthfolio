@@ -270,7 +270,12 @@ for (const file of canonicalConsumers) {
 }
 
 const sceneSource = readFileSync(path.resolve("components/IglooScene.jsx"), "utf8");
-const artifactSource = readFileSync(path.resolve("components/IglooArtifacts.jsx"), "utf8");
+// The artifact records themselves live in lib/igloo-artifacts.js so that
+// importing the station list does not pull three.js into the first-load
+// bundle; the R3F components that render them stay in the .jsx.
+const artifactSource =
+  readFileSync(path.resolve("lib/igloo-artifacts.js"), "utf8") +
+  readFileSync(path.resolve("components/IglooArtifacts.jsx"), "utf8");
 const worldSource = readFileSync(path.resolve("components/IglooWorld.jsx"), "utf8");
 assert.match(
   sceneSource,

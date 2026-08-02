@@ -9,7 +9,8 @@ assert.ok(
   !/check:publication-packaging|check:ci-browser-boundary|check:release-boundaries/i.test(build),
   "production build must not depend on repository metadata gates",
 );
-assert.ok(build.includes("npm run check:browser-diagnostics"));
+// Script path, not npm key - the build chains node calls directly.
+assert.ok(build.includes("check-browser-diagnostic-contracts.mjs"));
 assert.ok(!/playwright|verify:biome-shaders|verify:ci-browser/i.test(build), "build must not launch a browser");
 assert.equal(
   packageJson.scripts["check:release-boundaries"],

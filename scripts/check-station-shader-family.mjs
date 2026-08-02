@@ -89,7 +89,10 @@ assert.equal(
   "full station shader is budgeted for one vertex and two fragment procedural samples",
 );
 
-const artifacts = readSource("components/IglooArtifacts.jsx");
+// Station records live in lib/igloo-artifacts.js (keeping three.js out of the
+// first-load bundle); the components that render them stay in the .jsx.
+const artifacts =
+  readSource("lib/igloo-artifacts.js") + readSource("components/IglooArtifacts.jsx");
 for (const stationId of stationIds) {
   assert.ok(artifacts.includes(stationId), `IglooArtifacts.jsx is missing ${stationId}`);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
 import {
@@ -17,9 +18,17 @@ import {
 import { deriveSealGuideState } from "../lib/seal-guide-state";
 import BlackHoleTransition from "./BlackHoleTransition";
 import IglooHud from "./IglooHud";
-import IglooScene from "./IglooScene";
-import { IGLOO_ARTIFACTS } from "./IglooArtifacts";
+import { IGLOO_ARTIFACTS } from "../lib/igloo-artifacts";
 import SdfSealSplash from "./SdfSealSplash";
+
+// three.js is 703 KB raw / 178 KB gzip - 33.9% of a 2.07 MB first load that
+// every visitor paid for, including the ones who never press "Enter the world"
+// and the ones on mobile who cannot. Nothing on the gate path needs it:
+// SdfSealSplash, AntarcticSplashShader, IglooHud and BlackHoleTransition all
+// drive raw WebGL. Only this subtree pulls three, drei and three-stdlib, and it
+// is already gated behind sdfRenderEnabled, so the import can wait for the
+// click that mounts it. ssr:false because the scene touches WebGL on mount.
+const IglooScene = dynamic(() => import("./IglooScene"), { ssr: false });
 
 const WORLD_Z_VALUES = STATION_WORLD_SCHEMA.order.map(
   (id) => STATION_WORLD_SCHEMA.stations[id].dock.z,

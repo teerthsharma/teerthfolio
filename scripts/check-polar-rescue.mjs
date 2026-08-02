@@ -280,9 +280,10 @@ for (const relativePath of [
 
 const packageJson = JSON.parse(readSource("package.json"));
 assert.equal(packageJson.scripts["check:polar-rescue"], "node scripts/check-polar-rescue.mjs");
+// Script paths, not npm keys - the build chains node calls directly.
 assert.match(
   packageJson.scripts.build,
-  /check:teerth[\s\S]*check:render-budget[\s\S]*check:polar-rescue[\s\S]*next build/,
+  /check-teerth\.mjs[\s\S]*check-render-budget\.mjs[\s\S]*check-polar-rescue\.mjs[\s\S]*next build/,
   "build must run the polar rescue gate before next build",
 );
 

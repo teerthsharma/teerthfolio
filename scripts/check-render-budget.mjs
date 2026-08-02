@@ -65,7 +65,12 @@ const files = {
   scene: readFileSync(join(root, "components", "IglooScene.jsx"), "utf8"),
   biome: readFileSync(join(root, "components", "PolarBiomeWorld.jsx"), "utf8"),
   biomeFields: readFileSync(join(root, "lib", "polar-biome-fields.js"), "utf8"),
-  artifacts: readFileSync(join(root, "components", "IglooArtifacts.jsx"), "utf8"),
+  // Station identity data lives in lib/igloo-artifacts.js; the R3F components
+  // that consume it stay in components/IglooArtifacts.jsx. Both are read here
+  // because the art-direction contract below spans the pair.
+  artifacts:
+    readFileSync(join(root, "lib", "igloo-artifacts.js"), "utf8") +
+    readFileSync(join(root, "components", "IglooArtifacts.jsx"), "utf8"),
   dome: readFileSync(join(root, "components", "PolarObservatoryDome.jsx"), "utf8"),
   splash: readFileSync(join(root, "components", "SdfSealSplash.jsx"), "utf8"),
   nextConfig: readFileSync(join(root, "next.config.mjs"), "utf8"),

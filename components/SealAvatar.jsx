@@ -18,8 +18,6 @@ export const SEAL_GUIDE_BEACON_PROFILE = "active station beacon makes the seal r
 export const SEAL_PREMIUM_SILHOUETTE_PROFILE = "inked SDF silhouette rim with belly contour and topology seam";
 export const SEAL_TOON_MATERIAL_PROFILE = "three-band anime seal skin with nearest-filtered palette ramp";
 export const SEAL_SKIN_TEXTURE_BUDGET = "one memoized 3x1 RGBA gradient texture and zero per-frame allocations";
-export const SEAL_LEGACY_SKIN_NORMAL_SOURCE =
-  "/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_normal-ogl.png";
 
 export const SEAL_TOON_BANDS = Object.freeze({
   shadow: "#4C5C7E",
@@ -72,7 +70,6 @@ function useSealMaterial() {
     material.name = `SealSkin ${SEAL_TOON_MATERIAL_PROFILE}`;
     material.userData = {
       bands: SEAL_TOON_BANDS,
-      sourceNormalMap: SEAL_LEGACY_SKIN_NORMAL_SOURCE,
       textureBudget: SEAL_SKIN_TEXTURE_BUDGET,
     };
     material.onBeforeCompile = (shader) => {
