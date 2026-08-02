@@ -232,6 +232,11 @@ assert.ok(
     /if \(dot\(travelerDelta, travelerDelta\) </,
     "the traveler caster must sit behind its own XZ reject",
   );
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    /mat2 intoSealFrame = mat2\(sealForward\.x, -sealForward\.y, sealForward\.y, sealForward\.x\)/,
+    "the traveler caster must solve in the seal's own heading frame",
+  );
   // A lit building throws light as well as blocking it. One pool per station,
   // applied after the shadow so a building's own shadow still catches the spill
   // from its openings.
@@ -254,6 +259,49 @@ assert.ok(
     poolGain > 0 && poolGain <= 0.35,
     `ground light pools must stay a local spill rather than a field-wide dye (gain ${poolGain})`,
   );
+
+  // The traveler's shadow carries the body's shape, not a circle, and that shape
+  // turns with the heading. Evaluate the emitted solve as arithmetic on a grid
+  // and measure the shadowed footprint's extent along and across two headings
+  // 90 degrees apart; a round shadow would report the same extent both ways.
+  {
+    const seal = { axial: 1.04, lateral: 0.49, vertical: 0.35, y: 0.57 };
+    const light = { x: -0.46, y: 0.82, z: 0.34 };
+    const shadowedAt = (dx, dz, heading) => {
+      const cos = Math.cos(heading);
+      const sin = Math.sin(heading);
+      const localX = cos * dx + sin * dz;
+      const localZ = -sin * dx + cos * dz;
+      const lightX = cos * light.x + sin * light.z;
+      const lightZ = -sin * light.x + cos * light.z;
+      const origin = [localX / seal.axial, -seal.y / seal.vertical, localZ / seal.lateral];
+      const direction = [lightX / seal.axial, light.y / seal.vertical, lightZ / seal.lateral];
+      const a = direction.reduce((sum, v) => sum + v * v, 0);
+      const b = 2 * origin.reduce((sum, v, i) => sum + v * direction[i], 0);
+      const c = origin.reduce((sum, v) => sum + v * v, 0) - 1;
+      const discriminant = b * b - 4 * a * c;
+      if (discriminant <= 0) return false;
+      return (-b + Math.sqrt(discriminant)) / (2 * a) > 0;
+    };
+    const extents = (heading) => {
+      let along = 0;
+      let across = 0;
+      for (let t = 0; t <= 4; t += 0.02) {
+        if (shadowedAt(Math.cos(heading) * t, Math.sin(heading) * t, heading)) along = t;
+        if (shadowedAt(-Math.sin(heading) * t, Math.cos(heading) * t, heading)) across = t;
+      }
+      return { along, across };
+    };
+    for (const heading of [0, Math.PI / 2]) {
+      const { along, across } = extents(heading);
+      assert.ok(
+        along > across * 1.4,
+        `traveler shadow must be longer along its heading than across it (heading ${heading.toFixed(
+          2,
+        )}: ${along.toFixed(2)} vs ${across.toFixed(2)})`,
+      );
+    }
+  }
 
   // The traveler's shadow has to ride the same surface the traveler rides, or it
   // slides off the body as the seal crosses a dune.

@@ -328,6 +328,10 @@ function makeUniforms(shaderDetail) {
     uPrimaryCenterXZ: { value: new THREE.Vector2() },
     uSecondaryCenterXZ: { value: new THREE.Vector2() },
     uTravelerXZ: { value: new THREE.Vector2() },
+    // Heading the seal is actually travelling, so its ground shadow can carry
+    // the body's 2:1 axial-to-lateral shape instead of a circle. Held through a
+    // stop rather than snapping to zero.
+    uTravelerDir: { value: new THREE.Vector2(1, 0) },
     uPrimaryLightDirection: { value: new THREE.Vector3(-0.42, 0.84, 0.34) },
     uSecondaryLightDirection: { value: new THREE.Vector3(-0.42, 0.84, 0.34) },
     uPrimaryBaseColor: { value: new THREE.Color("#C9D5D9") },
@@ -404,13 +408,14 @@ function applyProfileUniforms(uniforms, prefix, entry) {
   }
 }
 
-function syncUniforms(uniformSets, blend, weather, time, shaderDetail, travelerXZ) {
+function syncUniforms(uniformSets, blend, weather, time, shaderDetail, travelerXZ, travelerDir) {
   for (const uniforms of uniformSets) {
     uniforms.uTime.value = time;
     uniforms.uShaderDetail.value = shaderDetail;
     applyProfileUniforms(uniforms, "Primary", blend.primary);
     applyProfileUniforms(uniforms, "Secondary", blend.secondary);
     uniforms.uTravelerXZ.value.set(travelerXZ[0], travelerXZ[1]);
+    if (travelerDir) uniforms.uTravelerDir.value.set(travelerDir[0], travelerDir[1]);
     if (weather) {
       uniforms.uWeatherFieldKind.value = weather.fieldKind;
       uniforms.uWeatherStrength.value = weather.opacity * weather.influence;
@@ -445,6 +450,9 @@ function PolarBiomeWorldStage({
   const telemetryElapsed = useRef(0);
   const primaryBiomeId = useRef(undefined);
   const positionScratch = useRef([0, 0]);
+  // Last non-zero travel heading, so a stopped seal keeps the shadow it had
+  // rather than snapping its long axis to +x.
+  const headingScratch = useRef([1, 0]);
   const ownershipScratch = useRef({
     blend: { entries: [{}, {}], primary: null, secondary: null },
     visibleStationIds: [],
@@ -531,6 +539,13 @@ function PolarBiomeWorldStage({
     const z = Number.isFinite(refPose?.z) ? refPose.z : depthZ;
     positionScratch.current[0] = Number.isFinite(x) ? x : 0;
     positionScratch.current[1] = Number.isFinite(z) ? z : 0;
+    const travelX = Number.isFinite(refPose?.vx) ? refPose.vx : 0;
+    const travelZ = Number.isFinite(refPose?.vz) ? refPose.vz : 0;
+    const travelSpeed = Math.hypot(travelX, travelZ);
+    if (travelSpeed > 0.05) {
+      headingScratch.current[0] = travelX / travelSpeed;
+      headingScratch.current[1] = travelZ / travelSpeed;
+    }
     const ownership = resolveLocalWorldOwnership(
       positionScratch.current,
       ownershipScratch.current,
@@ -567,6 +582,7 @@ function PolarBiomeWorldStage({
       shaderTime,
       qualityPolicy.shaderDetail,
       positionScratch.current,
+      headingScratch.current,
     );
 
     const environmentAlpha = reducedMotion
