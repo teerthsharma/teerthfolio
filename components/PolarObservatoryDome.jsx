@@ -596,9 +596,15 @@ function createInstancedIceMaterial(quality) {
     // wide low sheen for the wind-packed surface, and only a trace of coat.
     clearcoat: quality === "high" ? 0.12 : 0.08,
     clearcoatRoughness: 0.62,
-    // Cool near-neutral base: multiplying the warm personality key (#FFD9A3) against the
-    // sage instance colors was the exact product that produced the olive brick read.
-    color: "#E1E9F2",
+    // Cool near-neutral base, taken down out of the clipping ceiling. Measured on
+    // a 1440x900 capture of the docked shot, 17.41% of the dome's pixels were
+    // pinned at pure 255,255,255 against 0.00% in the reference — a clipped face
+    // carries no form, and a shell whose upward courses are all the same flat
+    // white cannot read as laid blocks no matter how the seams are cut. #E1E9F2
+    // sits at luma 230 before the key even reaches it. This is the same hue a
+    // value step down; the warm-key-times-sage product that produced the old
+    // olive brick read is still avoided.
+    color: "#A9B4C2",
     // Body emissive is effectively off. The shell must be LIT by the scene rig so the
     // seam/face/crown value ladder survives; glow stays in the airlock, the seam
     // recesses, and the interior spill, never on the brick faces.
@@ -607,11 +613,11 @@ function createInstancedIceMaterial(quality) {
     ior: 1.31,
     metalness: 0,
     roughness: quality === "high" ? 0.68 : 0.74,
-    sheen: quality === "high" ? 0.22 : 0.16,
+    sheen: quality === "high" ? 0.14 : 0.11,
     sheenColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
     sheenRoughness: 0.86,
     specularColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
-    specularIntensity: quality === "high" ? 0.26 : 0.22,
+    specularIntensity: quality === "high" ? 0.16 : 0.14,
     vertexColors: true,
   });
   material.userData.brickUniforms = uniforms;
@@ -823,8 +829,15 @@ brickXzTint = mix(brickXzTint, uBrickFrostIvory, brickIvoryZone * 0.14);
 // near-monochrome glacial glass.
 vec3 brickSurface = mix(diffuseColor.rgb, brickXzTint, 0.1);
 brickSurface *= 0.96 + brickWrappedDiffuse * 0.2 + (brickFrost - 0.5) * 0.08;
-brickSurface *= 1.0 + brickCrownGradient * 0.24;
-brickSurface = mix(brickSurface, uBrickWindCap, brickWindCap * 0.14 + brickCrownHighlight * 0.16);
+// Crown terms are deliberately small. Measured against the reference at 1440x900
+// the dome there spans luma 59-101 across crown, faces and shadow side — a 1.71
+// ratio held by a soft key and aerial haze. This shell was spanning 63-255 with
+// the upward faces pinned at pure 255,255,255: a clipped crown carries no form
+// at all, and the wide spread is what made laid courses read as separate plates.
+// The stack that got it there was a 0.24 world-height gradient, a 0.16 wind-cap
+// mix and a 0.075 emissive lift, all landing on the same upward normals.
+brickSurface *= 1.0 + brickCrownGradient * 0.09;
+brickSurface = mix(brickSurface, uBrickWindCap, brickWindCap * 0.09 + brickCrownHighlight * 0.06);
 brickSurface = mix(brickSurface, uBrickSeamBlueGrey, brickRecess * 0.62);
 // Cool grey-blue seam by default; the subtle cyan-mint only lives in the deep cut.
 brickSurface = mix(brickSurface, uBrickSubsurfaceCyan, brickSeamCore * 0.12);
@@ -849,11 +862,17 @@ float brickContactSignal = uBrickImpact * (0.012 + brickBevelLight * 0.026);
 // Near-zero body emissive: only enough lift to keep the shadow side off black. The
 // dome is lit by the scene rig, so the seam/face/crown ladder is not washed flat.
 totalEmissiveRadiance += brickSurface * 0.06;
-totalEmissiveRadiance += uBrickIceBlue * 0.012;
-totalEmissiveRadiance += uBrickSubsurfaceCyan * brickTransmission * 0.1;
-totalEmissiveRadiance += uBrickFrostIvory * (brickFresnel * 0.07 + brickCrownHighlight * 0.075);
+// The cyan additives are halved. They are ADDED, not multiplied, so their share
+// of a face grows as the body darkens: taking the base down out of the clipping
+// ceiling made the shell measurably bluer (mean saturation 0.32 -> 0.44 across
+// the dome region) even though every palette entry stayed inside the 0.2
+// desaturation cap. The transmission term was the bulk of it, landing on exactly
+// the faces angled away from the key.
+totalEmissiveRadiance += uBrickIceBlue * 0.006;
+totalEmissiveRadiance += uBrickSubsurfaceCyan * brickTransmission * 0.045;
+totalEmissiveRadiance += uBrickFrostIvory * (brickFresnel * 0.04 + brickCrownHighlight * 0.022);
 // Interior spill through the seam cuts stays: this is the lab-lit-from-within read.
-totalEmissiveRadiance += uBrickSubsurfaceCyan * brickSeamCore * (0.05 + uBrickProximity * 0.16);
+totalEmissiveRadiance += uBrickSubsurfaceCyan * brickSeamCore * (0.03 + uBrickProximity * 0.1);
 totalEmissiveRadiance += uBrickFrostIvory * brickFresnel * uBrickProximity * 0.07;
 totalEmissiveRadiance += uBrickSubsurfaceCyan * vBrickHover * (0.12 + brickFresnel * 0.08);
 totalEmissiveRadiance += uBrickAccent * brickContactSignal;`,
