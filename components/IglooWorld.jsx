@@ -65,6 +65,38 @@ export const ABETO_REFERENCE_MOTION_PROFILE =
 export const OPEN_WORLD_LOADING_PROFILE =
   "best-of-two loading: Abeto fullscreen in-place world stream plus Bruno horizontal evidence index fallback";
 const OPEN_WORLD_LOADING_SETTLE_MS = 1800;
+
+/**
+ * Measured quality selection.
+ *
+ * The tier was chosen from navigator.deviceMemory, which reports system RAM and
+ * says nothing whatever about a GPU: an 8GB laptop with integrated graphics and
+ * an 8GB desktop with a discrete card both got the most expensive tier. The
+ * tiers are not close — measured at 1440x900 on one desktop, high runs 30.6ms,
+ * medium 24.3ms and low 17.2ms, so the gaps are 6ms and 7ms — which is far more
+ * than anything tuning inside a tier can move, and makes the choice between
+ * them the single largest lever on how smooth the world feels.
+ *
+ * Downgrade only. Stepping up as well would need hysteresis to avoid hunting,
+ * and a world that visibly changes quality twice while you watch is worse than
+ * one that settles a little low. A machine that can hold high keeps it.
+ *
+ * Sampling starts well past the shader warm-up, whose links are the only source
+ * of hitches once the world is up (measured: after the warm-up completes, p95
+ * sits 4.2ms over median and 2 frames in 557 exceed it by half). Sampling
+ * during it would downgrade every visitor on load cost they only pay once.
+ */
+const AUTO_QUALITY_POLICY = Object.freeze({
+  settleMs: 5200,
+  sampleFrames: 90,
+  // Below ~48fps, drop off high. Below ~33fps, drop off medium too — that floor
+  // is deliberately lower, because low is a visible step down in the world's
+  // detail and is worth taking only when the frame is genuinely broken.
+  stepFromHighAboveMs: 21,
+  stepFromMediumAboveMs: 30,
+  order: Object.freeze(["high", "medium", "low"]),
+});
+
 const STATION_COLLIDERS = Object.freeze(
   createStationCollisionSet().map((collider) => Object.freeze(collider)),
 );
@@ -340,6 +372,14 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const initialSafeMode = Boolean(initialQuery.initialSafeMode);
   const initialSafetyQuality = Boolean(initialQuery.initialQaLow || initialSafeMode);
   const [quality, setQuality] = useState(initialSafetyQuality ? "low" : "high");
+  // Set the moment the visitor picks a tier themselves. Their choice is final:
+  // a world that overrides a deliberate selection two seconds later is broken,
+  // however well-meant the measurement behind it.
+  const qualityLockedRef = useRef(false);
+  const selectQuality = useCallback((next) => {
+    qualityLockedRef.current = true;
+    setQuality(next);
+  }, []);
   const [highContrast, setHighContrast] = useState(false);
   const [traversalPresentation, setTraversalPresentation] = useState(
     INITIAL_TRAVERSAL_PRESENTATION,
@@ -567,6 +607,54 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     [],
   );
 
+  // Measured downgrade. See AUTO_QUALITY_POLICY.
+  useEffect(() => {
+    if (!sceneReady || qualityLockedRef.current) return undefined;
+    if (quality === "low") return undefined;
+    let cancelled = false;
+    let frameHandle = 0;
+    const settle = window.setTimeout(() => {
+      const intervals = [];
+      let last = performance.now();
+      const sample = () => {
+        if (cancelled) return;
+        const now = performance.now();
+        intervals.push(now - last);
+        last = now;
+        if (intervals.length < AUTO_QUALITY_POLICY.sampleFrames) {
+          frameHandle = window.requestAnimationFrame(sample);
+          return;
+        }
+        // Drop the first few: the sampler's own first frames land while the
+        // timeout callback is still unwinding.
+        const usable = intervals.slice(8).sort((a, b) => a - b);
+        const median = usable[Math.floor(usable.length / 2)];
+        const ceiling =
+          quality === "high"
+            ? AUTO_QUALITY_POLICY.stepFromHighAboveMs
+            : AUTO_QUALITY_POLICY.stepFromMediumAboveMs;
+        if (!Number.isFinite(median) || median <= ceiling) return;
+        const index = AUTO_QUALITY_POLICY.order.indexOf(quality);
+        const next = AUTO_QUALITY_POLICY.order[index + 1];
+        if (!next || qualityLockedRef.current) return;
+        setQuality(next);
+        reportGpuEvent({
+          detail: `median frame ${median.toFixed(1)}ms over a ${ceiling}ms ceiling`,
+          message: `Quality stepped from ${quality} to ${next} to hold the frame.`,
+          severity: "info",
+          type: "auto-quality-step",
+        });
+      };
+      frameHandle = window.requestAnimationFrame(sample);
+    }, AUTO_QUALITY_POLICY.settleMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(settle);
+      window.cancelAnimationFrame(frameHandle);
+    };
+  }, [quality, reportGpuEvent, sceneReady]);
+
+
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     // safe=1 is the incident path: boot cheap first and wait for an explicit user probe.
@@ -581,6 +669,9 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     if (query.has(QA_LOW_RENDER_QUERY)) {
       setQuality("low");
     } else {
+      // Opening guess only; AUTO_QUALITY_POLICY measures and steps down from
+      // here once the world is up. deviceMemory is kept as the one signal
+      // available before a frame has been drawn.
       const memory = navigator.deviceMemory || 8;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       setQuality(memory <= 4 ? "low" : reducedMotion ? "medium" : "high");
@@ -1118,7 +1209,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         reducedMotion={reduced}
         renderEnabled={publicRenderEnabled}
         sealAwake={sealAwake}
-        setQuality={setQuality}
+        setQuality={selectQuality}
         setHighContrast={setHighContrast}
       />
       <BlackHoleTransition
