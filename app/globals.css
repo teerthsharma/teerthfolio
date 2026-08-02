@@ -94,6 +94,11 @@
   --polar-panel-strong: rgba(12, 18, 36, 0.74);
   --polar-line: var(--c-line);
 
+  /* Was never defined. Four rules referenced var(--font-mono, ...) and every
+     one fell through to its fallback, so the gate eyebrow and the "Enter the
+     world" label rendered in IBM Plex Mono where installed and generic Courier
+     everywhere else - the only surfaces on the site not using Geist Mono. */
+  --font-mono: var(--font-pixel);
   --ease-cine: cubic-bezier(0.22, 1, 0.36, 1);
   --page-pad: clamp(16px, 4vw, 56px);
   --radius: 8px;
@@ -4115,6 +4120,11 @@ img {
 .radar-event:focus-visible,
 .radar-empty a:focus-visible,
 .repo-tape a:focus-visible,
+/* The 25-row project rail was missing from this list, so its cards fell back
+   to the UA default outline - rgb(16,16,16) on a rgba(9,13,28,0.62) card,
+   which is invisible. It is the densest tab stop on the site. */
+.project-list button:focus-visible,
+.project-detail .source-link:focus-visible,
 .archive-panel a:focus-visible {
   outline: 1px solid var(--hud-focus, #6FE7C8);
   outline-offset: 3px;
@@ -4350,18 +4360,34 @@ img {
   border: 1px solid var(--hud-line);
   border-radius: 10px;
   background: var(--hud-paper);
-  /* Renderer tier and contrast are settings, not scenery. At rest the cluster
-     recedes so the world holds the frame; pointer or keyboard focus brings it
-     back at full strength. Opacity only - the 44px targets and the tab order
-     are untouched, so it stays operable while invisible. */
-  opacity: 0.24;
-  transition: opacity 260ms var(--ease-cine);
+  /* Renderer tier and contrast are settings, not scenery, so the cluster
+     recedes at rest. Recede the CHROME, never the text: a subtree `opacity`
+     here attenuated the labels too and measured them at 1.7-1.9:1 against a
+     4.5:1 requirement. Only the border fades: a translucent panel is no better,
+     because the bright polar field behind it drove the same labels to 2.7-4.4:1
+     even at full text opacity. The panel has to stay dark enough to carry its
+     own text; the quiet comes from the border and the size, not the fill. */
+  border-color: rgba(230, 238, 248, 0.05);
+  background: rgba(9, 13, 28, 0.76);
+  transition:
+    border-color 260ms var(--ease-cine),
+    background-color 260ms var(--ease-cine);
 }
 
 .igloo-controls:hover,
 .igloo-controls:focus-within,
 .igloo-world[data-high-contrast="true"] .igloo-controls {
-  opacity: 1;
+  border-color: var(--hud-line);
+  background: var(--hud-paper);
+}
+
+/* Touch has no hover, so a hover-only reveal is a control that never comes
+   back. A real tap on the tier buttons left the cluster in its rest state. */
+@media (hover: none), (pointer: coarse) {
+  .igloo-controls {
+    border-color: var(--hud-line);
+    background: var(--hud-paper);
+  }
 }
 
 .igloo-controls button {
@@ -5156,7 +5182,7 @@ img {
 .sdf-seal-splash .sdf-splash-status > span,
 .sdf-seal-splash .sdf-route-action > span,
 .sdf-seal-splash .sdf-route-action > small {
-  color: rgba(201, 214, 238, 0.66);
+  color: #C9D6EE;
   font-family: var(--font-mono, "IBM Plex Mono", monospace);
   font-size: 0.68rem;
   font-style: normal;
@@ -5569,7 +5595,7 @@ img {
 
 .sdf-seal-splash .sdf-splash-status > small {
   overflow: hidden;
-  color: rgba(201, 214, 238, 0.68);
+  color: #C9D6EE;
   font-size: 0.72rem;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -5629,7 +5655,7 @@ img {
 
 .sdf-seal-splash .sdf-route-action > span,
 .sdf-seal-splash .sdf-route-action > small {
-  color: rgba(201, 214, 238, 0.6);
+  color: #C9D6EE;
   font-size: 0.58rem;
   letter-spacing: 0.12em;
 }
@@ -5859,12 +5885,18 @@ img {
     font-size: 0.54rem;
   }
 
+  /* Two lines, clamped at the line - not one line clamped mid-word. `nowrap`
+     plus an ellipsis on a full sentence rendered the 390px hero as "Renderer
+     access begins only on your c...", which is the single most visible
+     unfinished signal on the mobile build. */
   .sdf-seal-splash .sdf-splash-status > strong {
+    display: -webkit-box;
     overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     font-size: 0.74rem;
     line-height: 1.3;
     text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .sdf-seal-splash .sdf-splash-status > small {
