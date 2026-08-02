@@ -34,7 +34,17 @@ for (const [quality, budget] of Object.entries(WORLD_DRESSING_BUDGET)) {
 // monuments and stay rare; near is ground cover on one instanced draw and is
 // budgeted by coverage. A single combined ceiling let the ground be starved to
 // keep the monument count honest.
-assert.ok(WORLD_DRESSING_BUDGET.low.total <= 200, "low tier must stay at or below 200 objects");
+// Low's ceiling was set when low was a fallback for weak hardware. The measured
+// quality ladder now settles there on any machine that cannot hold 60fps at
+// high, so it is the field most visitors stand in, and starving it is starving
+// the shipped world. Still one instanced draw; the ceiling only has to keep the
+// ladder ordered.
+assert.ok(WORLD_DRESSING_BUDGET.low.total <= 380, "low tier must stay at or below 380 objects");
+assert.ok(
+  WORLD_DRESSING_BUDGET.low.near <= WORLD_DRESSING_BUDGET.medium.near &&
+    WORLD_DRESSING_BUDGET.medium.near <= WORLD_DRESSING_BUDGET.high.near,
+  "ground cover must not invert the quality ladder",
+);
 assert.ok(WORLD_DRESSING_BUDGET.high.total <= 700, "high tier must stay at or below 700 objects");
 for (const [quality, budget] of Object.entries(WORLD_DRESSING_BUDGET)) {
   assert.ok(
