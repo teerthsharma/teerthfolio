@@ -1171,12 +1171,22 @@ export default function IglooScene({
   // from 30.4ms only to 29.3ms. Until the gap between GPU time and presented
   // time is explained, trading the world's sharpness buys nothing a visitor
   // can see.
-  // Medium renders at low's device-pixel ceiling on purpose. It is content-bound
-  // rather than fill-bound (see AUTO_QUALITY_POLICY), so 0.9 bought sharpness it
-  // could not pay for: 22.9ms against a 21ms step-down ceiling meant integrated
-  // graphics never held medium and lost its geography, tunnel and masonry to the
-  // low tier. At 0.75 it floors at 18.7-19.5ms and holds. Low keeps its own
-  // ladder position by shedding content, not pixels.
+  // Medium renders at low's device-pixel ceiling on purpose, and the reason is
+  // margin rather than raw cost. 0.9 was measured twice: on a loaded machine it
+  // ran 22.9ms against the 21ms step-down ceiling and fell to low every visit,
+  // and on an idle one it held medium four times out of four at 17.4-17.6ms.
+  // Both readings are real, which is the problem — the same configuration on the
+  // same hardware moves about 5ms with nothing but background load, and 0.9
+  // leaves only 3.5ms of headroom under the ceiling.
+  //
+  // 0.75 leaves 6.5ms idle and still measured 19.0-19.5ms loaded, holding medium
+  // in both states. The asymmetry decides it: the downside of too much
+  // resolution is not a softer frame, it is falling to the low tier and losing
+  // the geography, the tunnel arch, the drift and two thirds of the masonry with
+  // it. A tier that holds everywhere beats 44% more pixels that hold only when
+  // the machine is quiet, and the camera-space sharpen recovers part of what the
+  // scale gives away. Low keeps its ladder position by shedding content, not
+  // pixels.
   const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.75] : [1, 1.5];
   const preserveDrawingBuffer =
     typeof window !== "undefined" &&
