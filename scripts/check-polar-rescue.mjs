@@ -195,6 +195,11 @@ expectIncludes("components/IglooWorld.jsx", [
   "maxRestores",
   "restoresRef.current < AUTO_QUALITY_POLICY.maxRestores",
   "auto-quality-restore",
+  // The prediction prefers this machine's own history over the constant, and the
+  // low tier keeps sampling so a machine that fell there can climb back. Without
+  // the second, the restore is unreachable from the tier that most needs it.
+  "seenUp * (median / seenHere)",
+  'quality === "low" && restoresRef.current >= AUTO_QUALITY_POLICY.maxRestores',
 ]);
 
 expectIncludes("components/IglooWorld.jsx", [

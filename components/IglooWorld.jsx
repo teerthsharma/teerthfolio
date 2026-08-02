@@ -134,8 +134,18 @@ const AUTO_QUALITY_POLICY = Object.freeze({
   // agree, and it may happen once. One wasted up-and-down cycle is the worst
   // case, after which the ladder settles for good.
   //
-  // On the machine this was written on, medium measures 14.6ms and the estimate
-  // is 29.2ms against a 19ms ceiling, so it correctly never fires.
+  // The prediction uses this machine's own history wherever it has one. The
+  // ladder has already been at the tier above and measured it, so what the tier
+  // costs here is remembered rather than assumed: the estimate is that remembered
+  // cost scaled by how much this tier has improved since the ladder arrived at
+  // it. If medium measured 14.8ms on arrival and measures 7.4ms now, the machine
+  // is running twice as fast and high's remembered 28.9ms is estimated at
+  // 14.5ms. tierCostRatio is only the fallback for a tier never visited, which
+  // happens when deviceMemory opens below high.
+  //
+  // On the machine this was written on nothing improves, so the estimate stays
+  // at high's measured 28.9ms against a 19ms ceiling and it correctly never
+  // fires.
   tierCostRatio: 2,
   restoreMarginMs: 2,
   restoreAfterHealthyWindows: 2,
@@ -480,6 +490,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   // Restores are capped for the session, not per tier, so the ladder cannot walk
   // up and down repeatedly by resetting its own counter on the way past.
   const restoresRef = useRef(0);
+  // What each tier measured when the ladder first arrived at it on this machine.
+  const tierCostRef = useRef({});
   const selectQuality = useCallback((next) => {
     qualityLockedRef.current = true;
     setQuality(next);
@@ -723,7 +735,14 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       return undefined;
     }
     if (!sceneReady || qualityLockedRef.current) return undefined;
-    if (quality === "low") return undefined;
+    // Low keeps sampling. It used to return here, which was right when the
+    // ladder only stepped down and low was the floor — but a tier that can be
+    // earned back has to be watched from below, or a machine that fell to low
+    // during one bad window stays there for the session no matter how well it
+    // runs afterwards. That is the case the restore exists for.
+    if (quality === "low" && restoresRef.current >= AUTO_QUALITY_POLICY.maxRestores) {
+      return undefined;
+    }
     let cancelled = false;
     let frameHandle = 0;
     let confirming = false;
@@ -759,6 +778,13 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         // timeout callback is still unwinding.
         const usable = intervals.slice(Math.min(8, intervals.length >> 1)).sort((a, b) => a - b);
         const median = usable[Math.floor(usable.length / 2)];
+        // First reading at this tier is its cost on arrival, and the reference
+        // every later comparison is made against. Later readings do not overwrite
+        // it: the question a restore asks is whether the machine has improved
+        // since it arrived, not since the last window.
+        if (Number.isFinite(median) && !tierCostRef.current[quality]) {
+          tierCostRef.current[quality] = median;
+        }
         const ceiling =
           quality === "high"
             ? AUTO_QUALITY_POLICY.stepFromHighAboveMs
@@ -773,7 +799,15 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
             up === "high"
               ? AUTO_QUALITY_POLICY.stepFromHighAboveMs
               : AUTO_QUALITY_POLICY.stepFromMediumAboveMs;
-          const predicted = median * AUTO_QUALITY_POLICY.tierCostRatio;
+          // Prefer measured history over the constant: what the tier above
+          // actually cost here, scaled by how much this tier has improved since
+          // the ladder arrived at it.
+          const seenUp = tierCostRef.current[up];
+          const seenHere = tierCostRef.current[quality];
+          const predicted =
+            seenUp && seenHere && median > 0
+              ? seenUp * (median / seenHere)
+              : median * AUTO_QUALITY_POLICY.tierCostRatio;
           if (
             up &&
             !qualityLockedRef.current &&
@@ -784,7 +818,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
             restoresRef.current += 1;
             setQuality(up);
             reportGpuEvent({
-              detail: `median frame ${median.toFixed(1)}ms predicts ${predicted.toFixed(1)}ms at ${up}, under its ${upCeiling}ms ceiling`,
+              detail: `median frame ${median.toFixed(1)}ms predicts ${predicted.toFixed(1)}ms at ${up} (${seenUp ? `measured ${seenUp.toFixed(1)}ms there` : "no reading there, using the ratio"}), under its ${upCeiling}ms ceiling`,
               message: `Quality restored from ${quality} to ${up}; the frame had room.`,
               severity: "info",
               type: "auto-quality-restore",
@@ -796,7 +830,13 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         }
         const index = AUTO_QUALITY_POLICY.order.indexOf(quality);
         const next = AUTO_QUALITY_POLICY.order[index + 1];
-        if (!next || qualityLockedRef.current) return;
+        if (!next || qualityLockedRef.current) {
+          // Nothing below this tier to step to, but the watch continues: the
+          // frame may yet recover far enough to earn a tier back.
+          healthyWindows = 0;
+          arm(AUTO_QUALITY_POLICY.recheckMs);
+          return;
+        }
         // Marginal reading: take a second window before spending the tier.
         if (median <= ceiling + AUTO_QUALITY_POLICY.confirmBandMs && !confirming) {
           confirming = true;
