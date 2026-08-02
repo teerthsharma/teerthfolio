@@ -15,9 +15,18 @@ const BASE = process.env.PROBE_BASE || "http://localhost:3100";
 const OUT = process.argv[2] || "verification/gpu-time";
 await mkdir(OUT, { recursive: true });
 
+// Viewport override, so fill sensitivity can be measured on the same instrument
+// as everything else. The earlier device-pixel-ratio sweep used presented rAF
+// intervals, which quantise to the refresh period and therefore cannot resolve
+// a few milliseconds either way.
+const WIDTH = Number(process.env.PROBE_WIDTH || 1440);
+const HEIGHT = Number(process.env.PROBE_HEIGHT || 900);
+const ONLY = process.env.PROBE_ONLY ? process.env.PROBE_ONLY.split(",") : null;
+
 const CASES = [
   { name: "baseline", query: "" },
   { name: "no-terrain", query: "qa-no-terrain=1" },
+  { name: "no-sky", query: "qa-no-sky=1" },
   { name: "no-dome", query: "qa-no-dome=1" },
   { name: "no-post", query: "qa-no-post=1" },
   { name: "no-dressing", query: "qa-no-dressing=1" },
@@ -25,7 +34,7 @@ const CASES = [
   { name: "no-signals", query: "qa-no-signals=1" },
   { name: "no-seal", query: "qa-no-seal=1" },
   { name: "no-shadows", query: "qa-no-shadows=1" },
-];
+].filter((testCase) => !ONLY || ONLY.includes(testCase.name));
 
 const browser = await chromium.launch({
   channel: "chrome",
@@ -35,7 +44,7 @@ const browser = await chromium.launch({
 
 const results = [];
 for (const testCase of CASES) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT } });
   const page = await context.newPage();
   await page.addInitScript(() => {
     const state = { samples: [], disjoint: 0, gl: null, ext: null, pool: [], pending: [] };

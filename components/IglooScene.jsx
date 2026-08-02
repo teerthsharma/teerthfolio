@@ -983,10 +983,13 @@ export default function IglooScene({
   // High is allowed past 1:1 now that the post target tracks the real ratio
   // instead of clamping to 1; below that ceiling the world was rendered at CSS
   // pixels and upscaled on every retina display.
-  // Fixed per tier, deliberately. A frame-time-driven ratio was measured and
-  // removed: the fill term is only ~4.6ms per megapixel against a ~24ms
-  // resolution-independent cost, so the loop bought about 10% of the frame
-  // while visibly walking the world's resolution up and down.
+  // Fixed per tier. A frame-time-driven ratio was built twice against two
+  // different cost models and removed twice: GPU time is genuinely fill-bound
+  // (2.9ms fixed plus 13.9ms per megapixel, measured by timer query at three
+  // viewport sizes), but dropping the ratio to 0.75 moved the presented frame
+  // from 30.4ms only to 29.3ms. Until the gap between GPU time and presented
+  // time is explained, trading the world's sharpness buys nothing a visitor
+  // can see.
   const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [1, 1.5];
   const preserveDrawingBuffer =
     typeof window !== "undefined" &&
@@ -1128,6 +1131,7 @@ export default function IglooScene({
             reducedMotion={reducedMotion}
             safeMode={!renderEnabled}
             simulationPaused={!worldActive || !renderEnabled}
+            skyVisible={!debugFlags.noSky}
             travelerRef={traversalPoseRef}
             visible={worldActive}
           />

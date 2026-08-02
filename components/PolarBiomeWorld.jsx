@@ -449,6 +449,10 @@ function PolarBiomeWorldStage({
   reducedMotion,
   safeMode,
   simulationPaused,
+  // Ablation only. The sky dome and the ground sheet share one authored shader
+  // and one component, so qa-no-terrain removes both and cannot say which of
+  // the two owns the frame time it saves.
+  skyVisible = true,
   travelerRef,
 }) {
   const skyRef = useRef(null);
@@ -798,6 +802,7 @@ function PolarBiomeWorldStage({
         name="polar-biome-authored-sky"
         ref={skyRef}
         renderOrder={-19}
+        visible={skyVisible}
       />
       {geographyMesh ? <primitive dispose={null} object={geographyMesh} /> : null}
     </group>
@@ -811,6 +816,7 @@ export default function PolarBiomeWorld({
   onBiomeChange = null,
   quality = "medium",
   reducedMotion = false,
+  skyVisible = true,
   safeMode = false,
   simulationPaused = false,
   travelerRef = null,
@@ -827,6 +833,7 @@ export default function PolarBiomeWorld({
       reducedMotion={reducedMotion}
       safeMode={safeMode}
       simulationPaused={simulationPaused}
+      skyVisible={skyVisible}
       travelerRef={travelerRef}
     />
   );

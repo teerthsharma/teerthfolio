@@ -39,6 +39,7 @@
     "probe:link-timeline": "node scripts/probe-link-timeline.mjs",
     "probe:render-timeline": "node scripts/probe-render-timeline.mjs",
     "probe:shader-blame": "node scripts/probe-shader-blame.mjs",
+    "probe:stall": "node scripts/probe-stall.mjs",
     "start": "next start",
     "verify:biome-shaders": "node scripts/verify-polar-biome-shader-compile.mjs",
     "verify:biome-visuals": "node scripts/verify-polar-biome-visuals.mjs && node scripts/check-polar-color-continuity.mjs",

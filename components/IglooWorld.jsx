@@ -93,6 +93,10 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   // depth map at a resolution the canvas ratio does not touch, so it is the one
   // candidate a device-pixel-ratio sweep cannot rule in or out.
   ["qa-no-shadows", "noShadows"],
+  // Ablation switch for the sky dome alone. It shares its authored shader and
+  // its component with the ground sheet, so without this the two cannot be
+  // told apart in a frame budget.
+  ["qa-no-sky", "noSky"],
 ];
 const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),
