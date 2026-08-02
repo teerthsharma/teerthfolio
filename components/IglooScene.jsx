@@ -108,6 +108,18 @@ const EMPTY_PROJECTS = Object.freeze([]);
 // compileAsync is only asynchronous in its readiness poll, the actual
 // compile+link of every program is one synchronous call, which measured as a
 // ~25-40s frozen main thread between webgl-created and webgl-scene-ready.
+//
+// compileAsync was tried again after gl.debug.checkShaderErrors was turned off,
+// on the theory that the freeze above was getShaderInfoLog blocking rather than
+// the extension failing. KHR_parallel_shader_compile is present on this machine
+// and the freeze does go away — total main-thread blocking measured 9,046ms
+// before and 3,028ms after, with the worst single stall 3,633ms down to 390ms.
+// The promise then never resolves. Holding the authored ground back until it
+// did meant the ground never appeared at all, and the whole apparent win was
+// that its two programs were never linked. Any future attempt needs a deadline
+// after which the mesh is revealed regardless — and has to account for the fact
+// that revealing it is what forces the link, so the deadline reintroduces the
+// stall it was avoiding.
 const WARM_START_FRAME_DELAY = 12;
 const WARM_SLICE_BUDGET_MS = 4;
 const WARM_IDLE_TIMEOUT_MS = 240;
