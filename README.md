@@ -271,6 +271,21 @@ argued.
 | How does each station look and cost? | `npm run probe:station-survey`, `probe:station-contrast`, `probe:station-frame-cost` |
 | Does the mascot read against the snow? | `npm run probe:mascot-contrast` |
 
+### Read every frame number with its tier
+
+The quality ladder is a resolution ladder: at a 1440x900 window the drawing
+buffer is 1.3 Mpx at `high`, 1.05 Mpx at `medium` and 0.73 Mpx at `low`. Frame
+time tracks pixel count almost exactly — 1.8x fewer pixels buys 1.76x the frame
+rate — so the world is fill-bound and the tier is the only lever that moves it
+much. Ablated at locked `high` on integrated graphics, no single pass dominates:
+dome 5.6ms, grade chain 4.6ms, ground sheet 3.9ms, sky 1.6ms, against a 28.6ms
+frame.
+
+That is why the ladder exists and why `probe:*` and both frame gates pin a tier
+before they measure. A frame rate quoted without its tier says nothing, and two
+runs that settled on different tiers are not comparable — which happened once
+and made an ambient change look like a regression.
+
 Two rules these probes were built the hard way to satisfy, both worth keeping:
 
 **Use real Chrome.** Every probe launches `channel: "chrome", headless: false`.
