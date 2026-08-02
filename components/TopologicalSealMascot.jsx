@@ -552,10 +552,23 @@ export const SEAL_STATE_POSES = Object.freeze({
 const STATE_VALUE = Object.freeze({ idle: 0, probing: 1, moving: 2, docking: 3, error: 4 });
 function createToonResources(accent) {
   const gradientMap = new THREE.DataTexture(
+    // Four bands, and the two dark ones carry the mascot's readability.
+    //
+    // The terrain is a custom ShaderMaterial that paints its own brightness and
+    // does not participate in three's lighting at all, so the snow is brilliant
+    // regardless of what the light rig is doing. The character is genuinely lit,
+    // and away from the observatory — whose two point lights are the only strong
+    // local source in the world — it landed on this ramp's darkest band and read
+    // as a black silhouette against that snow, at every quality tier. The band
+    // was 0x6E809E, a slate blue that is simply too dark for white fur in a
+    // bright polar scene.
+    //
+    // Raised to keep the cool shadow hue and the four-step toon read while
+    // putting the floor where snow-white fur in shade actually sits.
     new Uint8Array([
-      0x6e, 0x80, 0x9e, 0xff,
-      0xa2, 0xb2, 0xc2, 0xff,
-      0xd4, 0xdd, 0xe4, 0xff,
+      0x9a, 0xa8, 0xbe, 0xff,
+      0xc2, 0xce, 0xda, 0xff,
+      0xe2, 0xe9, 0xef, 0xff,
       0xff, 0xee, 0xd8, 0xff,
     ]),
     4,

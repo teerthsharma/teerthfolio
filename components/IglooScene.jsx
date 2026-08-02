@@ -1214,7 +1214,15 @@ export default function IglooScene({
           it clips the blue channel and every albedo converges on the light. Dusk mood
           comes from the sky dome and fog, not from dyeing every surface. */}
       <ambientLight color="#C6C8CE" intensity={0.42} />
-      <hemisphereLight color="#BCCADF" groundColor="#6E6154" intensity={1.02} />
+      {/* The ground half of the hemisphere is the bounce, and this world's ground
+          is snow. It was #6E6154 — a warm dark brown, correct for earth and
+          wrong for an ice sheet — so every downward-facing surface in the scene
+          was lit from below by dirt. The terrain never showed it because the
+          terrain is a custom ShaderMaterial that paints its own brightness and
+          takes no part in the light rig; the mascot did, and read as a black
+          silhouette everywhere the observatory's two point lights could not
+          reach it. Snow bounces almost everything back up. */}
+      <hemisphereLight color="#BCCADF" groundColor="#C6D2E0" intensity={1.02} />
       {!debugFlags.noEnv && <SceneEnvironment />}
       <Suspense fallback={null}>
         <SceneDiagnostics

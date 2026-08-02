@@ -341,10 +341,18 @@ const checks = [
     // A docked station drives key/fill/rim at full weight from its own identity hue.
     // Unclamped, that dyes every material one colour (the monochrome-building bug).
     // The rig must stay near-neutral and let the sky/fog carry the dusk instead.
+    //
+    // The hemisphere's ground half is the bounce, and this world's ground is
+    // snow. It was pinned at #6E6154, a warm dark brown: correct for earth,
+    // wrong for an ice sheet, and the reason every downward-facing surface was
+    // lit from below by dirt. The terrain never revealed it because the terrain
+    // paints its own brightness in a custom ShaderMaterial and takes no part in
+    // the rig; the mascot did, and read as a black silhouette everywhere the
+    // observatory's point lights could not reach.
     name: "world light rig stays near-neutral so material albedo reads",
     file: `${files.scene}\n${files.biome}`,
     pattern:
-      /<ambientLight color="#C6C8CE"[\s\S]*<hemisphereLight color="#BCCADF" groundColor="#6E6154"[\s\S]*RIG_NEUTRALITY = Object\.freeze\(\{[\s\S]*key: \{ saturationCap: 0\.16[\s\S]*neutralizeRigColor\(environmentScratch\.keyColor[\s\S]*neutralizeRigColor\(environmentScratch\.rimColor[\s\S]*neutralizeRigColor\(environmentScratch\.fillColor/,
+      /<ambientLight color="#C6C8CE"[\s\S]*<hemisphereLight color="#BCCADF" groundColor="#C6D2E0"[\s\S]*RIG_NEUTRALITY = Object\.freeze\(\{[\s\S]*key: \{ saturationCap: 0\.16[\s\S]*neutralizeRigColor\(environmentScratch\.keyColor[\s\S]*neutralizeRigColor\(environmentScratch\.rimColor[\s\S]*neutralizeRigColor\(environmentScratch\.fillColor/,
   },
   {
     name: "biome compositor owns bounded terrain sky geography and singular weather",
@@ -405,6 +413,24 @@ for (const check of checks) {
 
 if (failed) {
   process.exit(1);
+}
+
+// The bounce colour is load-bearing for anything the rig actually lights, so it
+// is asserted as a property rather than only pinned as a string: a high-value
+// near-neutral, which is what snow is.
+{
+  // files.* already hold contents, not paths.
+  const hex = /<hemisphereLight color="#[0-9A-Fa-f]{6}" groundColor="(#[0-9A-Fa-f]{6})"/.exec(
+    files.scene,
+  )?.[1];
+  assert.ok(hex, "the scene must declare a hemisphere ground bounce");
+  const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+  const peak = Math.max(...channels);
+  const saturation = (peak - Math.min(...channels)) / peak;
+  assert.ok(
+    peak >= 176 && saturation <= 0.2,
+    `hemisphere ground bounce ${hex} must stay a high-value near-neutral: this world's ground is snow`,
+  );
 }
 
 console.log(`render-budget contract passed: ${checks.length} checks`);
