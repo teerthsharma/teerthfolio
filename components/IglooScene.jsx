@@ -988,7 +988,7 @@ export default function IglooScene({
       gl.shadowMap.enabled = true;
       gl.shadowMap.type = THREE.PCFSoftShadowMap;
       gl.toneMapping = THREE.ACESFilmicToneMapping;
-      gl.toneMappingExposure = 1.12;
+      gl.toneMappingExposure = 0.94;
       onGpuEvent?.({
         detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
         message: `WebGL renderer ready at ${quality} quality.`,

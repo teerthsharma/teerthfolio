@@ -605,7 +605,7 @@ function createInstancedIceMaterial(quality) {
     // colorForDomeBlock — and two cool colours multiplied compound. This is the
     // same class of error as the warm-key-times-sage product that produced the
     // old olive brick read. The tint now lives only on the instances.
-    color: "#B4B5B7",
+    color: "#DCDDDF",
     // Body emissive is effectively off. The shell must be LIT by the scene rig so the
     // seam/face/crown value ladder survives; glow stays in the airlock, the seam
     // recesses, and the interior spill, never on the brick faces.

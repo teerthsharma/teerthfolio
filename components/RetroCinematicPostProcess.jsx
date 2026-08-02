@@ -349,6 +349,17 @@ function makeRenderTarget(width = 1, height = 1) {
   return target;
 }
 
+/**
+ * Whole-scene exposure, applied where the tone map actually is.
+ *
+ * The reference holds its hero at the same luma as the snow it stands on (97
+ * against 98). This world was running its snowfield at 160 against a dome that
+ * could only reach 127 without clipping its upward courses, a 0.79 ratio. The
+ * dome cannot rise to meet the field at this exposure, so the field comes down
+ * to meet the dome.
+ */
+export const SCENE_EXPOSURE = 0.82;
+
 export default function RetroCinematicPostProcess({
   motionPoseRef,
   quality = "high",
@@ -441,10 +452,17 @@ export default function RetroCinematicPostProcess({
 
   useFrame(({ clock }, delta) => {
     material.uniforms.uTime.value = reducedMotion ? 0 : clock.elapsedTime;
-    // +-0.5% exposure breathing at 0.08Hz; flat under reduced motion.
-    material.uniforms.uExposureBreath.value = reducedMotion
-      ? 1
-      : 1 + Math.sin(clock.elapsedTime * Math.PI * 2 * 0.08) * 0.005;
+    // Authored exposure times the +-0.5% breath at 0.08Hz; flat under reduced
+    // motion. The exposure has to live here because the scene renders into a
+    // WebGLRenderTarget: three.js applies its tone mapping only on the pass that
+    // reaches the default framebuffer, so gl.toneMappingExposure never touched
+    // the world pass. Setting it to 0.94 changed the rendered dome by 0.00 luma
+    // and 0.00% clipping, which is how that was found.
+    material.uniforms.uExposureBreath.value =
+      SCENE_EXPOSURE *
+      (reducedMotion
+        ? 1
+        : 1 + Math.sin(clock.elapsedTime * Math.PI * 2 * 0.08) * 0.005);
     material.uniforms.uCameraNear.value = camera.near;
     material.uniforms.uCameraFar.value = camera.far;
     const motionPose = motionPoseRef?.current;
