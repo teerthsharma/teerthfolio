@@ -185,6 +185,18 @@ expectIncludes("components/IglooWorld.jsx", [
   "arm(AUTO_QUALITY_POLICY.recheckMs)",
 ]);
 
+// A tier can be restored upward, but only once per session and only when the
+// predicted cost of the tier above clears its own ceiling. The cap is what
+// bounds the worst case to a single up-and-down cycle: forced to fire by
+// pretending high costs what medium costs, the ladder went medium -> high at 49s,
+// high -> medium at 60s, and then stayed put for the remaining 90 seconds.
+expectIncludes("components/IglooWorld.jsx", [
+  "tierCostRatio",
+  "maxRestores",
+  "restoresRef.current < AUTO_QUALITY_POLICY.maxRestores",
+  "auto-quality-restore",
+]);
+
 expectIncludes("components/IglooWorld.jsx", [
   "deriveSealGuideState",
   "hasCurrentFatalRenderEvent",

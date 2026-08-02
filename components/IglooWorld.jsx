@@ -121,6 +121,25 @@ const AUTO_QUALITY_POLICY = Object.freeze({
   // cost is one 2.6s sampling window every 24s, and the window is rAF timing
   // with no allocation and no draw of its own.
   recheckMs: 24000,
+  // Stepping back up. A visitor whose machine was busy for one window at load
+  // otherwise spends the session a tier below what their hardware can hold, and
+  // the tier carries content, not just resolution.
+  //
+  // The danger is ping-pong, which reads worse than either tier, so restoring is
+  // deliberately hard. The tier above cannot be measured without entering it, so
+  // its cost is predicted from this one: measured on integrated graphics, high
+  // runs about twice medium — 28.9ms against 14.6ms — and that ratio is what the
+  // estimate below uses. A restore needs the prediction to clear the upper
+  // tier's own ceiling with 2ms to spare, two consecutive healthy windows to
+  // agree, and it may happen once. One wasted up-and-down cycle is the worst
+  // case, after which the ladder settles for good.
+  //
+  // On the machine this was written on, medium measures 14.6ms and the estimate
+  // is 29.2ms against a 19ms ceiling, so it correctly never fires.
+  tierCostRatio: 2,
+  restoreMarginMs: 2,
+  restoreAfterHealthyWindows: 2,
+  maxRestores: 1,
   // Both ceilings target 60fps rather than "not broken". The itemised frame
   // budget is why: measured on a cool machine, no single subsystem is worth
   // more than 3ms — observatory 2.97, all material cost 2.63, ground sheet
@@ -458,6 +477,9 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   // a world that overrides a deliberate selection two seconds later is broken,
   // however well-meant the measurement behind it.
   const qualityLockedRef = useRef(false);
+  // Restores are capped for the session, not per tier, so the ladder cannot walk
+  // up and down repeatedly by resetting its own counter on the way past.
+  const restoresRef = useRef(0);
   const selectQuality = useCallback((next) => {
     qualityLockedRef.current = true;
     setQuality(next);
@@ -710,6 +732,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     let restart = () => {};
     let arm = () => {};
     let timer = 0;
+    let healthyWindows = 0;
     const buildSampler = () => {
       const intervals = [];
       let started = performance.now();
@@ -743,6 +766,31 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         if (!Number.isFinite(median) || median <= ceiling) {
           // Healthy this window. Watch again later rather than concluding.
           confirming = false;
+          healthyWindows += 1;
+          const upIndex = AUTO_QUALITY_POLICY.order.indexOf(quality) - 1;
+          const up = upIndex >= 0 ? AUTO_QUALITY_POLICY.order[upIndex] : null;
+          const upCeiling =
+            up === "high"
+              ? AUTO_QUALITY_POLICY.stepFromHighAboveMs
+              : AUTO_QUALITY_POLICY.stepFromMediumAboveMs;
+          const predicted = median * AUTO_QUALITY_POLICY.tierCostRatio;
+          if (
+            up &&
+            !qualityLockedRef.current &&
+            restoresRef.current < AUTO_QUALITY_POLICY.maxRestores &&
+            healthyWindows >= AUTO_QUALITY_POLICY.restoreAfterHealthyWindows &&
+            predicted <= upCeiling - AUTO_QUALITY_POLICY.restoreMarginMs
+          ) {
+            restoresRef.current += 1;
+            setQuality(up);
+            reportGpuEvent({
+              detail: `median frame ${median.toFixed(1)}ms predicts ${predicted.toFixed(1)}ms at ${up}, under its ${upCeiling}ms ceiling`,
+              message: `Quality restored from ${quality} to ${up}; the frame had room.`,
+              severity: "info",
+              type: "auto-quality-restore",
+            });
+            return;
+          }
           arm(AUTO_QUALITY_POLICY.recheckMs);
           return;
         }
