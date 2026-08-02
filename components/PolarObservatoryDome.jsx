@@ -543,9 +543,16 @@ function createCurvedBlockGeometry(quality) {
     // what separates a laid dome from a faceted ball, and a near-flat 0.0015 was
     // giving every course a hard chord edge against its neighbours.
     if (z > 0.28) z += faceX * faceY * 0.2;
-    const wedge = 1 + z * 0.055;
+    // Radial taper, sized from the shell the block is cut out of rather than
+    // eyeballed. A wall block spans radius R - t/2 to R + t/2, so its inner face
+    // is narrower than its outer by that ratio: 2.10 and a 0.205 depth give
+    // 0.907 across the width, and 2.80 gives 0.929 up the height. Expressed as a
+    // taper across the unit box that is 0.093 and 0.073. At the previous 0.055
+    // and 0.026 the sides were nearly parallel, so neighbours splayed apart at
+    // the outer face — the joint opened exactly where it is most visible.
+    const wedge = 1 + z * 0.093;
     x *= wedge * (1 - (y + 0.5) * 0.018);
-    y *= 1 + z * 0.026;
+    y *= 1 + z * 0.073;
     position.setXYZ(index, x, y, z);
   }
   position.needsUpdate = true;
