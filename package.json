@@ -46,6 +46,8 @@
     "probe:render-timeline": "node scripts/probe-render-timeline.mjs",
     "probe:shader-blame": "node scripts/probe-shader-blame.mjs",
     "probe:stall": "node scripts/probe-stall.mjs",
+    "probe:station-contrast": "node scripts/probe-station-contrast.mjs",
+    "probe:station-survey": "node scripts/probe-station-survey.mjs",
     "start": "next start",
     "verify:biome-shaders": "node scripts/verify-polar-biome-shader-compile.mjs",
     "verify:biome-visuals": "node scripts/verify-polar-biome-visuals.mjs && node scripts/check-polar-color-continuity.mjs",

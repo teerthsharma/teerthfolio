@@ -1225,6 +1225,13 @@ export default function IglooScene({
       {/* Near-neutral ambient: a strongly blue ambient is the main hue-collapsing term,
           it clips the blue channel and every albedo converges on the light. Dusk mood
           comes from the sky dome and fog, not from dyeing every surface. */}
+      {/* 0.42, and raising it does not fix what looks like a lighting problem.
+          Measured across all eight stations at a pinned tier, every building
+          reads 37 to 83 luma darker than the snow it stands on. Taking ambient
+          to 0.72 — a 71% increase — moved that by 0.1 to 5 luma and flattened
+          the shading it did reach. The buildings are dark because their albedos
+          are dark, and light multiplies paint: near-black paint stays near-black
+          however much of it there is. See scripts/probe-station-contrast.mjs. */}
       <ambientLight color="#C6C8CE" intensity={0.42} />
       {/* The ground half of the hemisphere is the bounce, and this world's ground
           is snow. It was #6E6154 — a warm dark brown, correct for earth and
