@@ -18,6 +18,9 @@ import path from "node:path";
 import sharp from "sharp";
 
 const BASE = process.env.PROBE_BASE || "http://localhost:3100";
+// "depth" counts only fragments that survive depth rejection; the default
+// counts every fragment submitted.
+const MODE = process.env.PROBE_MODE === "depth" ? "qa-overdraw-depth" : "qa-overdraw";
 const OUT = process.argv[2] || "verification/overdraw";
 // Must match OVERDRAW_STEP in components/IglooScene.jsx.
 const STEP = 4;
@@ -44,7 +47,7 @@ const results = [];
 for (const testCase of CASES) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
-  await page.goto(`${BASE}/?qa-overdraw=1&qa-no-post=1${testCase.query}`, {
+  await page.goto(`${BASE}/?${MODE}=1&qa-no-post=1${testCase.query}`, {
     waitUntil: "domcontentloaded",
     timeout: 180000,
   });

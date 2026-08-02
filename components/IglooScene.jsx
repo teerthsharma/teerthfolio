@@ -260,7 +260,7 @@ function RenderBucketPump({ level, onAdvance }) {
  */
 const OVERDRAW_STEP = 4 / 255;
 
-function OverdrawProbe({ enabled }) {
+function OverdrawProbe({ enabled, respectDepth = false }) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const material = useMemo(
@@ -268,14 +268,20 @@ function OverdrawProbe({ enabled }) {
       new THREE.MeshBasicMaterial({
         blending: THREE.AdditiveBlending,
         color: new THREE.Color(OVERDRAW_STEP, 0, 0),
-        depthTest: false,
-        depthWrite: false,
+        // Two modes. Without depth, the count is every fragment the scene
+        // submits — an upper bound that ignores early-Z. With depth, the
+        // material joins the opaque queue, which three sorts front-to-back, and
+        // writes depth as it goes, so only fragments that survive rejection are
+        // counted. The difference between the two is what render ordering is
+        // already saving, and what changing it can still save.
+        depthTest: respectDepth,
+        depthWrite: respectDepth,
         fog: false,
         side: THREE.DoubleSide,
         toneMapped: false,
-        transparent: true,
+        transparent: !respectDepth,
       }),
-    [],
+    [respectDepth],
   );
   useEffect(() => {
     if (!enabled) return undefined;
@@ -1222,7 +1228,10 @@ export default function IglooScene({
         <ForceCanvasResize />
         {staged && <RenderBucketPump level={rawBucket} onAdvance={advanceBucket} />}
         <CheapMaterialProbe enabled={Boolean(debugFlags.cheapMaterials)} />
-        <OverdrawProbe enabled={Boolean(debugFlags.overdraw)} />
+        <OverdrawProbe
+          enabled={Boolean(debugFlags.overdraw || debugFlags.overdrawDepth)}
+          respectDepth={Boolean(debugFlags.overdrawDepth)}
+        />
         <CameraRig
           activeArtifact={activeArtifact}
           axisX={axisX}

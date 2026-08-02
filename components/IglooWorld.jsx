@@ -142,6 +142,8 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-cheap-materials", "cheapMaterials"],
   // Renders a per-pixel write count instead of the world.
   ["qa-overdraw", "overdraw"],
+  // Same counter, but only counting fragments that survive depth rejection.
+  ["qa-overdraw-depth", "overdrawDepth"],
 ];
 const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),
@@ -616,7 +618,13 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   useEffect(() => {
     // A material probe replaces every material in the scene and a re-render
     // undoes it, so the downgrade must not fire underneath one.
-    if (sceneDebugFlags.cheapMaterials || sceneDebugFlags.overdraw) return undefined;
+    if (
+      sceneDebugFlags.cheapMaterials ||
+      sceneDebugFlags.overdraw ||
+      sceneDebugFlags.overdrawDepth
+    ) {
+      return undefined;
+    }
     if (!sceneReady || qualityLockedRef.current) return undefined;
     if (quality === "low") return undefined;
     let cancelled = false;
