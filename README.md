@@ -225,6 +225,64 @@ npm run build
 `npm run build` runs the Teerth contract, render-budget, and polar-rescue checks before `next build`.
 `npm run verify:render` starts an isolated local dev server on `127.0.0.1:5273` when needed, captures desktop, iPad, and mobile screenshots, and checks the WebGL gate plus WASD-only seal movement.
 
+### The check/verify boundary
+
+`check:*` scripts are browser-free and run inside `npm run build`. `verify:*`
+scripts drive Playwright and must not, because a build agent has no GPU and the
+readings would be meaningless. `scripts/check-ci-browser-boundary.mjs` enforces
+the split and pins the membership of `verify:ci-browser`, so a browser-driven
+gate cannot drift into the build chain unnoticed.
+
+```bash
+npm run verify:ci-browser
+```
+
+That is the render suite: `verify:biome-shaders` (every biome program compiles
+and links), `verify:render-frame` (a 12x8 luminance grid at the home dock), and
+`verify:station-frames` (a 10x6 grid at each of the eight stations, reached the
+way a visitor reaches them, by selecting the station in the HUD). Run it against
+a production build on `:3100`. Both frame gates take `--update` to rewrite their
+reference; do that only alongside a deliberate visual change and say so in the
+commit. They refuse to write a reference from a run that never reached WebGL.
+
+Why two frame gates: `verify:render-frame` guards one camera position, which
+covers the observatory and nothing else. Seven other buildings could stop
+drawing and every contract in the repository would still pass — the blind spot
+that let two optimisations on this branch measure large wins on a scene whose
+terrain had silently broken.
+
+## Render Evidence
+
+Seventeen probes under `scripts/probe-*.mjs`, each answering one question and
+writing to `verification/`. They are not gates and nothing runs them
+automatically; they exist so a claim about performance can be checked instead of
+argued.
+
+| Question | Command |
+| --- | --- |
+| Where does a cold visit spend its time? | `npm run probe:render-timeline` |
+| Which GL calls block, and for how long? | `npm run probe:gl-cost` |
+| Which shader programs cost the link time? | `npm run probe:link-timeline`, `probe:shader-blame` |
+| What does each subsystem cost per frame? | `npm run probe:gpu-time`, `probe:frame-ablation` |
+| Is the cost CPU or GPU? | `npm run probe:cpu-frame`, `probe:stall` |
+| How many times is each pixel shaded? | `npm run probe:overdraw`, `probe:fill-calibration` |
+| Are frames evenly paced, or just fast on average? | `npm run probe:pacing` |
+| What do the CSS compositing layers cost? | `npm run probe:blur-surfaces`, `probe:composite` |
+| How does each station look and cost? | `npm run probe:station-survey`, `probe:station-contrast`, `probe:station-frame-cost` |
+| Does the mascot read against the snow? | `npm run probe:mascot-contrast` |
+
+Two rules these probes were built the hard way to satisfy, both worth keeping:
+
+**Use real Chrome.** Every probe launches `channel: "chrome", headless: false`.
+Playwright's bundled Chromium software-rasters, which reported a 40x regression
+that did not exist.
+
+**Measure in pairs.** A nine-case run of `probe:gpu-time` drifted 2.5ms from
+first case to last as the machine warmed, which is larger than most of what it
+measures. Each case is now taken immediately after its own fresh baseline,
+against a null-control pair that must read 0.00ms, and the first pair is
+discarded because browser warm-up puts several milliseconds into it.
+
 ## Deployment
 
 This repository is ready for Vercel through GitHub. The GitHub workflows live in `.github/workflows`.
