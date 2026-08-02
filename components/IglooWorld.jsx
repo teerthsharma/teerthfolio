@@ -89,6 +89,15 @@ const OPEN_WORLD_LOADING_SETTLE_MS = 1800;
 const AUTO_QUALITY_POLICY = Object.freeze({
   settleMs: 5200,
   sampleFrames: 90,
+  // The window is bounded in wall-clock as well as frames, because a window
+  // counted only in frames takes 90/fps seconds to close and so gets longer
+  // exactly as the machine gets worse: 1.5s at 60fps, 7.5s at 12fps, 10s at
+  // 9fps. Measured under 20x CPU throttling, that put the second step 30s after
+  // entry — half a minute of stutter on the machines the ladder exists for.
+  // 2600ms yields 23 samples at 9fps, which is ample to tell a 111ms median from
+  // a 19ms ceiling; the floor keeps a slower machine from deciding on too few.
+  sampleWindowMs: 2600,
+  minSampleFrames: 16,
   // Both ceilings target 60fps rather than "not broken". The itemised frame
   // budget is why: measured on a cool machine, no single subsystem is worth
   // more than 3ms — observatory 2.97, all material cost 2.63, ground sheet
@@ -643,19 +652,24 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     let frameHandle = 0;
     const settle = window.setTimeout(() => {
       const intervals = [];
-      let last = performance.now();
+      const started = performance.now();
+      let last = started;
       const sample = () => {
         if (cancelled) return;
         const now = performance.now();
         intervals.push(now - last);
         last = now;
-        if (intervals.length < AUTO_QUALITY_POLICY.sampleFrames) {
+        const enough =
+          intervals.length >= AUTO_QUALITY_POLICY.sampleFrames ||
+          (now - started >= AUTO_QUALITY_POLICY.sampleWindowMs &&
+            intervals.length >= AUTO_QUALITY_POLICY.minSampleFrames);
+        if (!enough) {
           frameHandle = window.requestAnimationFrame(sample);
           return;
         }
         // Drop the first few: the sampler's own first frames land while the
         // timeout callback is still unwinding.
-        const usable = intervals.slice(8).sort((a, b) => a - b);
+        const usable = intervals.slice(Math.min(8, intervals.length >> 1)).sort((a, b) => a - b);
         const median = usable[Math.floor(usable.length / 2)];
         const ceiling =
           quality === "high"

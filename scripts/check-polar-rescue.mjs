@@ -154,6 +154,18 @@ assert.equal(
 );
 assert.equal(deriveSealGuideState({ moving: false, rendererMode: "webgl" }), "idle");
 
+// The measured downgrade is a rescue path, and its sampling window has to be
+// bounded in wall-clock as well as frames. A window counted only in frames runs
+// for 90/fps seconds, so it stretches exactly as the machine it is rescuing gets
+// worse — 1.5s at 60fps but 10s at 9fps. Measured under 20x CPU throttling,
+// removing the wall-clock bound moved the final tier from 22.0s after the stall
+// to 37.1s.
+expectIncludes("components/IglooWorld.jsx", [
+  "sampleWindowMs",
+  "minSampleFrames",
+  "now - started >= AUTO_QUALITY_POLICY.sampleWindowMs",
+]);
+
 expectIncludes("components/IglooWorld.jsx", [
   "deriveSealGuideState",
   "hasCurrentFatalRenderEvent",
