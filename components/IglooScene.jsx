@@ -1018,7 +1018,7 @@ export default function IglooScene({
       // cold boot). Off, the driver links on its own worker threads.
       gl.debug.checkShaderErrors = false;
       gl.shadowMap.enabled = !debugFlags.noShadows;
-      gl.shadowMap.type = THREE.PCFSoftShadowMap;
+      gl.shadowMap.type = debugFlags.hardShadows ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
       gl.toneMapping = THREE.ACESFilmicToneMapping;
       gl.toneMappingExposure = 0.94;
       onGpuEvent?.({
@@ -1028,7 +1028,7 @@ export default function IglooScene({
         type: "webgl-created",
       });
     },
-    [debugFlags.noShadows, onGpuEvent, quality, reducedMotion],
+    [debugFlags.hardShadows, debugFlags.noShadows, onGpuEvent, quality, reducedMotion],
   );
   // Staged scene admission. See lib/render-buckets.js: mounting all 76 programs
   // in one commit put every driver link inside the first frame.
@@ -1083,7 +1083,7 @@ export default function IglooScene({
           comes from the sky dome and fog, not from dyeing every surface. */}
       <ambientLight color="#C6C8CE" intensity={0.42} />
       <hemisphereLight color="#BCCADF" groundColor="#6E6154" intensity={1.02} />
-      <SceneEnvironment />
+      {!debugFlags.noEnv && <SceneEnvironment />}
       <Suspense fallback={null}>
         <SceneDiagnostics
           observatoryDistance={observatoryDistance}

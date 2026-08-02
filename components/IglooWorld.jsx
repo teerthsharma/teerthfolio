@@ -100,6 +100,11 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   // Hides the ground mesh while the component, and therefore the scene light
   // rig, stays mounted. qa-no-terrain unmounts both together.
   ["qa-no-ground", "noGround"],
+  // Two candidate levers on the light rig, which paired measurement puts at
+  // roughly 7ms of the frame. Flags rather than edits so each can be measured
+  // against its own baseline in the same browser.
+  ["qa-hard-shadows", "hardShadows"],
+  ["qa-no-env", "noEnv"],
 ];
 const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),

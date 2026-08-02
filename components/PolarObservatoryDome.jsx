@@ -574,6 +574,16 @@ function createCurvedBlockGeometry(quality) {
   return geometry;
 }
 
+// Ablation only. Paired measurement puts the observatory at 7.19ms of a ~20ms
+// frame, which is the largest single item in it, and the two candidates —
+// fragment complexity on 56 instanced blocks, or the overdraw of stacking them
+// — are not separable from the outside. This swaps the authored ice for the
+// cheapest lit material three has, keeping every draw, every instance and every
+// triangle, so the difference is the shader and nothing else.
+function createPlainIceMaterial() {
+  return new THREE.MeshLambertMaterial({ color: "#D6DEE9", vertexColors: true });
+}
+
 function createInstancedIceMaterial(quality) {
   const uniforms = {
     uBrickAccent: { value: new THREE.Color(DOME_XZ_COLOR_ZONES.teal) },
@@ -921,7 +931,12 @@ totalEmissiveRadiance += uBrickAccent * brickContactSignal;`,
 function useInstancedIceAssets(quality) {
   const domeGeometry = useMemo(() => createCurvedBlockGeometry(quality), [quality]);
   const airlockGeometry = useMemo(() => createCurvedBlockGeometry(quality), [quality]);
-  const material = useMemo(() => createInstancedIceMaterial(quality), [quality]);
+  const plain =
+    typeof window !== "undefined" && window.location?.search.includes("qa-dome-plain");
+  const material = useMemo(
+    () => (plain ? createPlainIceMaterial() : createInstancedIceMaterial(quality)),
+    [plain, quality],
+  );
   useEffect(
     () => () => {
       domeGeometry.dispose();
