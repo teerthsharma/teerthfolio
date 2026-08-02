@@ -271,6 +271,33 @@ argued.
 | How does each station look and cost? | `npm run probe:station-survey`, `probe:station-contrast`, `probe:station-frame-cost` |
 | Does the mascot read against the snow? | `npm run probe:mascot-contrast` |
 
+### The quality ladder
+
+The ladder picks a tier by measuring the frame, and it controls content as well
+as resolution — falling a tier costs the distant geography, the tunnel arch, the
+drift detail and two thirds of the dome's masonry, not just sharpness. That is
+why its four behaviours are all about deciding carefully rather than quickly.
+
+| Behaviour | What it does | Measured |
+| --- | --- | --- |
+| Step down | Samples 90 frames or 2600ms, whichever comes first, and steps when the median is over the tier's ceiling | Sustained 20x CPU throttling reaches `low` in 18.9s |
+| Confirm | A median within 5ms of the ceiling asks for a second window 1.4s later and steps only if both agree | An 8x stall across one window takes the tier without this, keeps it with |
+| Re-check | A healthy window re-arms 24s later instead of concluding | 30s healthy then sustained throttling steps down at 21.3s; previously stranded forever |
+| Restore | Once per session, steps back up when the tier above is predicted to hold | Busy at load then clearing: `high→medium→low`, then `low→medium` at 55s |
+
+The frame-count bound matters because a window counted only in frames runs
+90/fps seconds and so gets longer exactly as the machine gets worse — 1.5s at
+60fps but 10s at 9fps. The wall-clock bound is what keeps the rescue fast for the
+machines that need rescuing.
+
+Restore predicts from this machine's own history rather than a constant: the cost
+recorded on arrival at the tier above, scaled by how much the current tier has
+improved since. It is capped at one per session, so the worst case is a single
+up-and-down cycle. On integrated graphics it correctly never fires — `high`
+measured 28.9ms against a 19ms ceiling, and no amount of idle time changes that.
+
+`check-polar-rescue` pins every one of these.
+
 ### Read every frame number with its tier
 
 The quality ladder is a resolution ladder: at a 1440x900 window the drawing
