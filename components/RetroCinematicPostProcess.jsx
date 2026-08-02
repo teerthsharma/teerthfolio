@@ -381,9 +381,26 @@ export const SCENE_EXPOSURE = 0.82;
  */
 export const SCENE_EXPOSURE_BY_TIER = Object.freeze({
   high: 1,
-  low: 1.2,
-  medium: 1.04,
+  low: 1.05,
+  medium: 1.02,
 });
+
+/**
+ * Why the low trim is 1.05 and not the 1.2 this started at.
+ *
+ * 1.2 was fitted to world-mean luminance at the home dock, where low measured
+ * 101.1 against high's 126.4. Out in open field the same trim puts low's snow at
+ * 181.8 against high's 135.7 — 46 luma too bright — because a global exposure
+ * multiplies the terrain, which paints its own brightness in a custom
+ * ShaderMaterial, far more than it lifts anything the light rig actually
+ * illuminates. Chasing the dock deficit with exposure made the mascot's
+ * contrast against snow worse everywhere else.
+ *
+ * The dock deficit is now handled where it belongs: the observatory's own point
+ * lights no longer dim with the tier. Exposure keeps a small trim and stops
+ * pretending it can correct a difference that varies with where the traveller
+ * is standing.
+ */
 
 export default function RetroCinematicPostProcess({
   motionPoseRef,
