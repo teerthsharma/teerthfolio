@@ -26,6 +26,7 @@ import sharp from "sharp";
 const BASE = process.env.PROBE_BASE || "http://localhost:3100";
 const REFERENCE = join(process.cwd(), "scripts", "render-frame-reference.json");
 const UPDATE = process.argv.includes("--update");
+const TIER = process.env.PROBE_TIER || "medium";
 const COLUMNS = 12;
 const ROWS = 8;
 // A cell may move this much before it counts as a change. The aurora sweeps and
@@ -60,9 +61,16 @@ await page.bringToFront();
 // so the frame under test is the settled one a visitor sits in front of.
 await page.waitForTimeout(26000);
 
+// Pin the tier. Reading whichever tier the ladder settled on made this gate
+// guard a moving target: the same build could produce a low-tier or a
+// medium-tier frame depending on run-to-run variance, and the reference would
+// then disagree with itself rather than with a regression.
+await page.locator("button", { hasText: new RegExp(`^${TIER}$`, "i") }).first().click().catch(() => {});
+await page.waitForTimeout(4000);
 const tier = await page.evaluate(
   () => document.querySelector("canvas.igloo-scene-canvas")?.dataset.quality ?? null,
 );
+if (tier !== TIER) failures.push(`tier did not pin to ${TIER} (reported ${tier})`);
 const shot = join(process.cwd(), "verification", "render-frame-current.png");
 await page.screenshot({ path: shot });
 await browser.close();

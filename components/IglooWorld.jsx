@@ -118,15 +118,19 @@ const AUTO_QUALITY_POLICY = Object.freeze({
   // bought 0.2ms, so what medium costs is its content — 64 terrain segments, 24
   // geography instances, dynamic weather — not its resolution.
   //
-  // That puts medium's floor at 18.7-19.5ms across runs, straddling this 19ms
-  // ceiling, and a ceiling inside a tier's own variance makes the outcome a coin
-  // flip: three settle runs at 0.72 landed medium, medium, low. Lowering the
-  // resolution further cannot fix it. Either the ceiling moves above medium's
-  // floor (about 21ms, or 48fps) or this class of machine correctly gets low.
-  // That is an art-versus-pacing call, not a tuning one, so the shipped values
-  // are unchanged and the measurement is recorded here instead.
+  // That puts medium's floor at 18.7-19.5ms across runs. A ceiling inside a
+  // tier's own variance makes the outcome a coin flip — three settle runs at
+  // 19ms landed medium, medium, low — and lowering the resolution further cannot
+  // fix what resolution does not cost.
+  //
+  // So the two ceilings are not the same number. High steps at 19ms, because the
+  // tier below it is worth reaching. Medium steps at 21ms, which is below it,
+  // deliberately: 21ms is about 48fps, and holding medium at 51-53fps keeps the
+  // distant geography, the tunnel arch, the drift detail and three times the
+  // dome's masonry that the low tier sheds. Stable pacing at the richer tier
+  // beats a coin flip between 59fps sparse and 51fps rich.
   stepFromHighAboveMs: 19,
-  stepFromMediumAboveMs: 19,
+  stepFromMediumAboveMs: 21,
   order: Object.freeze(["high", "medium", "low"]),
 });
 

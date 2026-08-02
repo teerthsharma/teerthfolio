@@ -1134,7 +1134,13 @@ export default function IglooScene({
   // from 30.4ms only to 29.3ms. Until the gap between GPU time and presented
   // time is explained, trading the world's sharpness buys nothing a visitor
   // can see.
-  const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [1, 1.5];
+  // Medium renders at low's device-pixel ceiling on purpose. It is content-bound
+  // rather than fill-bound (see AUTO_QUALITY_POLICY), so 0.9 bought sharpness it
+  // could not pay for: 22.9ms against a 21ms step-down ceiling meant integrated
+  // graphics never held medium and lost its geography, tunnel and masonry to the
+  // low tier. At 0.75 it floors at 18.7-19.5ms and holds. Low keeps its own
+  // ladder position by shedding content, not pixels.
+  const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.75] : [1, 1.5];
   const preserveDrawingBuffer =
     typeof window !== "undefined" &&
     (window.location.search.includes("qa=") ||
