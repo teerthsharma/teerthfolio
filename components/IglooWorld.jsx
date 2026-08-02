@@ -111,6 +111,16 @@ const AUTO_QUALITY_POLICY = Object.freeze({
   // CPU throttling the median lands near 111ms against a 19ms ceiling.
   confirmBandMs: 5,
   confirmDelayMs: 1400,
+  // The ladder keeps watching instead of deciding once. Sampling a tier a single
+  // time assumes the machine a visitor arrives with is the machine they keep,
+  // and it is not: a laptop drops to battery, a phone warms up, another tab
+  // starts decoding video. Without this the only rescue is a reload, which a
+  // visitor has no reason to think would help.
+  //
+  // Re-checking cannot oscillate, because the ladder only ever steps down. The
+  // cost is one 2.6s sampling window every 24s, and the window is rAF timing
+  // with no allocation and no draw of its own.
+  recheckMs: 24000,
   // Both ceilings target 60fps rather than "not broken". The itemised frame
   // budget is why: measured on a cool machine, no single subsystem is worth
   // more than 3ms — observatory 2.97, all material cost 2.63, ground sheet
@@ -698,7 +708,9 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     let confirmedFirst = 0;
     let confirm = 0;
     let restart = () => {};
-    const settle = window.setTimeout(() => {
+    let arm = () => {};
+    let timer = 0;
+    const buildSampler = () => {
       const intervals = [];
       let started = performance.now();
       let last = started;
@@ -728,7 +740,12 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
           quality === "high"
             ? AUTO_QUALITY_POLICY.stepFromHighAboveMs
             : AUTO_QUALITY_POLICY.stepFromMediumAboveMs;
-        if (!Number.isFinite(median) || median <= ceiling) return;
+        if (!Number.isFinite(median) || median <= ceiling) {
+          // Healthy this window. Watch again later rather than concluding.
+          confirming = false;
+          arm(AUTO_QUALITY_POLICY.recheckMs);
+          return;
+        }
         const index = AUTO_QUALITY_POLICY.order.indexOf(quality);
         const next = AUTO_QUALITY_POLICY.order[index + 1];
         if (!next || qualityLockedRef.current) return;
@@ -756,10 +773,18 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         });
       };
       frameHandle = window.requestAnimationFrame(sample);
-    }, AUTO_QUALITY_POLICY.settleMs);
+    };
+    arm = (delay) => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        buildSampler();
+      }, delay);
+    };
+    arm(AUTO_QUALITY_POLICY.settleMs);
     return () => {
       cancelled = true;
-      window.clearTimeout(settle);
+      window.clearTimeout(timer);
       window.clearTimeout(confirm);
       window.cancelAnimationFrame(frameHandle);
     };

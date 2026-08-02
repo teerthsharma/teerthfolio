@@ -176,6 +176,15 @@ expectIncludes("components/IglooWorld.jsx", [
   "median <= ceiling + AUTO_QUALITY_POLICY.confirmBandMs",
 ]);
 
+// And the ladder keeps watching rather than deciding once, because the machine a
+// visitor arrives with is not the machine they keep. A healthy window re-arms
+// instead of concluding; without this the only rescue from a laptop dropping to
+// battery is a reload.
+expectIncludes("components/IglooWorld.jsx", [
+  "recheckMs",
+  "arm(AUTO_QUALITY_POLICY.recheckMs)",
+]);
+
 expectIncludes("components/IglooWorld.jsx", [
   "deriveSealGuideState",
   "hasCurrentFatalRenderEvent",
