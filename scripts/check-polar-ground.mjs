@@ -177,16 +177,29 @@ assert.ok(
     STATION_WORLD_SCHEMA.order.length,
     "every station must contribute a ground shadow caster",
   );
+  // Eight stations plus the traveler.
   assert.equal(
     (POLAR_BIOME_FRAGMENT_SHADER.match(/shadow = max\(shadow, polarShadowFromEllipsoid/g) || [])
       .length,
-    STATION_WORLD_SCHEMA.order.length,
-    "the terrain shader must solve one ellipsoid per station",
+    STATION_WORLD_SCHEMA.order.length + 1,
+    "the terrain shader must solve one ellipsoid per station plus the traveler",
   );
   assert.equal(
     (POLAR_BIOME_FRAGMENT_SHADER.match(/if \(dot\(delta, delta\) </g) || []).length,
     STATION_WORLD_SCHEMA.order.length,
-    "every caster must sit behind its own XZ reject",
+    "every station caster must sit behind its own XZ reject",
+  );
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    /if \(dot\(travelerDelta, travelerDelta\) </,
+    "the traveler caster must sit behind its own XZ reject",
+  );
+  // The traveler's shadow has to ride the same surface the traveler rides, or it
+  // slides off the body as the seal crosses a dune.
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    /\+ polarGroundHeight\(uTravelerXZ\)/,
+    "the traveler caster must sit on the shared ground field",
   );
 }
 
