@@ -314,7 +314,11 @@ function applyInstances(mesh, placements, band, allowedStationIds) {
   );
   const transform = new THREE.Object3D();
   const color = new THREE.Color();
-  const frost = new THREE.Color("#A9C2DB");
+  // Ground cover is snow, and snow next to snow differs by a few percent of
+  // value, not by a hue step. At #A9C2DB the sastrugi sat a full value below the
+  // field they are cut from, so a dense band of them read as blue glass shards
+  // scattered on white rather than as drift the wind carved out of it.
+  const frost = new THREE.Color("#CBD9E8");
   const morphology = new Float32Array(visiblePlacements.length);
   const bandMix =
     band === "near"
