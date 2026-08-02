@@ -612,6 +612,9 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
 
   // Measured downgrade. See AUTO_QUALITY_POLICY.
   useEffect(() => {
+    // A material probe replaces every material in the scene and a re-render
+    // undoes it, so the downgrade must not fire underneath one.
+    if (sceneDebugFlags.cheapMaterials) return undefined;
     if (!sceneReady || qualityLockedRef.current) return undefined;
     if (quality === "low") return undefined;
     let cancelled = false;
@@ -655,7 +658,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       window.clearTimeout(settle);
       window.cancelAnimationFrame(frameHandle);
     };
-  }, [quality, reportGpuEvent, sceneReady]);
+  }, [quality, reportGpuEvent, sceneDebugFlags, sceneReady]);
 
 
   useEffect(() => {

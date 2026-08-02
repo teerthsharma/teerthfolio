@@ -247,8 +247,13 @@ function CheapMaterialProbe({ enabled }) {
   const scene = useThree((state) => state.scene);
   useEffect(() => {
     if (!enabled) return undefined;
-    const swapped = [];
-    const handle = window.setTimeout(() => {
+    const swapped = new Map();
+    // Re-applied on an interval, not once. R3F assigns material declaratively,
+    // so any re-render of the owning component restores the original — and the
+    // measured quality downgrade is itself a re-render, which is what made the
+    // first two runs of this probe report subsystems whose removal increased
+    // the write count.
+    const apply = () => {
       scene.traverse((object) => {
         if (!object.material || object.userData?.cheapProbeSkip) return;
         const original = object.material;
@@ -261,14 +266,18 @@ function CheapMaterialProbe({ enabled }) {
           depthWrite: source.depthWrite,
           vertexColors: Boolean(source.vertexColors),
         });
-        swapped.push([object, original]);
+        if (original.userData?.probeSwapped) return;
+        cheap.userData.probeSwapped = true;
+        if (!swapped.has(object)) swapped.set(object, original);
         object.material = cheap;
       });
-    }, 7000);
+    };
+    const start = window.setTimeout(apply, 7000);
+    const repeat = window.setInterval(apply, 400);
     return () => {
-      window.clearTimeout(handle);
+      window.clearTimeout(start);
+      window.clearInterval(repeat);
       for (const [object, original] of swapped) {
-        if (object.material?.dispose) object.material.dispose();
         object.material = original;
       }
     };
