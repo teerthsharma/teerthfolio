@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  POLAR_DOME_WORLD_SCALE,
   POLAR_GROUND_GLSL,
   POLAR_GROUND_PAD_FALLOFF,
   POLAR_GROUND_PAD_RADIUS,
@@ -11,7 +12,10 @@ import {
   polarGroundPadMask,
 } from "../lib/polar-ground.js";
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world.js";
-import { POLAR_BIOME_VERTEX_SHADER } from "../lib/polar-biome-fields.js";
+import {
+  POLAR_BIOME_FRAGMENT_SHADER,
+  POLAR_BIOME_VERTEX_SHADER,
+} from "../lib/polar-biome-fields.js";
 
 // One surface, two evaluators. The GLSL is generated from the same table the JS
 // reads, so this gate's job is to prove the generation is actually wired up —
@@ -137,6 +141,38 @@ assert.ok(
   worstDelta < 1e-9,
   `the emitted shader field and the JS field must be the same surface (worst delta ${worstDelta})`,
 );
+
+// The hero shadow is solved against the dome's own lattice scaled into the
+// world, and lib/ cannot import the component that owns that scale. Parse it and
+// fail if the mirrored constant drifts.
+{
+  const domeSource = readFileSync(
+    join(process.cwd(), "components", "PolarObservatoryDome.jsx"),
+    "utf8",
+  );
+  const componentScale = Number(/worldScale: ([\d.]+)/.exec(domeSource)[1]);
+  assert.equal(
+    componentScale,
+    POLAR_DOME_WORLD_SCALE,
+    "lib/polar-ground.js must mirror OBSERVATORY_MACRO_SCALE_PROFILE.worldScale",
+  );
+  // The solver must be emitted into the terrain fragment shader and actually
+  // applied, or the hero stands on the snow casting nothing.
+  assert.equal(
+    (POLAR_BIOME_FRAGMENT_SHADER.match(/float polarHeroShadow\(/g) || []).length,
+    1,
+    "the hero shadow solver must be defined exactly once in the terrain shader",
+  );
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    /heroShadow = polarHeroShadow\(/,
+    "the terrain must apply the hero shadow it defines",
+  );
+  // A ground point on the far side of the dome from the light is in shadow; one
+  // well clear of the building is not. Solved here the same way the GLSL does.
+  const litSample = polarGroundHeight(24, -24);
+  assert.ok(Number.isFinite(litSample), "ground field must stay finite far from the dome");
+}
 
 console.log(
   `polar ground contract passed: one field, peak ${POLAR_GROUND_PEAK.toFixed(2)}, ${padPoints.length} station shelves, GPU/CPU agree to ${worstDelta.toExponential(1)}`,

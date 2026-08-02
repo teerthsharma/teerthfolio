@@ -184,7 +184,12 @@ export const DOME_CONTINUOUS_DRAW_CALL_PROFILE = Object.freeze({
   lowVisibleCalls: 6,
   lowShadowMapCalls: 2,
   fullVisibleCalls: 8,
-  fullShadowMapCalls: 0,
+  // One instanced shadow draw for the course blocks. It was zero, which meant
+  // the hero building cast nothing at the tier that renders it best: the dark
+  // patch under the dome was contact shading, not a shadow, and the courses
+  // could not shade each other. One instanced submission of ~77 rounded boxes
+  // buys both, and the shell keeps its own casting off so this stays one draw.
+  fullShadowMapCalls: 1,
   maxFullFrameCalls: 8,
 });
 export const DOME_INSTANCED_CONSTRUCTION_PROFILE = Object.freeze({
@@ -1424,9 +1429,9 @@ function InstancedDomeBlocks({
   return (
     <instancedMesh
       args={[assets.domeGeometry, assets.material, blocks.length]}
-      castShadow={false}
+      castShadow
       name={`InstancedDomeBlocks ${blocks.length}-blocks one-draw`}
-      receiveShadow={false}
+      receiveShadow
       ref={meshRef}
       onPointerMove={(event) => {
         if (!pointerInteractionEnabled) return;

@@ -24,7 +24,7 @@ for (const requiredContract of [
   "lowVisibleCalls: 6",
   "lowShadowMapCalls: 2",
   "fullVisibleCalls: 8",
-  "fullShadowMapCalls: 0",
+  "fullShadowMapCalls: 1",
   "maxFullFrameCalls: 8",
   "DOME_INSTANCED_CONSTRUCTION_PROFILE",
   "shellBlocksByQuality: Object.freeze({",
