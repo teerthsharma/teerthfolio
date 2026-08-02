@@ -103,7 +103,13 @@ assert.deepEqual(WORLD_STREAM_TIMINGS, {
 });
 
 assert.deepEqual(POST_PROCESS_BUDGET, {
-  low: { scale: 0.82, fisheye: 0, chroma: 0, ink: 0.08, scanline: 0, pixel: 1, quantize: 0.12, gradeBase: 0.04, gradeCurve: 0.9, shadowSeparation: 0.24 },
+  // Low's ink and quantize now match medium's. They were authored heavier on the
+  // premise that low was a fallback tier nobody with a real machine would see;
+  // the measured quality ladder steps down to low on anything that cannot hold
+  // 60fps at high, so it is what most visitors get. Its render scale, paper
+  // grade and shadow toe are unchanged — those compensate for 0.82, and they
+  // were not what made the world read as a cel-shaded diagram.
+  low: { scale: 0.82, fisheye: 0, chroma: 0, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.04, gradeCurve: 0.9, shadowSeparation: 0.24 },
   medium: { scale: 0.94, fisheye: 0.001, chroma: 0.04, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.56, gradeCurve: 0.4, shadowSeparation: 0 },
   high: { scale: 1, fisheye: 0.0015, chroma: 0.05, ink: 0.06, scanline: 0, pixel: 1, quantize: 0.05, gradeBase: 0.6, gradeCurve: 0.4, shadowSeparation: 0 },
 });
