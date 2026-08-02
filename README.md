@@ -282,10 +282,16 @@ dome 5.6ms, grade chain 4.6ms, ground sheet 3.9ms, sky 1.6ms, against a 28.6ms
 frame.
 
 Measured across all eight stations at tier `medium`, docking at each the way a
-visitor does, the presented frame runs 15.8-17.7ms — 56 to 63fps with a 1.9ms
-spread, GPU time 6.4-7.5ms. The world is uniformly fast rather than fast where
+visitor does, the presented frame runs 13.5-15.0ms — 67 to 74fps with a 1.5ms
+spread, GPU time 6.4-7.6ms. The world is uniformly fast rather than fast where
 you happen to spawn, and every station's median sits clear of medium's 21ms
 step-down ceiling, so arriving at a building cannot cost the visitor the tier.
+
+Read the GPU column, not the presented one, when comparing two runs. An earlier
+sweep of the same eight stations read 15.8-17.7ms presented against 6.4-7.5ms
+GPU: the GPU cost did not move, and the presented frame did, because the machine
+was busier. Presented frame is what a visitor feels and GPU time is what the code
+controls.
 
 That is why the ladder exists and why `probe:*` and both frame gates pin a tier
 before they measure. A frame rate quoted without its tier says nothing, and two
