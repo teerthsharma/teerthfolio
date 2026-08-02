@@ -338,6 +338,16 @@ const FROZEN_CLOCK_SECONDS = 8;
 function FrozenClock({ enabled }) {
   useFrame((state) => {
     if (!enabled) return;
+    // Pinning elapsedTime alone is not a freeze. Twelve frame callbacks in this
+    // scene take `delta` and ease toward a target with it, so with the clock
+    // pinned but delta live they keep integrating: measured inside one frozen
+    // session, successive frames drifted from the first by a mean of 0.22, then
+    // 1.49, then 1.79 grey levels, with 12% of pixels moving.
+    //
+    // THREE.Clock.getDelta returns 0 and restarts itself when it is not running
+    // and autoStart is set, so clearing `running` every frame makes the next
+    // frame's delta exactly 0 and leaves elapsedTime for the assignment below.
+    state.clock.running = false;
     state.clock.elapsedTime = FROZEN_CLOCK_SECONDS;
   }, -1000);
   return null;

@@ -60,6 +60,14 @@ const FRAMES = Number(process.env.PROBE_FRAMES || 4);
 // are not yet the steady state.
 const TIER_SETTLE_MS = Number(process.env.PROBE_SETTLE_MS || 8000);
 const SPACING_MS = 1700;
+// Frames thrown away before the real ones. With clock and delta both pinned the
+// scene converges to a fixed point and then repeats bit for bit — measured over
+// eight captures, frames two through seven were byte-identical — but the first
+// two still differ, by a mean of 0.14 and 1.04 grey levels. Discarding them is
+// what turns "deterministic given the same frame index" into "actually static",
+// and it is the difference between a null control that happens to cancel and one
+// that is exact for the right reason.
+const WARMUP_FRAMES = 2;
 // The world area, with the HUD panel on the right and the hint text on the left
 // excluded: both are DOM, unaffected by anything in the render path, and they
 // would dilute every measurement here toward zero.
@@ -146,6 +154,11 @@ if (mode === "capture") {
   for (const tier of TIERS) {
     await page.locator("button", { hasText: new RegExp(`^${tier}$`, "i") }).first().click().catch(() => {});
     await page.waitForTimeout(TIER_SETTLE_MS);
+    for (let k = 0; k < WARMUP_FRAMES; k += 1) {
+      await page.bringToFront();
+      await page.screenshot({ path: join(out, "warmup.png") });
+      await page.waitForTimeout(SPACING_MS);
+    }
     for (let k = 0; k < FRAMES; k += 1) {
       await page.bringToFront();
       await page.screenshot({ path: join(out, `${tier}-${k}.png`) });
@@ -167,7 +180,8 @@ if (mode === "capture") {
       process.exit(1);
     }
   }
-  const listing = async (tag) => (await readdir(join(ROOT, tag))).filter((f) => f.endsWith(".png")).sort();
+  const listing = async (tag) =>
+    (await readdir(join(ROOT, tag))).filter((f) => f.endsWith(".png") && f !== "warmup.png").sort();
   const controlFiles = await listing(controlTag);
   const treatmentFiles = await listing(treatmentTag);
   if (controlFiles.length !== treatmentFiles.length || controlFiles.some((f, i) => f !== treatmentFiles[i])) {
