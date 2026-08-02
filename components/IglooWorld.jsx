@@ -110,6 +110,21 @@ const AUTO_QUALITY_POLICY = Object.freeze({
   // the world sitting just under the bar. The medium floor used to be 30ms —
   // about 33fps — so a machine holding 41fps stopped there and never reached
   // the target it was supposed to be chasing.
+  // Measured 2026-08-02 on Intel UHD integrated graphics at 1440x900: the tiers
+  // floor at 28.9ms (high), 22.9ms (medium) and 17.1ms (low). Medium is the
+  // interesting one, because it is NOT fill-bound the way the ladder as a whole
+  // is: dropping its buffer from 0.9 to 0.75 device pixels took it 22.9ms ->
+  // 18.9ms, but 0.75 -> 0.72 took it only 18.9ms -> 18.7ms. An 8% pixel cut
+  // bought 0.2ms, so what medium costs is its content — 64 terrain segments, 24
+  // geography instances, dynamic weather — not its resolution.
+  //
+  // That puts medium's floor at 18.7-19.5ms across runs, straddling this 19ms
+  // ceiling, and a ceiling inside a tier's own variance makes the outcome a coin
+  // flip: three settle runs at 0.72 landed medium, medium, low. Lowering the
+  // resolution further cannot fix it. Either the ceiling moves above medium's
+  // floor (about 21ms, or 48fps) or this class of machine correctly gets low.
+  // That is an art-versus-pacing call, not a tuning one, so the shipped values
+  // are unchanged and the measurement is recorded here instead.
   stepFromHighAboveMs: 19,
   stepFromMediumAboveMs: 19,
   order: Object.freeze(["high", "medium", "low"]),
