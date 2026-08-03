@@ -35,7 +35,10 @@ const SETTLE_MS = 18000;
 // previous one complete and working in .next, and a server started before a
 // rebuild keeps serving what it loaded — both produce a clean run of the wrong
 // world, which has been mistaken for a null result more than once here.
-await assertServedBuildIsCurrent();
+await assertServedBuildIsCurrent().catch((error) => {
+  console.error(String(error.message));
+  process.exit(1);
+});
 
 const profile = join("verification", `bundle-profile-${LABEL}`);
 await rm(profile, { recursive: true, force: true });

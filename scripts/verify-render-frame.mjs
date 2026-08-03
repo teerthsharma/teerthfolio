@@ -22,6 +22,7 @@ import { chromium } from "playwright";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
+import { assertServedBuildIsCurrent } from "./probe-served-build.mjs";
 
 const BASE = process.env.PROBE_BASE || "http://localhost:3100";
 const REFERENCE = join(process.cwd(), "scripts", "render-frame-reference.json");
@@ -35,6 +36,16 @@ const CELL_TOLERANCE = 14;
 // One or two cells over tolerance is weather. A subsystem that stopped drawing
 // takes a whole band of them.
 const MAX_CHANGED_CELLS = 6;
+
+// A gate that measures a stale build is a false pass, and this one is load
+// bearing: it is the only check that the world still draws. A server started
+// before a rebuild keeps serving what it loaded, and a build that stopped at an
+// earlier contract leaves the previous one complete in .next — both look like a
+// healthy run.
+await assertServedBuildIsCurrent().catch((error) => {
+  console.error(String(error.message));
+  process.exit(1);
+});
 
 const browser = await chromium.launch({
   channel: "chrome",

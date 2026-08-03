@@ -18,6 +18,7 @@ import { chromium } from "playwright";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
+import { assertServedBuildIsCurrent } from "./probe-served-build.mjs";
 
 const BASE = process.env.PROBE_BASE || "http://localhost:3100";
 const REFERENCE = join(process.cwd(), "scripts", "station-frame-reference.json");
@@ -39,6 +40,16 @@ const STATIONS = [
   ["CO_07", "topology-archive-wall", 11, -8],
   ["CO_08", "assembly-tool-locker", -16, 2],
 ];
+
+// A gate that measures a stale build is a false pass, and this one is load
+// bearing: it is the only check that the world still draws. A server started
+// before a rebuild keeps serving what it loaded, and a build that stopped at an
+// earlier contract leaves the previous one complete in .next — both look like a
+// healthy run.
+await assertServedBuildIsCurrent().catch((error) => {
+  console.error(String(error.message));
+  process.exit(1);
+});
 
 const browser = await chromium.launch({
   channel: "chrome",
