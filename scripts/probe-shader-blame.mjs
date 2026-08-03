@@ -79,8 +79,26 @@ await page.waitForTimeout(8000);
 
 const blame = await page.evaluate(() => window.__blame);
 blame.sort((a, b) => b.blockedMs - a.blockedMs);
+const totalBlockedMs = blame.reduce((sum, item) => sum + item.blockedMs, 0);
 console.log("blocking links >25ms:", blame.length);
-console.log("total blocked ms:", blame.reduce((sum, item) => sum + item.blockedMs, 0));
+console.log("total blocked ms:", totalBlockedMs);
+
+// A quiet run here is not a result. ANGLE translates GLSL through HLSL to D3D
+// bytecode and Windows caches the compiled result system-wide — outside the
+// browser profile, and out of reach of --disable-gpu-program-cache and
+// --disable-gpu-shader-disk-cache, both of which were tried. Once a machine has
+// linked these programs a few times they become free, and this probe then
+// reports nothing while a real first-time visitor still pays in full. That
+// happened on this branch: 6,905ms in the morning, 0ms in the afternoon, no code
+// change in between, and the natural reading of the second run was "fixed".
+if (totalBlockedMs < 250) {
+  console.log("");
+  console.log("  NOTHING TO MEASURE: this machine's shader cache is warm.");
+  console.log("  A fresh browser profile does not give a cold GPU — the D3D shader");
+  console.log("  cache is system-wide. This run says nothing about a first visit,");
+  console.log("  and in particular it is not evidence that a link cost was fixed.");
+  console.log("  Clear the machine's D3D shader cache to measure this again.");
+}
 for (const item of blame.slice(0, 12)) {
   console.log(
     `${String(item.blockedMs).padStart(6)}ms  at ${String(item.atMs).padStart(6)}ms  ` +

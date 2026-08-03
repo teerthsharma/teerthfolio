@@ -67,7 +67,16 @@ for (const event of data.events) {
 const top = [...bins.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
 console.log("final bucket attr:", data.bucketAttr);
 console.log("blocking calls >0.5ms:", data.events.length);
-console.log("total blocked ms:", Math.round(data.events.reduce((sum, e) => sum + e.ms, 0)));
+const totalBlockedMs = Math.round(data.events.reduce((sum, e) => sum + e.ms, 0));
+console.log("total blocked ms:", totalBlockedMs);
+// See the note in probe-shader-blame: a quiet run means this machine's D3D
+// shader cache is warm, not that the links got cheaper. The cache is system-wide
+// and survives a fresh browser profile.
+if (totalBlockedMs < 250) {
+  console.log("
+  NOTHING TO MEASURE: the shader cache is warm and a first visit is not");
+  console.log("  observable here. Clear the machine's D3D shader cache to measure again.");
+}
 console.log("heaviest 250ms bins [startMs, blockedMs]:", JSON.stringify(top));
 console.log(
   "worst single calls:",
