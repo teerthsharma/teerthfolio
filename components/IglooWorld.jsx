@@ -534,6 +534,12 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   // dead network time. Nothing here mounts or renders anything — webpack dedupes
   // this against the dynamic import — so the entry screen's own work is
   // untouched.
+  //
+  // The chunk this moves is 1,293KB decoded — the largest single asset the site
+  // fetches — which is why moving it off the click matters at all and why it is
+  // invisible on localhost. What still arrives after the click is one asset under
+  // a kilobyte, so there is nothing further to pull forward on this path; the
+  // remaining opportunity is making that chunk smaller, not fetching it sooner.
   useEffect(() => {
     let cancelled = false;
     const idle = window.requestIdleCallback || window.setTimeout;
