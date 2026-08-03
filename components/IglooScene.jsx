@@ -63,6 +63,13 @@ import RetroCinematicPostProcess, { GLOBAL_RETRO_POST_PROFILE } from "./RetroCin
 // is not worth the indirection. Deleting the component outright is the change
 // that would definitely work, and that is a decision about whether the legacy
 // avatar is still wanted as a fallback.
+//
+// What deleting it would be worth, measured rather than guessed: replacing the
+// component with a stub that renders null and rebuilding takes the bundle from
+// 2,120.8KB to 2,104.3KB before the entry click and from 2,219.7KB to 2,203.2KB
+// in total. 16.5KB, identical on both figures. That is the whole value of the
+// decision, and it is small enough that keeping a working fallback is a
+// defensible answer.
 import SealAvatar from "./SealAvatar";
 import TopologicalSealMascot from "./TopologicalSealMascot";
 const TopologyConstellation = dynamic(() => import("./TopologyConstellation"), { ssr: false, loading: () => null });
