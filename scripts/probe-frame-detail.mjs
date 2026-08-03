@@ -39,7 +39,7 @@
 //                    filter getting worse. Read it as an upper bound. To measure
 //                    ringing properly, stop the world.
 import { chromium } from "playwright";
-import { mkdir, readdir, rm } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -72,6 +72,18 @@ const WARMUP_FRAMES = 2;
 // excluded: both are DOM, unaffected by anything in the render path, and they
 // would dilute every measurement here toward zero.
 const BOX = { x0: 280, x1: 1090, y0: 120, y1: 820 };
+// Optionally judge the change somewhere other than the opening shot. The home
+// dock is where the traveller is parked, so most of the near dressing band sits
+// behind the camera and ground-level changes read as almost nothing there — a
+// dressing density test at the dock measured +0.2% for a change that covers the
+// whole field. PROBE_STATION=CO_05 travels the way a visitor does, by selecting
+// the station in the HUD, and captures on arrival.
+const STATION = process.env.PROBE_STATION || "";
+const ARRIVAL_RADIUS = 4;
+const STATION_XZ = Object.freeze({
+  CO_01: [-3, 1], CO_02: [3, 8], CO_03: [-14, -6], CO_04: [-10, -9],
+  CO_05: [17, -13], CO_06: [14, 12], CO_07: [11, -8], CO_08: [-16, 2],
+});
 const OVERSHOOT_LEVELS = 8;
 const EDGE_CONTRAST = 18;
 
@@ -151,6 +163,40 @@ if (mode === "capture") {
     process.exit(1);
   }
   await page.bringToFront();
+  if (STATION) {
+    const target = STATION_XZ[STATION];
+    if (!target) {
+      console.error(`unknown station ${STATION}`);
+      await browser.close();
+      process.exit(1);
+    }
+    await page.locator("button", { hasText: new RegExp(STATION) }).first().click().catch(() => {});
+    const pose = () =>
+      page.evaluate(() => {
+        const world = document.querySelector("#world");
+        return { x: Number(world?.dataset.worldX), z: Number(world?.dataset.worldZ) };
+      });
+    let at = await pose();
+    let waited = 0;
+    while (waited < 26000 && Math.hypot(at.x - target[0], at.z - target[1]) > ARRIVAL_RADIUS) {
+      await page.waitForTimeout(900);
+      waited += 900;
+      at = await pose();
+    }
+    const gap = Math.hypot(at.x - target[0], at.z - target[1]);
+    if (gap > ARRIVAL_RADIUS + 1.5) {
+      console.error(`never arrived at ${STATION} (${gap.toFixed(1)} away); refusing to capture`);
+      await browser.close();
+      process.exit(1);
+    }
+    // Record where it actually stopped. Auto-travel does not arrive at a
+    // deterministic pose — two runs measured 3.6 and 2.4 units from centre — and
+    // a paired per-pixel comparison across two camera positions is not a
+    // comparison at all. The first station run made exactly that mistake and read
+    // +5.1% for a change that measured +0.2% at the dock.
+    await writeFile(join(out, "pose.json"), JSON.stringify({ station: STATION, x: at.x, z: at.z }));
+    console.log(`${tag}: travelled to ${STATION}, stopped at ${at.x.toFixed(2)},${at.z.toFixed(2)}`);
+  }
   for (const tier of TIERS) {
     await page.locator("button", { hasText: new RegExp(`^${tier}$`, "i") }).first().click().catch(() => {});
     await page.waitForTimeout(TIER_SETTLE_MS);
@@ -187,6 +233,25 @@ if (mode === "capture") {
   if (controlFiles.length !== treatmentFiles.length || controlFiles.some((f, i) => f !== treatmentFiles[i])) {
     console.error("the two tags do not hold the same frames; a paired comparison needs matching tiers and counts");
     process.exit(1);
+  }
+  // If either arm travelled, both must have stopped in the same place.
+  const poseOf = (tag) =>
+    readFile(join(ROOT, tag, "pose.json"), "utf8").then(JSON.parse).catch(() => null);
+  const [controlPose, treatmentPose] = await Promise.all([poseOf(controlTag), poseOf(treatmentTag)]);
+  if (Boolean(controlPose) !== Boolean(treatmentPose)) {
+    console.error("one arm travelled to a station and the other did not; these are not comparable");
+    process.exit(1);
+  }
+  if (controlPose && treatmentPose) {
+    const drift = Math.hypot(controlPose.x - treatmentPose.x, controlPose.z - treatmentPose.z);
+    if (controlPose.station !== treatmentPose.station || drift > 0.35) {
+      console.error(
+        `the two arms stopped ${drift.toFixed(2)} units apart at ${controlPose.station}/${treatmentPose.station}; ` +
+          "a per-pixel comparison needs the same camera pose, so this would measure the walk, not the change",
+      );
+      process.exit(1);
+    }
+    console.log(`both arms stopped within ${drift.toFixed(2)} units at ${controlPose.station}`);
   }
   console.log(`paired comparison: ${controlTag} (control) against ${treatmentTag}\n`);
   const tiers = [...new Set(controlFiles.map((f) => f.split("-")[0]))];
