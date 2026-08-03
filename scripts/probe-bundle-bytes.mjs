@@ -23,12 +23,19 @@
 import { chromium } from "playwright";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
+import { assertServedBuildIsCurrent } from "./probe-served-build.mjs";
 
 const BASE = process.env.PROBE_BASE || "http://localhost:3100";
 const LABEL = process.argv[2] || "bundle";
 const WAIT_MS = Number(process.env.PROBE_WAIT_MS || 4000);
 const THROTTLE = process.env.PROBE_THROTTLE !== "0";
 const SETTLE_MS = 18000;
+
+// Refuse to measure a build the server is not serving. A stopped build leaves the
+// previous one complete and working in .next, and a server started before a
+// rebuild keeps serving what it loaded — both produce a clean run of the wrong
+// world, which has been mistaken for a null result more than once here.
+await assertServedBuildIsCurrent();
 
 const profile = join("verification", `bundle-profile-${LABEL}`);
 await rm(profile, { recursive: true, force: true });

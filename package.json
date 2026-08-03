@@ -47,6 +47,7 @@
     "probe:overdraw": "node scripts/probe-overdraw.mjs",
     "probe:pacing": "node scripts/probe-pacing.mjs",
     "probe:render-timeline": "node scripts/probe-render-timeline.mjs",
+    "probe:served-build": "node scripts/probe-served-build.mjs",
     "probe:shader-blame": "node scripts/probe-shader-blame.mjs",
     "probe:stall": "node scripts/probe-stall.mjs",
     "probe:station-contrast": "node scripts/probe-station-contrast.mjs",
