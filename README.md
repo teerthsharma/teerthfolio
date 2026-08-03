@@ -335,6 +335,18 @@ per role — would shrink what `low` and `medium` compile, at the cost of changi
 what those tiers look like. Both are decisions about what the site should
 prioritise, so neither is taken unilaterally here.
 
+There is a third option that costs neither, and it is untried because it cannot
+be verified on the machine this was developed on. The canvas is mounted before
+the visitor clicks — only `frameloop` is `"never"` until then, so nothing
+renders and nothing links. Rendering a single frame behind the entry splash,
+with the terrain present, would move the link into the time the visitor spends
+reading the entry screen. Most people take longer than the link does; someone who
+clicks immediately waits exactly as long as they do today, so it has no downside
+beyond a frame of GPU work. It is not implemented because this machine's shader
+cache is now warm and the difference is no longer observable here — shipping it
+would mean shipping an unmeasurable change, which is the one thing this branch
+has been consistent about not doing.
+
 ### What is known about phones, and what is not
 
 No measurement here comes from real mobile hardware. Playwright emulates the
