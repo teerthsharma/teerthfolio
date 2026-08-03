@@ -45,6 +45,16 @@ import PolarSemanticParticles from "./PolarSemanticParticles";
 import PolarStationMechanismLayer from "./PolarStationMechanismLayer";
 import PolarTravelDebris from "./PolarTravelDebris";
 import RetroCinematicPostProcess, { GLOBAL_RETRO_POST_PROFILE } from "./RetroCinematicPostProcess";
+// Nothing in a shipped build sets debugFlags.legacySeal — no query registers it —
+// so this 30KB component is unreachable and rides in the chunk that gates the
+// canvas for nothing. It was moved behind next/dynamic and put back: the largest
+// chunk measured 820KB before and after, and neither a search for its identifiers
+// nor one for its colour literals could confirm the code had actually moved
+// (identifiers are mangled by minification, and the colours are shared palette
+// values present in seven chunks). A boundary that cannot be shown to do anything
+// is not worth the indirection. Deleting the component outright is the change
+// that would definitely work, and that is a decision about whether the legacy
+// avatar is still wanted as a fallback.
 import SealAvatar from "./SealAvatar";
 import TopologicalSealMascot from "./TopologicalSealMascot";
 import TopologyConstellation from "./TopologyConstellation";
