@@ -13,6 +13,13 @@ import {
   isMechanismEvidenceReady,
   resolveMechanismLayerSelection,
 } from "../lib/polar-station-mechanism-layer";
+// These two tables are 40KB and 49KB, and splitting the mechanism families out of
+// this file did not take them with it — this layer still imports them, so they
+// stay on the critical path. Splitting the layer itself was tried and reverted:
+// it measured 2,019KB and 1,969KB of pre-click bytes against 2,016KB and 2,024KB
+// without it, which is noise, and check-polar-station-mechanism-layer pins the
+// static import of this component deliberately. The tables are reachable from
+// PolarStationMechanismsNE as well, so moving one importer does not free them.
 import { NE_MECHANISM_BUDGET } from "../lib/polar-station-mechanisms";
 import { SW_MECHANISM_BUDGET } from "../lib/polar-station-mechanisms-sw";
 // The two mechanism families are 115KB and 77KB of source and they draw only for
