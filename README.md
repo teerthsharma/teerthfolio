@@ -310,9 +310,19 @@ first-time visitors, which is exactly who it should not land on.
 
 Everything cheap has been tried and measured:
 
+**Read the attempt table below with a caveat that was found after it was
+written.** Chrome's `--disable-gpu-program-cache` does not make a run cold: ANGLE
+translates GLSL through HLSL to D3D bytecode and Windows caches the result
+system-wide, outside any browser profile. After enough runs on one machine the
+links become free — `probe:shader-blame` on this machine now reports 0 blocking
+links and 0ms blocked, against 6,905ms earlier the same day, with no code change
+between. The figures below were taken as that cache warmed, so the differences
+between rows are not safely attributable to the changes in them. Reproducing any
+of this needs the machine's D3D shader cache cleared, not just a fresh profile.
+
 | Attempt | Result |
 | --- | --- |
-| Admitting sky and terrain a bucket apart | 5.4s → 3.9s. Shipped; two links no longer share a frame |
+| Admitting sky and terrain a bucket apart | 5.4s → 3.9s measured, but see the caveat above; shipped because two links sharing a frame is worth avoiding regardless |
 | `gl.compileAsync` in the warmup | No change. three.js resolves the link synchronously at first use |
 | Warming before the bucket that draws it | Same size, moved into first paint, more total stall |
 | Deleting the 3x3 Worley loop | 6%. There is no hot spot to remove |
