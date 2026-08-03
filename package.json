@@ -34,6 +34,7 @@
     "dev": "next dev",
     "lint": "eslint .",
     "probe:blur-surfaces": "node scripts/probe-blur-surfaces.mjs",
+    "probe:bundle-bytes": "node scripts/probe-bundle-bytes.mjs",
     "probe:composite": "node scripts/probe-composite.mjs",
     "probe:cpu-frame": "node scripts/probe-cpu-frame.mjs",
     "probe:fill-calibration": "node scripts/probe-fill-calibration.mjs",
