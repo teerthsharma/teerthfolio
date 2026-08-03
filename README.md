@@ -335,17 +335,25 @@ per role — would shrink what `low` and `medium` compile, at the cost of changi
 what those tiers look like. Both are decisions about what the site should
 prioritise, so neither is taken unilaterally here.
 
-There is a third option that costs neither, and it is untried because it cannot
-be verified on the machine this was developed on. The canvas is mounted before
-the visitor clicks — only `frameloop` is `"never"` until then, so nothing
-renders and nothing links. Rendering a single frame behind the entry splash,
-with the terrain present, would move the link into the time the visitor spends
-reading the entry screen. Most people take longer than the link does; someone who
-clicks immediately waits exactly as long as they do today, so it has no downside
-beyond a frame of GPU work. It is not implemented because this machine's shader
-cache is now warm and the difference is no longer observable here — shipping it
-would mean shipping an unmeasurable change, which is the one thing this branch
-has been consistent about not doing.
+A third option exists but is larger than it first appears. The entry screen is
+dead time the driver could be using: counted directly, **1 of 77 WebGL programs
+exist before the visitor clicks**, and the other 76 are created after. Moving the
+terrain link into that window would hide it from anyone who reads for longer than
+the link takes, and cost nothing to anyone who clicks immediately.
+
+It is not a matter of rendering one frame behind the splash, which is what this
+section said before the count was taken. `IglooScene` is a dynamic import gated
+on `gpuStageMounted`, so before entry there is no world canvas at all — the
+measurement above reports `no canvas`, and the single program belongs to the
+splash's own surface. Doing this means mounting the GPU stage during the entry
+screen: fetching the chunk, building the scene graph and drawing a frame, all
+while the splash animates. That is a real change with a real cost to the entry
+screen, not a free win.
+
+It is also unverifiable here. This machine's shader cache is warm, so the
+difference it would make is no longer observable — shipping it would mean
+shipping a change whose effect cannot be measured, and reporting it as a fix
+would be reporting a warm cache as a result.
 
 ### What is known about phones, and what is not
 
