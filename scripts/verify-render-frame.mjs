@@ -16,6 +16,14 @@
 // when the sky animates and by tens of percent when the terrain turns into a
 // flat plane.
 //
+// Known flake, one occurrence in many runs: the capture came back with the
+// traveller mid-journey and the HUD reading "EXPLORING -> FIELD", which moved 81
+// of 96 cells and failed the gate. Re-running immediately passed at 0/96. No
+// idle auto-explore exists in the world, so where the destination selection came
+// from is not established. If this fails with a large number of moved cells,
+// look at verification/render-frame-current.png before believing it: a genuine
+// regression and a stray navigation look identical in the cell counts.
+//
 // Run against a production build. `--update` rewrites the reference; do that
 // only alongside a deliberate visual change, and say so in the commit.
 import { chromium } from "playwright";
