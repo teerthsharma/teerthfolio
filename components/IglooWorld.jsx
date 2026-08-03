@@ -87,7 +87,21 @@ const OPEN_WORLD_LOADING_SETTLE_MS = 1800;
  * during it would downgrade every visitor on load cost they only pay once.
  */
 const AUTO_QUALITY_POLICY = Object.freeze({
-  settleMs: 5200,
+  // How long the world runs before the first window is sampled. This was 5200,
+  // which is 5.2s the visitor spends at whatever tier deviceMemory guessed —
+  // `high` on most machines, and on integrated graphics that is 28.9ms frames.
+  // Measured from the renderer reporting webgl, the first step landed at 11.1,
+  // 11.2 and 14.8s; at 2000 it lands at 7.8, 7.8, 7.9, 8.0, 8.3, 8.3, 10.0, 12.0
+  // and 12.1s across nine runs, every one of them settling on the correct tier
+  // and none overshooting to low. About three seconds less of the opening at a
+  // frame rate the machine cannot hold.
+  //
+  // Sampling this early risks catching the shader link storm, which is what the
+  // longer settle was avoiding. Two things make it survivable now that did not
+  // exist then: the window reports a median rather than a mean, so a handful of
+  // multi-second link frames among ninety do not move it, and a reading only
+  // just over the ceiling asks for a second window before spending a tier.
+  settleMs: 2000,
   sampleFrames: 90,
   // The window is bounded in wall-clock as well as frames, because a window
   // counted only in frames takes 90/fps seconds to close and so gets longer
