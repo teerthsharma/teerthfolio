@@ -407,6 +407,23 @@ function CheapMaterialProbe({ enabled }) {
   return null;
 }
 
+// Two things this deliberately does not do, both tried and measured.
+//
+// It does not use compileAsync. KHR_parallel_shader_compile is available on this
+// hardware, but swapping gl.compile for gl.compileAsync here left the worst frame
+// unchanged at 3.9s — the block is the driver's link, and asking for it
+// asynchronously did not stop three.js resolving it synchronously at first use.
+//
+// And it does not run earlier than the finish bucket. Mounting the biome world
+// at `hero` so its programs could be warmed before they are drawn moved the stall
+// rather than removing it: the worst frame stayed at about 3.9s but arrived at
+// t+1.8s instead of t+3.0s — that is, inside first paint — and total stalled time
+// across the first fourteen seconds rose from 5.9s to 7.2s. Warming a program
+// costs the same whenever it happens; the only thing that moves is who waits.
+//
+// The remaining cost is one program: polar-biome-world-solid links in 2,570ms.
+// Anything that actually fixes this has to make that link cheaper rather than
+// rescheduling it.
 function BackgroundShaderWarmup({ enabled }) {
   const { camera, gl, scene } = useThree();
   const startedRef = useRef(false);
