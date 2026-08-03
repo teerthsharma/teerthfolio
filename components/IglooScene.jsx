@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Suspense,
@@ -36,14 +37,21 @@ import {
   shouldStageRenderBuckets,
 } from "../lib/render-buckets";
 import AdaptivePolarWorldDressing from "./AdaptivePolarWorldDressing";
-import ActiveTheoryVeil from "./ActiveTheoryVeil";
+// Everything below is admitted at the systems or finish bucket, which is after
+// the first viewport has been presented. None of it can be needed to draw that
+// frame, so none of it belongs in the chunk whose arrival gates the canvas — the
+// same argument that took the station machinery out and the largest chunk from
+// 1,293KB to 820KB. `loading: () => null` is required rather than cosmetic: these
+// render inside a react-three-fiber Canvas, where a DOM placeholder is not a
+// valid child.
+const ActiveTheoryVeil = dynamic(() => import("./ActiveTheoryVeil"), { ssr: false, loading: () => null });
 import IglooArtifacts, { IGLOO_ARTIFACTS } from "./IglooArtifacts";
 import IglooTouch from "./IglooTouch";
 import PolarBiomeWorld from "./PolarBiomeWorld";
 import PolarObservatoryDome from "./PolarObservatoryDome";
-import PolarSemanticParticles from "./PolarSemanticParticles";
+const PolarSemanticParticles = dynamic(() => import("./PolarSemanticParticles"), { ssr: false, loading: () => null });
 import PolarStationMechanismLayer from "./PolarStationMechanismLayer";
-import PolarTravelDebris from "./PolarTravelDebris";
+const PolarTravelDebris = dynamic(() => import("./PolarTravelDebris"), { ssr: false, loading: () => null });
 import RetroCinematicPostProcess, { GLOBAL_RETRO_POST_PROFILE } from "./RetroCinematicPostProcess";
 // Nothing in a shipped build sets debugFlags.legacySeal — no query registers it —
 // so this 30KB component is unreachable and rides in the chunk that gates the
@@ -57,7 +65,7 @@ import RetroCinematicPostProcess, { GLOBAL_RETRO_POST_PROFILE } from "./RetroCin
 // avatar is still wanted as a fallback.
 import SealAvatar from "./SealAvatar";
 import TopologicalSealMascot from "./TopologicalSealMascot";
-import TopologyConstellation from "./TopologyConstellation";
+const TopologyConstellation = dynamic(() => import("./TopologyConstellation"), { ssr: false, loading: () => null });
 
 // Compatibility surface for the original interaction contract. Smashable ice
 // remains owned by IglooArtifacts/Observatory; the scene-level primitive is a
