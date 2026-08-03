@@ -1,5 +1,10 @@
 "use client";
 
+// The barrel import is fine. drei ships 1,548KB of JavaScript and this file uses
+// one component, which looks like an obvious deep-import win; measured, it is
+// not. Switching to "@react-three/drei/web/Html" moved total transferred bytes
+// from 1,482KB and 1,514KB to 1,580KB and 1,494KB — no reduction, because the
+// bundler already resolves the barrel down to what is used.
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
