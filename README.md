@@ -298,6 +298,33 @@ measured 28.9ms against a 19ms ceiling, and no amount of idle time changes that.
 
 `check-polar-rescue` pins every one of these.
 
+### Known: the first visit freezes for about four seconds
+
+A cold visit composes the world in 527ms after the entry click, and then stops
+for about 3.9 seconds at t+3s. This is measured, understood, and not fixed.
+
+It is one program link. `polar-biome-world-solid` takes 2,570ms to link on a
+cold GPU program cache, and the terrain cannot draw until it does. Warm visits
+never see it, because Chrome caches the linked program — so it lands only on
+first-time visitors, which is exactly who it should not land on.
+
+Everything cheap has been tried and measured:
+
+| Attempt | Result |
+| --- | --- |
+| Admitting sky and terrain a bucket apart | 5.4s → 3.9s. Shipped; two links no longer share a frame |
+| `gl.compileAsync` in the warmup | No change. three.js resolves the link synchronously at first use |
+| Warming before the bucket that draws it | Same size, moved into first paint, more total stall |
+| Deleting the 3x3 Worley loop | 6%. There is no hot spot to remove |
+
+What remains is a trade rather than a bug. Keeping the loading bridge up until
+the terrain program is linked would replace the freeze with a progress state, at
+the cost of taking time-to-world from 0.5s to roughly 4.5s. Specialising the
+biome program per quality tier — the way `BIOME_ROLE_SKY` already specialises it
+per role — would shrink what `low` and `medium` compile, at the cost of changing
+what those tiers look like. Both are decisions about what the site should
+prioritise, so neither is taken unilaterally here.
+
 ### What is known about phones, and what is not
 
 No measurement here comes from real mobile hardware. Playwright emulates the
