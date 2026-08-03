@@ -399,7 +399,22 @@ assert.equal(POLAR_BIOME_QUALITY.high.drawCalls, 3);
 assert.equal(POLAR_BIOME_QUALITY.medium.drawCalls, 3);
 assert.equal(POLAR_BIOME_QUALITY.low.drawCalls, 2);
 assert.equal(POLAR_BIOME_QUALITY.high.geographyInstances, 32);
-assert.equal(POLAR_BIOME_QUALITY.medium.geographyInstances, 24);
+// Medium carries high's content on purpose. The world is fill-bound — frame time
+// tracks pixel count almost exactly across the tiers — so geometry and shader
+// detail are close to free while resolution is not: raising medium from 64/24/0.72
+// to 96/32/1.0 left the settled frame at 14.5-14.6ms across three runs, against
+// 14.5-14.9ms before, and the tier still holds. Medium and high now differ in
+// resolution alone. Low keeps its reduced content, because it is the rescue tier
+// and content there measured ~1.8ms, which is worth more when the frame is
+// already in trouble.
+// Medium carries high's content on purpose. The world is fill-bound, so geometry
+// and shader detail are close to free while resolution is not: raising medium
+// from 64/24/0.72 to 96/32/1.0 left the settled frame unchanged at 14.5-14.6ms
+// and bought +2.9% high-frequency detail, measured paired against a frozen clock
+// with the low tier unchanged in the same run as a null control. Low keeps its
+// reduced content because it is the rescue tier, where content measured ~1.8ms
+// and every millisecond is worth more.
+assert.equal(POLAR_BIOME_QUALITY.medium.geographyInstances, 32);
 assert.equal(POLAR_BIOME_QUALITY.low.geographyInstances, 0);
 assert.equal(
   (source.match(/new THREE\.InstancedMesh/g) || []).length,
