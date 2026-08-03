@@ -327,13 +327,26 @@ of this needs the machine's D3D shader cache cleared, not just a fresh profile.
 | Warming before the bucket that draws it | Same size, moved into first paint, more total stall |
 | Deleting the 3x3 Worley loop | 6%. There is no hot spot to remove |
 
-What remains is a trade rather than a bug. Keeping the loading bridge up until
-the terrain program is linked would replace the freeze with a progress state, at
-the cost of taking time-to-world from 0.5s to roughly 4.5s. Specialising the
-biome program per quality tier — the way `BIOME_ROLE_SKY` already specialises it
-per role — would shrink what `low` and `medium` compile, at the cost of changing
-what those tiers look like. Both are decisions about what the site should
-prioritise, so neither is taken unilaterally here.
+Two ways out were offered here before either was thought through, and one of
+them does not work.
+
+Specialising the biome program per quality tier, the way `BIOME_ROLE_SKY`
+specialises it per role, cannot help. The world opens at `high` — the tier is a
+`deviceMemory` guess made before a frame exists, and the measured ladder only
+steps down afterwards — so the expensive program is compiled at the top tier
+whatever the tiers below it contain. Worse, the shader policy budgets two
+compiled programs; a per-tier define makes the tier a third axis, so every step
+down would compile a *new* program and add a link stall where there is currently
+none. It would trade one freeze for several.
+
+That leaves the honest one. Holding the loading bridge until the terrain program
+has linked replaces the freeze with a progress state, at the cost of taking
+time-to-world from 0.5s to roughly 4.5s. It is not taken here, because the
+requirement this branch was built against is that the igloo renders in under two
+seconds, and it does: the freeze arrives after the world is on screen, so the
+current behaviour satisfies that requirement and the alternative does not. A
+frozen world does look worse than a loading screen, so this is worth revisiting
+if the priority ever changes — but it is a change of priority, not a fix.
 
 A third option exists but is larger than it first appears. The entry screen is
 dead time the driver could be using: counted directly, **1 of 77 WebGL programs
