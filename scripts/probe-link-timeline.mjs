@@ -73,8 +73,8 @@ console.log("total blocked ms:", totalBlockedMs);
 // shader cache is warm, not that the links got cheaper. The cache is system-wide
 // and survives a fresh browser profile.
 if (totalBlockedMs < 250) {
-  console.log("
-  NOTHING TO MEASURE: the shader cache is warm and a first visit is not");
+  console.log("");
+  console.log("  NOTHING TO MEASURE: the shader cache is warm and a first visit is not");
   console.log("  observable here. Clear the machine's D3D shader cache to measure again.");
 }
 console.log("heaviest 250ms bins [startMs, blockedMs]:", JSON.stringify(top));
