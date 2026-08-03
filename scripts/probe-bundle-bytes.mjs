@@ -52,13 +52,17 @@ if (THROTTLE) {
 }
 
 const assets = [];
+let unreadable = 0;
 page.on("response", async (response) => {
   if (!/\/_next\/static\//.test(response.url())) return;
   try {
     assets.push({ name: response.url().split("/").pop(), bytes: (await response.body()).length });
   } catch {
-    // A response body that cannot be read is one this probe cannot count, and
-    // guessing its size would be worse than omitting it.
+    // Counted, not swallowed. An ad-hoc version of this probe silently treated
+    // an unreadable body as zero bytes and reported 1,480KB against this one's
+    // 2,220KB for the same build, which was then read as a difference between
+    // network conditions rather than as a broken measurement.
+    unreadable += 1;
   }
 });
 
@@ -82,6 +86,10 @@ if (!reached) {
   process.exit(1);
 }
 
+if (unreadable > 0) {
+  console.error(`${unreadable} response bodies could not be read; this total is an undercount and is not reported`);
+  process.exit(1);
+}
 const total = assets.reduce((sum, asset) => sum + asset.bytes, 0);
 const largest = [...assets].sort((a, b) => b.bytes - a.bytes)[0];
 const kb = (bytes) => `${(bytes / 1024).toFixed(1)}KB`;
