@@ -526,6 +526,25 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const [inputHint, setInputHint] = useState("");
   const [sealRouteHint, setSealRouteHint] = useState("");
   const [worldLoadBridgeActive, setWorldLoadBridgeActive] = useState(false);
+
+  // Fetch the scene chunk while the visitor is still on the entry screen. It is
+  // a dynamic import gated on gpuStageMounted, so by default nothing requests it
+  // until after the click: measured, exactly one chunk is fetched in that window
+  // and the canvas takes about 690ms to exist. The entry screen is otherwise
+  // dead network time. Nothing here mounts or renders anything — webpack dedupes
+  // this against the dynamic import — so the entry screen's own work is
+  // untouched.
+  useEffect(() => {
+    let cancelled = false;
+    const idle = window.requestIdleCallback || window.setTimeout;
+    idle(() => {
+      if (cancelled) return;
+      import("./IglooScene").catch(() => {});
+    }, { timeout: 1200 });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [archivePortalOfferOpen, setArchivePortalOfferOpen] = useState(false);
   const [blackHoleActive, setBlackHoleActive] = useState(false);
   const [qaAutoProbe, setQaAutoProbe] = useState(false);
