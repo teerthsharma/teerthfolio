@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "node scripts/check-browser-diagnostic-contracts.mjs && node scripts/check-teerth.mjs && node scripts/check-project-evidence-integrity.mjs && node scripts/check-user-facing-copy.mjs && node scripts/check-render-budget.mjs && node scripts/check-gpu-lifecycle.mjs && node scripts/check-polar-rescue.mjs && node scripts/check-hud-accessibility.mjs && node scripts/check-station-world-schema.mjs && node scripts/check-station-world-integration.mjs && node scripts/check-polar-ground.mjs && node scripts/check-polar-traversal.mjs && node scripts/check-polar-camera-composition.mjs && node scripts/check-world-cadence.mjs && node scripts/check-seal-manifold.mjs && node scripts/check-dome-crystal-material.mjs && node scripts/check-station-shader-family.mjs && node scripts/check-polar-station-mechanisms-ne.mjs && node scripts/check-polar-station-mechanisms-sw.mjs && node scripts/check-polar-station-mechanism-layer.mjs && node scripts/check-polar-biome-world.mjs && node scripts/check-polar-semantic-particles.mjs && next build",
+    "build": "node scripts/check-script-syntax.mjs && node scripts/check-browser-diagnostic-contracts.mjs && node scripts/check-teerth.mjs && node scripts/check-project-evidence-integrity.mjs && node scripts/check-user-facing-copy.mjs && node scripts/check-render-budget.mjs && node scripts/check-gpu-lifecycle.mjs && node scripts/check-polar-rescue.mjs && node scripts/check-hud-accessibility.mjs && node scripts/check-station-world-schema.mjs && node scripts/check-station-world-integration.mjs && node scripts/check-polar-ground.mjs && node scripts/check-polar-traversal.mjs && node scripts/check-polar-camera-composition.mjs && node scripts/check-world-cadence.mjs && node scripts/check-seal-manifold.mjs && node scripts/check-dome-crystal-material.mjs && node scripts/check-station-shader-family.mjs && node scripts/check-polar-station-mechanisms-ne.mjs && node scripts/check-polar-station-mechanisms-sw.mjs && node scripts/check-polar-station-mechanism-layer.mjs && node scripts/check-polar-biome-world.mjs && node scripts/check-polar-semantic-particles.mjs && next build",
     "check:biome-world": "node scripts/check-polar-biome-world.mjs",
     "check:browser-diagnostics": "node scripts/check-browser-diagnostic-contracts.mjs",
     "check:camera-composition": "node scripts/check-polar-camera-composition.mjs",
@@ -20,6 +20,7 @@
     "check:publication-packaging": "node scripts/check-publication-packaging.mjs",
     "check:release-boundaries": "npm run check:publication-packaging && npm run check:ci-browser-boundary",
     "check:render-budget": "node scripts/check-render-budget.mjs",
+    "check:script-syntax": "node scripts/check-script-syntax.mjs",
     "check:seal-manifold": "node scripts/check-seal-manifold.mjs",
     "check:station-mechanism-layer": "node scripts/check-polar-station-mechanism-layer.mjs",
     "check:station-mechanisms-ne": "node scripts/check-polar-station-mechanisms-ne.mjs",
