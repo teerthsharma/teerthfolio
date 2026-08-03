@@ -1349,7 +1349,13 @@ export default function IglooScene({
             reducedMotion={reducedMotion}
             safeMode={!renderEnabled}
             simulationPaused={!worldActive || !renderEnabled}
-            skyVisible={!debugFlags.noSky}
+            // The sky is held back one bucket from the terrain on purpose. Its
+            // program and the terrain's are the two most expensive links in the
+            // scene — 2,570ms and 1,608ms measured cold — and admitted together
+            // they land inside a single frame, which is what produced a 5.4s
+            // freeze at t+2.9s while the visitor was already looking at the
+            // world. A bucket apart is a frame apart.
+            skyVisible={!debugFlags.noSky && bucket >= RENDER_BUCKETS.systems}
             terrainVisible={!debugFlags.noGround}
             travelerRef={traversalPoseRef}
             visible={worldActive}
