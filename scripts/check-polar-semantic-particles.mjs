@@ -116,7 +116,16 @@ assert.match(
   scene,
   /function SceneDiagnostics\(\{[\s\S]*?onGpuEvent,[\s\S]*?quality,[\s\S]*?reducedMotion,[\s\S]*?\}\)[\s\S]*gl\.domElement\.dataset\.quality\s*=\s*quality[\s\S]*gl\.domElement\.dataset\.reducedMotion\s*=\s*reducedMotion\s*\?\s*"true"\s*:\s*"false"/,
 );
-assert.match(world, /setQuality\(memory\s*<=\s*4\s*\?\s*"low"\s*:\s*reducedMotion\s*\?\s*"medium"\s*:\s*"high"\)/);
+// The opening guess must still fall back to deviceMemory and reduced motion, but
+// it is no longer the first thing consulted: a returning visitor opens at the
+// tier the ladder measured on their machine last time, which is a fact rather
+// than a guess. The guess is what remains when there is nothing remembered, so
+// this pins the fallback rather than the whole call.
+assert.match(
+  world,
+  /setQuality\(\s*remembered\s*\?\?\s*\(memory\s*<=\s*4\s*\?\s*"low"\s*:\s*reducedMotion\s*\?\s*"medium"\s*:\s*"high"\)\s*\)/,
+);
+assert.match(world, /const remembered = readSettledTier\(\)/);
 assert.match(world, /quality=\{safeMode\s*\?\s*"low"\s*:\s*quality\}/);
 assert.match(scene, /<PolarSemanticParticles[\s\S]*enabled=\{renderEnabled\s*&&\s*worldActive\}/);
 assert.match(

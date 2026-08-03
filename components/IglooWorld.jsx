@@ -86,6 +86,11 @@ const OPEN_WORLD_LOADING_SETTLE_MS = 1800;
  * sits 4.2ms over median and 2 frames in 557 exceed it by half). Sampling
  * during it would downgrade every visitor on load cost they only pay once.
  */
+// Declared before AUTO_QUALITY_POLICY, which freezes it as its `order`. Placed
+// after it, module evaluation throws "Cannot access before initialization" and
+// the whole world fails to mount — which is how it was found.
+const AUTO_QUALITY_ORDER = ["high", "medium", "low"];
+
 const AUTO_QUALITY_POLICY = Object.freeze({
   // How long the world runs before the first window is sampled. This was 5200,
   // which is 5.2s the visitor spends at whatever tier deviceMemory guessed —
@@ -197,7 +202,7 @@ const AUTO_QUALITY_POLICY = Object.freeze({
   // beats a coin flip between 59fps sparse and 51fps rich.
   stepFromHighAboveMs: 19,
   stepFromMediumAboveMs: 21,
-  order: Object.freeze(["high", "medium", "low"]),
+  order: Object.freeze(AUTO_QUALITY_ORDER),
 });
 
 const STATION_COLLIDERS = Object.freeze(
@@ -209,6 +214,39 @@ const STATION_TARGETS = Object.freeze(
   ),
 );
 const HOME_TARGET = Object.freeze(createStationTraversalTarget(HOME_STATION_ID));
+// The tier this machine settled on last visit. deviceMemory is the only signal
+// available before a frame exists and it is a poor one — it says nothing about
+// the GPU, so a desktop with plenty of memory and integrated graphics opens at
+// `high` and spends about eight seconds there at a frame rate it cannot hold.
+// A returning visitor does not need to be guessed at: the ladder already
+// measured the answer on their hardware, and throwing it away every visit is the
+// only reason they pay that opening twice.
+//
+// Written when a sampling window finds the current tier healthy, which is the
+// ladder's own statement that this tier holds here. Read as the opening guess.
+// It is a hint, not a lock: the ladder still samples, still steps down if the
+// machine has changed or is busier, and can still restore once.
+const SETTLED_TIER_KEY = "seal.render.settled-tier";
+
+function readSettledTier() {
+  try {
+    const stored = window.localStorage.getItem(SETTLED_TIER_KEY);
+    return AUTO_QUALITY_ORDER.includes(stored) ? stored : null;
+  } catch {
+    // Private mode, disabled storage, or a quota error. The guess below is the
+    // fallback and works without this.
+    return null;
+  }
+}
+
+function writeSettledTier(tier) {
+  try {
+    window.localStorage.setItem(SETTLED_TIER_KEY, tier);
+  } catch {
+    // Not worth failing a render for.
+  }
+}
+
 const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-no-dome", "noDome"],
   ["qa-no-veil", "noVeil"],
@@ -832,6 +870,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
           // Healthy this window. Watch again later rather than concluding.
           confirming = false;
           healthyWindows += 1;
+          // The ladder has just measured this tier as holding on this machine.
+          writeSettledTier(quality);
           const upIndex = AUTO_QUALITY_POLICY.order.indexOf(quality) - 1;
           const up = upIndex >= 0 ? AUTO_QUALITY_POLICY.order[upIndex] : null;
           const upCeiling =
@@ -937,7 +977,8 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       // available before a frame has been drawn.
       const memory = navigator.deviceMemory || 8;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      setQuality(memory <= 4 ? "low" : reducedMotion ? "medium" : "high");
+      const remembered = readSettledTier();
+      setQuality(remembered ?? (memory <= 4 ? "low" : reducedMotion ? "medium" : "high"));
     }
     setSceneDebugFlags(nextSceneDebugFlags);
     setSafeMode(nextSafeMode);
