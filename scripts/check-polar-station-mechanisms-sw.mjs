@@ -238,6 +238,14 @@ assert.equal(
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].silhouette, /aviation-banded lattice/i);
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].material, /warm-ivory aviation paint bands/i);
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].silhouette, /face-on coral\/mint radar/i);
+// Two silhouette failures cost this station three passes, and both are cheap to
+// pin in the authored contract so the next rewrite cannot quietly undo them:
+// the tower must carry a diagonal web (without it the outline is a ladder), and
+// the crown must be the whip and beacon rather than the dish (a bowl on top
+// terminates the outline in a disc, which is the blob read the object gate
+// rejects).
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].silhouette, /diagonal-braced web/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].silhouette, /whip and a blinking warm tip beacon/i);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].launchApertureDistance, 0.34);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].countdownSeconds, 3);
 assert.equal(SW_MECHANISM_PROFILES[IDS[1]].ignitionMotion, "countdown-then-ignition");
@@ -245,6 +253,15 @@ assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /racked core tube
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /core-logging rig/i);
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /insulated panels with real seams/i);
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /graphite steel racks/i);
+// Both stations now carry a real cryptographic structure, and the authored
+// contract has to name it: a building whose structure is a hash tree and a
+// building whose lights are a keystream are claims, and an unnamed claim is the
+// one that quietly turns back into decoration. The values themselves are gated
+// by scripts/check-crypto-structures.mjs.
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].silhouette, /SHA-256 Merkle courses/);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[1]].material, /root capstone is the archive address/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].silhouette, /keystream telemetry lamps/i);
+assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[0]].material, /maximal-length LFSR keystream/i);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].railCount, 2);
 assert.equal(SW_MECHANISM_PROFILES[IDS[2]].edgeLighting, "amber-worklight-and-welding-arc");
 assert.match(SW_MECHANISM_VISUAL_CONTRACTS[IDS[2]].silhouette, /overhead hoist rail/i);
@@ -810,6 +827,15 @@ for (const token of [
   "upstream-concentric-amplitude-wave-rings",
   "upstream-directional-source-packet",
   "upstream-aviation-banded-lattice-mast",
+  // The web and the pool it lives in. UPSTREAM_STRUCTURE_COUNT is required to
+  // be DERIVED from the brace start rather than written as a literal: a member
+  // added past the end of an instanced pool is silently never drawn, and a
+  // hand-maintained count is exactly how that happens.
+  "UPSTREAM_BRACES",
+  "UPSTREAM_BRACE_START",
+  "const UPSTREAM_TELEMETRY_START = UPSTREAM_BRACE_START + UPSTREAM_MAST_BAND_COUNT * 4",
+  "const UPSTREAM_STRUCTURE_COUNT = UPSTREAM_TELEMETRY_START + UPSTREAM_TELEMETRY_COUNT",
+  "function solveMember(from, to)",
   "upstream-tip-beacon",
   "upstream-guy-line-stays",
   "upstream-warm-white-dish-hardware",
@@ -828,6 +854,14 @@ for (const token of [
   "assembly-overhead-hoist-rail",
   "assembly-workbenches-vice-and-compressor",
   "assembly-panel-clad-roof-trusses",
+  // Both cryptographic structures ride pools that already exist, and both must
+  // stay derived from lib/crypto-structures.js rather than transcribed. The
+  // deep contract on the values themselves is scripts/check-crypto-structures.mjs;
+  // these tokens only pin that this renderer is the thing consuming them.
+  "TOPOLOGY_MERKLE_START",
+  "TOPOLOGY_MERKLE_BLOCKS",
+  "UPSTREAM_TELEMETRY_START",
+  "upstreamTelemetryLevel",
 ]) {
   assert.ok(source.includes(token), `PolarStationMechanismsSW.jsx is missing ${JSON.stringify(token)}`);
 }
@@ -852,11 +886,20 @@ for (const forbidden of [
 ]) {
   assert.ok(!source.includes(forbidden), `southwest renderer must not include ${JSON.stringify(forbidden)}`);
 }
-// LAW 3 — lit, not glowing. The two camp facilities are modelled by the scene
+// LAW 3 — lit, not glowing. All THREE camp buildings are modelled by the scene
 // rig; emissive is reserved for windows, indicators and the signature mechanism.
+// The mast was exempt from this list and ran its body at 0.36 and its dish at
+// 0.52 while its two neighbours were held to 0.06. A surface emitting a third
+// of its own light barely responds to the key, so it renders with no gradient
+// across any face and its warm emissive floor turns dark graphite brown — which
+// is most of why that station read as a toy. The exemption is what let it drift
+// from SW_MECHANISM_VISUAL_CONTRACTS' own "graphite base steel", so the gate
+// now covers every body material the camp draws.
 for (const [label, pattern] of [
   ["topologySurface", /topologySurface: makeSurface\(\{[\s\S]*?emissiveIntensity: ([0-9.]+)/],
   ["assemblySurface", /assemblySurface: makeSurface\(\{[\s\S]*?emissiveIntensity: ([0-9.]+)/],
+  ["upstreamSurface", /upstreamSurface: makeSurface\(\{[\s\S]*?emissiveIntensity: ([0-9.]+)/],
+  ["upstreamDish", /upstreamDish: makeSurface\(\{[\s\S]*?emissiveIntensity: ([0-9.]+)/],
 ]) {
   const match = source.match(pattern);
   assert.ok(match, `${label} must declare a body emissive intensity`);
@@ -864,6 +907,52 @@ for (const [label, pattern] of [
     Number(match[1]) <= 0.06,
     `LAW 3: ${label} body emissive must stay <= 0.06 (found ${match[1]})`,
   );
+}
+
+// The camp's three-zone value ladder is authored once in SW_BASE_LANGUAGE and
+// the shared gain is the only thing allowed to scale it. Per-zone multipliers
+// are what inverted it last time — structure steel ended up rendering brighter
+// than the snow it stands in, which is why nothing on any southwest station
+// could read as recessed. Assert the ORDER of the authored ladder directly, so
+// a future multiplier that re-inverts it fails here instead of in a screenshot.
+{
+  const luma = (hex) => {
+    const value = Number.parseInt(hex.slice(1), 16);
+    return (
+      0.2126 * ((value >> 16) & 255) +
+      0.7152 * ((value >> 8) & 255) +
+      0.0722 * (value & 255)
+    ) / 255;
+  };
+  const ladder = [
+    ["structureShadow", SW_BASE_LANGUAGE.structureShadow],
+    ["structureSteel", SW_BASE_LANGUAGE.structureSteel],
+    ["cladding", SW_BASE_LANGUAGE.cladding],
+    ["claddingAlt", SW_BASE_LANGUAGE.claddingAlt],
+    ["hardware", SW_BASE_LANGUAGE.hardware],
+    ["snow", SW_BASE_LANGUAGE.snow],
+  ];
+  for (let index = 1; index < ladder.length; index += 1) {
+    assert.ok(
+      luma(ladder[index][1]) > luma(ladder[index - 1][1]),
+      `SW_BASE_LANGUAGE ladder must ascend: ${ladder[index][0]} is not brighter than ${ladder[index - 1][0]}`,
+    );
+  }
+  assert.ok(
+    luma(SW_BASE_LANGUAGE.cladding) - luma(SW_BASE_LANGUAGE.structureSteel) >= 0.2,
+    "structure and cladding zones must keep >= 0.2 luma of separation",
+  );
+  assert.ok(
+    luma(SW_BASE_LANGUAGE.hardware) - luma(SW_BASE_LANGUAGE.claddingAlt) >= 0.2,
+    "cladding and hardware zones must keep >= 0.2 luma of separation",
+  );
+  // No body zone may carry a scalar multiplier again: the gain is the one lever.
+  for (const zone of ["structureSteel", "structureShadow", "hardware", "snow"]) {
+    assert.ok(
+      !new RegExp(`SW_BASE_LANGUAGE\\.${zone}\\)\\.multiplyScalar`).test(source),
+      `${zone} must ride the shared gain, not a per-zone multiplier`,
+    );
+  }
 }
 assert.equal((source.match(/useFrame\(/g) || []).length, 1, "all three mechanisms share one frame loop");
 assert.equal((source.match(/<instancedMesh/g) || []).length, 8, "high/medium use eight pooled instance draws");

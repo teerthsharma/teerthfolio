@@ -7,7 +7,7 @@ import { POST_PROCESS_BUDGET } from "../lib/polar-art-direction";
 import { motionWarpFromVelocity } from "../lib/polar-world-cadence";
 
 export const GLOBAL_ANIME_POST_PROFILE =
-  "anime-soft depth pixel fog: camera-motion fisheye, linear depth, bounded luma/depth edge confidence, chromatic edge AA, toon quantization, stable dither, indigo ink, static scanline, wide vignette, tiered paper contrast grade; polar-dusk cinematic finish: soft-knee dual-radius thresholded highlight glow, toe-guarded filmic S-curve, teal-shadow warm-highlight split tone, warm-lifted vignette, luminance-weighted grain";
+  "anime-soft depth pixel fog: camera-motion fisheye, linear depth, bounded luma/depth edge confidence, chromatic edge AA, toon quantization, stable dither, indigo ink, static scanline, wide vignette, tiered paper contrast grade; polar-dusk cinematic finish: soft-knee dual-radius thresholded highlight glow, toe-guarded filmic S-curve, anchor-sparing midtone vibrance band, teal-shadow warm-highlight split tone, warm-lifted vignette, luminance-weighted grain, sky-sparing depth-keyed aerial separation, cool-near-black point and headroom-proportional highlight shoulder";
 export const GLOBAL_RETRO_POST_PROFILE = GLOBAL_ANIME_POST_PROFILE;
 export const POINTER_VISUAL_EFFECTS = "none";
 
@@ -20,10 +20,19 @@ const qualityBudget = POST_PROCESS_BUDGET;
 // frame looks like a place, not a filtered image. Only bloom and the colour
 // grade survive at strength, and bloom is threshold-gated to real highlights.
 // Liveliness belongs to the world (sky aurora sector + cloud drift), not here.
+//
+// COLOUR IS TIER-INVARIANT; ONLY COST IS TIERED. vignette, grain and bloom stay
+// per-tier because they are the three that cost fill or that a weak machine
+// cannot afford. The three that decide what colour the world IS — sCurve,
+// vibrance, splitTone — are one value across all three tiers on purpose. They are
+// pure ALU on a pass every tier already runs, so tiering them buys no frames, and
+// the measured convergence this world holds (118.2/122.2/120.0 whole-frame luma
+// low/medium/high at the same station) took three iterations to find last time.
+// Three more knobs that differ by tier is three more ways to lose it for nothing.
 const CINEMATIC_GRADE = Object.freeze({
-  low: Object.freeze({ vignette: 0.05, grain: 0, bloom: 0, sCurve: 0.06, splitTone: 0.08, snow: 0 }),
-  medium: Object.freeze({ vignette: 0.06, grain: 0.01, bloom: 0.38, sCurve: 0.06, splitTone: 0.09, snow: 0 }),
-  high: Object.freeze({ vignette: 0.07, grain: 0.012, bloom: 0.5, sCurve: 0.06, splitTone: 0.1, snow: 0 }),
+  low: Object.freeze({ vignette: 0.05, grain: 0, bloom: 0, sCurve: 0.34, vibrance: 0.28, splitTone: 0.2, snow: 0 }),
+  medium: Object.freeze({ vignette: 0.06, grain: 0.01, bloom: 0.38, sCurve: 0.34, vibrance: 0.28, splitTone: 0.2, snow: 0 }),
+  high: Object.freeze({ vignette: 0.07, grain: 0.012, bloom: 0.5, sCurve: 0.34, vibrance: 0.28, splitTone: 0.2, snow: 0 }),
 });
 
 const VERTEX_SHADER = `
@@ -58,6 +67,7 @@ uniform float uVignetteStrength;
 uniform float uGrainStrength;
 uniform float uBloomStrength;
 uniform float uSCurveStrength;
+uniform float uVibranceStrength;
 uniform float uSplitToneStrength;
 uniform float uSnowStrength;
 uniform float uExposureBreath;
@@ -163,25 +173,198 @@ vec3 toonQuantize(vec3 color) {
 }
 
 vec3 filmicSCurve(vec3 color) {
-  // Gentle smoothstep S-curve blended in at low strength. The toe guard
-  // fades the curve out below ~0.16 luma so the darkest dusk shadows keep
-  // their detail instead of compressing toward the floor; shoulder and
-  // midtone contrast stay untouched.
+  // Smoothstep S-curve, toe-guarded. The guard fades the curve out below ~0.16
+  // luma so the darkest dusk shadows keep their detail instead of compressing
+  // toward the floor.
+  //
+  // The strength this ships at is 0.34, not the 0.06 it was authored with. 0.06
+  // is a 3% steepening at the pivot (slope 1.03 against smoothstep's 1.5) — a
+  // curve nobody can see, which is the same thing as no curve, and it is most of
+  // why the world's final colour statement read as neutral rather than as a
+  // decision. 0.34 puts the pivot slope at 1.17. The shoulder is what makes that
+  // affordable: d/dx of smoothstep is 6x(1-x), which falls to zero at white, so
+  // the curve compresses the top end while lifting it and cannot walk highlights
+  // into the clip the way a straight contrast multiply would.
   vec3 curved = color * color * (3.0 - 2.0 * color);
   float toeGuard = smoothstep(0.035, 0.16, animeLuminance(color));
   return mix(color, curved, uSCurveStrength * toeGuard);
 }
 
+vec3 midtoneVibrance(vec3 color) {
+  // A vibrance BAND, not a saturation knob, and here that is a constraint rather
+  // than a preference.
+  //
+  // The polar colour contract requires >=35% of every frame to be low-saturation
+  // high-luma snow (saturation <= 0.28, luma >= 100), and the tightest station
+  // clears it by half a point. A flat saturate multiplies the chroma of every one
+  // of those anchor pixels and walks the pool straight over the ceiling — the
+  // failure would land on the one measurement that keeps this world reading as
+  // snow rather than as a colour wash. A photographic vibrance is worse still,
+  // not better: it weights its lift by (1 - saturation), so it lifts the anchors
+  // HARDEST and leaves the saturated station accents alone, which is exactly
+  // backwards for this frame.
+  //
+  // So the lift is a band whose lower edge sits above the anchor ceiling. Every
+  // pixel at or below 0.30 saturation returns bit-identical, which makes the
+  // anchor ratio arithmetically incapable of falling because of this term — not
+  // unlikely to, incapable. The upper edge rolls back off before the aurora and
+  // the station accents, which are already the most saturated things in the world
+  // and do not need help to clip.
+  //
+  // Luma-preserving by construction: mix(vec3(L), c, 1 + k) = L + (1 + k)(c - L),
+  // and since dot(c - L, luma weights) is zero by definition of L, the result
+  // carries L unchanged whatever k is. This moves chroma only, so it cannot cost
+  // the 108 mean-luma floor a single point.
+  float peak = max(color.r, max(color.g, color.b));
+  float saturation = (peak - min(color.r, min(color.g, color.b))) / max(peak, 0.0001);
+  float band = smoothstep(0.30, 0.48, saturation) * (1.0 - smoothstep(0.66, 0.95, saturation));
+  return max(
+    mix(vec3(animeLuminance(color)), color, 1.0 + uVibranceStrength * band),
+    vec3(0.0)
+  );
+}
+
 vec3 duskSplitTone(vec3 color) {
   // Shadows drift toward #2C3F66 twilight blue, highlights toward #F5C98A
-  // low-sun amber. Tint ratios are luma-normalized so exposure holds steady.
+  // low-sun amber. Tint ratios are luma-normalized (0.2126*1.19 + 0.7152*0.977 +
+  // 0.0722*0.671 = 1.000, and the same for the shadow triple) so this is a hue
+  // decision and never an exposure one — which is the only reason it can be run
+  // at a strength that reads without arguing with the mean-luma floor.
+  //
+  // The highlight mask opens at 0.40 rather than 0.55. That threshold is the
+  // difference between a split tone the frame HAS and one it SHOWS: this world is
+  // mostly snowfield, the snowfield sits at 0.45-0.70 graded luma, and a mask
+  // that only starts at 0.55 warmed the sky and the specular tops while leaving
+  // the surface the world is made of on the cool side of the split. Measured at
+  // the observatory before this, highlight R-B was +11.6 against a shadow -37.8;
+  // at two of the three probe stations the highlight decile was NEGATIVE, i.e.
+  // the "warm highlights" existed in the source and not in the picture.
+  //
+  // THE TWO HALVES ARE NOT THE SAME STRENGTH, and that asymmetry is the gap-3
+  // lever rather than a taste. Measured across four stations, 63-80% of every
+  // frame's chroma still sits in three adjacent 10-degree bins, all of them the
+  // world's ambient 200-240 blue. The shadow half of a symmetric split is a
+  // CONTRIBUTOR to that: at 0.2 its tint resolves to (0.942, 1.004, 1.130), which
+  // manufactures 0.166 of pure blue saturation on a neutral shadow pixel — the
+  // grade adding chroma to the exact hue bin the frame already has too much of.
+  // The scene supplies its own cool: shadow (R-B) measures -28 to -55 at the four
+  // stations, so the shadows stay unambiguously cool at 0.8 and the frame spends
+  // less of its chroma budget on the hue it is already drowning in.
+  //
+  // The highlight half takes the surplus at 2.2, and it is the only instrument
+  // in this pass that can reach the surface the world is mostly made of. The
+  // vibrance band above deliberately starts at 0.30 saturation so it cannot touch
+  // an anchor pixel — which also means it cannot touch SNOW, whose saturation is
+  // 0.10-0.15, so at the observatory it does precisely nothing. Measured there,
+  // whole-frame saturation came out 0.157 against the contract's 0.18 floor: the
+  // frame is 72.8% near-neutral against a 35% requirement, i.e. far too neutral
+  // rather than too colourful, and warming its bright snow is the one lever that
+  // moves it.
+  //
+  // The anchor does not bound this the way it looks like it should, and the
+  // measurement is worth keeping because it is counter-intuitive. Warm tint on
+  // BLUE snow does not add saturation, it cancels it — the tint's hue opposes the
+  // pixel's, so saturation falls before it rises again on the far side of
+  // neutral. Raising this multiplier to 1.45 moved qpu-ice-bridge, the tightest
+  // anchor in the camp, from 7.2pt of margin to 10.1pt. The stations this term
+  // saturates are the ones already warm, and those are the ones with 20-38pt to
+  // spend.
+  //
+  // The highlight mask opens at 0.26, one step further down the same road that
+  // took it from 0.55 to 0.40. At 0.40 the warm tint reached the top decile and
+  // stopped: measured at the observatory, highlight (R-B) was a healthy +27.7
+  // while whole-frame saturation sat at 0.157, because the decile is a tenth of
+  // the frame and the other nine tenths are mid snow the mask never opened on.
+  // Raising the multiplier against a mask that is zero where the pixels are
+  // bought +0.001 — the term was strong in a place the frame barely has.
   float splitLuma = animeLuminance(color);
-  float splitShadowMask = 1.0 - smoothstep(0.08, 0.5, splitLuma);
-  float splitHighlightMask = smoothstep(0.55, 0.92, splitLuma);
+  float splitShadowMask = 1.0 - smoothstep(0.06, 0.46, splitLuma);
+  float splitHighlightMask = smoothstep(0.26, 0.78, splitLuma);
   vec3 shadowTinted = color * vec3(0.712, 1.02, 1.651);
   vec3 highlightTinted = color * vec3(1.19, 0.977, 0.671);
-  color = mix(color, shadowTinted, splitShadowMask * uSplitToneStrength);
-  return mix(color, highlightTinted, splitHighlightMask * uSplitToneStrength);
+  color = mix(color, shadowTinted, splitShadowMask * uSplitToneStrength * 0.8);
+  return mix(color, highlightTinted, min(splitHighlightMask * uSplitToneStrength * 1.8, 1.0));
+}
+
+// The colour the deepest end of the histogram lands on: #0E111B, luma 0.068.
+// Not vec3(0.0), for two reasons that are the same reason. This world bans pure
+// black, and a black point that lands on zero is also a black point with no hue,
+// which is exactly the mistake the split tone exists to stop making at the other
+// end of the range. 0.068 also sits deliberately ABOVE the 16/255 that
+// check-polar-color-continuity counts as a black pixel, so the floor cannot
+// manufacture the failure it is here to prevent.
+const vec3 TONE_NEAR_BLACK = vec3(0.055, 0.068, 0.104);
+
+vec3 tonalRange(vec3 color) {
+  // A BLACK POINT AND A HIGHLIGHT SHOULDER. Measured before this, at 1440x900 in
+  // real Chrome across three stations at medium, the frame had neither end:
+  //
+  //   highlight tail (luma > 87.5%)   0.02% / 0.00% / 0.00%
+  //   shadow tail    (luma < 12.5%)   0.95% / 2.96% / 4.96%
+  //   four mid bins (25-75% luma)     88% / 87% / 86% of every pixel
+  //
+  // The shadow end was already committed at two of the three stations; the
+  // highlight end did not exist. A frame in which literally two hundredths of a
+  // percent of pixels are bright is not "soft lighting", it is a range that never
+  // resolved, and it is most of why the world reads as one continuous grey-blue
+  // value with objects drawn on it.
+  //
+  // Both ends are shaped as a GAIN, and that is load-bearing rather than
+  // stylistic: saturation is (max - min) / max, which is invariant under scaling,
+  // so this term cannot move any pixel's saturation by construction. The sky
+  // gradient's stops are solved against the vibrance transfer, which IS a
+  // saturation transfer, so a tonal pass written as a gain cannot reach that
+  // calibration at all. The mix toward TONE_NEAR_BLACK is the one part that is
+  // not a gain, and it only opens below 0.28 luma — far under anything the sky
+  // occupies at any station.
+  float toneLuma = animeLuminance(color);
+  // Deep end. The ramp closes at 0.28 so the four mid bins that hold ~87% of the
+  // frame are untouched and the 108 mean-luma floor is not spent here. Pixels
+  // under the near-black's own luma are LIFTED toward it rather than pushed past
+  // it, which is what makes this a black POINT rather than a crush.
+  float deep = 1.0 - smoothstep(0.0, 0.28, toneLuma);
+  // 0.50 rather than a rounder number: at deep = 1 a source pixel of pure black
+  // lands on 0.50 * 0.068 = 8.7/255, just over the 8 that
+  // verify-polar-biome-visuals counts as a black pixel. The floor is chosen so it
+  // clears the gate it exists to satisfy rather than landing on top of it.
+  color = mix(color, TONE_NEAR_BLACK, deep * 0.50);
+  // Bright end. (1 - toneLuma) is the shoulder itself: the lift is proportional
+  // to the headroom left, so it is largest through the upper mid-tones where the
+  // world's snow actually sits and falls to nothing at white. Genuine highlights
+  // — the aurora hem, the dome crown, the sun horizon — climb to a clean
+  // near-white instead of being walked into a flat clipped one, which is what a
+  // straight contrast multiply at this strength would do.
+  //
+  // NARROWER AND STRONGER, not wider. The onset was moved down to 0.44 first, on
+  // the theory that a mask opening at 0.60 opens above the snowfield this world
+  // is made of — which is true, and it is still the wrong fix. Measured at four
+  // stations, 0.44 did buy the highlight tail (2.34/1.76/0.32/0.87% went to
+  // 4.47/3.59/0.75/1.06%) and it bought it by lifting roughly half the frame: at
+  // 0.60 input the lift was +17/255 on mid snow, so the observatory frame at high
+  // tier came back milky, which is the exact reading this whole brief exists to
+  // remove. A shoulder that lifts the snowfield is an exposure change wearing a
+  // shoulder's name, and exposure was already measured and rejected as the lever.
+  //
+  // 0.54 with 1.25 was tried next and went too far the other way: it took the
+  // milk out and took the world's mean luma with it, putting field-chamber-coils
+  // on 103.8 and assembly-tool-locker on 107.7 against this project's 108 floor
+  // for mascot legibility. That floor is the binding constraint on this term, not
+  // the histogram — the shoulder is carrying two stations over it.
+  //
+  // 0.48 with 1.30 holds both ends: mid snow at 0.60 input moves +17/255, which
+  // is the lift the floor needs, while 0.75 input lands on 237 and 0.85 clips to
+  // white outright, which is the specular the benchmark asked for. The earlier
+  // 0.44 arm reached the same luma without ever clipping, so it read as milk
+  // rather than as sparkle; the difference is the strength, not the onset.
+  //
+  // Safe against both gates it sits near, by construction rather than by luck.
+  // It is a GAIN, so saturation is invariant and no snow-anchor pixel can cross
+  // the 0.28 ceiling; and it only ever raises luma, so it can only push pixels
+  // over the anchor's luma-100 half and over the 108 mean floor, never under.
+  // The (1 - toneLuma) factor still falls to zero at white, so even at 1.25 the
+  // curve cannot walk a highlight into a flat clipped one.
+  float crown = smoothstep(0.48, 0.88, toneLuma) * (1.0 - toneLuma);
+  return color * (1.0 + crown * 1.30);
 }
 
 vec3 glowSample(vec2 uv) {
@@ -316,8 +499,53 @@ void main() {
     vec3 glow = highlightGlow(sampleUv, texel);
     color += glow * uBloomStrength * vec3(1.06, 0.98, 0.88);
   }
+  // Contrast first, then chroma, then hue. The order is load-bearing: vibrance
+  // reads the saturation of the CONTRASTED pixel, so the band lands where the
+  // frame's colour actually ended up; and it runs before the split tone rather
+  // than after so it amplifies the world's own colour instead of amplifying the
+  // tint this pass just laid on, which would double the split and put anchor
+  // pixels at risk for a look that is already paid for.
   color = filmicSCurve(color);
+  color = midtoneVibrance(color);
   color = duskSplitTone(color);
+
+  // 12b. DEPTH-KEYED AERIAL SEPARATION. Nothing in this frame separated subject
+  // from background: the distant snowfield, the ridge line and the ground the
+  // traveller is standing on all arrived at the same chroma and the same local
+  // contrast, so the docked station sat IN the picture instead of in front of it.
+  //
+  // linearDepth is already read at the top of this pass for the pixel-fog mask,
+  // so this costs no tap and no second pass — it is the depth buffer this shader
+  // has always bound, finally used for the one thing depth is actually for.
+  //
+  // The ramp runs 0.06 to 0.45 of the 94-unit far plane, i.e. ~6m to ~42m: the
+  // docked station sits at 3-8m and stays at zero, the terrain plane (58 units
+  // wide) fills the upper half of the ramp. The step at 0.985 is the SKY, and it
+  // is an exclusion rather than an accident. The sky dome draws with depthWrite
+  // off, so sky and the aurora shell in front of it both read exactly 1.0 here —
+  // and their saturation is calibrated elsewhere, against the vibrance transfer.
+  // Letting a distance falloff take 15% of the sky's chroma would silently
+  // re-solve somebody else's gradient stops.
+  float aerial = smoothstep(0.06, 0.45, linearDepth) * (1.0 - step(0.985, linearDepth));
+  // Chroma first: distance loses 15% of its saturation relative to the near
+  // subject. Then local contrast: a 10% pull toward a neutral polar pivot, which
+  // is a linear map and therefore scales neighbour differences by exactly 0.9 —
+  // contrast falls without a blur, a DOF or a single extra sample. The pivot sits
+  // above the far bands' own mean, so the haze lifts distance slightly rather
+  // than darkening it, which is both what aerial perspective does over snow and
+  // the direction the mean-luma floor prefers.
+  color = mix(color, vec3(animeLuminance(color)), aerial * 0.15);
+  // The haze pivot is WARM, and it is free — this mix already ran against a
+  // neutral vec3(0.56) and a coloured constant costs the same instruction. Its
+  // luma is 0.5626, i.e. the same pivot height the neutral one had, so the
+  // "haze lifts distance slightly rather than darkening it" property is
+  // unchanged and this is a hue decision only. It is also the one place in the
+  // pass that can put a second hue family into the frame without touching a
+  // station's authored palette: the term above has just stripped 15% of the
+  // distance's blue, and what fills the gap is now low-sun warmth on far snow
+  // instead of grey. Warm/cool across DEPTH rather than across value, which is
+  // hue variety the sky and the eight station palettes never have to supply.
+  color = mix(color, vec3(0.615, 0.556, 0.472), aerial * 0.10);
 
   // 13. Smooth cinematic vignette with a slightly warm-lifted center.
   float cineRadial = dot(normalizedScreen, normalizedScreen);
@@ -341,6 +569,24 @@ void main() {
   // 16. Slow exposure breathing keeps the settled frame alive without moving
   // any geometry; the CPU pins this to 1.0 under reduced motion.
   color *= uExposureBreath;
+
+  // 17. The black point and the highlight shoulder, last, AFTER the exposure.
+  //
+  // The position is the whole term. Run before this line — where it was first
+  // written, next to the rest of the grade — the shoulder is measurably a no-op
+  // at the top end, and the reason is arithmetic rather than tuning: this
+  // multiply is SCENE_EXPOSURE 0.82 times the tier trim, so the brightest value
+  // the pass can emit is 213/255 at medium and 209 at high. Bin 8 of the
+  // histogram, luma above 87.5%, is not dark — it is UNREACHABLE. Measured that
+  // way: lifting the upper mid-tones from 3.5% to 6.0% of the frame moved the
+  // highlight tail from 0.02% to 0.02%, because every pixel it lifted was then
+  // scaled back under the ceiling.
+  //
+  // A print grade belongs after exposure anyway. Here the shoulder works on the
+  // values a visitor actually sees, so a highlight that earns near-white gets
+  // near-white, and the black point is a decision about the displayed frame
+  // rather than about an intermediate this pass never shows anyone.
+  color = tonalRange(color);
 
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
@@ -463,6 +709,7 @@ export default function RetroCinematicPostProcess({
           uGrainStrength: { value: CINEMATIC_GRADE.high.grain },
           uBloomStrength: { value: CINEMATIC_GRADE.high.bloom },
           uSCurveStrength: { value: CINEMATIC_GRADE.high.sCurve },
+          uVibranceStrength: { value: CINEMATIC_GRADE.high.vibrance },
           uSplitToneStrength: { value: CINEMATIC_GRADE.high.splitTone },
           uSnowStrength: { value: CINEMATIC_GRADE.high.snow },
           uExposureBreath: { value: 1 },
@@ -520,6 +767,7 @@ export default function RetroCinematicPostProcess({
     material.uniforms.uGrainStrength.value = reducedMotion ? cinematic.grain * 0.6 : cinematic.grain;
     material.uniforms.uBloomStrength.value = cinematic.bloom;
     material.uniforms.uSCurveStrength.value = cinematic.sCurve;
+    material.uniforms.uVibranceStrength.value = cinematic.vibrance;
     material.uniforms.uSplitToneStrength.value = cinematic.splitTone;
     material.uniforms.uSnowStrength.value = cinematic.snow;
   }, [gl, material, quality, reducedMotion, size.height, size.width, target]);

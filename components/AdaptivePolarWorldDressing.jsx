@@ -81,12 +81,37 @@ export const HORIZON_THEATRE_LAYERS = Object.freeze([
 const HORIZON_VERTEX_SHADER = `
   varying vec3 vInstanceColor;
   varying float vCrest;
+  varying float vFlank;
   varying vec3 vWorldPosition;
 
   void main() {
     vec4 localPosition = vec4(position, 1.0);
     #ifdef USE_INSTANCING
+      // SILHOUETTE. Every ridge on the skyline was the same fourteen-point crest
+      // profile, scaled, mirrored and rotated -- which is why a ring of them read
+      // as one lump repeated rather than as a range. Reshaped per instance from a
+      // seed hashed out of the instance's own translation, so no attribute, no
+      // second buffer and no CPU work: the ring is populated once at mount and
+      // the profile falls out of where each berg already stands.
+      //
+      // Warped above the shoulder only. The skirt still has to meet the snow flat
+      // -- a berg that lifts off its base cuts the hard ground line the haze mix
+      // exists to hide.
+      float bergSeed = fract(
+        sin(dot(instanceMatrix[3].xz, vec2(12.9898, 78.233))) * 43758.5453
+      );
+      float crestMask = smoothstep(0.0, 0.30, position.y);
+      localPosition.y *= 0.70 + 0.60 * fract(bergSeed * 7.31);
+      localPosition.y += crestMask * 0.26
+        * sin(position.x * (4.0 + 11.0 * bergSeed) + bergSeed * 31.4);
+      localPosition.x += crestMask * 0.12 * sin(position.x * 3.1 + bergSeed * 17.7);
+      // Which way is across this berg, in world space, mirror and yaw included.
+      // The fragment stage needs it to tell a sunward face from a lee face.
+      vec2 acrossWorld = normalize((instanceMatrix * vec4(1.0, 0.0, 0.0, 0.0)).xz);
+      vFlank = position.x * dot(acrossWorld, normalize(vec2(0.904, -0.426)));
       localPosition = instanceMatrix * localPosition;
+    #else
+      vFlank = 0.0;
     #endif
     vec4 worldPosition = modelMatrix * localPosition;
     #ifdef USE_INSTANCING_COLOR
@@ -110,6 +135,7 @@ const HORIZON_FRAGMENT_SHADER = `
   uniform vec3 uHazeColor;
   varying vec3 vInstanceColor;
   varying float vCrest;
+  varying float vFlank;
   varying vec3 vWorldPosition;
 
   void main() {
@@ -117,11 +143,35 @@ const HORIZON_FRAGMENT_SHADER = `
     // Base color already carries the layer haze mix; the skirt dissolves
     // further into the horizon haze so bergs never cut a hard ground line.
     vec3 color = mix(vInstanceColor, hazeColor, (1.0 - vCrest) * 0.42);
+    // RIDGE AND FACE. These are flat extruded silhouettes with no form to light,
+    // and shading them by their geometric normal would only report which way the
+    // billboard faces. What separates a ridge from a grey lump is that its two
+    // flanks take the sun differently, with the break landing on the crest line
+    // -- so the separation is DIRECTIONAL, driven by which side of its own spine
+    // a fragment sits on relative to the sun bearing, rather than a uniform
+    // gradient laid over the whole shape. Value only; the aerial haze mix that
+    // sets each ring's depth is untouched, and the term vanishes into the skirt
+    // where the berg is already dissolving into the horizon.
+    //
+    // Symmetric on purpose. A one-sided mix toward a darkened haze was tried
+    // for the lee face and it only ever removed light: over a ring that fills
+    // the horizon band it cost ~3 mean luma, which at the darkest station is
+    // enough to drop a large block of sky-and-snow pixels under the 100-luma
+    // line check-polar-color-continuity uses to count a snow anchor. A multiply
+    // by a zero-mean quantity lights one flank and drops the other by the same
+    // amount and leaves the band's mean where it found it.
+    float flank = clamp(vFlank * 1.7, -1.0, 1.0) * smoothstep(0.04, 0.46, vCrest);
+    color *= 1.0 + flank * 0.21;
     vec2 toBerg = normalize(vWorldPosition.xz - uTravelerXZ);
     vec2 sunXZ = normalize(vec2(0.904, -0.426));
     float sunSide = clamp(dot(toBerg, sunXZ), 0.0, 1.0);
     float rim = pow(sunSide, 3.0) * smoothstep(0.35, 0.95, vCrest);
     color += vec3(0.910, 0.608, 0.373) * rim * 0.16;
+    // Snow-line lip. A tabular berg carries its brightest value along the top
+    // edge where wind-packed crust catches a low sun, and weighting it to the
+    // sunward flank keeps the read directional rather than outlining the shape.
+    float crestLip = smoothstep(0.60, 0.97, vCrest);
+    color += vec3(0.965, 0.950, 0.930) * crestLip * (0.05 + 0.11 * max(flank, 0.0));
     // Faint stratification: horizontal compression bands in world Y, the way
     // tabular bergs carry annual layering. Value-only darkening that fades
     // into the skirt haze so the horizon still reads clean at a glance.

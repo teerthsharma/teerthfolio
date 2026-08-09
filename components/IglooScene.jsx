@@ -45,6 +45,11 @@ import AdaptivePolarWorldDressing from "./AdaptivePolarWorldDressing";
 // render inside a react-three-fiber Canvas, where a DOM placeholder is not a
 // valid child.
 const ActiveTheoryVeil = dynamic(() => import("./ActiveTheoryVeil"), { ssr: false, loading: () => null });
+// The aurora, on a depth-tested sky shell inside this scene rather than in its
+// own context over the top of it. Dynamic for the same reason the field module
+// has always been dynamic: a shader that will not compile has to resolve to a
+// missing background, never to a missing world.
+const AuroraSkyShell = dynamic(() => import("./AuroraSkyShell"), { ssr: false, loading: () => null });
 import IglooArtifacts, { IGLOO_ARTIFACTS } from "./IglooArtifacts";
 import IglooTouch from "./IglooTouch";
 import PolarBiomeWorld from "./PolarBiomeWorld";
@@ -865,6 +870,34 @@ function CameraRig({
       desiredLook.z += -Math.sin(azimuth) * pointerCurrent.current.x * pointerReach;
       desiredLook.y += -pointerCurrent.current.y * pointerReach;
     }
+    // DOCKED BREATH. Measured on two frames 1.0s apart, 12.5% of pixels moved by more
+    // than 4/255 and the mean delta was 3.05 — nearly nine tenths of a still frame was
+    // frozen, which is the single clearest tell separating this from a game that is
+    // running rather than paused. Everything that DOES move here (aurora, mechanisms,
+    // mascot idle) is small in frame; the camera is the only thing that moves all of it.
+    //
+    // Two incommensurate periods so the pose never repeats on a countable beat, and an
+    // amplitude in DEGREES of arc rather than world units, so a station framed at 3.7
+    // degrees of sky and one framed at 16 breathe by the same visual amount. Applied to
+    // the look target, not the position: rotating the frame keeps the solved composition
+    // (which the camera contract asserts over 8 stations x desktop/portrait) exactly
+    // where it was solved, where translating the eye would not.
+    if (!reducedMotion) {
+      const breathTime = clock.elapsedTime;
+      const breathReach = distance * Math.tan(THREE.MathUtils.degToRad(0.34));
+      // Rates, not amplitude, are what make this readable: at 0.187 rad/s the cycle
+      // ran ~34s, so a one-second sample advanced 3% of a phase and measured the same
+      // 14.8% moved pixels at 0.26 and 0.44 degrees — the amplitude was invisible
+      // because the motion was too slow to reach the eye. 0.83 and 0.57 rad/s give
+      // ~7.6s and ~11.0s periods (still incommensurate, so the pose never repeats on a
+      // countable beat) which is the register a game camera actually breathes in.
+      const breath =
+        Math.sin(breathTime * 0.83) * 0.62 + Math.sin(breathTime * 0.57) * 0.38;
+      const bob = Math.sin(breathTime * 0.68 + 1.7);
+      desiredLook.x += Math.cos(azimuth) * breath * breathReach;
+      desiredLook.z += -Math.sin(azimuth) * breath * breathReach;
+      desiredLook.y += bob * breathReach * 0.5;
+    }
     const cameraDamping = reducedMotion
       ? 1
       : 1 - Math.exp(-delta * CAMERA_COMPOSITION.positionDamping);
@@ -1230,6 +1263,12 @@ export default function IglooScene({
   // scale gives away. Low keeps its ladder position by shedding content, not
   // pixels.
   const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.75] : [1, 1.5];
+  // Ablation lever for the aurora, read here rather than through debugFlags so
+  // that ?no-aurora=1 keeps meaning the same thing whichever half of the site
+  // is drawing the curtain. Same window.location read the capture flag below
+  // already does.
+  const noAurora =
+    typeof window !== "undefined" && window.location.search.includes("no-aurora");
   const preserveDrawingBuffer =
     typeof window !== "undefined" &&
     (window.location.search.includes("qa=") ||
@@ -1402,6 +1441,15 @@ export default function IglooScene({
             travelerRef={traversalPoseRef}
             visible={worldActive}
           />
+        )}
+        {/* The aurora belongs to this scene, not to a sheet over it. Admitted
+            with the sky it hangs in, and never before the terrain: the shell is
+            transparent, so it draws after every opaque pass and the depth buffer
+            rejects it wherever the world has already covered the pixel. That is
+            what puts the mountains in front of it, and it is also why it is
+            cheaper here than it was as a fullscreen quad. */}
+        {!noAurora && !debugFlags.noSky && bucket >= RENDER_BUCKETS.systems && (
+          <AuroraSkyShell quality={quality} reducedMotion={reducedMotion} />
         )}
         <IglooTouch onTouchIgloo={onTouchIgloo} />
         {!reducedMotion && !debugFlags.noVeil && bucket >= RENDER_BUCKETS.systems && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}

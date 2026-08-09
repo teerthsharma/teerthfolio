@@ -107,7 +107,19 @@ assert.match(componentSource, /geometry\.dispose\(\)/);
 assert.match(componentSource, /material\.dispose\(\)/);
 assert.match(componentSource, /dataTravelDebrisDrawCalls|travelDebrisDrawCalls/);
 assert.match(componentSource, /if \(reducedMotion\) return null/);
-assert.match(sceneSource, /import PolarTravelDebris from "\.\/PolarTravelDebris"/);
+// Lazy, not static. This asserted a static `import PolarTravelDebris from "./…"` until
+// e4f3397 ("art: nothing admitted after the first viewport belongs in the chunk that
+// gates it") moved it — and four siblings — behind next/dynamic to keep them out of the
+// chunk that gates the first viewport. The component is still mounted; only the import
+// shape changed. This script is an orphan (not in `npm run build`, no npm alias), so
+// nothing ran it and it sat reporting a deliberate code-splitting win as a failure.
+// Matching either shape keeps the real invariant — the scene still owns this component —
+// without re-pinning the loading strategy this contract was never about.
+assert.match(
+  sceneSource,
+  /(import PolarTravelDebris from "\.\/PolarTravelDebris"|PolarTravelDebris = dynamic\(\(\) => import\("\.\/PolarTravelDebris"\))/,
+  "IglooScene must still own PolarTravelDebris, statically or lazily",
+);
 assert.match(sceneSource, /<PolarTravelDebris/);
 assert.match(sceneSource, /traversalPoseRef=\{traversalPoseRef\}/);
 assert.doesNotMatch(sceneSource, /SmashableObject|SMASHABLE_FIELD_OBJECTS/);

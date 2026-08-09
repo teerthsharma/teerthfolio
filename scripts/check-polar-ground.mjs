@@ -3,11 +3,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  POLAR_CONTACT_OCCLUSION_PEAK,
+  POLAR_CONTACT_RADIUS_SCALE,
   POLAR_DOME_WORLD_SCALE,
   POLAR_GROUND_DRIFT_HEIGHT,
   POLAR_GROUND_DRIFT_INNER_RADIUS,
   POLAR_GROUND_DRIFT_OUTER_RADIUS,
   POLAR_LIGHT_POOL_COUNT,
+  POLAR_PROP_CONTACT_COUNT,
+  POLAR_PROP_CONTACT_PEAK,
   POLAR_SHADOW_CASTER_COUNT,
   POLAR_GROUND_GLSL,
   POLAR_GROUND_PAD_FALLOFF,
@@ -20,6 +24,7 @@ import {
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world.js";
 import {
   POLAR_BIOME_FRAGMENT_SHADER,
+  POLAR_BIOME_QUALITY,
   POLAR_BIOME_VERTEX_SHADER,
 } from "../lib/polar-biome-fields.js";
 
@@ -223,19 +228,123 @@ assert.ok(
     "the terrain shader must solve one ellipsoid per station plus the traveler",
   );
   assert.equal(
-    (POLAR_BIOME_FRAGMENT_SHADER.match(/if \(dot\(delta, delta\) </g) || []).length,
+    (POLAR_BIOME_FRAGMENT_SHADER.match(/deltaSquared = dot\(delta, delta\);\n {2}if \(deltaSquared </g) || [])
+      .length,
     STATION_WORLD_SCHEMA.order.length,
     "every station caster must sit behind its own XZ reject",
   );
   assert.match(
     POLAR_BIOME_FRAGMENT_SHADER,
-    /if \(dot\(travelerDelta, travelerDelta\) </,
+    /deltaSquared = dot\(travelerDelta, travelerDelta\);\n {2}if \(deltaSquared </,
     "the traveler caster must sit behind its own XZ reject",
   );
+  // CONTACT OCCLUSION. The thrown ellipsoid shadow only lands in frame where the
+  // station's authored key bearing puts it, which measured over the eight docked
+  // framings is inside the foreground at some stations and outside it at others;
+  // the sky-occlusion skirt is what keeps a body from sitting on an unbroken
+  // plate at the rest. One per station plus the traveler, each reusing the
+  // squared distance its reject already computed.
+  assert.equal(
+    (POLAR_BIOME_FRAGMENT_SHADER.match(/shadow = max\(shadow, polarContactOcclusion\(/g) || [])
+      .length,
+    STATION_WORLD_SCHEMA.order.length + 1,
+    "every station plus the traveler must darken the snow it stands on",
+  );
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    /float polarContactOcclusion\(float deltaSquared, float radiusSquared, float peak\) \{\n\s*return peak \* \(1\.0 - smoothstep\(0\.0, radiusSquared, deltaSquared\)\);/,
+    "contact occlusion must stay a compactly supported skirt with no sqrt and no light term",
+  );
+  // Bounded for the same reason the light pools are: the terrain applies the
+  // combined shadow at 0.62 toward vec3(0.74, 0.78, 0.88), a 13.7% luma drop at
+  // full strength. A contact peak over ~0.75 turns a skirt into a painted decal
+  // and starts costing the colour contract its luma-100 snow anchor pixels.
+  assert.ok(
+    POLAR_CONTACT_OCCLUSION_PEAK > 0.25 && POLAR_CONTACT_OCCLUSION_PEAK <= 0.75,
+    `contact occlusion must read without becoming a decal (peak ${POLAR_CONTACT_OCCLUSION_PEAK})`,
+  );
+  for (const [, radiusSquared, peak] of POLAR_BIOME_FRAGMENT_SHADER.matchAll(
+    /polarContactOcclusion\(\s*(?:deltaSquared),\s*([\d.]+),\s*([\d.]+)/g,
+  )) {
+    assert.ok(
+      Number(radiusSquared) > 1 && Number(radiusSquared) < 100,
+      `a contact skirt must stay local to its caster (radius squared ${radiusSquared})`,
+    );
+    assert.ok(
+      Number(peak) > 0.25 && Number(peak) <= 0.75,
+      `a contact skirt must stay a value drop rather than a hole (peak ${peak})`,
+    );
+  }
   assert.match(
     POLAR_BIOME_FRAGMENT_SHADER,
     /mat2 intoSealFrame = mat2\(sealForward\.x, -sealForward\.y, sealForward\.y, sealForward\.x\)/,
     "the traveler caster must solve in the seal's own heading frame",
+  );
+
+  // PROP CONTACT. The local geography props cast the same sky-occlusion skirt,
+  // but they cannot be unrolled like the nine casters above: which bodies exist
+  // changes with the docked station, so they arrive as a uniform array and the
+  // ground WALKS it — the one per-fragment loop on the largest surface in frame.
+  // Everything below is the shape scripts/probe-prop-contact-fill.mjs measured
+  // and chose; the numbers are in the note above POLAR_PROP_CONTACT_COUNT.
+  assert.equal(
+    POLAR_PROP_CONTACT_COUNT,
+    POLAR_BIOME_QUALITY.high.geographyInstances,
+    "the prop skirt array must hold every prop the richest tier can draw",
+  );
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    new RegExp(`uniform vec3 uPropContacts\\[${POLAR_PROP_CONTACT_COUNT}\\];`),
+    "the prop skirt array must be declared at the count the world fills",
+  );
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    new RegExp(`for \\(int propIndex = 0; propIndex < ${POLAR_PROP_CONTACT_COUNT}; propIndex`),
+    "the prop loop must walk exactly the array that is declared",
+  );
+  // The single most load-bearing line in the whole feature: without it every
+  // ground fragment in the world walks 32 props, which measured 807 us/Mpx
+  // branchless against 32 us/Mpx behind this reject. It is also what keeps the
+  // low tier — which draws no props at all, and whose uPropField.z is therefore
+  // 0 — paying one subtract, one dot and one compare and nothing else.
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    /vec2 fieldDelta = groundXZ - uPropField\.xy;\n\s*if \(dot\(fieldDelta, fieldDelta\) >= uPropField\.z\) return 0\.0;/,
+    "the whole prop loop must sit behind one reject against the field's bounding circle",
+  );
+  assert.match(
+    POLAR_BIOME_FRAGMENT_SHADER,
+    /if \(propDistanceSquared < prop\.z\) \{\n\s*propShadow = max\(/,
+    "each prop must keep its own reject inside the loop; it is worth 43% of the loop's cost",
+  );
+  // Same skirt function as every other caster — one falloff in the world, not a
+  // second copy that can drift — but fed the distance BEYOND the body instead of
+  // from its centre, which is the only reason a prop's skirt is visible at all.
+  // Shipped centre-ramped, the 0.5 peak arrived at the stone's edge as 0.19 of
+  // itself and the rendered apron could not be told from no skirt.
+  const [, bodyShare, skirtShare, emittedPeak] =
+    /polarContactOcclusion\(\n\s*max\(0\.0, propDistanceSquared - prop\.z \* ([\d.]+)\),\n\s*prop\.z \* ([\d.]+),\n\s*([\d.]+)\n/.exec(
+      POLAR_BIOME_FRAGMENT_SHADER,
+    ) || [];
+  assert.ok(bodyShare, "prop skirts must reuse the shared contact falloff, offset past the body");
+  assert.equal(Number(emittedPeak), POLAR_PROP_CONTACT_PEAK, "prop skirt peak drifted");
+  // The two shares are the one radius scale split at the body's own edge: they
+  // must still add to the whole skirt, and the inner one must be the square of
+  // the reciprocal footprint scale, or the falloff starts somewhere other than
+  // the silhouette and the skirt either floats off the body or never reaches it.
+  assert.ok(
+    Math.abs(Number(bodyShare) + Number(skirtShare) - 1) < 1e-6,
+    `prop skirt shares must partition the skirt (${bodyShare} + ${skirtShare})`,
+  );
+  assert.ok(
+    Math.abs(Number(bodyShare) - 1 / POLAR_CONTACT_RADIUS_SCALE ** 2) < 1e-5,
+    `prop skirt must begin at the body's own silhouette (${bodyShare} vs ` +
+      `${(1 / POLAR_CONTACT_RADIUS_SCALE ** 2).toFixed(6)})`,
+  );
+  assert.ok(
+    POLAR_PROP_CONTACT_PEAK > 0.25 && POLAR_PROP_CONTACT_PEAK < POLAR_CONTACT_OCCLUSION_PEAK,
+    `a half-metre boulder blocks less sky than a facility (prop peak ${POLAR_PROP_CONTACT_PEAK} ` +
+      `vs station ${POLAR_CONTACT_OCCLUSION_PEAK})`,
   );
   // A lit building throws light as well as blocking it. One pool per station,
   // applied after the shadow so a building's own shadow still catches the spill

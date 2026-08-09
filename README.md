@@ -222,7 +222,25 @@ npm run verify:render
 npm run build
 ```
 
-`npm run build` runs the Teerth contract, render-budget, and polar-rescue checks before `next build`.
+`npm run build` runs **33 browser-free contracts** before `next build` — not the
+three this line used to name. The chain is the source of truth; `package.json`
+lists it in execution order. Three of the newest are worth knowing about because
+they guard things a reader would not expect a portfolio to assert:
+
+- `check-aurora-field` — 26 assertions on the aurora's split-step Fourier field:
+  unitary evolution, energy bounded without drift, free-packet spread and group
+  velocity against closed forms, Chapman hem asymmetry against a Gaussian, carrier
+  coprimality, two negative controls, and that the curtain is actually inside the
+  camera frame at all eight stations. That last one exists because it once was not,
+  at three of them.
+- `check-crypto-structures` — the archive wall's masonry is a real SHA-256 Merkle
+  tree over the archived corpus (courses are tree levels, block depth and height
+  come from digest bytes 1 and 2, the wall converges on a root capstone), and the
+  mast's telemetry lamps run a 32-bit maximal-length LFSR keystream seeded from
+  SHA-256 of the upstream repository names. The check recomputes both from the
+  source data, so a hand-tweaked "prettier" value fails.
+- `check-station-reveal-follow` — the reveal spring lags, overshoots within bounds,
+  settles, and is shared by both station families rather than duplicated.
 `npm run verify:render` starts an isolated local dev server on `127.0.0.1:5273` when needed, captures desktop, iPad, and mobile screenshots, and checks the WebGL gate plus WASD-only seal movement.
 
 ### The check/verify boundary

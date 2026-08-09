@@ -660,10 +660,14 @@ img {
   pointer-events: none;
 }
 
-.igloo-brand,
+/* The wordmark and the movement line hold no control, and at display scale the
+   brand block is a 620x330 rectangle over the top-left of a world the visitor
+   drives. Both stay pointer-transparent so the type can be as large as the
+   composition wants without eating the world underneath it.
+   Checked before removing them: no later rule re-enables pointer-events on
+   either selector, so this deletion actually reaches the pixel. */
 .igloo-topnav,
 .igloo-manifesto,
-.igloo-controls-hint,
 .igloo-readout,
 .igloo-controls,
 .igloo-source {
@@ -674,7 +678,12 @@ img {
   align-self: start;
   display: grid;
   gap: 6px;
-  width: min(246px, 70vw);
+  /* Was min(246px, 70vw) with a 21px display face — the largest glyph on a 1440px
+     frame was body-copy sized, which is the single cheapest tell separating this
+     from a game-studio site (benchmark gap #1). The cage capped the type, the type
+     justified the cage. Width now follows the title; the readout panel starts at
+     ~0.77vw so a half-frame title clears it with room. */
+  width: min(56vw, 760px);
   color: rgba(230, 238, 248, 0.88);
   text-shadow: 0 18px 44px rgba(0, 0, 0, 0.64);
 }
@@ -682,7 +691,10 @@ img {
 .igloo-brand strong {
   color: var(--ice);
   font-family: var(--font-display), var(--font-sans), Arial, sans-serif;
-  font-size: clamp(1.04rem, 1.46vw, 1.46rem);
+  /* Display scale: ~100px at 1440, 41px floor on phones (three short words wrap to
+     three lines under the phone brand column; verified against the route sheet,
+     which owns the bottom of that frame, not the top). */
+  font-size: clamp(2.6rem, 7vw, 7.2rem);
   font-weight: 760;
   line-height: 1.02;
   letter-spacing: 0;
@@ -696,7 +708,7 @@ img {
   width: fit-content;
   color: rgba(147, 165, 196, 0.82);
   font-family: var(--font-pixel), Consolas, monospace;
-  font-size: 0.5rem;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -4132,11 +4144,23 @@ img {
   box-shadow: 0 0 24px -6px rgba(111, 231, 200, 0.55);
 }
 
+/* THE OPERATIVE WIDTH, for the same cascade reason as the size below: this
+   later rule beat the min(56vw, 760px) authored at ~line 682, so the display
+   face was being set inside a 300px cage and every line of it overflowed its
+   own box (measured 553px of glyph in a 300px grid item at 1440, and the 474px
+   eyebrow spilling too). The box now holds the three-line stack the type
+   actually renders and still stops well short of the route sheet, which starts
+   at 0.77vw. */
 .igloo-brand {
-  width: min(300px, 34vw);
+  width: min(46vw, 620px);
   gap: 7px;
 }
 
+/* Same surface problem as the wordmark, and worse odds: these four sit on the
+   canvas at 12px, where the floor is 4.5:1 rather than 3.0. Measured on the
+   frame the movement line read 2.04:1 upstream, 1.77:1 at the tool locker and
+   1.94:1 at the plaque with no halo at all. A tighter, denser halo than the
+   wordmark's, because small glyphs need the darkening closer in. */
 .igloo-brand span,
 .igloo-brand .hud-technical,
 .igloo-controls-hint span,
@@ -4144,10 +4168,44 @@ img {
   color: var(--hud-ink);
   font-size: 0.75rem;
   line-height: 1.35;
+  text-shadow:
+    0 1px 1px rgba(4, 8, 20, 0.9),
+    0 0 7px rgba(4, 8, 20, 0.95),
+    0 0 16px rgba(4, 8, 20, 0.85);
 }
 
 .igloo-brand strong {
-  font-size: clamp(1.2rem, 1.8vw, 1.75rem);
+  /* THE OPERATIVE RULE. Three earlier .igloo-brand strong declarations exist above;
+     this later unconditional one wins the cascade, which is why editing line ~693
+     changed nothing on screen (computed stayed 1.8vw = 25.92px at 1440). Display
+     scale per benchmark gap #1: the title is the hero object of the first
+     viewport, not a caption. Phone sizes are owned by the max-width media blocks
+     below, which still win over this via their later position.
+
+     Colour and shadow live here too, and they are a correction, not a taste
+     change. This wordmark is the one HUD text with no DOM surface under it - it
+     sits on the WebGL canvas - so verify-hud-accessibility, which resolves the
+     nearest ancestor with >=0.6 alpha, walks all the way to <html> and scores it
+     16:1 while the eye reads it against snow. Measured off the frame instead
+     (capture with the type, capture without it, difference the two, compare the
+     glyph core against the pixels within 8px of it):
+
+       horizon-indigo #A9BAE8, before   2.02:1 upstream / 1.72:1 tool locker /
+                                        2.61:1 plaque, against a 3.0 large-text
+                                        floor - failing at all three stations
+
+     The fix is in the type, not behind it: no plate, no scrim, because a plate
+     is the "UI pasted over a 3D asset" move this world's house rule rejects.
+     Ice ink is what line 689 authored before a later theme pass overwrote it,
+     and the shadow becomes a tight dark halo that darkens the pixels the stroke
+     is read against - the old 0/18/44 drop shadow lands too far from the glyph
+     to raise local contrast at all. */
+  color: var(--hud-ink);
+  font-size: clamp(2.6rem, 7vw, 7.2rem);
+  text-shadow:
+    0 1px 1px rgba(4, 8, 20, 0.62),
+    0 0 18px rgba(4, 8, 20, 0.82),
+    0 0 46px rgba(4, 8, 20, 0.58);
 }
 
 .igloo-brand p,
@@ -4155,6 +4213,36 @@ img {
   color: var(--hud-ink);
   font-size: 1rem;
   line-height: 1.5;
+}
+
+/* The movement line was centred in the middle grid row, which put it at y=580
+   on a 1440x900 frame against a source strip whose top edge is y=643 - measured
+   as a real box overlap, with "DOCK AT GLOWING STATIONS" reading through the
+   panel. It belongs under the wordmark anyway: the hero now has a display face
+   and this is the sentence that supports it.
+
+   OPERATIVE DECLARATION for align-self and width: .igloo-controls-hint is also
+   declared unconditionally at ~917 (align-self: center, width: min(190px,
+   19vw)) and ~3441 (colour only). This later block wins, so editing 917 moves
+   nothing. The @media blocks below still override it by position. */
+.igloo-controls-hint {
+  align-self: start;
+  width: fit-content;
+  max-width: min(300px, 26vw);
+  margin-top: 10px;
+  /* The wordmark can be fixed in the type because it is 100px of 760-weight
+     glyph; this line is 12px, where the floor is 4.5:1 and a halo cannot carry
+     it - measured on the frame at 2.04:1 upstream, 1.77:1 at the tool locker,
+     1.94:1 at the plaque, all against bright snow. It gets the surface every
+     other HUD control already has (same paint as .igloo-controls), which makes
+     it both readable and something verify-hud-accessibility can actually
+     measure: with no surface its ancestor walk ends at <html> and scores a
+     wrong 16:1. This is HUD chrome joining the HUD, not a plate behind hero
+     type. */
+  padding: 7px 11px;
+  border: 1px solid var(--hud-line);
+  border-radius: 9px;
+  background: rgba(9, 13, 28, 0.76);
 }
 
 .igloo-topnav {
@@ -4717,8 +4805,20 @@ img {
     padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
   }
 
+  /* Phone display type, budgeted against the two fixed neighbours rather than
+     guessed: the world navigation owns x >= 206 at 390 wide, and the source
+     strip hangs at safe-top + 108px. The stack is three words on three lines,
+     so the ceiling is (108 - 8 padding - 8 clearance) / 3.12 = ~29px of face
+     and the widest word ("TOPOLOGY") sets the column. 17.28px before this -
+     4.4% of the frame, a caption where a studio phone hero runs 6-12%.
+
+     OPERATIVE DECLARATIONS for the phone brand: an earlier max-width: 720px
+     block at ~2846 declares both of these as well (188px wide, clamp(0.98rem,
+     4.3vw, 1.28rem)) and loses to this one on position, and the max-width:
+     360px block further down then wins for both under 361px. Three live copies,
+     one alive per width — edit the wrong one and the phone does not move. */
   .igloo-brand {
-    width: 132px;
+    width: min(196px, calc(100vw - 194px));
   }
 
   .igloo-brand span {
@@ -4726,7 +4826,7 @@ img {
   }
 
   .igloo-brand strong {
-    font-size: 1.08rem;
+    font-size: clamp(1.5rem, 7.6vw, 1.9rem);
     line-height: 1.04;
   }
 
@@ -4982,12 +5082,14 @@ img {
     width: 164px;
   }
 
+  /* 320 wide leaves 126px beside a 164px nav, so the face steps down to what
+     "TOPOLOGY" fits in that column - still 6.8% of the frame, not a caption. */
   .igloo-brand {
     width: 126px;
   }
 
   .igloo-brand strong {
-    font-size: 1rem;
+    font-size: 1.35rem;
   }
 
   .igloo-controls {
@@ -6471,4 +6573,449 @@ img {
     width: 100%;
     gap: 5px;
   }
+}
+
+/* ------------------------------------------------------------------------- */
+/* AURORA FIELD VEIL                                                          */
+/*                                                                            */
+/* One fullscreen emission layer over the whole document, mounted in          */
+/* app/layout.jsx rather than inside the world, so the same curtain hangs      */
+/* over every route. See docs/research/aurora-field-math.md.                  */
+/*                                                                            */
+/* screen, not normal alpha: auroral emission adds light and never removes    */
+/* it. Under normal compositing the veil would darken the bright snow          */
+/* wherever its own colour was below the pixel underneath, which is exactly    */
+/* backwards for an emissive source. Under screen, black is a no-op, so the    */
+/* large parts of the frame the curtain does not occupy cost nothing visually. */
+/*                                                                            */
+/* It sits above .teerth-site because it must composite over the world's       */
+/* opaque WebGL canvas. Keeping it off the page's text is the shader's job,    */
+/* not this rule's: the curtain occupies altitude bands, which map to screen   */
+/* bands, and the gap between them is where the copy lives.                    */
+/* ------------------------------------------------------------------------- */
+.aurora-field-veil {
+  position: fixed;
+  z-index: 3;
+  inset: 0;
+  contain: layout paint style;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* Every descendant, not just the wrapper. React Three Fiber's container div
+   hard-codes pointer-events: auto in its inline style, which beats inheritance
+   from .aurora-field-veil -- and a transparent fullscreen sheet that swallows
+   clicks is a broken site, not a broken background. */
+.aurora-field-veil,
+.aurora-field-veil * {
+  pointer-events: none !important;
+}
+
+.aurora-field-veil canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ------------------------------------------------------------------------- */
+/* PHONE WORLD PRIORITY                                                       */
+/*                                                                            */
+/* Measured at 390x844 and 360x640 before this block existed: the route sheet  */
+/* stood 223px tall at the bottom edge and the solved portrait composition     */
+/* parks the seal centroid at 0.695 of the frame (see                          */
+/* POLAR_CAMERA_COMPOSITION_CONTRACT.plaquePortraitSealCentroidRatio), i.e.    */
+/* seal bottom ~622px at 844 tall against a card top of 613px. The character   */
+/* the visitor drives was behind the card. At 640 tall it was gone entirely.   */
+/*                                                                            */
+/* The camera is not the bug. The composition is authored and measured against */
+/* eight stations in both orientations; the HUD is what grew into the frame.   */
+/* So the sheet peels back to a peek - route status, station name, signal, and */
+/* the eight-chip rail, which on touch IS the movement control - and the full  */
+/* evidence prose opens on an explicit tap. Renderer tier collapses to one     */
+/* chip. Both stay keyboard-reachable and both keep their aria labels.         */
+/* ------------------------------------------------------------------------- */
+@media (max-width: 720px) {
+  /* Peek height budget, spent deliberately:
+     status 16 + name 20 + signal 16 + padding 14 = ~66 readout
+     + 60 rail + 16 sheet padding = ~150px, leaving the seal ~60px of clear
+     world beneath it at 390x844. */
+  .igloo-route-sheet {
+    max-height: min(50svh, calc(100svh - 210px));
+  }
+
+  .igloo-artifact-readout[data-evidence-open="false"] {
+    max-height: none;
+  }
+
+  .igloo-artifact-readout[data-evidence-open="false"] > p:not(.igloo-artifact-signal),
+  .igloo-artifact-readout[data-evidence-open="false"] .igloo-artifact-meta {
+    display: none;
+  }
+
+  /* Duplicated by the chip the rail already centers on. */
+  .igloo-artifact-readout[data-evidence-open="false"] > span:not(.igloo-route-status) {
+    display: none;
+  }
+
+  .igloo-artifact-readout h2 {
+    margin: 3px 0 4px;
+    font-size: 1.05rem;
+  }
+
+  /* A 44px row of its own cost the peek 44px of the seal's clear world, so the
+     target overlays the header instead of stacking under it: same tap area,
+     zero height. The visible label collapses to a chevron; the sentence stays
+     as the accessible name. */
+  /* Anchored to the sheet, which is the positioned ancestor. Giving the
+     readout its own `position: relative` instead re-armed the desktop
+     `top`/`left` offsets that the mobile `position: static` had switched off,
+     and pushed the card 3px past both the right and bottom viewport edges. */
+  .igloo-evidence-toggle {
+    position: absolute;
+    z-index: 2;
+    top: 4px;
+    right: 4px;
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--aurora-mint);
+    border: 0;
+    background: none;
+    font-size: 0;
+  }
+
+  .igloo-evidence-toggle::after {
+    font-size: 0.7rem;
+  }
+
+  .igloo-artifact-readout[data-evidence-open="false"] .igloo-evidence-toggle::after {
+    content: "▲";
+  }
+
+  .igloo-artifact-readout[data-evidence-open="true"] .igloo-evidence-toggle::after {
+    content: "▼";
+  }
+
+  .igloo-artifact-readout[data-evidence-open="true"] {
+    max-height: min(46svh, calc(100svh - 250px));
+    overflow-y: auto;
+  }
+
+  /* Reading and driving are different moments. When the visitor opens the
+     evidence the sheet grows up over this band, so the movement line steps
+     aside rather than colliding with it. */
+  .igloo-hud:has(.igloo-artifact-readout[data-evidence-open="true"]) .igloo-controls-hint {
+    display: none;
+  }
+
+  /* Renderer tier: one chip at rest, under the nav, out of the world's centre. */
+  .igloo-controls-toggle {
+    position: absolute;
+    z-index: 12;
+    /* The world navigation ends at y=62 on a 390x844 frame; +52 put this chip's
+       box 2px inside it. */
+    top: calc(max(8px, env(safe-area-inset-top)) + 58px);
+    right: 8px;
+    display: inline-flex;
+    min-width: 76px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    color: var(--hud-ink);
+    /* Same discipline as the desktop cluster: recede the chrome, never the
+       text. The panel stays dark enough to carry its own label at 4.5:1 over a
+       bright polar field; only the border quiets down. */
+    border: 1px solid rgba(230, 238, 248, 0.05);
+    border-radius: 10px;
+    background: rgba(9, 13, 28, 0.76);
+    font-family: var(--font-pixel), Consolas, monospace;
+    font-size: 0.75rem;
+    font-weight: 760;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    pointer-events: auto;
+  }
+
+  .igloo-controls-toggle[aria-expanded="true"] {
+    color: var(--aurora-mint);
+    border-color: rgba(111, 231, 200, 0.55);
+  }
+
+  .igloo-controls {
+    top: calc(max(8px, env(safe-area-inset-top)) + 112px);
+    right: 8px;
+    bottom: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100vw - 16px);
+  }
+
+  .igloo-controls[data-open="false"] {
+    display: none;
+  }
+
+  /* The only movement instruction a phone visitor ever gets. It sat behind
+     `display: none` from 1080px down, so touch shipped with no affordance at
+     all. It rides directly above the peek sheet, clear of the seal. */
+  .igloo-controls-hint {
+    position: absolute;
+    z-index: 13;
+    right: 8px;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 176px);
+    left: 8px;
+    /* The HUD is a grid and this is one of its items, so `justify-self: start`
+       still aligns it after `position: absolute` and left/right stop stretching
+       the box. Without this the centred line rendered flush left at 234px. */
+    justify-self: stretch;
+    display: block;
+    /* Carries the same surface as the desktop chip and for the same measured
+       reason: over the phone's bright snow this line read 1.61:1 at 12px. The
+       box shrink-wraps and centres itself between the two edge offsets, so it
+       spends no more of the seal's clear band than the bare sentence did. */
+    width: fit-content;
+    max-width: calc(100vw - 32px);
+    margin-inline: auto;
+    padding: 6px 10px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .igloo-controls-hint span {
+    color: #E9F1FB;
+    font-weight: 760;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .igloo-controls-hint small {
+    display: none;
+  }
+}
+
+/* Small Android portrait: the peek loses its signal line so the seal keeps
+   clear world beneath it in a 640px-tall frame. */
+@media (max-width: 720px) and (max-height: 700px) {
+  .igloo-artifact-readout[data-evidence-open="false"] .igloo-artifact-signal {
+    display: none;
+  }
+
+  .igloo-controls-hint {
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 160px);
+  }
+}
+
+/* The desktop route sheet narrows its chips to 92px (see the `min-width: 721px`
+   block above) but the rail's centring spacers were still sized for the 112px
+   chip: `calc(50% - 61px)` is 56px of half-chip plus 5px of the old padding.
+   The gap left the first and last chips 9px short of centre at every width from
+   721px up, because IglooHud clamps its scroll target at 0 and the rail had no
+   room left to give. Measured at 1600x1000: wanted -9px, got 0. 46px of
+   half-chip plus the sheet rail's own 4px padding closes it exactly. */
+@media (min-width: 721px) {
+  .igloo-route-sheet .igloo-artifact-list.station-profile-rail::before,
+  .igloo-route-sheet .igloo-artifact-list.station-profile-rail::after {
+    flex-basis: calc(50% - 50px);
+  }
+}
+
+/* The seal guide fired into the same 154px band the movement hint and the seal
+   itself occupy on a phone: captured at 360x640 with "Tap the S2 Core beacon"
+   sitting across both the hint sentence and the seal's head. On a phone the
+   guide speaks from the empty sky instead, clear of an opened renderer-tier
+   strip above it, and the static hint stands down while it does - two lines
+   saying the same thing is one line too many at 360px. */
+@media (max-width: 720px) {
+  .seal-navigation-bubble {
+    top: calc(max(8px, env(safe-area-inset-top)) + 160px);
+    right: 8px;
+    bottom: auto;
+    left: 50%;
+    max-width: min(78vw, 280px);
+  }
+
+  .igloo-world:has(.seal-navigation-bubble) .igloo-controls-hint {
+    display: none;
+  }
+}
+
+/* Station readout card.
+   The panel shipped as a flat rectangle with exactly two type sizes (23px name,
+   12px for status, index, evidence and meta alike), no edge treatment, and no
+   station colour at all - the `--station-accent` plumbing stopped at the route
+   chips, so the one element that names a station wore nothing from it.
+
+   Type ladder, one modular scale of sqrt(1.33) = 1.155 steps:
+     12px    index/handle + meta   (0.75rem,  step 0 - also the sweep's floor
+                                    for .hud-technical metadata)
+     13.87px route status eyebrow  (0.867rem, step 1)
+     16px    evidence line + prose (1rem,     step 2 - also the sweep's floor
+                                    for readout paragraph copy)
+     21.3px  station name          (step 4 at 1440px wide; 18.48px / step 3 on
+                                    a phone, where the peek has no room for
+                                    step 4 and the name still fits one line)
+
+   Specificity: `.igloo-artifact-readout` on its own loses to the
+   `.igloo-route-sheet .igloo-artifact-readout` block in the `min-width: 721px`
+   section above, which is why every rule here carries the sheet as well. Sizes
+   and rhythm travel as custom properties so the <=720px ladder is a property
+   override rather than a second copy of six rules.
+
+   The wash tops out at 12% accent - well under the 0.6 alpha at which the
+   accessibility sweep would start treating the readout, rather than the page
+   behind it, as the surface every label is measured against. */
+.igloo-route-sheet .igloo-artifact-readout {
+  --readout-mono: 0.75rem;
+  --readout-eyebrow: 0.867rem;
+  --readout-lead: 1rem;
+  --readout-name: clamp(1.2rem, 1.48vw, 1.4rem);
+  --readout-pad: 10px 12px 12px;
+  --readout-step: 7px;
+  --readout-step-tight: 5px;
+  padding: var(--readout-pad);
+  border-top: 3px solid var(--station-accent, var(--abeto-teal));
+  border-radius: 9px 9px 0 0;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--station-accent, var(--abeto-teal)) 12%, transparent),
+      color-mix(in srgb, var(--station-accent, var(--abeto-teal)) 4%, transparent) 58%,
+      transparent
+    );
+}
+
+.igloo-route-sheet .igloo-artifact-readout .igloo-route-status {
+  color: #C9D6EE;
+  font-size: var(--readout-eyebrow);
+  font-weight: 760;
+  letter-spacing: 0.13em;
+}
+
+.igloo-route-sheet .igloo-artifact-readout > span:not(.igloo-route-status) {
+  color: var(--hud-muted);
+  font-size: var(--readout-mono);
+}
+
+.igloo-route-sheet .igloo-artifact-readout h2 {
+  margin: var(--readout-step) 0 var(--readout-step-tight);
+  font-size: var(--readout-name);
+  line-height: 1.1;
+}
+
+.igloo-route-sheet .igloo-artifact-readout .igloo-artifact-signal {
+  margin: 0 0 var(--readout-step);
+  color: var(--hud-ink);
+  font-size: var(--readout-lead);
+  font-weight: 620;
+  letter-spacing: 0.02em;
+  line-height: 1.32;
+}
+
+.igloo-route-sheet .igloo-artifact-readout .igloo-artifact-meta {
+  margin-top: var(--readout-step);
+  font-size: var(--readout-mono);
+}
+
+/* The phone peek is a height budget before it is a card: the route sheet may
+   claim 24% of the frame and no more. Step 4 of the ladder and a 16px evidence
+   line both cost lines the peek does not have - and a 16px evidence line is
+   clipped to one line there, so the size would buy a truncation rather than
+   emphasis. The phone keeps steps 0-3 and the same identity edge. */
+@media (max-width: 720px) {
+  .igloo-route-sheet .igloo-artifact-readout {
+    --readout-lead: var(--readout-mono);
+    --readout-name: 1.155rem;
+    --readout-pad: 5px 8px 9px;
+    --readout-step: 4px;
+    --readout-step-tight: 3px;
+  }
+}
+
+/* Short desktop frames spend the same line elsewhere. The route sheet hangs
+   from a fixed 142px top and the renderer-tier controls sit 164px off the
+   bottom, so the rail clears them only while the readout stays under
+   `viewportHeight - 390px`: 330px at 720px tall, 277px at the 1067x667 layout
+   box a 150% zoom produces. Step 2 on the evidence line costs 26px there and
+   put the rail 7px into the tier controls, measured by the accessibility sweep
+   at 150-percent-zoom. Everything else about the card survives. */
+@media (min-width: 721px) and (max-height: 720px) {
+  .igloo-route-sheet .igloo-artifact-readout {
+    --readout-lead: var(--readout-mono);
+    --readout-step: 6px;
+  }
+}
+
+/* Station evidence links. The repositories a building is built on, reachable from the
+   readout card. Colour rule inherited from the readout work: raw station accent on text
+   measures 4.39:1 and fails, so the text keeps the high-contrast HUD ink and the accent
+   lives only in the underline and the hover/focus wash. Tap target is 44px via padding
+   rather than font-size, so the card's type ladder is untouched. */
+.igloo-artifact-repos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.igloo-repo-link {
+  display: inline-flex;
+  align-items: center;
+  /* 44px at every viewport, not just phones: verify-hud-accessibility enforces the
+     tap-target floor on desktop too (it caught these at 34px). Height comes from
+     padding so the card's type ladder is untouched. */
+  min-height: 44px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--station-accent, #7fb9de) 42%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--station-accent, #7fb9de) 10%, transparent);
+  color: var(--hud-ink, #eaf1fb);
+  font-family: var(--font-pixel), Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.igloo-repo-link::after {
+  content: "↗";
+  margin-left: 6px;
+  opacity: 0.66;
+}
+.igloo-repo-link:hover {
+  border-color: color-mix(in srgb, var(--station-accent, #7fb9de) 78%, transparent);
+  background: color-mix(in srgb, var(--station-accent, #7fb9de) 22%, transparent);
+  transform: translateY(-1px);
+}
+.igloo-repo-link:focus-visible {
+  outline: 2px solid var(--station-accent, #7fb9de);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .igloo-repo-link { transition: none; }
+  .igloo-repo-link:hover { transform: none; }
+}
+@media (max-width: 720px) {
+  .igloo-repo-link { font-size: 0.76rem; }
+  /* The links live in the EXPANDED card only. In the collapsed peek they pushed the
+     route sheet to 25.5% of a 390x844 frame against the 24% budget that exists to keep
+     the seal visible — the sheet used to cover the character entirely, and that budget
+     is the guard. Hidden here, reachable one tap away, seal stays clear. */
+  [data-evidence-open="false"] .igloo-artifact-repos { display: none; }
+}
+
+@media (min-width: 721px) and (max-height: 720px) {
+  /* At 1067x667 — what a 150% desktop zoom produces — the card has no vertical room
+     left: the route rail clears the tier controls only while the readout stays under
+     viewportHeight - 390px, and a chip row spends exactly that margin (measured: rail
+     bottom 536px against controls at 503px).
+     Two alternatives were tried and rejected on evidence, not taste. Shrinking the
+     chips fails the 44px tap-target floor the same sweep enforces. A single
+     horizontally-scrolling row still costs a row of height. So the chips stand down
+     here — and this costs no information: every repo NAME is still in the signal line
+     directly above, and full-size links return the moment the viewport has height. */
+  .igloo-artifact-repos { display: none; }
 }

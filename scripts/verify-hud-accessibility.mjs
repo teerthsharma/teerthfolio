@@ -89,12 +89,27 @@ async function collectWorldMetrics(page) {
       });
       return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
     };
-    const contrastAgainstPaper = (selector) => {
+    // The HUD moved from bright paper to dark glass panels; measuring every
+    // label against a hardcoded [250,248,239] paper reported the whole HUD at
+    // 1.07-2.34:1 while it was in fact legible. Read the surface the text
+    // actually sits on: the nearest ancestor whose own background is opaque
+    // enough to carry it.
+    const surfaceBehind = (node) => {
+      for (let current = node; current; current = current.parentElement) {
+        const declared = window.getComputedStyle(current).backgroundColor;
+        const channels = rgb(declared);
+        const alpha = Number(declared.match(/[\d.]+/g)?.[3] ?? 1);
+        if (channels && alpha >= 0.6) return channels;
+      }
+      return [250, 248, 239];
+    };
+    const contrastOnSurface = (selector) => {
       const node = pick(selector);
       const foreground = node ? rgb(window.getComputedStyle(node).color) : null;
       if (!foreground) return null;
-      const light = Math.max(luminance(foreground), luminance([250, 248, 239]));
-      const dark = Math.min(luminance(foreground), luminance([250, 248, 239]));
+      const background = surfaceBehind(node);
+      const light = Math.max(luminance(foreground), luminance(background));
+      const dark = Math.min(luminance(foreground), luminance(background));
       return (light + 0.05) / (dark + 0.05);
     };
     const world = pick("#world");
@@ -140,14 +155,51 @@ async function collectWorldMetrics(page) {
       bodyCopy,
       bounds: { active: activeRect, controls: controlsRect, live: liveRect, nav: navRect, rail: railRect, readout: readoutRect, route: routeRect, world: worldRect },
       mobile,
+      // The only movement instruction a phone visitor gets: either the standing
+      // line or the seal guide, which replaces it while it
+      // speaks so a 360px frame never carries two versions of the same
+      // instruction at once.
+      movementHint: [pick(".igloo-controls-hint"), pick(".seal-navigation-bubble")]
+        .filter(visible)
+        .map((node) => node.textContent.trim())
+        .join(" / "),
+      qualityDisclosureOpen: pick(".igloo-controls-toggle")?.getAttribute("aria-expanded") || null,
       contrastRatios: [
-        contrastAgainstPaper(".igloo-artifact-readout > span"),
-        contrastAgainstPaper(".igloo-readout > p:not(.igloo-artifact-signal)"),
-        contrastAgainstPaper(".igloo-topnav a"),
-        contrastAgainstPaper(".igloo-controls button"),
-        contrastAgainstPaper(".station-profile-chip strong"),
-        contrastAgainstPaper(".igloo-live-strip strong"),
+        contrastOnSurface(".igloo-artifact-readout > span"),
+        contrastOnSurface(".igloo-readout > p:not(.igloo-artifact-signal)"),
+        contrastOnSurface(".igloo-topnav a"),
+        contrastOnSurface(".igloo-controls button"),
+        contrastOnSurface(".station-profile-chip strong"),
+        contrastOnSurface(".igloo-live-strip strong"),
+        // The movement line used to sit bare on the canvas and was therefore
+        // unmeasurable by this model; it now carries the same panel paint as
+        // the other controls, so it belongs in the list.
+        contrastOnSurface(".igloo-controls-hint span"),
       ].filter((value) => Number.isFinite(value)),
+      // The wordmark is the one HUD text whose backdrop is the rendered scene
+      // rather than a DOM surface. surfaceBehind() walks past every element in
+      // the HUD and lands on <html>, which scored a display face 16:1 while it
+      // measured 1.7-2.6:1 against snow at three different stations. Rather
+      // than report that number, this records the two facts that decide whether
+      // the model applies at all.
+      wordmark: (() => {
+        const node = pick(".igloo-brand strong");
+        if (!node) return null;
+        const style = window.getComputedStyle(node);
+        let surface = null;
+        for (let current = node; current && current !== document.body; current = current.parentElement) {
+          const declared = window.getComputedStyle(current).backgroundColor;
+          const alpha = Number(declared.match(/[\d.]+/g)?.[3] ?? 1);
+          if (rgb(declared) && alpha >= 0.6) {
+            surface = current.className || current.tagName;
+            break;
+          }
+        }
+        return {
+          shadowLayers: (style.textShadow.match(/rgba?\(/g) || []).length,
+          surface,
+        };
+      })(),
       overlaps: {
         controlsRoute: overlaps(controlsRect, routeRect),
         liveRoute: overlaps(liveRect, routeRect),
@@ -176,15 +228,6 @@ async function collectWorldMetrics(page) {
 }
 
 function assertWorldMetrics(metrics, name) {
-  const inside = (inner, outer) =>
-    Boolean(
-      inner &&
-        outer &&
-        inner.left >= outer.left - 1 &&
-        inner.right <= outer.right + 1 &&
-        inner.top >= outer.top - 1 &&
-        inner.bottom <= outer.bottom + 1,
-    );
   assert.ok(["webgl", "safe"].includes(metrics.rendererMode), `${name}: renderer never reached a usable mode`);
   assert.equal(metrics.railButtonCount, 8, `${name}: station route does not expose all eight stations`);
   assert.ok(metrics.activeInsideRail, `${name}: active station is clipped by the route rail`);
@@ -195,6 +238,17 @@ function assertWorldMetrics(metrics, name) {
   assert.ok(metrics.technicalSizes.every((size) => size >= 12), `${name}: technical metadata fell below 12px`);
   assert.ok(metrics.bodyCopy.every((size) => size >= 16), `${name}: paragraph copy fell below 16px`);
   assert.ok(metrics.contrastRatios.every((ratio) => ratio >= 4.5), `${name}: HUD text contrast fell below 4.5:1`);
+  // Either the wordmark gains a real surface - in which case add it to
+  // contrastRatios above, where this model is valid - or it keeps the local
+  // halo that carries it over the scene. Measured off the frame at 1440, 768
+  // and 390, and at three stations: 1.7-2.6:1 with the old drop shadow and a
+  // periwinkle ink, 6.2-7.8:1 with ice ink and the halo. A green tick from
+  // surfaceBehind() on this element would be worse than no tick at all.
+  assert.ok(
+    metrics.wordmark &&
+      (metrics.wordmark.surface !== null || metrics.wordmark.shadowLayers >= 2),
+    `${name}: the brand wordmark sits on the canvas with no surface and no local halo, so nothing carries its contrast`,
+  );
   assert.ok(metrics.worldOverflow.x <= 1, `${name}: HUD creates ${metrics.worldOverflow.x}px horizontal overflow`);
   assert.ok(metrics.worldOverflow.y <= 1, `${name}: HUD creates ${metrics.worldOverflow.y}px vertical overflow`);
   assert.ok(inside(metrics.bounds.nav, metrics.bounds.world), `${name}: world navigation leaves the viewport`);
@@ -209,13 +263,86 @@ function assertWorldMetrics(metrics, name) {
     assert.equal(metrics.overlaps.liveRoute, false, `${name}: mobile source radar overlaps route sheet`);
     assert.ok(metrics.bounds.route.bottom <= metrics.viewport.height + 1, `${name}: route sheet leaves viewport`);
     assert.ok(inside(metrics.bounds.route, metrics.bounds.world), `${name}: route sheet leaves the viewport`);
+    // The seal is the interaction, and the solved portrait composition parks
+    // its centroid inside sealCentroidRange (0.58-0.70 of the frame, 0.695 at
+    // the plaque). A bottom sheet that climbs into that band hides the
+    // character the visitor drives - measured at 223px / 26.4% of a 390x844
+    // frame before this budget existed, with the seal behind the card.
+    const routeShare = metrics.bounds.route.height / metrics.viewport.height;
+    assert.ok(
+      routeShare <= 0.24,
+      `${name}: route sheet claims ${(routeShare * 100).toFixed(1)}% of the phone frame, over the 24% budget that keeps the seal clear`,
+    );
+    assert.ok(
+      metrics.bounds.route.top >= metrics.viewport.height * 0.7,
+      `${name}: route sheet top (${metrics.bounds.route.top}px) climbs into the solved seal centroid band`,
+    );
+    assert.ok(
+      metrics.movementHint.length > 0,
+      `${name}: phone frame ships no instruction for moving the seal`,
+    );
+    assert.equal(
+      metrics.qualityDisclosureOpen,
+      "false",
+      `${name}: renderer-tier strip is expanded by default and eats the phone frame`,
+    );
   } else {
+    assert.equal(metrics.qualityDisclosureOpen, null, `${name}: desktop must show renderer tiers directly, not behind a disclosure`);
     assert.equal(metrics.overlaps.railReadout, false, `${name}: route rail overlaps corner readout`);
     const cardCenter = (metrics.bounds.readout.left + metrics.bounds.readout.right) / 2;
     assert.ok(cardCenter >= metrics.viewport.width * 0.72, `${name}: readout drifted into the central hero arena`);
-    assert.ok(metrics.bounds.readout.top <= metrics.viewport.height * 0.2, `${name}: readout is not anchored to a screen corner`);
+    // Corner anchoring is what this guards, and a proportional ceiling encodes it
+    // wrongly on short viewports: at 150% zoom (1067x667 layout px) the readout's
+    // top padding plus nav clearance is a fixed ~150px, which is 22.6% of 667 but
+    // still visually "the top corner". The 0.2 ratio was authored against 900px
+    // frames where fixed chrome is a smaller fraction. Floor the ceiling at 170
+    // layout px so short-viewport zoom passes while a genuinely mislaid card —
+    // mid-screen at 300px+ — still fails at every size.
+    assert.ok(
+      metrics.bounds.readout.top <= Math.max(metrics.viewport.height * 0.2, 170),
+      `${name}: readout is not anchored to a screen corner`,
+    );
     assert.ok(inside(metrics.bounds.readout, metrics.bounds.world), `${name}: station readout leaves the viewport`);
   }
+}
+
+/**
+ * A control moved behind a disclosure is only still a control if the
+ * disclosure opens it, so the phone pass exercises both panels rather than
+ * trusting that hiding them was free.
+ */
+async function verifyMobileDisclosures(page, name) {
+  await page.click(".igloo-controls-toggle");
+  const controls = await collectWorldMetrics(page);
+  assert.equal(controls.qualityDisclosureOpen, "true", `${name}: renderer-tier disclosure did not open`);
+  assert.ok(controls.bounds.controls.height >= 44, `${name}: opened renderer tiers are not a usable target row`);
+  assert.equal(controls.overlaps.navControls, false, `${name}: opened renderer tiers collide with world navigation`);
+  assert.equal(controls.overlaps.controlsRoute, false, `${name}: opened renderer tiers collide with the route sheet`);
+  for (const target of controls.targets) {
+    assert.ok(
+      target.width >= 44 && target.height >= 44,
+      `${name}: undersized target behind the disclosure ${target.label} (${target.width}x${target.height})`,
+    );
+  }
+  await page.click(".igloo-controls-toggle");
+
+  await page.click(".igloo-evidence-toggle");
+  const evidence = await collectWorldMetrics(page);
+  assert.ok(evidence.bodyCopy.length > 0, `${name}: station evidence prose never appears from its disclosure`);
+  assert.ok(evidence.bodyCopy.every((size) => size >= 16), `${name}: disclosed evidence prose fell below 16px`);
+  assert.ok(inside(evidence.bounds.route, evidence.bounds.world), `${name}: expanded evidence sheet leaves the viewport`);
+  await page.click(".igloo-evidence-toggle");
+}
+
+function inside(inner, outer) {
+  return Boolean(
+    inner &&
+      outer &&
+      inner.left >= outer.left - 1 &&
+      inner.right <= outer.right + 1 &&
+      inner.top >= outer.top - 1 &&
+      inner.bottom <= outer.bottom + 1,
+  );
 }
 
 async function verifyRailKeyboard(page) {
@@ -298,6 +425,7 @@ try {
     const metrics = await collectWorldMetrics(page);
     if (process.env.HUD_DEBUG === "1") console.error(JSON.stringify(metrics, null, 2));
     assertWorldMetrics(metrics, viewport.name);
+    if (metrics.mobile) await verifyMobileDisclosures(page, viewport.name);
     await verifyRailKeyboard(page);
     if (viewport.capture !== false) {
       await page.screenshot({ path: path.join(outDir, `hud-${viewport.name}.png`) });

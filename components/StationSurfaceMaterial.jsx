@@ -170,6 +170,16 @@ float stationToonDiffuse = floor(stationWrappedDiffuse * uToonSteps + 0.5) / uTo
 vec3 stationZoneColor = mix(uStationBaseColor, uStationSecondaryColor, stationZoneMix * 0.74);
 stationZoneColor = mix(stationZoneColor, uStationAccentColor, (0.035 + uStationEnergy * 0.055) * stationSweep);
 vec3 stationOpticalColor = stationZoneColor * (0.88 + stationToonDiffuse * 0.16);
+// DIRECTIONAL RELIEF, the plate's share of the camp-wide pass. This normal is
+// already world space, so the shared GLSL block's viewMatrix inversion is not
+// needed here — only its ramp, and the same soffit constant. Without it the
+// plate's lit top edge and its underside sat at one value and it read as a
+// decal on the pedestal rather than as a slab with a thickness.
+float stationDeckLight = smoothstep(0.20, 0.64, stationComputedNormal.y);
+float stationSoffitShade = smoothstep(0.20, 0.64, -stationComputedNormal.y);
+float stationWallTurn = clamp(dot(stationComputedNormal.xz, vec2(0.629, 0.777)), 0.0, 1.0);
+stationOpticalColor *=
+  1.0 + stationDeckLight * 0.17 + stationWallTurn * 0.07 - stationSoffitShade * 0.34;
 stationOpticalColor += uStationSecondaryColor * stationRim * uRimStrength * 0.44;
 float stationInkContour = smoothstep(0.72, 0.99, stationRim) * (0.07 + uRimStrength * 0.13);
 stationOpticalColor = mix(stationOpticalColor, uStationInkColor, stationInkContour);

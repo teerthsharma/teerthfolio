@@ -19,7 +19,7 @@ import {
   createSealManifoldGeometry,
 } from "../lib/seal-manifold";
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
-import { polarGroundHeight } from "../lib/polar-ground";
+import { POLAR_GROUND_GLSL, polarGroundHeight } from "../lib/polar-ground";
 import { SEAL_GUIDE_STATES } from "../lib/seal-guide-state";
 import { criticallyDampedStep } from "../lib/polar-world-cadence";
 import { resolveSealPresentationScale } from "../lib/polar-camera-composition";
@@ -31,7 +31,47 @@ import {
 export const MAX_TRANSLATION_SPEED = 4.2;
 export const SEAL_MANIFOLD_DRAW_BUDGET = "one primary surface draw";
 export const SEAL_MASCOT_ACCESSORY_DRAW_BUDGET =
-  "three accessory draws: instanced eye-and-costume-gloss pool, instanced highlight-and-costume-beacon pool, instanced deterministic anime hairstyle pool";
+  "four accessory draws: instanced eye-and-costume-gloss pool, instanced highlight-and-costume-beacon pool, instanced deterministic anime hairstyle pool, one multiply-blended ground contact shadow quad";
+/**
+ * Contact shadow.
+ *
+ * The terrain resolves analytic hero shadows for the stations and for the
+ * traveller, but the mascot still read as floating: at the observatory dock the
+ * belly meets the snow with nothing under it, so the character sits on the
+ * frame rather than on the world. This is the mascot's own contact occlusion,
+ * carried with it, and it is deliberately NOT a flat black ellipse — the gate
+ * fails those as hard as it fails floating.
+ *
+ * What makes it read as contact rather than as a decal:
+ * - It MULTIPLIES the ground instead of painting over it, so the snow's own
+ *   dune shading and drift texture stay visible through the shadow.
+ * - The tint is cool snow-in-shade, not black. Snow in shadow is blue.
+ * - Two falloff terms, not one: a tight near-opaque core where the body
+ *   actually touches, and a wider ambient skirt that fades over about the
+ *   body's own width. A single gaussian reads as an airbrushed oval.
+ * - It is elliptical along the seal's heading and rides the root group, so it
+ *   turns with the body and tracks the ground field the mascot already samples.
+ * - It weakens and widens as the body lifts off the snow at speed, which is the
+ *   cue that says the two surfaces are separating.
+ */
+export const SEAL_CONTACT_SHADOW_PROFILE = Object.freeze({
+  draw: "one multiply-blended quad on the ground plane under the mascot",
+  blending: "multiply against the terrain, cool snow-shade tint, never black",
+  falloff: "tight contact core plus wide ambient skirt",
+  grounding: "rides the root group at the sampled ground height; weakens with movement lift",
+});
+const CONTACT_SHADOW_TINT = "#93A2BA";
+// Footprint multipliers on the body's own measured extents, not absolute sizes.
+// Hard-coded extents put the patch entirely underneath the animal, where it was
+// perfectly occluded by the body it belonged to and measured as no contact at
+// all. The occlusion has to reach past the silhouette to be seen; laterally it
+// reaches further because the flippers splay and the ambient pool spreads with
+// them.
+const CONTACT_SHADOW_AXIAL_SPAN = 1.28;
+const CONTACT_SHADOW_LATERAL_SPAN = 1.7;
+// Clearance above the sampled ground so the quad never z-fights the displaced
+// terrain surface it lies on.
+const CONTACT_SHADOW_CLEARANCE = 0.015;
 export const SEAL_FUR_COAT_PROFILE = Object.freeze({
   sampling: "deterministic hash-seeded crown-zone anchor sampling; no Math.random",
   tierCounts: SEAL_FUR_TIER_COUNT,
@@ -50,10 +90,27 @@ export const SEAL_MANIFOLD_TEXTURE_PROFILE =
 export const SEAL_STATION_IDENTITY_PROFILE = Object.freeze({
   carriedBy: "per-station anime hairstyle plus costume wardrobe",
   stationColor: "resolved from the canonical station personality palette",
-  accentSurface: "guide point light and shader rim, no floating ring geometry",
+  accentSurface:
+    "guide point light and a view-dependent emissive fresnel rim on the upper silhouette, cool-white warmed 30% toward the docked station accent, no added light and no floating ring geometry",
 });
 
-const GUIDE_HEIGHT = 0.45;
+/**
+ * Resting height.
+ *
+ * This was a flat 0.45 clearance above the ground, chosen when the mascot was
+ * drawn at full size. The body is presented at 0.58-0.68 of that depending on
+ * viewport, and its lowest point is only 0.4 units below the root, so the
+ * constant left the animal hovering roughly 0.18 world units over the snow at
+ * desktop width. Nothing in the frame said so until it was given a contact
+ * shadow, at which point the shadow correctly landed on the ground and the gap
+ * became the obvious read: a seal and, separately, a dark patch below it.
+ *
+ * The height is now derived from the geometry's own bounding box and the same
+ * presentation scale the body is drawn at, so the belly meets the snow at every
+ * tier and every viewport instead of at whichever one the constant was tuned
+ * for. Deriving it also means it cannot drift when the manifold is retuned.
+ */
+const SEAL_SNOW_SINK = 0.04;
 const POSE_RESPONSE = 12;
 // Chase-feel body yaw: damped, frame-rate independent 1-exp(-dt*k) toward the
 // smoothed traversal velocity heading while swimming; holds at rest.
@@ -823,6 +880,19 @@ vec3 coolSage = vec3(0.60, 0.70, 0.80);
 vec3 warmIvory = vec3(0.95, 0.89, 0.78);
 vec3 blueGray = vec3(0.34, 0.44, 0.56);
 vec3 indigoInk = vec3(0.10, 0.13, 0.24);
+// Dorsal pigment. Dark enough to sit clearly under snow value, cool enough to
+// stay in the polar palette, and never neutral black.
+//
+// This was vec3(0.24, 0.29, 0.37). Counter-shading needs the back to be the
+// dark side of the animal; it does not need the animal to be the darkest thing
+// in the frame, and that is what it had become. From the docked camera the
+// dorsal is most of the visible body, so its pigment alone set the mascot's
+// measured value: 74.1 against 112.1 for the snow it stands on at medium tier,
+// which is a silhouette, not a character. Raised to a mid slate-blue that still
+// sits far below the pearl ventral (linear luma 0.41 against 0.87), so the body
+// keeps a real light side and dark side and keeps reading darker than snow —
+// just no longer as the darkest object mid-frame.
+vec3 slateBack = vec3(0.50, 0.57, 0.68);
 
 // Authored texture zones are functions of X and Z together, never Y-only bands.
 float zoneXZ = 0.5 + 0.5 * sin(
@@ -832,15 +902,42 @@ float zoneXZ = 0.5 + 0.5 * sin(
 );
 vec3 sealAlbedo = mix(pearlGray, coolSage, zoneXZ * 0.17);
 
-// Belly-to-back two-tone: cooler shaded back, warmer ivory underside.
-float backShade = smoothstep(-0.1, 0.75, vSealCanonical.y);
-sealAlbedo = mix(sealAlbedo, sealAlbedo * vec3(0.86, 0.91, 1.02), backShade * 0.4);
-sealAlbedo = mix(sealAlbedo, warmIvory, smoothstep(-0.25, -0.85, vSealCanonical.y) * 0.3);
+// Countershading. This used to be a 6% cooling of the back, which meant the
+// whole animal was one value: at render size it read as a pale lozenge with no
+// light side and no dark side, and it had no silhouette against pale snow
+// whatever the lighting did.
+//
+// Real pinnipeds are counter-shaded — a dark slate dorsal over a pale ventral —
+// and that is the fix here, not a global darkening. A global darkening is what
+// put the seal on the ramp's black band in an earlier pass. Splitting the body
+// into a dark top and a pale bottom gives it its own internal value range, so
+// it separates from a bright snowfield AND from the dark dome masonry it docks
+// against, without depending on which of the two is behind it.
+float backShade = smoothstep(-0.38, 0.60, vSealCanonical.y);
+sealAlbedo = mix(sealAlbedo, slateBack, backShade * 0.84);
+sealAlbedo = mix(sealAlbedo, warmIvory, smoothstep(-0.25, -0.85, vSealCanonical.y) * 0.45);
+// Dorsal mottling. Counter-shading alone gives the animal a light side and a
+// dark side but leaves the back a smooth grey dome: form without surface, which
+// at render size is still closer to a primitive than to a creature. This is the
+// same authored XZ zone field the body already uses, run at a higher frequency
+// and confined to the dark dorsal, so the back carries pelt variation without
+// introducing a second procedural source or any texture fetch.
+float dorsalMottle = 0.5 + 0.5 * sin(
+  vSealObjectPosition.x * 9.3 +
+  vSealObjectPosition.z * 7.1 +
+  sin(vSealObjectPosition.z * 13.7 + vSealObjectPosition.x * 4.2) * 0.8
+);
+sealAlbedo = mix(sealAlbedo, sealAlbedo * 1.24, backShade * dorsalMottle * 0.4);
 
 float chest = sealBlob(vSealCanonical, vec3(0.30, -0.83, 0.0), vec3(0.66, 0.39, 0.72));
-float muzzleNear = sealBlob(vSealCanonical, vec3(0.965, 0.015, 0.15), vec3(0.15, 0.25, 0.18));
-float muzzleFar = sealBlob(vSealCanonical, vec3(0.965, 0.015, -0.15), vec3(0.15, 0.25, 0.18));
-sealAlbedo = mix(sealAlbedo, warmIvory, clamp(chest * 0.78 + max(muzzleNear, muzzleFar), 0.0, 1.0));
+// Whisker pads. Tightened from 0.15/0.25/0.18: at render size the old radii
+// painted two pale speckled discs the width of the face, which is most of what
+// made the mascot read as a lozenge with dots rather than as a muzzle.
+float muzzleNear = sealBlob(vSealCanonical, vec3(0.965, 0.005, 0.125), vec3(0.12, 0.185, 0.14));
+float muzzleFar = sealBlob(vSealCanonical, vec3(0.965, 0.005, -0.125), vec3(0.12, 0.185, 0.14));
+// The muzzle takes ivory at partial weight, not full. At full weight it painted
+// two hard pale discs on the face that read as applied stickers at render size.
+sealAlbedo = mix(sealAlbedo, warmIvory, clamp(chest * 0.78 + max(muzzleNear, muzzleFar) * 0.5, 0.0, 1.0));
 
 float spotA = sealBlob(vSealCanonical, vec3(-0.34, 0.47, 0.79), vec3(0.43, 0.34, 0.30));
 float spotB = sealBlob(vSealCanonical, vec3(0.08, 0.69, -0.69), vec3(0.36, 0.28, 0.34));
@@ -869,12 +966,12 @@ sealAlbedo = mix(sealAlbedo, indigoInk, clamp(max(eyeNear, eyeFar) + nose, 0.0, 
 float nostrilNear = sealBlob(vSealCanonical, vec3(0.998, 0.06, 0.045), vec3(0.028, 0.045, 0.035));
 float nostrilFar = sealBlob(vSealCanonical, vec3(0.998, 0.06, -0.045), vec3(0.028, 0.045, 0.035));
 sealAlbedo = mix(sealAlbedo, vec3(0.02, 0.03, 0.06), clamp(nostrilNear + nostrilFar, 0.0, 1.0));
-float whiskerDots = step(0.72, sin(vSealCanonical.y * 52.0) * sin(vSealCanonical.z * 46.0));
-sealAlbedo = mix(
-  sealAlbedo,
-  indigoInk,
-  whiskerDots * clamp(muzzleNear + muzzleFar, 0.0, 1.0) * 0.55
-);
+// Whisker pads read as soft shaded pads, not as a dot matrix. This was a
+// step() speckle, which drew a ring of hard high-contrast dots around the nose;
+// at the size the mascot is actually rendered those dots were the single most
+// cartoon thing on the animal, and half of "a lozenge with dots".
+float whiskerPad = clamp(muzzleNear + muzzleFar, 0.0, 1.0);
+sealAlbedo = mix(sealAlbedo, sealAlbedo * vec3(0.84, 0.86, 0.93), whiskerPad * 0.55);
 float catchNear = sealBlob(vSealCanonical, vec3(0.93, 0.30, 0.155), vec3(0.032, 0.036, 0.03));
 float catchFar = sealBlob(vSealCanonical, vec3(0.93, 0.30, -0.155), vec3(0.032, 0.036, 0.03));
 sealAlbedo = mix(sealAlbedo, vec3(0.96, 0.98, 1.0), clamp(catchNear + catchFar, 0.0, 1.0) * 0.9);
@@ -907,6 +1004,39 @@ diffuseColor.rgb = sealAlbedo;`,
   if (uCostumeA > 0.5) sealAuraFrom = max(sealAuraFrom, sealRimFloor);
   if (uCostumeB > 0.5) sealAuraTo = max(sealAuraTo, sealRimFloor);
   vec3 sealAura = mix(sealAuraFrom, sealAuraTo, clamp(uCostumeBlend, 0.0, 1.0));
+  // Station-identity rim. The rim floor above only fires on a dressed costume,
+  // so at the observatory — costume 0, and the first thing any visitor sees —
+  // the mascot met its background with no edge at all. A bright polar sky
+  // throws a cool bounce along the top of any body under it; that bounce is
+  // what draws the outline, and it is what separates the dark dorsal from the
+  // dark dome masonry behind it at the home dock.
+  //
+  // It is weighted to the UPPER silhouette, because that is where a sky bounce
+  // lands and because the underside already has the contact shadow doing the
+  // opposite job. And it is warmed 30% toward the docked station's own accent
+  // — the same uAccent the state guide band reads, resolved from the canonical
+  // station palette — so the character carries the identity of where it is
+  // standing without a second light. A light is what this cannot be: the point
+  // light count is a shader define, so a mascot-parented rim lamp would
+  // recompile every material in the world.
+  // The rim runs on a sharper fresnel than the costume aura above it. At the
+  // aura's 2.3 the term covers most of a body this round, and the first tuning
+  // pass measured the seal at 3.9 luma under its own local snow: not a rimmed
+  // character but a mint-cyan toy with no dark side left. At 4.4 the same
+  // energy sits in the last few degrees of grazing angle, which is where a
+  // silhouette lives.
+  //
+  // Peak radiance is capped under the post pass's bloom knee, and that ceiling
+  // is the reason this is tuned by measurement rather than by eye. The retro
+  // grade thresholds its glow at 0.755 with a soft knee to 0.80, so the rim is
+  // not a linear knob: a third pass raised the peak to ~1.0, crossed the knee,
+  // and the eight-tap glow smeared the edge back across the whole animal —
+  // measured -2.7, the seal reading BRIGHTER than the snow it stands on. Tint
+  // peak here is 0.63 in green, which stays a rim instead of becoming a lamp.
+  float sealRimFresnel = pow(1.0 - clamp(dot(normal, sealViewDir), 0.0, 1.0), 4.4);
+  float sealUpperRim = smoothstep(-0.3, 0.5, vSealCanonical.y);
+  vec3 sealRimTint = mix(vec3(0.66, 0.75, 0.90), uAccent, 0.3);
+  totalEmissiveRadiance += sealRimTint * sealRimFresnel * (0.30 + sealUpperRim * 0.60);
   totalEmissiveRadiance += sealAura * sealFresnel * (1.0 + uCostumeFlash * 2.6);
   totalEmissiveRadiance += sealAura * uCostumeFlash * 0.22;
 }`,
@@ -917,7 +1047,7 @@ diffuseColor.rgb = sealAlbedo;`,
       );
     material.userData.shader = shader;
   };
-  material.customProgramCacheKey = () => "topological-seal-anime-xz-glumph-costume-v6";
+  material.customProgramCacheKey = () => "topological-seal-anime-xz-glumph-costume-v8-station-rim";
 
   // Instanced hairstyle material: shares the ramp and runtime uniforms so
   // strand sway, growth, and per-style curl stay phase-locked with the body.
@@ -993,7 +1123,63 @@ diffuseColor.rgb = mix(furBase * 0.8, furTipTarget, furTipCurve);`,
   };
   furMaterial.customProgramCacheKey = () => "topological-seal-anime-hairstyle-v3";
 
-  return { furMaterial, gradientMap, material, runtime };
+  // Ground contact shadow. See SEAL_CONTACT_SHADOW_PROFILE for why this is a
+  // multiply against the terrain rather than a painted oval.
+  const contactUniforms = {
+    uContactClearance: { value: CONTACT_SHADOW_CLEARANCE },
+    uContactStrength: { value: 1 },
+    uContactTint: { value: new THREE.Color(CONTACT_SHADOW_TINT) },
+  };
+  const contactMaterial = new THREE.ShaderMaterial({
+    // Explicit factors rather than THREE.MultiplyBlending: the named constant
+    // did not take through this scene's render pipeline and the quad drew as
+    // opaque white, which is how a contact shadow turns into a spotlight.
+    // dst * src is stated here directly so it cannot be reinterpreted.
+    blendDst: THREE.SrcColorFactor,
+    blendSrc: THREE.ZeroFactor,
+    blending: THREE.CustomBlending,
+    depthWrite: false,
+    name: "TopologicalSealContactShadow multiply-on-terrain",
+    transparent: true,
+    uniforms: contactUniforms,
+    // Draped, not flat. A flat quad at the mascot's sampled ground height hangs
+    // in the air the moment the terrain falls away from under it — at the
+    // observatory the near half sailed off the shelf edge and read as a dark
+    // hole hovering in front of the seal. Each vertex takes its height from the
+    // same ground field the terrain is displaced by, so the patch lies on the
+    // snow over a dune, a drift, or a shelf lip alike.
+    vertexShader: `
+${POLAR_GROUND_GLSL}
+uniform float uContactClearance;
+varying vec2 vContactUv;
+void main() {
+  vContactUv = uv;
+  vec4 contactWorld = modelMatrix * vec4(position, 1.0);
+  contactWorld.y = polarGroundHeight(contactWorld.xz) + uContactClearance;
+  gl_Position = projectionMatrix * viewMatrix * contactWorld;
+}`,
+    fragmentShader: `
+uniform float uContactStrength;
+uniform vec3 uContactTint;
+varying vec2 vContactUv;
+void main() {
+  vec2 offset = vContactUv * 2.0 - 1.0;
+  float radius = length(offset);
+  // Core: where the belly actually meets the snow, nearly full occlusion.
+  float core = 1.0 - smoothstep(0.0, 0.46, radius);
+  // Skirt: the ambient half, fading over roughly the body's own width. Two
+  // terms are what stop this reading as an airbrushed ellipse.
+  float skirt = 1.0 - smoothstep(0.12, 1.0, radius);
+  // Capped well below full occlusion. A small animal on bright snow does not
+  // punch a hole in the ground; at 1.0 the first tuning pass read as a pit.
+  float occlusion = clamp(core * 0.50 + skirt * 0.34, 0.0, 1.0) * uContactStrength;
+  if (occlusion < 0.004) discard;
+  gl_FragColor = vec4(mix(vec3(1.0), uContactTint, occlusion), 1.0);
+}`,
+  });
+  contactMaterial.customProgramCacheKey = () => "topological-seal-contact-shadow-v1";
+
+  return { contactMaterial, contactUniforms, furMaterial, gradientMap, material, runtime };
 }
 
 const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
@@ -1017,6 +1203,7 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
   const eyes = useRef(null);
   const eyeHighlights = useRef(null);
   const guideLight = useRef(null);
+  const contactShadow = useRef(null);
   const furCoat = useRef(null);
   const hairBakedCostume = useRef(-1);
   const dockFlick = useRef({ lastDocked: null, start: -1 });
@@ -1055,6 +1242,23 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
   const size = useThree((state) => state.size);
   const presentationScale = resolveSealPresentationScale(size);
   const geometry = useMemo(() => createSealManifoldGeometry({ quality }), [quality]);
+  // Belly-to-root distance at the size the body is actually drawn, less a small
+  // settle into the snow. A body that stops exactly at the surface leaves a
+  // visible seam; the overlap is what reads as weight.
+  const restHeight = useMemo(() => {
+    geometry.computeBoundingBox();
+    return -geometry.boundingBox.min.y * presentationScale - SEAL_SNOW_SINK;
+  }, [geometry, presentationScale]);
+  // Contact patch sized from the same bounding box, so it tracks the body it
+  // belongs to at every tier and viewport instead of being tuned to one of them.
+  const contactFootprint = useMemo(() => {
+    geometry.computeBoundingBox();
+    const bounds = geometry.boundingBox;
+    return [
+      (bounds.max.x - bounds.min.x) * CONTACT_SHADOW_AXIAL_SPAN * presentationScale,
+      (bounds.max.z - bounds.min.z) * CONTACT_SHADOW_LATERAL_SPAN * presentationScale,
+    ];
+  }, [geometry, presentationScale]);
   const furPlacements = useMemo(
     () => createSealFurPlacements(geometry, quality),
     [geometry, quality],
@@ -1145,6 +1349,7 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
     () => () => {
       resources.material.dispose();
       resources.furMaterial.dispose();
+      resources.contactMaterial.dispose();
       resources.gradientMap.dispose();
     },
     [resources],
@@ -1286,11 +1491,12 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
     }
     const resolvedAxisX = traversalPose?.x ?? axisX;
     const resolvedDepthZ = traversalPose?.z ?? depthZ;
-    // The seal rides the surface, not a fixed plane. GUIDE_HEIGHT is its
-    // clearance above whatever ground is under it.
+    // The seal rides the surface, not a fixed plane. restHeight is the belly's
+    // own offset from the root, so this rests the body on whatever ground is
+    // under it rather than holding it at a fixed clearance above it.
     targetPosition.set(
       resolvedAxisX,
-      GUIDE_HEIGHT + polarGroundHeight(resolvedAxisX, resolvedDepthZ),
+      restHeight + polarGroundHeight(resolvedAxisX, resolvedDepthZ),
       resolvedDepthZ,
     );
     root.current.position.copy(targetPosition);
@@ -1308,6 +1514,25 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
         MOVEMENT_LIFT_MAX * speedRatio,
         MOVEMENT_LIFT_OMEGA,
         frameStep,
+      );
+    }
+
+    // Ground contact: the occlusion weakens and spreads as the body lifts off
+    // the snow at speed. That pairing — dimmer and wider — is the cue that says
+    // two surfaces are separating; holding it fixed would read as a decal
+    // stuck to the mascot's feet.
+    const liftRatio = THREE.MathUtils.clamp(
+      movementLift.current.position / MOVEMENT_LIFT_MAX,
+      0,
+      1,
+    );
+    resources.contactUniforms.uContactStrength.value = 0.94 - liftRatio * 0.4;
+    if (contactShadow.current) {
+      const spread = 1 + liftRatio * 0.18;
+      contactShadow.current.scale.set(
+        contactFootprint[0] * spread,
+        contactFootprint[1] * spread,
+        1,
       );
     }
 
@@ -1427,7 +1652,7 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
     <group
       ref={root}
       name={`TopologicalSealMascot ${SEAL_MANIFOLD_FORMULA}`}
-      position={[axisX, GUIDE_HEIGHT, depthZ]}
+      position={[axisX, restHeight, depthZ]}
       renderOrder={9}
       userData={{
         className: "seal-avatar topological-seal",
@@ -1437,6 +1662,24 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
         topology: SEAL_MANIFOLD_INVARIANT,
       }}
     >
+      {/* Ground contact. Sits on the root, not on the pose group: the body
+          breathes, tilts and lifts, and the patch of snow it occludes does
+          not. Drawn before the mascot so the multiply lands on the terrain. */}
+      <mesh
+        frustumCulled={false}
+        material={resources.contactMaterial}
+        name="seal-contact-shadow topological-seal-ground-contact"
+        position={[0.06, 0, 0]}
+        ref={contactShadow}
+        renderOrder={8}
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[contactFootprint[0], contactFootprint[1], 1]}
+      >
+        {/* Segmented so the drape can follow the ground field. 12x12 is 288
+            triangles, far below the cost of the fill it covers, and enough to
+            bend over a dune crest without faceting. */}
+        <planeGeometry args={[1, 1, 12, 12]} />
+      </mesh>
       <group ref={poseRef} scale={presentationScale}>
         <mesh
           castShadow
@@ -1480,11 +1723,20 @@ const TopologicalSealMascot = forwardRef(function TopologicalSealMascot(
           <meshBasicMaterial color="#F9FFFF" toneMapped={false} />
         </instancedMesh>
       </group>
+      {/* Guide lamp, moved out of the animal. At y=0.42 it sat inside the head
+          and blew the crown out to a saturated cap; dropped to the belly it
+          simply flooded the whole body with station accent instead, and a body
+          lit uniformly from within has no light side, no dark side, and so no
+          form at any size. Decay is quadratic, so a source a few centimetres
+          under the skin is enormously brighter than its nominal intensity
+          suggests — the only fix is to get it outside the surface. Ahead of the
+          snout and near the snow, it reads as a carried lamp: it rims the face,
+          pools on the ground at the contact, and leaves the dorsal dark. */}
       <pointLight
         color={guideState === "error" ? "#F2B96B" : guideAccent}
         distance={3.4}
         intensity={moving ? 0.72 : 0.36}
-        position={[0.2, 0.42, 0]}
+        position={[1.12, -0.3, 0]}
         ref={guideLight}
       />
     </group>

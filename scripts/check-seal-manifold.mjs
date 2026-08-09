@@ -310,7 +310,110 @@ assert.equal(
 assert.equal(
   (component.match(/<pointLight\b/g) || []).length,
   1,
-  "mascot polish must preserve the existing light without adding another",
+  "mascot polish must preserve the existing light without adding another: the point-light count is a shader define, so a mascot-parented rim lamp recompiles every material in the world. Character legibility is bought with the shader rim below instead",
+);
+
+// Grounding and legibility. The mascot failed the object gate on three counts
+// at once — it floated, it had no silhouette, and it had no contact — and each
+// fix is cheap to undo by accident, so each is pinned here.
+assert.equal(
+  (component.match(/name="seal-contact-shadow topological-seal-ground-contact"/g) || []).length,
+  1,
+  "the mascot must keep exactly one ground contact shadow draw",
+);
+assert.match(
+  component,
+  /blendDst: THREE\.SrcColorFactor[\s\S]*blendSrc: THREE\.ZeroFactor[\s\S]*blending: THREE\.CustomBlending/,
+  "the contact shadow must multiply the terrain, so the snow reads through it: a painted opaque ellipse is the failure mode the object gate names",
+);
+assert.doesNotMatch(
+  component,
+  /uContactTint: \{ value: new THREE\.Color\("#0{3,6}"\) \}/i,
+  "the contact shadow tint must stay cool snow-shade, never black",
+);
+assert.match(
+  component,
+  /contactWorld\.y = polarGroundHeight\(contactWorld\.xz\)/,
+  "the contact shadow must drape on the shared ground field, not hang on a flat plane",
+);
+assert.match(
+  component,
+  /-geometry\.boundingBox\.min\.y \* presentationScale - SEAL_SNOW_SINK/,
+  "the resting height must derive from the body's own bounds at its presented scale: a fixed clearance floats the seal at every scale it was not tuned for",
+);
+assert.doesNotMatch(
+  component,
+  /const GUIDE_HEIGHT/,
+  "the fixed guide clearance must stay retired in favour of the derived resting height",
+);
+assert.match(
+  component,
+  /CONTACT_SHADOW_AXIAL_SPAN[\s\S]*CONTACT_SHADOW_LATERAL_SPAN/,
+  "the contact footprint must be a multiplier on the measured body, not an absolute size that can end up smaller than the body it belongs to",
+);
+assert.match(
+  component,
+  /vec3 slateBack = vec3\(/,
+  "counter-shading needs a real dorsal pigment: without it the body is one value and has no form at render size",
+);
+
+// Character legibility, pinned by value rather than by string.
+//
+// The mascot measured as the darkest object mid-frame at the observatory dock:
+// 74.1 body against 112.1 local snow at medium tier, 1440x900. Two things moved
+// it and each is one careless edit from being undone, so each is asserted on the
+// numbers it depends on rather than on the presence of a line.
+function readShaderVec3(name) {
+  const match = new RegExp(`vec3 ${name} = vec3\\(([^)]*)\\)`).exec(component);
+  assert.ok(match, `the seal body shader must keep its ${name} pigment`);
+  const channels = match[1].split(",").map((channel) => Number(channel.trim()));
+  assert.equal(channels.length, 3, `${name} must stay a three-channel colour`);
+  for (const channel of channels) assert.ok(Number.isFinite(channel), `${name} needs real channels`);
+  return channels;
+}
+const linearLuma = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+const dorsalLuma = linearLuma(readShaderVec3("slateBack"));
+const ventralLuma = linearLuma(readShaderVec3("pearlGray"));
+assert.ok(
+  dorsalLuma >= 0.35,
+  `the dorsal must stay a mid slate (luma ${dorsalLuma.toFixed(3)} >= 0.35): from the docked camera the back is most of the visible body, and at 0.283 it made the character the darkest object in frame`,
+);
+assert.ok(
+  ventralLuma - dorsalLuma >= 0.25,
+  `counter-shading must survive the value lift (ventral ${ventralLuma.toFixed(3)} - dorsal ${dorsalLuma.toFixed(3)} >= 0.25): a body lifted until it is one value has no light side and no form at render size`,
+);
+assert.match(
+  component,
+  /vec3 sealRimTint = mix\(vec3\([^)]*\), uAccent, 0\.3\)/,
+  "the silhouette rim must be cool-white warmed toward the docked station's own accent, so identity travels with the character; a fixed rim colour says nothing about where the seal is standing",
+);
+assert.match(
+  component,
+  /float sealUpperRim = smoothstep\([^)]*vSealCanonical\.y\)/,
+  "the station rim must be weighted to the upper silhouette, where a polar sky bounce actually lands; the underside is the contact shadow's job",
+);
+assert.match(
+  component,
+  /totalEmissiveRadiance \+= sealRimTint \* sealRimFresnel \* \([^)]*sealUpperRim[^)]*\)/,
+  "the rim must stay a view-dependent fresnel term in the seal's own material: tint times fresnel times upper weight, never an added light",
+);
+const rimFresnelExponent = Number(
+  /float sealRimFresnel = pow\(1\.0 - clamp\(dot\(normal, sealViewDir\), 0\.0, 1\.0\), ([\d.]+)\)/
+    .exec(component)?.[1],
+);
+assert.ok(
+  rimFresnelExponent >= 4,
+  `the rim fresnel must stay sharper than the costume aura's 2.3 (exponent ${rimFresnelExponent} >= 4): at 2.3 the term covers most of a body this round and the mascot measured 3.9 luma under its own local snow, a mint toy with no dark side`,
+);
+for (const [pattern, read] of [
+  [/whiskerPad/, "the muzzle must shade as a whisker pad, not a step() dot matrix"],
+  [/dorsalMottle/, "the counter-shaded back needs pelt variation or it reads as a smooth grey dome"],
+]) {
+  assert.match(component, pattern, read);
+}
+assert.ok(
+  component.includes("SEAL_CONTACT_SHADOW_PROFILE"),
+  "the contact shadow's design contract must remain explicit and reviewable",
 );
 assert.ok(
   component.includes("SEAL_MASCOT_ACCESSORY_DRAW_BUDGET"),
@@ -333,5 +436,5 @@ for (const token of [
 }
 
 console.log(
-  "seal manifold contract: 3 quality tiers, closed beta=(1,0,1), one primary draw, deterministic crown-only station hairstyles (observatory bald) carrying station identity with no crown halo, topological scene primary",
+  "seal manifold contract: 3 quality tiers, closed beta=(1,0,1), one primary draw, deterministic crown-only station hairstyles (observatory bald) carrying station identity with no crown halo, topological scene primary, counter-shaded body resting on a derived height over one draped multiply contact shadow",
 );

@@ -51,9 +51,16 @@ await assertServedBuildIsCurrent().catch((error) => {
   process.exit(1);
 });
 
+// Headless by default. The forced visible window made this gate unrunnable in any
+// headless-restricted session, which is exactly how its reference went stale: the
+// one check on seven of eight buildings simply stopped being run. Whether headless
+// GPU compositing shifts the grid cells inside the 16-luma tolerance has NOT been
+// A/B-measured here (doing so needs a headed run this session cannot make); what
+// matters is that reference and check are captured the SAME way, so regenerate the
+// reference headless if checking headless. PROBE_HEADED=1 restores the old path.
 const browser = await chromium.launch({
   channel: "chrome",
-  headless: false,
+  headless: process.env.PROBE_HEADED !== "1",
   args: ["--enable-gpu", "--window-position=0,0"],
 });
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
