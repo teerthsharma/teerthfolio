@@ -63,8 +63,8 @@ export default function Home() {
             <h2>{place.name}</h2>
             <p>{place.hook}</p>
             <ul>
-              {place.proof.map((p) => (
-                <li key={p.label}>{p.value} {p.label}</li>
+              {place.proof.map((p, i) => (
+                <li key={i}>{p.value} {p.label}</li>
               ))}
             </ul>
             <p>{place.body}</p>

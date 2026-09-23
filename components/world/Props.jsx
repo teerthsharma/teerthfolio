@@ -21,7 +21,7 @@ const SEED = 20260923;
 const NEAR = { x: SPAWN.x, z: SPAWN.z + 7 };
 // The harbour by the lighthouse dock, computed at runtime so it tracks
 // wherever another workflow moves that place.
-const UPSTREAM = PLACE_BY_ID.upstream;
+const UPSTREAM = PLACE_BY_ID["pr-mujoco-3396"];
 const HARBOUR = UPSTREAM ? { x: dockPoint(UPSTREAM).x - 5, z: dockPoint(UPSTREAM).z + 3 } : NEAR;
 
 // ---- geometry, built once -------------------------------------------------

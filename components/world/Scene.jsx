@@ -19,11 +19,13 @@ import { live, setUi } from "../../lib/world/store";
 import { BUILDINGS } from "./buildings";
 import Atmosphere from "./Atmosphere";
 import CameraRig from "./CameraRig";
+import Districts from "./Districts";
 import Controller from "./Controller";
 import Effects from "./Effects";
 import Harbour from "./Harbour";
 import Island from "./Island";
 import Look from "./Look";
+import Monument from "./monuments/Monument";
 import Penguins from "./Penguins";
 import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
@@ -58,8 +60,7 @@ function goTo(place) {
 
 function Buildings() {
   return PLACES.map((place) => {
-    const Building = BUILDINGS[place.id];
-    if (!Building) return null;
+    const Building = BUILDINGS[place.id] ?? Monument;
     return (
       <group key={place.id} position={[place.x, 0, place.z]} onClick={goTo(place)}>
         <Contain name={place.id}>
@@ -101,6 +102,7 @@ export default function Scene() {
         <Island />
         <Sea />
         <Harbour />
+        <Districts />
         <Buildings />
         <Props />
         <Seal />

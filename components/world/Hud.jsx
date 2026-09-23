@@ -212,7 +212,7 @@ function Panel({ open, titleRef }) {
           </h2>
           <dl className="proof">
             {place.proof.map((p, i) => (
-              <div className="proof-row" key={p.label} style={{ "--i": i }}>
+              <div className="proof-row" key={i} style={{ "--i": i }}>
                 <dt>{p.label}</dt>
                 <dd>{p.value}</dd>
               </div>

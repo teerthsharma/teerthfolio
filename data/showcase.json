@@ -1,0 +1,873 @@
+{
+  "source": "https://teerthsharma.github.io/ (index.html, work.html)",
+  "intro": {
+    "heading": "Hi, I'm Teerth.",
+    "lead": "A twenty year old tech lover who likes turning maths and ideas into solid code. Some of those ideas now live inside the codebases of companies like these.",
+    "upstreamHeading": "What I fixed, and where.",
+    "upstreamLead": "Eleven landed contributions. Every number below was measured on a named machine against a control, and every one of them sits in a merged diff or on the default branch it targets."
+  },
+  "upstream": [
+    {
+      "id": "pr-mujoco-3396",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "google-deepmind",
+      "repo": "google-deepmind/mujoco",
+      "pr": 3396,
+      "logo": "google-deepmind.png",
+      "title": "Quadratic scratch in island discovery",
+      "body": "Island discovery was allocating scratch that grew with the square of the tree count. I rebuilt it to compute the same partition from a disjoint-set forest, so the allocation grows linearly instead.",
+      "result": "84,033,568 bytes to 65,568 at ntree 4,096. 1,281.6x less.",
+      "tags": [
+        "C and C++",
+        "memory O(n^2) to O(n)"
+      ],
+      "checks": [
+        "1,851 of 1,851 CTest entries passed",
+        "300 of 300 shuffled island executions",
+        "59 of 59 parity checks over 10,000 generated hypergraphs",
+        "maximum relative error 0"
+      ],
+      "url": "https://github.com/google-deepmind/mujoco/pull/3396",
+      "figure": {
+        "name": "units",
+        "viewBox": "620 330",
+        "title": "One cube that stays alone, a block of its copies that the slider grows",
+        "desc": "A single blue cube is the entire scratch allocation the disjoint-set path needs at the chosen tree count. Beside it stands a coral block built from cubes of exactly the same size, one for every allocation of that size the old path would have needed to cover what it actually asked for, and the slider sets how many. Copies pour out of the blue cube, blue as they leave, and set into the block, turning coral as they join it, so every cube in the block is visibly the same size as the one the new path needs. At four thousand and ninety six trees the block holds one thousand two hundred and eighty two cubes against the blue path's one, 84,033,568 bytes against 65,568. The old path's scratch grew with the square of the tree count; the disjoint-set forest grows linearly.",
+        "labels": [
+          "new path, whole allocation",
+          "65,568 B",
+          "old path",
+          "1,282",
+          "copies of it, what the old path asked for",
+          "84,033,568 B",
+          "quadratic before, linear now"
+        ],
+        "caption": null
+      },
+      "headline": "1,281.6x less scratch",
+      "rank": 0
+    },
+    {
+      "id": "pr-mujoco-warp-1541",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "google-deepmind",
+      "repo": "google-deepmind/mujoco_warp",
+      "pr": 1541,
+      "logo": "google-deepmind.png",
+      "title": "A linear-memory GPU disjoint-set union",
+      "body": "I found that the GPU island-discovery kernel carried the same quadratic memory shape onto the device. I replaced it with a linear-memory disjoint-set union.",
+      "result": "156.738 us to 101.097 us. Scratch 7,929,856 bytes to 180,224.",
+      "tags": [
+        "Python",
+        "memory O(n^2) to O(n)"
+      ],
+      "checks": [
+        "99% interval 1.406x to 1.584x",
+        "faster in 91 of 93 valid pairs, median dense/DSU ratio 2.40",
+        "exact match against the dense kernels in every block"
+      ],
+      "url": "https://github.com/google-deepmind/mujoco_warp/pull/1541",
+      "figure": {
+        "name": "funnel",
+        "viewBox": "470 540",
+        "title": "A pair matrix condensing into a disjoint-set forest",
+        "desc": "An illustration of the mechanism, not of the benchmark scene. A floor of 484 coral cells, one for every pair of 22 trees, builds up, and then every row slides into its diagonal cell, so the matrix condenses into 22 entries, one per tree. Those entries lift off as a forest, and the floor stays behind as a faint ghost of the scratch that is no longer allocated. Each step the forest runs a disjoint-set union. A contact appears as a bundle of threads between two trees, a bead walks from each end up its pointers to a root, and where the two roots differ one root's pointer swings over to the other, so two islands merge and take one colour. Height is depth in the union's tree. Then every pointer snaps straight to its root, and the floor lights every pair of trees that share an island: the answer the pair matrix used to hold, read from 22 entries. The old kernel carried the quadratic shape onto the device and the replacement is linear, so scratch falls from 7,929,856 bytes to 180,224 bytes and the median time from 156.738 microseconds to 101.097, which is 1.513 times faster with a 99 percent interval of 1.406 to 1.584.",
+        "labels": [
+          "22 entries, one per tree",
+          "every pointer ends at the root of its island",
+          "in place of 484 cells, one per pair of trees",
+          "1.513x faster",
+          "scratch 7,929,856 B to 180,224 B",
+          "median 156.738 us to 101.097 us"
+        ],
+        "caption": null
+      },
+      "headline": "1.513x faster",
+      "rank": 1
+    },
+    {
+      "id": "pr-mujoco-3450",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "google-deepmind",
+      "repo": "google-deepmind/mujoco",
+      "pr": 3450,
+      "logo": "google-deepmind.png",
+      "title": "An inverted point-id table for convex hulls",
+      "body": "Convex hull graph construction was scanning every pair of points to find a match. I built an inverted point-id table that finds it directly instead.",
+      "result": "16 lines added. 15,361x fewer probes at V=40,962. Cold load 134.400 ms to 71.163 ms.",
+      "tags": [
+        "C++",
+        "probes O(V^2) to O(V)"
+      ],
+      "checks": [
+        "probe counters compiled into the loop on main",
+        "graph checksums identical at every size"
+      ],
+      "url": "https://github.com/google-deepmind/mujoco/pull/3450",
+      "figure": {
+        "name": "hull",
+        "viewBox": "470 490",
+        "title": "A storm of probes against a single stroke, building the same convex hull",
+        "desc": "An illustration of the change, drawn on a small convex hull of a point cloud that turns slowly in three dimensions. Building the hull's graph means finding, for every corner of every face, which hull vertex it is. The old way scans the vertex list from the top for every corner until it finds a match: coral rays spray from a corner of the face to every entry tested, the first entries in the list glow hot because every scan starts there, and in its time only a few faces are finished. The new way writes an inverted point id table once, each vertex ringing as it is written, and then every corner is one mint stroke straight to its vertex, so the whole hull closes in the same time. Both builds are drawn at the same number of probes per second, and either way the graph is identical, as its checksums were at every size. Faces are coloured by the order they were built, mint first to violet last. The scan costs three V squared minus six V probes and the table eight V minus twelve. At ten thousand two hundred and forty two vertices the scan measured three hundred and fourteen million, six hundred and forty three thousand, three hundred and seventeen probes; at forty thousand nine hundred and sixty two vertices the table needs fifteen thousand three hundred and sixty one times fewer. A cold load falls from 134.400 milliseconds to 71.163 milliseconds.",
+        "labels": [
+          "before: scan every point to find a match",
+          "V = 10,242 -> 314,643,317 probes",
+          "after: one jump, straight to the vertex",
+          "15,361x fewer probes at V=40,962",
+          "Cold load 134.400 ms to 71.163 ms"
+        ],
+        "caption": null
+      },
+      "headline": "15,361x fewer probes",
+      "rank": 2
+    },
+    {
+      "id": "pr-highway-3244",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "google",
+      "repo": "google/highway",
+      "pr": 3244,
+      "logo": "google.png",
+      "title": "Pruned collisions by slice structure",
+      "body": "I noticed the collision and scan tests were comparing key pairs the slice structure had already ruled out. I pruned by structure so those pairs never reach the compare.",
+      "result": "894,081,141 comparisons to 13,643,737 at one million keys. 65.5x.",
+      "tags": [
+        "C++",
+        "pairwise scan pruned by structure, exact rejection"
+      ],
+      "checks": [
+        "atomic counters in the pairwise check, whole builds",
+        "6 paired interleaved runs",
+        "equal duplicate counts on both builds"
+      ],
+      "url": "https://github.com/google/highway/pull/3244",
+      "figure": {
+        "name": "prune",
+        "viewBox": "470 528",
+        "title": "Every pair of keys compared, then only the pairs whose slices overlap",
+        "desc": "An illustration of the mechanism, not a measured build. Along the bottom is a table of slots. Each key sits in its own translucent window, the slice of slots it can land in whatever seed is tried, and a bead marks the slot the current seed gives it. Every arc joins two keys and is taller the further apart their windows are, so the whole dome of arcs is every pair of keys. First the old check sweeps across the keys and compares each key with every key before it: fans of coral arcs fire until the entire dome is lit. Then the light drains from the top down and stops at the height where windows stop overlapping, leaving only the low mint arcs between keys whose slices overlap. The new check sweeps again and compares only those. Two keys on one slot can only happen where windows overlap, so the same amber duplicate pairs are found by both checks. 894,081,141 comparisons at 1,000,000 keys fall to 13,643,737, 65.5 times fewer, with equal duplicate counts on both builds. At 200,000 keys 480,728,084 falls to 18,265,157, 26.3 times fewer.",
+        "labels": [
+          "the build compared every pair of keys",
+          "even pairs the slice structure had ruled out",
+          "pruned by slice structure before the compare",
+          "65.5x fewer comparisons",
+          "894,081,141 to 13,643,737 at 1,000,000 keys",
+          "equal duplicate counts on both builds"
+        ],
+        "caption": null
+      },
+      "headline": "65.5x fewer comparisons",
+      "rank": 3
+    },
+    {
+      "id": "pr-xnnpack-10801",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "google",
+      "repo": "google/XNNPACK",
+      "pr": 10801,
+      "logo": "google.png",
+      "title": "Reusing the leading gap in the memory planner",
+      "body": "I found the memory planner never considered the free gap sitting before the first live block. I made it reuse that leading gap, which lowers peak workspace.",
+      "result": "MobileNet V1 peak 23.862980 to 22.331730 MiB. Workspace 144 MiB to 112 MiB.",
+      "tags": [
+        "C++ and C",
+        "allocation policy, no asymptotic change claimed"
+      ],
+      "checks": [
+        "memory-planner-test 23 of 23 passed",
+        "30 randomized baseline and candidate MobileNet pairs",
+        "identical output hashes through the public API"
+      ],
+      "url": "https://github.com/google/XNNPACK/pull/10801",
+      "figure": {
+        "name": "arena",
+        "viewBox": "470 520",
+        "title": "The value that fits in the leading gap, stacked on top and then set into it",
+        "desc": "An illustration of the planner's decision, drawn from a small generated memory plan rather than the MobileNet plan itself. Time runs left to right in operator steps and memory offset runs upward from the floor of the arena. Every value is a translucent slab spanning the steps it is live for, at the offset the planner gave it, and the arena has to be as tall as its highest slab for the whole run, so its lid is the peak. The wall of values builds itself first. Below the first live block there is a free cave. The old planner never looked there: its search starts at the first live block, sweeps upward, finds no gap, and stacks the amber value on top, so the lid rises from 112 to 144 across every step although the value is live for only a few of them. The fix looks from the floor, finds the cave, and the value is carried down and set into it, so the lid comes back down to 112 and the old peak is left as a faint coral mark. Every other value is placed identically both ways. Measured on MobileNet V1, FP32 peak workspace fell from 23.862980 to 22.331730 MiB, 6.42 percent lower, and FP16 from 21.255882 to 19.916039 MiB, 6.30 percent lower. Through the public API the workspace fell from 144 MiB to 112 MiB with identical output hashes. memory-planner-test passed 23 of 23, and 30 randomized paired runs reproduced the deltas exactly.",
+        "labels": [
+          "a free gap sat below the first live block",
+          "the old planner never looked there, so the arena grew",
+          "reused: workspace 144 MiB to 112 MiB",
+          "FP32 MobileNet V1 peak 6.42% lower, FP16 6.30% lower",
+          "memory-planner-test 23/23, 30 paired runs"
+        ],
+        "caption": null
+      },
+      "headline": "6.42% lower peak",
+      "rank": 4
+    },
+    {
+      "id": "pr-tensorflow-124410",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "tensorflow",
+      "repo": "tensorflow/tensorflow",
+      "pr": 124410,
+      "logo": "tensorflow.png",
+      "title": "A missing back-propagation in transitive reduction",
+      "body": "I traced a correctness bug: transitive reduction was documented as full reachability but never back-propagated, so a redundant control edge with a longer alternate path survived the prune. I fixed the back-propagation so the prune removes it.",
+      "result": "Four control edges emitted where the unique transitive reduction is three.",
+      "tags": [
+        "C++",
+        "correctness"
+      ],
+      "checks": [
+        "the defect reproduced from the existing VLOG output",
+        "the unique transitive reduction derived by hand and asserted"
+      ],
+      "url": "https://github.com/tensorflow/tensorflow/pull/124410",
+      "figure": {
+        "name": "closure",
+        "viewBox": "470 540",
+        "title": "Four collectives run in order, and the control edge the prune should have removed",
+        "desc": "An illustration of the change, not a measurement. Four CollectiveReduce ops on one device are drawn as rings, each an all-reduce across a ring of workers whose number is illustrative: the gradient chunks grow on the first lap and carry the sum on the second, until every worker holds the same value. The rings are stacked in the order they run, c4 first and c1 last, and the axis through them is the chain of control edges that serializes them. The edges are created in the order c4 to c3, c4 to c1, c3 to c2, c2 to c1, and the small rings round each op count what the pass believes that op reaches. Before the fix that belief was copied once, when each edge was created, and never back-propagated, so c3 never learns it reaches c1. The prune asks whether c4 reaches c1 some other way, the question stops at c2, and the bypass from c4 to c1 survives outside the tower: four control edges where the unique transitive reduction is three, and the extra edge over-serializes the collectives. After the fix reachability is closed first, climbing from c1, so c3 learns it reaches c1, the same question runs all the way down, and the prune removes the bypass. The collectives then run on three edges. The change is 362 lines added and 26 removed across 4 files.",
+        "labels": [
+          "four CollectiveReduce ops, run in order",
+          "each waits on the one above it, by a control edge",
+          "c4",
+          "c3",
+          "c2",
+          "c1",
+          "4 edges emitted where the reduction is 3",
+          "back-propagated, the prune removes 4 → 1",
+          "the extra edge over-serializes the collectives",
+          "+362/-26 across 4 files"
+        ],
+        "caption": null
+      },
+      "headline": "4 edges to 3",
+      "rank": 5
+    },
+    {
+      "id": "pr-nemo-relay-481",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "NVIDIA",
+      "repo": "NVIDIA/NeMo-Relay",
+      "pr": 481,
+      "logo": "NVIDIA.png",
+      "title": "One scaffold, not one profile per task",
+      "body": "I found the learning key included the first user message, so one unchanging system prompt and tool schema fragmented into a new profile per task and observations never accumulated. I keyed it on the stable scaffold instead, with a fingerprint gate that fails closed.",
+      "result": "One unchanging scaffold now keys to one profile instead of one per task. 23 files.",
+      "tags": [
+        "Rust",
+        "cache keying"
+      ],
+      "checks": [
+        "18 test files, 938 lines of tests added",
+        "the gate fails closed on legacy, missing, shorter and mismatched fingerprints"
+      ],
+      "url": "https://github.com/NVIDIA/NeMo-Relay/pull/481",
+      "figure": {
+        "name": "gather",
+        "viewBox": "470 520",
+        "title": "The same requests, keyed two ways",
+        "desc": "An illustration of the mechanism: the requests, their number and their timing are not measured. Requests stream down from the top. Each is a violet core for the scaffold, the same model, system prompt and tool schema in every one, with a coloured satellite for the first user message, a different colour for every task. At the fork every request is keyed both ways. On the left the old key includes the first user message, so each request takes its message's colour and flies to wherever its key hashes, into a new profile that holds exactly one observation: the one differing field splits the stream into a fan, and no profile ever grows. On the right the new key is the stable scaffold alone, so the message drops out of the key and every request lands in the same profile, a globe of nested shells that fills one dot per observation and rings each time a shell closes. The change is 1,370 lines added and 86 removed across 23 files, with 18 test files and 938 lines of tests, and a fingerprint gate that fails closed.",
+        "labels": [
+          "the first user message split the key",
+          "same model, same system prompt, same tools",
+          "a new profile per task",
+          "each holds one observation",
+          "one scaffold, one profile",
+          "observations accumulate",
+          "+1,370/-86 across 23 files",
+          "18 test files, 938 lines of tests added"
+        ],
+        "caption": null
+      },
+      "headline": "23 files",
+      "rank": 6
+    },
+    {
+      "id": "pr-triton-kernels-22",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "triton-lang",
+      "repo": "triton-lang/kernels",
+      "pr": 22,
+      "logo": "openai.png",
+      "title": "A topology-derived sparse attention kernel",
+      "body": "I built a forward-only Triton kernel that schedules causal attention blocks by a topology-derived salience score, instead of scanning every block in the lower triangle.",
+      "result": "A topology derived sparse attention kernel. 804 lines added, 17 tests passing.",
+      "tags": [
+        "Python, Triton",
+        "new kernel"
+      ],
+      "checks": [
+        "17 tests passed",
+        "correctness checked for 2D and for batched and headed inputs",
+        "benchmark runner checked in so the table reproduces"
+      ],
+      "url": "https://github.com/triton-lang/kernels/pull/22",
+      "figure": {
+        "name": "schedule",
+        "viewBox": "480 536",
+        "title": "Programs walk only the scheduled blocks of a causal attention matrix",
+        "desc": "An illustration of the mechanism: the attention values and the key-block centroids are drawn for the picture, while the schedule and the order of the walk follow the kernel. A causal attention matrix of 16 by 16 blocks lies as a floor in perspective. Only the lower triangle is present, because the upper pairs cannot exist under causal order, and every query is a ridgeline whose height over a key is how strongly it attends there. The schedule gives each query block a short sorted list: the sink column, the local window along the diagonal, and salience picks. In the upper right sit the key-block centroids. Discs grow round them until groups touch and merge, a 0D-persistence-style salience score over key-block centroids, and the two that stay apart longest are picked and become two whole columns of the schedule. Then one program per query block starts at once. Each walks its own list, and the ridges over a block rise only when a program computes it. Between blocks a program jumps straight over the ones it skips, which stay flat and grey. A program glows larger as it accumulates, then writes its output and leaves a coral bead at the end of its row, until the outputs form a chain along the diagonal. 17 tests passed, 5 files changed, 804 lines added.",
+        "labels": [
+          "the kernel visits only the scheduled blocks",
+          "sink column, local window, salience picks",
+          "salience picked by a topology-derived score",
+          "804 lines added",
+          "17 tests passed, 5 files changed"
+        ],
+        "caption": null
+      },
+      "headline": "804 lines added",
+      "rank": 7
+    },
+    {
+      "id": "pr-openxla-46539",
+      "section": "upstream",
+      "verb": "landed in",
+      "org": "openxla",
+      "repo": "openxla/xla",
+      "pr": 46539,
+      "logo": "openxla.png",
+      "title": "Deterministic GPU codegen in reduction grouping",
+      "body": "GroupDisjointReductions iterated a hash set to choose which value survived each union-find merge, so the order of grouped_roots depended on hash iteration order and the same XLA program could emit different GPU code between runs. I made the order deterministic in five lines.",
+      "result": "Five lines. Same program, two outputs before, one stable output after. XLA compiles for JAX and TensorFlow.",
+      "tags": [
+        "C++",
+        "determinism"
+      ],
+      "checks": [
+        "five lines across two files",
+        "the same program now emits the same GPU code on every run"
+      ],
+      "url": "https://github.com/openxla/xla/pull/46539",
+      "figure": {
+        "name": "settle",
+        "viewBox": "500 432",
+        "title": "Ten runs of the same program split between two outputs before, and stack into one after",
+        "desc": "An illustration of the mechanism, not a measurement. The same XLA program is drawn twice, before the change on the left and after it on the right. Its reduction roots lie on a floor in groups, shown as soft regions, and that grouping is identical in both panels and in every run. What varied was the order of the groups: GroupDisjointReductions iterated a hash set to choose which value survived each union-find merge, so the order of grouped_roots depended on hash iteration order. Each run lays a thread through the roots in the order its groups came out and ends at the GPU code that order emits, and each run is laid one level above the last, so ten runs build a stack. Blue is code X and coral is code Y. On the left the ten runs split between two orders, so the stack is two tangled routes and each output column collects only some of the runs. On the right the order is fixed, every run follows the one below it, the threads join into one continuous folded curtain, and code X collects all ten runs. Five lines across two files made the order deterministic.",
+        "labels": [
+          "ten runs of the same program",
+          "before: hash set order",
+          "after: fixed order",
+          "code Y",
+          "code X",
+          "code X, every run",
+          "GroupDisjointReductions: five lines, two files",
+          "XLA compiles for JAX and TensorFlow"
+        ],
+        "caption": null
+      },
+      "headline": "5 lines, deterministic",
+      "rank": 8
+    },
+    {
+      "id": "pr-topograph-432",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "dsx-ai-factory",
+      "repo": "dsx-ai-factory/topograph",
+      "pr": 432,
+      "logo": "topograph.png",
+      "title": "Gating cluster wide RBAC to the rules that apply",
+      "body": "The API server ClusterRole rendered the same Kubernetes RBAC rules regardless of engine and provider, so an install that never reached the Kubernetes API, for example provider test with engine slurm, was still granted pods list, nodes get and list, and daemonsets get, cluster wide. I gated each rule on engine.name and provider.name.",
+      "result": "145 lines changed across 4 files. pods, nodes and daemonsets access no longer granted cluster wide.",
+      "tags": [
+        "YAML, Helm",
+        "least privilege"
+      ],
+      "checks": [
+        "chart snapshot tests updated across 4 files",
+        "each rule gated on engine.name and provider.name"
+      ],
+      "url": "https://github.com/dsx-ai-factory/topograph/pull/432",
+      "figure": {
+        "name": "grant",
+        "viewBox": "470 500",
+        "title": "Gates that withdraw a cluster wide reach",
+        "desc": "An illustration of the change, not a map of a real cluster: the hall of nodes, their pods and the layout are illustrative. The cluster is a floor of glass server blades, each holding its pods as small lit blocks, with the agent a daemonset puts on every node sitting on top. In front, on its own disc, a gem stands for the ServiceAccount of a chart install with provider test and engine slurm, an install that never reaches the Kubernetes API. Before the change the ClusterRole rendered the same rules whatever the engine and provider, so coral light arcs from the gem to every pod (pods list), every node (nodes get/list) and every daemonset agent (daemonsets get), cluster wide, and the whole floor takes the coral light. Each rule leaves the gem at its own angle, so the rules form low, middle and high canopies. Then two mint glass walls, engine.name and provider.name, rise around the install. Where their rising edge meets an arc it sparks, and that arc's light pulls back into the gem: pods list first, then nodes get/list, then daemonsets get. The gem turns mint, and for this install none of these rules is granted any more, while the cluster keeps running. The cycle then repeats. With reduced motion, a still shows the walls raised and the old reach as faint traces behind them. +145/-96 across 4 files.",
+        "labels": [
+          "granted cluster wide on every install",
+          "pods list, nodes get/list, daemonsets get",
+          "gated on engine.name and provider.name",
+          "provider test with engine slurm: no longer granted",
+          "+145/-96 across 4 files"
+        ],
+        "caption": null
+      },
+      "headline": "145 lines gated",
+      "rank": 9
+    },
+    {
+      "id": "pr-pyrefly-4180",
+      "section": "upstream",
+      "verb": "landed in",
+      "org": "facebook",
+      "repo": "facebook/pyrefly",
+      "pr": 4180,
+      "logo": "facebook.png",
+      "title": "Pinning a 208-module recheck propagation panic",
+      "body": "An export change can consume the 100 epoch incremental budget, produce another export change during forced invalidation, and reach commit with that change still pending. I generated a chain of 208 two-module strongly connected components inside one Rust test and recorded the resulting Transaction has uncommitted changes failure with should_panic, so the bug is pinned rather than argued about.",
+      "result": "208 two-module SCCs chained in one Rust test. The failure is pinned at the end with should_panic.",
+      "tags": [
+        "Rust",
+        "regression pinned"
+      ],
+      "checks": [
+        "a chain of 208 two-module SCCs generated inside one Rust test",
+        "the failure pinned with should_panic so it cannot return quietly"
+      ],
+      "url": "https://github.com/facebook/pyrefly/pull/4180",
+      "figure": {
+        "name": "chain",
+        "viewBox": "500 460",
+        "title": "An export change runs a chain of 208 components, and another reaches commit after the door shuts",
+        "desc": "An illustration of the reproducer, not a measurement. All 208 two-module strongly connected components of the chain generated inside one Rust test are drawn, wound into a tapering coil that descends to commit at its foot. Each component is a pair of beads, one per module, bound by a short thick link, and a thin link joins it to the next. One export change enters at the top and propagates down the coil, turning each component mint as it passes. A violet hoop around the chain marks where the 100 epoch incremental budget runs out; the change consumes the budget reaching it, and a membrane closes across the hoop as the door shuts. Forced invalidation then produces another export change, in coral, on the far side of the door, and it runs the rest of the coil and reaches commit with that change still pending. That arrival bursts, the Transaction has uncommitted changes failure, and a swell runs back up every component still pending. A ring closes around the burst and holds it, as the test pins the failure with should_panic so it cannot return quietly. Then the coil eases back to blue and the next change enters.",
+        "labels": [
+          "one export change, 208 two-module SCCs",
+          "the incremental budget runs out at epoch 100",
+          "another change reaches commit, still pending",
+          "Transaction has uncommitted changes",
+          "pinned with should_panic so it cannot return quietly"
+        ],
+        "caption": null
+      },
+      "headline": "208 SCCs pinned",
+      "rank": 10
+    }
+  ],
+  "lab": [
+    {
+      "id": "p-resolvent",
+      "section": "lab",
+      "name": "resolvent",
+      "tagline": "Attention and Markov paths share one operator.",
+      "language": "Python",
+      "url": "https://github.com/teerthsharma/resolvent",
+      "more": "https://teerthsharma.github.io/resolvent/",
+      "claim": "I proved softmax attention and Markov path composition are settings of one operator, then found that reading it through a resolvent gives the same closed form Wheeler's S-matrix had in 1937.",
+      "specs": [
+        {
+          "value": "175",
+          "label": "declarations"
+        },
+        {
+          "text": "Lean 4"
+        },
+        {
+          "value": "zero",
+          "label": "sorry"
+        },
+        {
+          "text": "S-matrix read"
+        }
+      ],
+      "tags": [
+        "Python",
+        "Lean 4 verified, 0 sorry"
+      ],
+      "figure": {
+        "name": "smatrix",
+        "viewBox": "470 540",
+        "title": "The hop series built as a solid, and seen end on as its sum",
+        "desc": "An illustration of the reading resolvent makes, not a measurement: the project's own README says the reconciliation with the S-matrix adds no measurement of its own. The lattice and its transition matrix are made up for the picture, and the slices are computed from them exactly. The resolvent of one causal attention head, (I − γP)⁻¹, expands as I + γP + γ²P² and so on, one hop per term, and here each term is one translucent slice of a glass block. The plane of a slice is the state space of a small lattice and the depth of the block is hop order. The front slice is the in-state, all of its mass on one site. Each slice behind it is one more hop of a directed transition matrix that carries the mass forward round the centre and spreads it a little, weighted by one more factor of gamma, so the plume travels and widens and runs through the block as a tapering spiral: the whole path seen at once. Colour runs from blue through violet to coral as the order grows, and each slice is fainter than the one before, because the terms shrink while γ·ρ(P) < 1. A thin thread joins each slice's centre of mass. The floor and the far side wall show the same stack from below and from the side, each order's mass summed across one axis, so the spiral casts a wave on each. The back wall is the sum of every slice, the out-state, in a single colour. A scan plane runs through the orders, the first time building them one by one, and each order it passes flows into the sum. Once a cycle the camera turns to look straight down the stack: every slice falls exactly onto the sum, the floor and the side wall turn edge on, and the path through the depth can no longer be seen. That is the S-matrix as Wheeler wrote it in 1937, in-states to out-states with no account of the path between them. Then the camera turns away and the path is back. The project proves in Lean 4, in 175 declarations with zero sorry, that softmax attention and Markov path composition are settings of this one operator. Each slice is also drawn as grains sampled from its own distribution, as many as its share of the mass, so the deeper terms of the series are left as thinning dust.",
+        "labels": [
+          "(I − γP)−1 = I + γP + γ2P2 + …",
+          "each slice is one more hop, shrinking while γ·ρ(P) < 1",
+          "no account of the path between them",
+          "Wheeler, 1937",
+          "175 declarations in Lean 4, zero sorry"
+        ],
+        "caption": "Every hop of the series is one slice, so the path from in-state to out-state becomes a solid, and the deeper terms, carrying less of the mass, crumble into dust. Look straight down it and the slices land on their sum, with no account of the path between them."
+      }
+    },
+    {
+      "id": "p-epsilon-hollow",
+      "section": "lab",
+      "name": "Epsilon-Hollow",
+      "tagline": "Memory, files and scheduler, on one sphere.",
+      "language": "Rust",
+      "url": "https://github.com/teerthsharma/Epsilon-Hollow",
+      "more": "https://github.com/teerthsharma/Epsilon-Hollow#readme",
+      "claim": "I wrote an operating system from bare metal where memory, files and the scheduler live as points on a sphere, and the kernel's day job is machine learning.",
+      "specs": [
+        {
+          "text": "bare metal x86_64"
+        },
+        {
+          "text": "no POSIX"
+        },
+        {
+          "text": "no libc"
+        }
+      ],
+      "tags": [
+        "Rust",
+        "bare metal, no libc"
+      ],
+      "figure": {
+        "name": "collapse",
+        "viewBox": "470 540",
+        "title": "A hollow planet of operating system state, with Epsilon inside it",
+        "desc": "An illustration, not a measurement. The operating system's state is drawn as a hollow planet: a triangulation of the unit sphere shown as a shell of light, its points coloured by territory for memory, files and the scheduler, with a ring of traffic orbiting it because the kernel's day job is machine learning. Under pressure the kernel evicts, and each eviction folds a point onto its neighbour: the most crowded point slides onto the one beside it and the two triangles between them fold flat, drawn coral, but only where the surface stays a sphere and no face turns inside out. A fine crystal thins into a coarse gem and is a sphere at every step, so the population thins and the shape never changes; a band of light then sweeps it pole to pole and the points return from the ring in the reverse order. Inside the planet hangs a second, finer hollow sphere turning the other way round the bare metal at the centre: the receptacle of Epsilon, the kernel's context teleport. A file's payload, a small cloud of points, gathers on the surface, dives through the hollow on a thread of light, passes the receptacle as its one-shot permit is granted, and comes up whole on the far side, where it unfolds. Every jump takes the same time however far it goes, because the payload is not copied, only its place is rewired. The territories, the ring, the payloads and the timing are illustrative; the kernel is bare metal x86_64, with no POSIX and no libc.",
+        "labels": [
+          "memory, files and the scheduler, on one surface",
+          "and the kernel's day job is machine learning",
+          "eviction folds a point onto its neighbour",
+          "the population thins and the shape never changes",
+          "bare metal x86_64, no POSIX, no libc"
+        ],
+        "caption": "Eviction folds a point onto its neighbour, so the population thins and the shape never changes."
+      }
+    },
+    {
+      "id": "p-aether-lang",
+      "section": "lab",
+      "name": "Aether-Lang",
+      "tagline": "Loops stop when their shape stops changing.",
+      "language": "Rust",
+      "url": "https://github.com/teerthsharma/Aether-Lang",
+      "more": "https://teerthsharma.github.io/Aether-Lang/",
+      "claim": "I built a language where a loop stops because its shape stopped changing, not because a counter ran out.",
+      "specs": [
+        {
+          "text": "persistent homology as a language primitive"
+        },
+        {
+          "text": "runtime compiles no_std to bare metal"
+        }
+      ],
+      "tags": [
+        "Rust",
+        "topology as a primitive"
+      ],
+      "figure": {
+        "name": "aether",
+        "viewBox": "470 540",
+        "title": "The loop ends when its shape stops changing",
+        "desc": "An illustration of an Aether-Lang loop whose exit condition is its shape, with the shape computed live. The program's state is a cloud of points, and each pass of the loop moves it. After every pass the runtime measures the state with persistent homology: a scale grows and a line is drawn between every two points closer than it, coloured by length, until a ring of lines closes round empty space. That ring, a real cycle, lights up in violet, and waves of light travel round it; when three lines at last span the hole, the triangle that fills it is drawn and the ring dims. The passes are layers stacked in depth, the oldest at the back, each keeping its ring, with threads following every point from pass to pass: a blob with only brief small loops, then a crescent, then an arc whose ring closes only across its gap, then rings that close earlier and fill later. The last pass slides every point one place along the ring, so the state still moves, but the point set and its barcode come back exactly as before, and the loop exits: nothing counted the passes and no tolerance was set. The two layers lock together, the view turns end-on so every pass's ring nests round one centre, and then the ring breaks open and the next run begins. The cloud and its passes are illustrative; the lines, the rings, the filling triangles and the barcode comparison are computed from the real distances. The runtime compiles no_std to bare metal.",
+        "labels": [
+          "persistent homology as a language primitive",
+          "no counter, no tolerance, no epoch budget",
+          "the loop stops when its shape stops changing",
+          "the last pass still moves, but its shape does not",
+          "runtime compiles no_std to bare metal"
+        ],
+        "caption": "The loop exits on the first pass whose persistent homology comes back unchanged, not when a counter runs out."
+      }
+    },
+    {
+      "id": "p-caustic",
+      "section": "lab",
+      "name": "caustic",
+      "tagline": "Hallucination, measurable with no ground truth.",
+      "language": "Python",
+      "url": "https://github.com/teerthsharma/caustic",
+      "more": "https://teerthsharma.github.io/caustic/",
+      "claim": "I found that when a model cannot reach a fact it collapses distinct entities onto one answer, and that collapse is measurable with no ground truth at all.",
+      "specs": [
+        {
+          "value": "0.995",
+          "label": "AUROC"
+        },
+        {
+          "value": "five",
+          "label": "proved bounds"
+        }
+      ],
+      "tags": [
+        "Python",
+        "0.995 AUROC"
+      ],
+      "figure": {
+        "name": "caustic",
+        "viewBox": "470 540",
+        "title": "Twenty entities reach twenty answers through coherent prose and collapse onto one through \" the\" repeated",
+        "desc": "The project's measured result, drawn row by row. One model is asked the capital of each of 20 entities, with a prefix held at exactly 128 tokens in front of every question; only the character of those tokens changes. The tape at the top shows the 128 tokens: word shapes for coherent prose, nothing for no prefix, noise for random token ids, and one mark repeated for \" the\" 128 times. Each entity is a thread to the answer the model gives, and the column on the right is the answer key, each entity's true answer level with it. With coherent prose all 20 land on their own answers, accuracy 1.000 and 20 distinct answers. With no prefix, accuracy 0.550, 15 distinct answers and a largest class of 4. With random token ids, accuracy 0.100, 3 distinct answers and a largest class of 18. With \" the\" 128 times, accuracy 0.000: all 20 collapse onto one answer that is nobody's true answer. A green ring marks a correct answer. Coral marks what the certificate proves wrong without the answer key: in a class of s entities sharing an answer at least s minus one are wrong, so exactly n minus m threads are coral. Amber marks a wrong answer the certificate cannot see, because its precision is proved and its recall is not. Which entity lands where within a row is illustrative; the counts are the measured ones. The detector reaches 0.995 AUROC, with five proved bounds and no ground truth used.",
+        "labels": [
+          "the same 128 tokens, only their character changes",
+          "coherent prose: 20 entities, 20 distinct answers",
+          "“ the” × 128: all 20 collapse onto one answer",
+          "at least n − m provably wrong, no answer key used",
+          "0.995 AUROC",
+          "five proved bounds, no ground truth used"
+        ],
+        "caption": "The same 128 tokens in front of every question: as coherent prose all 20 entities reach their own answers, as \" the\" repeated they all collapse onto one, and the certificate marks the collapse wrong without the answer key."
+      }
+    },
+    {
+      "id": "p-monodromy",
+      "section": "lab",
+      "name": "monodromy",
+      "tagline": "Can it be undone? Topology answers.",
+      "language": "Python",
+      "url": "https://github.com/teerthsharma/monodromy",
+      "more": "https://teerthsharma.github.io/monodromy/",
+      "claim": "I wanted to know whether a transformation could be undone without ever computing a derivative, so I built the tools that answer it from topology instead.",
+      "specs": [
+        {
+          "value": "5",
+          "label": "dependencies"
+        },
+        {
+          "text": "torch not required"
+        }
+      ],
+      "tags": [
+        "Python",
+        "no Jacobian required"
+      ],
+      "figure": {
+        "name": "transport",
+        "viewBox": "470 520",
+        "title": "The loop closes below but not above",
+        "desc": "An illustration of the question monodromy answers. Above a floor sits the surface of the square root, the inverse of squaring, which holds both roots of every point on the floor. A point walks a closed loop on the floor, around the place where the two roots meet, and directly above it the root is carried continuously along the edge of the surface. When the floor point is home, the loop below has closed, but the carried root is directly under the one it set out with, on the other sheet, and only a second lap brings it back to the hollow ring it started from. The dashed line and the amber gap mark that comparison at the start. Colour shows the sign of the root, mint where it is positive and coral where it is negative. Nothing is differentiated: the answer comes from going round and looking.",
+        "labels": [
+          "carry the inverse round a closed loop",
+          "and see whether it comes back unchanged",
+          "the loop closes below, but not above",
+          "answered from topology, no Jacobian required",
+          "5 dependencies, torch not required"
+        ],
+        "caption": "One lap closes the loop below but lands on the other root above, and no derivative is taken to see it."
+      }
+    },
+    {
+      "id": "p-topological-ml-toolkit",
+      "section": "lab",
+      "name": "topological-ml-toolkit",
+      "tagline": "The shape of data, as an ordinary feature.",
+      "language": "Python",
+      "url": "https://github.com/teerthsharma/topological-ml-toolkit",
+      "more": "https://teerthsharma.github.io/topological-ml-toolkit/",
+      "claim": "I wanted the shape of data to be an ordinary feature, usable by anyone already building with sklearn or PyTorch.",
+      "specs": [
+        {
+          "text": "Rust core, Python API"
+        },
+        {
+          "text": "persistent homology and Betti-curve features"
+        }
+      ],
+      "tags": [
+        "Python and Rust",
+        "shape as a feature"
+      ],
+      "figure": {
+        "name": "cut",
+        "viewBox": "470 560",
+        "title": "Holes in a noisy cloud are born and die as the scale grows, and one cut keeps the ones that last",
+        "desc": "An illustration, computed for real inside the figure. A noisy cloud of points lies around two loops, one larger than the other. As a scale grows, points closer than that scale are joined by edges and triangles fill in, and the persistent homology of the growing complex is computed exactly: pieces merging, and every loop being born and dying. Each hole glows violet from the moment its loop closes and shrinks until the scale at which it fills. Beneath, a sweep at the same scale draws the barcode bar by bar, pieces in mint and loops in violet, and when a true loop dies, or the two pieces join, a thread of light runs from where it happened to the end of its bar. Then every bar slides to start at zero, so its length is how long it lived, and a cut sweeps in from the right. The two long loops and the two long-lived pieces cross it and each leaves a bead on the cut; the many short bars are noise and are greyed out. That column of beads is the feature, and the cloud settles back to a scale where exactly those two pieces and two holes are present. Long bars are structure, short bars are noise, and the cut between them is what makes the shape of data an ordinary column: persistent homology and Betti-curve features, with a Rust core and a Python API for anyone already building with sklearn or PyTorch.",
+        "labels": [
+          "grow the scale, and holes are born and die",
+          "long bars are structure, short bars are noise",
+          "what crosses the cut becomes a feature",
+          "an ordinary column any model can use",
+          "persistent homology, Rust core with a Python API"
+        ],
+        "caption": "Grow the scale and each hole in the data is born and dies. The long bars are structure, the short ones are noise, and the cut between them is the feature."
+      }
+    },
+    {
+      "id": "p-faraday",
+      "section": "lab",
+      "name": "faraday",
+      "tagline": "The field coupling, found rather than assumed.",
+      "language": "Python",
+      "url": "https://github.com/teerthsharma/faraday",
+      "more": "https://github.com/teerthsharma/faraday#readme",
+      "claim": "I compute the Faraday tensor directly, so the coupling between the electric and magnetic fields is found rather than assumed.",
+      "specs": [
+        {
+          "text": "computational Faraday tensor"
+        },
+        {
+          "text": "topology-fixed-point projection"
+        }
+      ],
+      "tags": [
+        "Python",
+        "coupling, not assumption"
+      ],
+      "figure": {
+        "name": "glass",
+        "viewBox": "470 520",
+        "title": "Two fields settle onto a fixed point, then their coupling rises",
+        "desc": "An illustration of the idea, not the project's solver. Two wires pass through a sheet of glass. In the sheet, electric field lines in blue run from one wire to the other, and magnetic field lines in violet circle each wire, and the two families cross at right angles at every point. The fields are not drawn from a formula. Each cycle starts from a wrong field, and a contraction is applied to it again and again; its successive states are drawn in order, the earlier ones fading, and the lines narrow onto the one field that is its fixed point, whatever the starting guess. Only once the field has settled does the coupling appear: E × H, in amber, glowing in the sheet where both fields are strong and rising out of the glass along the wires. The Faraday tensor is computed directly and the coupling comes out of a topology fixed point projection, so it is never assumed.",
+        "labels": [
+          "two fields, at right angles",
+          "successive states settle onto one fixed point",
+          "the coupling E × H is found, not assumed",
+          "and it rises where the two fields meet",
+          "Faraday tensor, coupling by fixed point projection"
+        ],
+        "caption": "Two fields at right angles settle onto one fixed point, and only then does their coupling E × H rise where they meet."
+      }
+    },
+    {
+      "id": "p-nerve",
+      "section": "lab",
+      "name": "nerve",
+      "tagline": "The control that could kill my result.",
+      "language": "Rust",
+      "url": "https://github.com/teerthsharma/nerve",
+      "more": "https://github.com/teerthsharma/nerve#readme",
+      "claim": "I built the control that could kill my own result, then published what it said.",
+      "specs": [
+        {
+          "value": "224",
+          "label": "tests passing"
+        },
+        {
+          "value": "3",
+          "label": "of its own 4 hypotheses withdrawn"
+        }
+      ],
+      "tags": [
+        "Rust",
+        "3 of 4 hypotheses withdrawn"
+      ],
+      "figure": {
+        "name": "witness",
+        "viewBox": "470 560",
+        "title": "One polymer chain, its one crossing, and four hypotheses tested against a control that could kill them",
+        "desc": "An illustration of the method, not measured data. A polymer chain, drawn as a shaded tube of beads coloured from blue to violet, writhes slowly in three dimensions. Its outline is searched for crossings in every frame, and the one place where the chain passes over itself, drawn with a gap round the strand on top, is ringed in amber as its topological witness. Behind it, faint randomised chains are the control: they writhe too, and they cross themselves as well, which is why a crossing alone proves nothing. Below are four lanes, one for each hypothesis. The witness sends a blue bead down to each lane, the value that hypothesis measured on the chain, and then the same measurement taken on the control rains into the lane grain by grain and settles into a heap. Where the control's heap buries the bead, the control reproduces the result: three beads are buried and marked with hollow coral rings, withdrawn but kept on the record. One sits far out where the control never lands, and it survives. The control was built on purpose to be able to kill the result, and what it said was published either way: 3 of its own 4 hypotheses withdrawn, 224 tests passing.",
+        "labels": [
+          "a polymer chain and its topological witness",
+          "four hypotheses, each tested against its own control",
+          "3 of its own 4 hypotheses withdrawn",
+          "when the control built to kill them said so",
+          "224 tests passing"
+        ],
+        "caption": "One chain, one crossing. I tested four hypotheses against their own controls."
+      }
+    },
+    {
+      "id": "p-separatrix",
+      "section": "lab",
+      "name": "separatrix",
+      "tagline": "Decided by the data, not by rounding.",
+      "language": "Python",
+      "url": "https://github.com/teerthsharma/separatrix",
+      "more": "https://github.com/teerthsharma/separatrix#readme",
+      "claim": "I certify that a top-k or an argmin was decided by the data, and not by where the kernel happened to round.",
+      "specs": [
+        {
+          "text": "top-k, argmin and threshold"
+        },
+        {
+          "text": "certified or refused"
+        }
+      ],
+      "tags": [
+        "Python",
+        "decided by data, not rounding"
+      ],
+      "figure": {
+        "name": "certify",
+        "viewBox": "470 520",
+        "title": "Every answer flows to one side of the separatrix, unless rounding decides the side",
+        "desc": "An illustration of what separatrix certifies, drawn as a phase portrait. A flow with two attractors and a saddle between them carries every starting point to one attractor or the other, and the coral curve through the saddle, the separatrix, divides the two basins. Each start is known only to within rounding, drawn as a small disc. Where the disc lies wholly on one side, every value the rounding could have produced reaches the same attractor, so the answer was decided by the data: the particle is certified and rings as it settles. Where the disc touches the separatrix, inside the pale coral band, the disc slides into the saddle and is torn toward both attractors at once, so which answer comes back would be the arithmetic and not the data, and nothing is returned. Once a cycle a pulse runs along the separatrix into the saddle and parts toward both sides. The same test covers a top-k, an argmin and a threshold: certified or refused.",
+        "labels": [
+          "decided by the data, or by the rounding?",
+          "top-k, argmin and threshold, certified or refused",
+          "clear of the separatrix: certified",
+          "within rounding of it: nothing is returned",
+          "the ordering would be the arithmetic, not the data"
+        ],
+        "caption": "Every start flows to one side of the separatrix. If its rounding touches the curve, the side is the arithmetic and not the data, and nothing is returned."
+      }
+    },
+    {
+      "id": "p-planimeter",
+      "section": "lab",
+      "name": "planimeter",
+      "tagline": "Exact, or refused.",
+      "language": "Python",
+      "url": "https://github.com/teerthsharma/planimeter",
+      "more": "https://github.com/teerthsharma/planimeter#readme",
+      "claim": "shapely.polygonize_full returns 336 wrong answers on the files where planimeter returns none.",
+      "specs": [
+        {
+          "value": "495",
+          "label": "exact"
+        },
+        {
+          "value": "33",
+          "label": "refused"
+        },
+        {
+          "value": "0",
+          "label": "wrong"
+        },
+        {
+          "text": "shapely.polygonize_full: 336 wrong, 0 refused"
+        }
+      ],
+      "tags": [
+        "Python",
+        "exact or refused"
+      ],
+      "figure": {
+        "name": "refuse",
+        "viewBox": "470 536",
+        "title": "The same 528 files, answered by planimeter and by shapely",
+        "desc": "An illustration of a measured tally. Each small line drawing stands for one of the 528 constructed drawings whose endpoints sit microns apart, and the same 528 are drawn twice: planimeter's answers on the top sheet, shapely.polygonize_full's on the bottom. One wave passes through both sheets in step, a file at a time, and where it passes the strokes are laid down and the enclosed faces are found and filled. On top, planimeter fills a face only when its answer is exact, 495 times; 33 times it cannot give an exact answer, so it refuses, and the drawing is held open in amber at the junction where its endpoints nearly meet. Below, shapely fills every drawing and refuses nothing, and at first its whole sheet looks like a perfect result. Then a second wave checks every answer. On top nothing changes, because 0 answers are wrong. Below, 336 answers turn coral, scattered all through the sheet, because a wrong answer does not announce itself. The counts are the measured ones; which drawing sits where, and which are refused or wrong, is illustrative.",
+        "labels": [
+          "the same 528 files, answered by both",
+          "planimeter: 495 exact, 33 refused, 0 wrong",
+          "shapely.polygonize_full: 336 wrong, 0 refused",
+          "refusing is the price of never being wrong",
+          "a wrong answer does not announce itself"
+        ],
+        "caption": "The same 528 files: planimeter answers 495 exactly and refuses 33, while shapely.polygonize_full answers every one and gets 336 wrong."
+      }
+    },
+    {
+      "id": "p-tangle",
+      "section": "lab",
+      "name": "tangle",
+      "tagline": "It refuses rather than guesses.",
+      "language": "Python",
+      "url": "https://github.com/teerthsharma/tangle",
+      "more": "https://github.com/teerthsharma/tangle#readme",
+      "claim": "I built tangle to never return a wrong answer. It refuses rather than guesses.",
+      "specs": [
+        {
+          "value": "2,000",
+          "label": "diagrams"
+        },
+        {
+          "value": "80",
+          "label": "scenes"
+        },
+        {
+          "value": "247",
+          "label": "photographs"
+        },
+        {
+          "value": "0",
+          "label": "wrong certificates"
+        }
+      ],
+      "tags": [
+        "Python",
+        "certificate or nothing"
+      ],
+      "figure": {
+        "name": "link",
+        "viewBox": "470 520",
+        "title": "Two loops that cannot be pulled apart",
+        "desc": "An illustration, not a measurement: two solid rings, one ink and one grey, linked through each other and turning without end. They roll, open and close on the line through their centres, and swing from side to side, passing through each other's hole, and once in every cycle they are pulled apart as far as they will go, catch against each other and are held. However they are turned they stay linked, and the linking number stays at one. The places where one ring crosses over the other in the picture are lit in blue: two crossings, one linking number. That is the certificate tangle issues, and it either exists or the answer is refused.",
+        "labels": [
+          "two loops that cannot be pulled apart",
+          "however they are turned, they stay linked",
+          "linking number 1",
+          "a certificate, or the answer is refused",
+          "0 wrong certificates in 2,000 diagrams and 80 scenes"
+        ],
+        "caption": "Two crossings, one linking number, and a certificate I can hand you."
+      }
+    }
+  ]
+}

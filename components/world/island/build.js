@@ -377,10 +377,10 @@ function buildSignpost(x, z, placeIds) {
 // Each post names the first place reached down every path that forks there.
 function buildSignposts() {
   const posts = [
-    buildSignpost(-6.5, 9.5, ["field", "kernel"]), // physics yard / systems west
-    buildSignpost(6.5, 9.5, ["qpu", "aether"]), // proof quay / systems east
-    buildSignpost(0, -3.5, ["kernel", "aether"]), // systems harbour, both shores
-    buildSignpost(0, 13.5, ["archive", "workshop"]), // shape garden, both sides
+    buildSignpost(-6.5, 9.5, ["p-resolvent", "p-aether-lang"]), // lab, west wing
+    buildSignpost(6.5, 9.5, ["p-epsilon-hollow", "p-caustic"]), // lab, east wing
+    buildSignpost(0, -3.5, ["pr-mujoco-3396", "pr-mujoco-warp-1541"]), // upstream, north
+    buildSignpost(0, 13.5, ["p-planimeter", "p-tangle"]), // lab, south
   ];
   return {
     wood: posts.flatMap((p) => p.wood),
