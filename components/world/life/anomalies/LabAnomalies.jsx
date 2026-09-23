@@ -15,9 +15,12 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import {
   BoxGeometry,
+  Color,
   ConeGeometry,
   CylinderGeometry,
+  Float32BufferAttribute,
   IcosahedronGeometry,
+  MeshBasicMaterial,
   Object3D,
   RingGeometry,
   SphereGeometry,
@@ -71,8 +74,8 @@ function TwinPaths({ place }) {
   });
   return (
     <>
-      <mesh ref={refA} geometry={ORB_GEO} material={matOrb} />
-      <mesh ref={refB} geometry={ORB_GEO} material={matOrb} />
+      <mesh ref={refA} geometry={ORB_GEO} material={matOrb} castShadow />
+      <mesh ref={refB} geometry={ORB_GEO} material={matOrb} castShadow />
     </>
   );
 }
@@ -120,7 +123,7 @@ function buildTopGeo() {
   const cone = new ConeGeometry(0.28, 0.5, 7);
   cone.rotateX(Math.PI); // apex down
   cone.translate(0, 0.25, 0); // apex at y=0, wide top at y=0.5
-  const handle = new CylinderGeometry(0.05, 0.05, 0.22, 6);
+  const handle = new CylinderGeometry(0.075, 0.075, 0.22, 6);
   handle.translate(0, 0.61, 0);
   cone.deleteAttribute("uv");
   handle.deleteAttribute("uv");
@@ -169,7 +172,27 @@ function FrozenTop({ place }) {
 // "Hallucination, measurable with no ground truth." A rainbow, which should
 // only ever be a bent arc, closes into a full loop -- hovering, breathing.
 const RAINBOW_COLORS = ["#ff3b3b", "#ff9d3b", "#ffe23b", "#3bff6a", "#3bb8ff", "#8a3bff"];
-const RING_GEOS = RAINBOW_COLORS.map((_, i) => new TorusGeometry(0.6 + i * 0.09, 0.05, 8, 28));
+
+// One merged, per-vertex-coloured geometry instead of six separate meshes
+// (the same setColor + mergeGeometries pattern Radiation.jsx uses for its
+// trefoil signs) -- one draw call for all six rings.
+function setColor(geometry, hex) {
+  const c = new Color(hex);
+  const n = geometry.attributes.position.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    arr[i * 3] = c.r;
+    arr[i * 3 + 1] = c.g;
+    arr[i * 3 + 2] = c.b;
+  }
+  geometry.setAttribute("color", new Float32BufferAttribute(arr, 3));
+  return geometry;
+}
+const RING_GEO = mergeGeometries(
+  RAINBOW_COLORS.map((hex, i) => setColor(new TorusGeometry(0.6 + i * 0.09, 0.075, 8, 28), hex)),
+  false,
+);
+const RING_MAT = new MeshBasicMaterial({ vertexColors: true, toneMapped: false });
 
 function ClosedRainbow({ place }) {
   const AX = -6.2, AZ = -1.0, AY = 2.1;
@@ -185,9 +208,7 @@ function ClosedRainbow({ place }) {
   });
   return (
     <group ref={groupRef} position={[AX, AY, AZ]}>
-      {RAINBOW_COLORS.map((hex, i) => (
-        <mesh key={hex} geometry={RING_GEOS[i]} material={mat(hex, { flat: true, emissive: hex, emissiveIntensity: 0.9 })} />
-      ))}
+      <mesh geometry={RING_GEO} material={RING_MAT} castShadow />
     </group>
   );
 }
@@ -197,8 +218,14 @@ function ClosedRainbow({ place }) {
 // visibly count backwards -- shrinking away one at a time -- then reset and
 // count down again.
 const ICICLE_GEO = new ConeGeometry(0.16, 1, 6).translate(0, 0.5, 0); // base pinned at y=0
-const ICICLE_XS = [-0.8, -0.4, 0, 0.4, 0.8];
-const ICICLE_BASE_H = [1.0, 0.82, 0.64, 0.46, 0.28];
+// A jittered cluster (both x and z vary, never collinear) with heights that
+// don't sort by position, and a shrink order that isn't index order either --
+// so the group never reads as a sorted bar chart / descending staircase.
+const ICICLE_OFFSETS = [
+  [-0.55, -0.12], [0.48, -0.42], [-0.08, 0.5], [0.38, 0.2], [-0.42, 0.38],
+];
+const ICICLE_BASE_H = [0.64, 1.0, 0.28, 0.82, 0.46];
+const ICICLE_ORDER = [2, 4, 0, 3, 1]; // which shard shrinks at slot i
 
 function BackwardIcicles({ place }) {
   const A = place.radiation ?? place.color;
@@ -212,15 +239,17 @@ function BackwardIcicles({ place }) {
     const a = anim.current;
     a.phase = (a.phase + dt * areaPulse(place)) % CYCLE;
     for (let i = 0; i < 5; i++) {
+      const slot = ICICLE_ORDER[i];
       const startAt = i * SLOT;
       let mul;
       if (a.phase < startAt) mul = 1;
       else if (a.phase < startAt + SHRINK) mul = 1 - smoothstep(startAt, startAt + SHRINK, a.phase) * 0.9;
       else mul = 0.1;
-      dummy.position.set(AX + ICICLE_XS[i], 0, AZ);
-      dummy.scale.set(1, ICICLE_BASE_H[i] * mul, 1);
+      const [ox, oz] = ICICLE_OFFSETS[slot];
+      dummy.position.set(AX + ox, 0, AZ + oz);
+      dummy.scale.set(1, ICICLE_BASE_H[slot] * mul, 1);
       dummy.updateMatrix();
-      meshRef.current.setMatrixAt(i, dummy.matrix);
+      meshRef.current.setMatrixAt(slot, dummy.matrix);
     }
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
@@ -263,7 +292,7 @@ function UpwardSnow({ place }) {
     }
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={meshRef} args={[SNOW_GEO, matSnow, SNOW_N]} />;
+  return <instancedMesh ref={meshRef} args={[SNOW_GEO, matSnow, SNOW_N]} castShadow />;
 }
 
 // ----------------------------------------------------------------- faraday
@@ -308,7 +337,7 @@ function UphillTrickle({ place }) {
   return (
     <>
       <mesh geometry={RAMP_GEO} material={matRamp} position={[AX, 0, AZ]} receiveShadow castShadow />
-      <instancedMesh ref={meshRef} args={[DROPLET_GEO, matWater, N]} />
+      <instancedMesh ref={meshRef} args={[DROPLET_GEO, matWater, N]} castShadow />
     </>
   );
 }
@@ -350,7 +379,7 @@ function FrozenSplash({ place }) {
     }
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={meshRef} args={[DROPLET_GEO, matDrop, 8]} />;
+  return <instancedMesh ref={meshRef} args={[DROPLET_GEO, matDrop, 8]} castShadow />;
 }
 
 // -------------------------------------------------------------- separatrix
@@ -474,7 +503,7 @@ function SelfTyingRope({ place }) {
     }
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={meshRef} args={[BEAD_GEO, matBead, ROPE_N]} />;
+  return <instancedMesh ref={meshRef} args={[BEAD_GEO, matBead, ROPE_N]} castShadow />;
 }
 
 // ---------------------------------------------------------------- component

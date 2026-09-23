@@ -55,17 +55,17 @@ function NameInSnow() {
         <Text3D
           font="/fonts/helvetiker_bold.typeface.json"
           size={1.6}
-          height={0.35}
+          height={0.5}
           letterSpacing={0.08}
           bevelEnabled
-          bevelSize={0.04}
-          bevelThickness={0.04}
+          bevelSize={0.07}
+          bevelThickness={0.07}
           curveSegments={6}
           castShadow
           receiveShadow
         >
           TEERTH SHARMA
-          <meshStandardMaterial color={C.snow} roughness={0.85} />
+          <meshStandardMaterial color={C.charcoal} roughness={0.55} />
         </Text3D>
       </Center>
     </group>

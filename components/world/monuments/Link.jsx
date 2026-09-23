@@ -33,7 +33,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, CircleGeometry, CylinderGeometry, TorusGeometry } from "three";
+import { BoxGeometry, CylinderGeometry, TorusGeometry } from "three";
 import { useUi } from "../../../lib/world/store";
 import { C, glow, mat } from "../palette";
 
@@ -98,7 +98,6 @@ const GAUGE_FILL_GEO = new BoxGeometry(0.34, 1, 0.03); // unit height; scale.y i
 const GAUGE_GLOW_GEO = new BoxGeometry(0.62, GAUGE_H + 0.14, 0.05);
 const CRATE_GEO = new BoxGeometry(1.1, CRATE_H, 1.1);
 const CORNER_GEO = new BoxGeometry(0.12, CRATE_H, 0.12);
-const DISC_GEO = new CircleGeometry(2.8, 32);
 const PLATE_GEO = new BoxGeometry(0.9, 0.6, 0.08);
 const PLATE_BORDER_GEO = new BoxGeometry(1.1, 0.8, 0.05);
 
@@ -123,10 +122,9 @@ export default function Link({ place }) {
   const gaugeMat = useMemo(() => mat(accent, { emissive: accent, emissiveIntensity: 0.6, roughness: 0.35 }).clone(), [accent]);
   const markGlowMat = useMemo(() => glow(accent, 0.3), [accent]);
   const gaugeGlowMat = useMemo(() => glow(accent, 0.24), [accent]);
-  const discGlowMat = useMemo(() => glow(accent, 0.16).clone(), [accent]);
   const plateWhiteMat = useMemo(() => mat("#ffffff", { roughness: 0.25, metalness: 0.05 }), []);
 
-  useEffect(() => () => { markMat.dispose(); gaugeMat.dispose(); discGlowMat.dispose(); }, [markMat, gaugeMat, discGlowMat]);
+  useEffect(() => () => { markMat.dispose(); gaugeMat.dispose(); }, [markMat, gaugeMat]);
 
   const ringAYawRef = useRef(null);
   const ringBRef = useRef(null);
@@ -138,7 +136,6 @@ export default function Link({ place }) {
   const crateGroupRef = useRef(null);
   const gaugeFillRef = useRef(null);
   const plateGroupRef = useRef(null);
-  const discGlowRef = useRef(null);
 
   useFrame((state, dt) => {
     const k = 1 - Math.exp(-EASE * dt);
@@ -172,7 +169,7 @@ export default function Link({ place }) {
     const byY = ANCHOR_Y - sep; // ring B moves DOWN, away from ring A, as it is pulled
     if (ringBRef.current) ringBRef.current.position.y = byY;
 
-    const roll = t * ROLL_SPEED;
+    const roll = t * ROLL_SPEED + Math.PI / 4; // fixed phase offset: keeps both rings off the edge-on extreme at spawn
     const scis = SCIS_AMP * Math.sin(t * SCIS_FREQ) * (1 - glowK); // square while held
     const rollA = roll + scis, rollB = roll - scis;
     if (ringAYawRef.current) ringAYawRef.current.rotation.y = rollA;
@@ -230,13 +227,6 @@ export default function Link({ place }) {
     if (plateGroupRef.current) {
       const slideK = clamp01((glowK - 0.95) / 0.05);
       plateGroupRef.current.position.z = PLATE_RETRACT_Z + (PLATE_OUT_Z - PLATE_RETRACT_Z) * slideK;
-    }
-
-    // the glow on the snow: this place is radioactive at rest, not only at
-    // the peak of the pull
-    if (discGlowRef.current) {
-      discGlowMat.opacity = 0.1 + 0.2 * glowK;
-      discGlowRef.current.scale.setScalar(1 + 0.4 * boost);
     }
   });
 
@@ -296,9 +286,6 @@ export default function Link({ place }) {
         <mesh geometry={PLATE_BORDER_GEO} material={accentMat} position={[0, 0, -0.02]} />
         <mesh geometry={PLATE_GEO} material={plateWhiteMat} position={[0, 0, 0.02]} castShadow />
       </group>
-
-      {/* every place on this island is radioactive: a glow on the snow, at rest, not only at the peak */}
-      <mesh ref={discGlowRef} geometry={DISC_GEO} material={discGlowMat} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} />
     </group>
   );
 }

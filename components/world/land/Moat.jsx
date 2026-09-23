@@ -18,12 +18,12 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { CircleGeometry, CylinderGeometry, IcosahedronGeometry, Object3D, TorusGeometry } from "three";
+import { CircleGeometry, CylinderGeometry, IcosahedronGeometry, Object3D, Quaternion, TorusGeometry, Vector3 } from "three";
 import { LAND_COLLIDERS } from "../../../lib/world/land";
 import { PLACES } from "../../../lib/world/places";
 import { MOAT } from "../../../lib/world/river";
 import { useUi } from "../../../lib/world/store";
-import { WATER_Y } from "../../../lib/world/terrain";
+import { heightAt, WATER_Y } from "../../../lib/world/terrain";
 import { C, mat } from "../palette";
 import { buildStreams, FOOT_R, POOL_R, POOL_Y, STREAM_ANGLES, streamMaterial } from "./parts/moat-uphill";
 
@@ -86,6 +86,65 @@ function Floe({ floe, index }) {
   );
 }
 
+// ---- the keep's rock: mineral veins ---------------------------------------
+
+// The mesa's rock (lib/world/terrain.js) is a flat dark grey with no
+// radiation identity of its own; until that's fixed at the source, a static
+// scatter of glowing lime veins across its faces reads it as the moat's rock,
+// not the Google range's. Built once (no useFrame): zero added frame cost.
+const KEEP_R = MOAT.ring.keep;
+const VEIN_N = 70;
+const veinGeo = new IcosahedronGeometry(1, 0);
+const UP = new Vector3(0, 1, 0);
+const hash = (a, b) => {
+  const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+  return h - Math.floor(h);
+};
+function slopeNormal(x, z) {
+  const e = 0.4;
+  const nx = (heightAt(x - e, z) - heightAt(x + e, z)) / (2 * e);
+  const nz = (heightAt(x, z - e) - heightAt(x, z + e)) / (2 * e);
+  return new Vector3(nx, 1, nz).normalize();
+}
+function buildVeins() {
+  const items = [];
+  for (let i = 0; i < VEIN_N; i++) {
+    const a = i * 2.39996 + hash(i, 1) * 0.6; // golden-angle spread, jittered
+    const d = KEEP_R * (0.74 + 0.24 * hash(i, 2)); // the taper band, top rim to base
+    const x = KX + Math.cos(a) * d;
+    const z = KZ + Math.sin(a) * d;
+    const y = heightAt(x, z);
+    const normal = slopeNormal(x, z);
+    const twist = new Quaternion().setFromAxisAngle(UP, hash(i, 3) * Math.PI * 2);
+    const align = new Quaternion().setFromUnitVectors(UP, normal);
+    items.push({
+      pos: [x + normal.x * 0.05, y + normal.y * 0.05, z + normal.z * 0.05],
+      quat: align.multiply(twist),
+      scale: [0.35 + 0.4 * hash(i, 4), 0.05 + 0.04 * hash(i, 5), 0.12 + 0.16 * hash(i, 6)],
+    });
+  }
+  return items;
+}
+const veinMat = mat(RADIATION, { roughness: 0.55, emissive: RADIATION, emissiveIntensity: 0.4 });
+
+function KeepVeins() {
+  const ref = useRef();
+  const items = useMemo(buildVeins, []);
+  useLayoutEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    items.forEach((it, i) => {
+      dummy.position.set(...it.pos);
+      dummy.quaternion.copy(it.quat);
+      dummy.scale.set(...it.scale);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [items]);
+  return <instancedMesh ref={ref} args={[veinGeo, veinMat, VEIN_N]} castShadow />;
+}
+
 // ---- the anomaly: water running uphill ------------------------------------
 
 const DROPS = 30;
@@ -109,7 +168,8 @@ function Uphill({ lively }) {
 
   const dropMat = mat("#b8f24a", { flat: false, roughness: 0.08, emissive: RADIATION, emissiveIntensity: 0.55 });
   const poolMat = mat("#9ee03a", { roughness: 0.1, emissive: RADIATION, emissiveIntensity: 0.45 });
-  const ringMat = mat("#f4ffd6", { emissive: "#e6ffb0", emissiveIntensity: 0.6 });
+  // the moat's own green, not pale foam: bloom was washing these into blobs
+  const ringMat = mat(RADIATION, { emissive: RADIATION, emissiveIntensity: 0.28 });
 
   // each drop's own way up: a golden-angle fan, so the column spreads
   const dropWay = useMemo(() => Array.from({ length: DROPS }, (_, i) => [i * 2.39996, 0.55 + 0.45 * ((i * 0.618) % 1)]), []);
@@ -188,6 +248,7 @@ export default function Moat() {
   const lively = MINE.some((p) => p.id === near);
   return (
     <group>
+      <KeepVeins />
       <Uphill lively={lively} />
       {FLOES.map((floe, i) => (
         <Floe key={floe.place.id} floe={floe} index={i} />

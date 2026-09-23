@@ -43,9 +43,23 @@ const PHASE = 0.9; // turns the whole coil so the door faces the camera across t
 const A = TURNS * Math.PI * 2;
 
 // The floe: two lobes along the chain (local x), each LOBE_X long and LOBE_Z
-// wide, their centres LOBE_OFF either side of the ridge.
-export const FLOE = { lobeX: 0.12, lobeZ: 0.19, lobeOff: 0.1, thick: 0.16 };
-const HALF_LEN = FLOE.lobeOff + FLOE.lobeX; // centre to the floe's leading edge
+// wide, their centres LOBE_OFF either side of the ridge. Sized to read as ice
+// chips at game distance, not beads on a string.
+// lobeZ is capped by the coil's own pitch (the arm-separation check below):
+// this turn count and radius leave under 0.7m between adjacent turns, so
+// lobeZ stops short of a literal double to keep every arm clear of its
+// neighbour; lobeX and thick (unconstrained by that check) go the full double.
+export const FLOE = { lobeX: 0.24, lobeZ: 0.26, lobeOff: 0.1, thick: 0.32 };
+// Thread attachment reach: half the lobe's own radius in, so a thread can
+// still read as entering the ice rather than needing the coil stretched out
+// to fit the now-bigger chips (this only moves where the thread meets the
+// lobe, never the lobe's rendered size).
+const HALF_LEN = FLOE.lobeOff + FLOE.lobeX * 0.5;
+
+// A little radial/height jitter per floe, beyond the yaw jitter below, so the
+// coil reads as ice piled up messily rather than a machined helix.
+const RADIAL_JITTER = 0.06;
+const HEIGHT_JITTER = 0.04;
 
 function radiusAt(f) {
   return R1 + (R0 - R1) * f;
@@ -130,14 +144,19 @@ export const FLOES = Array.from({ length: N }, (_, i) => {
   const zj = cross(xj, y);
   const scale = 0.92 + 0.16 * rand(i, 2);
   const reach = HALF_LEN * scale;
+  // nudge the whole floe out/in along the wall normal and up/down, so it
+  // sits like a piled chip instead of a bead threaded exactly on the curve
+  const jr = (rand(i, 5) - 0.5) * 2 * RADIAL_JITTER;
+  const jy = (rand(i, 6) - 0.5) * 2 * HEIGHT_JITTER;
+  const cj = [c[0] + out[0] * jr, c[1] + jy, c[2] + out[2] * jr];
   return {
-    c,
+    c: cj,
     x: xj,
     y,
     z: zj,
     scale,
-    head: [c[0] - x[0] * reach, c[1] - x[1] * reach, c[2] - x[2] * reach],
-    tail: [c[0] + x[0] * reach, c[1] + x[1] * reach, c[2] + x[2] * reach],
+    head: [cj[0] - x[0] * reach, cj[1] - x[1] * reach, cj[2] - x[2] * reach],
+    tail: [cj[0] + x[0] * reach, cj[1] + x[1] * reach, cj[2] + x[2] * reach],
   };
 });
 
@@ -147,25 +166,6 @@ export const COMMIT = [0, PIN_TOP, 0];
 // The thin threads: floe i's tail to floe i+1's head, the last one down onto
 // the stack's top.
 export const THREADS = FLOES.map((f, i) => [f.tail, i < N - 1 ? FLOES[i + 1].head : COMMIT]);
-
-// The door: a hoop across the chain at component DOOR, square to it.
-export const DOOR_AT = FLOES[DOOR].c;
-export const DOOR_AXIS = FLOES[DOOR].x;
-
-// A point `front` components (0..N) along the chain, between the two
-// nearest floes' centres (for the travelling change).
-export function frontPoint(front, out) {
-  const f = Math.max(0, Math.min(N - 1, front));
-  const i0 = Math.floor(f);
-  const i1 = Math.min(N - 1, i0 + 1);
-  const u = f - i0;
-  const a = FLOES[i0].c;
-  const b = FLOES[i1].c;
-  out[0] = a[0] + (b[0] - a[0]) * u;
-  out[1] = a[1] + (b[1] - a[1]) * u;
-  out[2] = a[2] + (b[2] - a[2]) * u;
-  return out;
-}
 
 // Plain floes stranded along the outflow's banks, in world x/z: afloat in
 // the shallows where floes belong. Up and downstream of the funnel, off the

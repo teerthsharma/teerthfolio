@@ -51,7 +51,7 @@ export const POLE_X = 2.6, POLE_R = 0.2, POLE_Y = CAP_Y - 0.3;
 export const CONDUCTOR_R = 0.08;
 
 // A small hazard plate on the tank's corner, tilted for charm.
-export const TREFOIL_R = 0.25;
+export const TREFOIL_R = 0.32;
 
 const A = WIRE_X;
 const E_BULGE = [0.25, 0.5, 0.9, 1.6].map((v) => v * (WIRE_X / 0.52));

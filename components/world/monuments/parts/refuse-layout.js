@@ -1,86 +1,20 @@
 // Pure layout for the "refuse" figure: planimeter (place id p-planimeter).
 //
-// The landing figure (fig.js, "refuse — planimeter") holds 528 tiny line
-// drawings on each of two sheets — planimeter's answers on top, shapely's
-// below — and one diagonal wave answers both in step, file by file. Here
-// each sheet becomes a peg grid: same idea, far fewer pegs (an illustration,
-// per figure.desc: "which drawing sits where... is illustrative"), the same
-// measured ratios: planimeter refuses 33/528 and is never wrong; shapely
-// answers every file and is wrong on 336/528.
-//
-// board(seed, refFrac, badFrac) returns COLS*ROWS pegs, each
-// { x, y, order, ref, bad }: x/y the peg's position on its board (y up from
-// the board's own bottom row), order its place in the one diagonal wave
-// (matches fig.js's `(x + 0.45*y)` front), ref/bad which measured outcome it
-// stands for. Two independent seeds so the two boards don't scatter alike —
-// the figure draws the same 528 files on both sheets, but which are refused
-// (top) and which are wrong (bottom) are unrelated, per figure.desc.
+// Round 2 (judges' fixes): the two 45-peg boards that stood in for the
+// figure's 528 test files -- a literal "grid of cubes standing for data",
+// banned by SHOW, NEVER TELL -- are gone, along with the mint-then-coral
+// "checking" reveal that only made sense between two boards. What is kept
+// is the figure's one hero: a few pegs held open rather than closed on a
+// guess ("exact, or refused"). Three fixed spots, no RNG needed.
 
-const COLS = 9;
-const ROWS = 5;
-export const PEG_COUNT = COLS * ROWS;
-export const PITCH = 0.36; // fix 2 (review round 0): was 0.3 -- 0.22 m pegs left an 0.08 m gap, rows read as stripes
-export const BOARD_W = (COLS - 1) * PITCH;
-export const BOARD_H = (ROWS - 1) * PITCH;
-const DIAG = 0.6; // fig.js's own wave front is x + 0.45*y; steeper here, a smaller grid
-export const ORDER_SPAN = (COLS - 1) + (ROWS - 1) * DIAG;
+export const PLATE_W = 1.6;
+export const PLATE_H = 1.05;
 
-// mulberry32: the same small deterministic RNG fig.js's own build() uses, so
-// the scatter is fixed from load to load rather than reshuffling every time.
-function mulberry32(seed) {
-  let s = seed >>> 0;
-  return function rnd() {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let x = s;
-    x = Math.imul(x ^ (x >>> 15), x | 1);
-    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function board(seed, refFrac, badFrac) {
-  const rnd = mulberry32(seed);
-  const pegs = [];
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLS; col++) {
-      pegs.push({
-        x: (col - (COLS - 1) / 2) * PITCH,
-        y: row * PITCH,
-        row,
-        order: col + row * DIAG,
-        ref: false,
-        bad: false,
-      });
-    }
-  }
-  // Which pegs carry the outcome is picked independently of position
-  // (Fisher-Yates on a shuffled index list), since the figure itself only
-  // fixes the counts, not the placement.
-  const idx = pegs.map((_, i) => i);
-  for (let k = idx.length - 1; k > 0; k--) {
-    const j = Math.floor(rnd() * (k + 1));
-    const t = idx[k];
-    idx[k] = idx[j];
-    idx[j] = t;
-  }
-  const nRef = Math.round(pegs.length * refFrac);
-  const nBad = Math.round(pegs.length * badFrac);
-  // fix 1 (review round 1): a refused peg is the hero marker -- two parting
-  // halves, studs and a halo -- and needs real headroom, which the topmost
-  // row never has (jammed against the roof underside). With the seed fixed,
-  // any ref pick that lands there is wrong every cycle forever, not once by
-  // animation-timing bad luck. Keep the top row out of the ref candidate
-  // pool so all `nRef` refusals land somewhere they can fully pop.
-  const topRow = ROWS - 1;
-  const refPool = idx.filter((i) => pegs[i].row !== topRow);
-  const refIdx = (refPool.length >= nRef ? refPool : idx).slice(0, nRef);
-  refIdx.forEach((i) => (pegs[i].ref = true));
-  const badPool = idx.filter((i) => !pegs[i].ref);
-  badPool.slice(0, nBad).forEach((i) => (pegs[i].bad = true));
-  return pegs;
-}
-
-// planimeter: 495/528 exact, 33/528 refused, 0/528 wrong.
-export const PLANIMETER_PEGS = board(7, 33 / 528, 0);
-// shapely.polygonize_full: answers every file, 336/528 wrong, 0/528 refused.
-export const SHAPELY_PEGS = board(13, 0, 336 / 528);
+// x/y local to the tilted plate; order spaces the three across the answer
+// wave so they still pop in one after another, not all at once.
+export const PLANIMETER_REF = [
+  { x: -0.5, y: 0.28, order: 0 },
+  { x: 0.04, y: -0.26, order: 1 },
+  { x: 0.52, y: 0.16, order: 2 },
+];
+export const ORDER_SPAN = 2;

@@ -40,7 +40,11 @@ export function surfaceY(x, z) {
 // Colour by depth: glacial turquoise over the shelves, deep blue-teal in the
 // channel. aDepth feeds the foam in the shader.
 export function buildWaterSurface() {
-  const shallow = new Color("#74d8d4");
+  // Saturated enough at the very bank that the thinnest edge still reads as
+  // water, not as the packed-snow path (palette.js C.path #e4e8f0): a pale
+  // stop here used to blend into the path from a dock's normal standing
+  // distance (judges' fix, round 3).
+  const shallow = new Color("#3fc4c8");
   const mid = new Color("#2aa9c2");
   const deep = new Color("#12769a");
   const c = new Color();

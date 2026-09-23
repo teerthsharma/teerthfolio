@@ -74,7 +74,7 @@ function buildFish(scale = 1) {
   const charcoal = new Color(C.charcoal);
 
   const body = new SphereGeometry(1, 12, 8).toNonIndexed();
-  body.scale(0.13, 0.06, 0.28);
+  body.scale(0.13, 0.07, 0.28);
   {
     const pos = body.attributes.position;
     const arr = new Float32Array(pos.count * 3);
@@ -119,13 +119,15 @@ function buildCrate() {
   upper.translate(0.05, 0.275 + 0.55, -0.03);
   setColor(upper, wood);
 
+  // Y raised above the upper box's top face (y=1.1) and x/z pushed outward
+  // so heads clear the box instead of nesting inside its solid interior.
   const fishAngles = [
-    [0.05, 0.78, 0.05, 0.35, -0.2],
-    [-0.15, 0.82, -0.1, -0.9, 0.15],
-    [0.2, 0.8, -0.12, 2.4, -0.1],
+    [0.05, 1.15, 0.35, 0.35, -0.2],
+    [-0.15, 1.1, -0.35, -0.9, 0.15],
+    [0.2, 1.2, 0.3, 2.4, -0.1],
   ];
   const heads = fishAngles.map(([x, y, z, yaw, tilt]) => {
-    const f = buildFish(1.0);
+    const f = buildFish(1.3);
     f.rotateX(tilt);
     f.rotateY(yaw);
     f.translate(x, y, z);
@@ -139,7 +141,7 @@ const SNOWBALL_GEO = new SphereGeometry(1, 20, 14);
 const BEACHBALL_GEO = paintByLongitude(new SphereGeometry(1, 24, 16).toNonIndexed());
 const RING_GEO = paintRing(new TorusGeometry(0.4, 0.15, 10, 28).toNonIndexed().rotateX(Math.PI / 2));
 const CRATE_GEO = buildCrate();
-const FISH_GEO = buildFish(1.8); // ~1 m long: at 1x it was a 6-px sliver at the follow camera
+const FISH_GEO = buildFish(2.0); // ~1 m long, 0.14 m thick: at 1x it was a 6-px sliver at the follow camera
 
 // ---- component -------------------------------------------------------------
 // Seed layout (buildGroups) lives in ./life/props-seed.js: no JSX there, so

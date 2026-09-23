@@ -1,12 +1,11 @@
 // Pure geometry for the "collapse" sculpture (Epsilon-Hollow, p-epsilon-hollow).
 //
-// The figure it retells (teerthsharma.github.io/fig.js, "collapse —") draws
-// OS state as a hollow planet: a triangulated unit sphere, a shell of light,
-// its points coloured by territory (memory, files, the scheduler). Built
-// once here, no dependencies: an icosahedron subdivided `detail` times, each
-// new midpoint pushed back onto the unit sphere (same construction as the
-// figure's own `mp`), plus the handful of faces that stand in for eviction's
-// folds and the two vertices a file's payload travels between.
+// A hollow, triangulated icosphere shell — a geodesic globe, the kind an
+// expo pavilion hangs over its own plaza. Built once here, no dependencies:
+// an icosahedron subdivided `detail` times, each new midpoint pushed back
+// onto the unit sphere. Struts and beads carry playful accent colours with
+// no meaning attached (round 2: dropped the territory/eviction machinery
+// that retold the landing site's explainer figure — see Collapse.jsx).
 
 function normalize([x, y, z]) {
   const l = Math.hypot(x, y, z) || 1;
@@ -62,28 +61,12 @@ function buildIcosphere(detail) {
   return { V, F };
 }
 
-// Three territories on the sphere — memory, files, the scheduler — each
-// vertex belongs to whichever seed direction it's closest to. Illustrative,
-// like the figure's own (it adds a coastline wobble; this doesn't need one
-// at game distance).
-const SEEDS = [
-  normalize([0.3, 0.9, 0.35]), // memory
-  normalize([-0.85, -0.2, 0.5]), // files
-  normalize([0.5, -0.6, -0.65]), // the scheduler
-];
-function territoryOf(v) {
-  let best = 0, bv = -Infinity;
-  for (let i = 0; i < 3; i++) {
-    const d = dot(v, SEEDS[i]);
-    if (d > bv) { bv = d; best = i; }
-  }
-  return best;
-}
+// A playful, non-semantic pick: which accent colour vertex `i` wears. Just
+// a mechanical spread across the palette, not a legend for anything.
+const accentOf = (i, n) => i % n;
 
-// Every vertex once, tinted by its own territory: the literal "points" the
-// figure's story is about (memory, files, the scheduler live as points on
-// the sphere). A building retelling it needs the joints as real jewels, not
-// just the struts between them.
+// Every vertex once, tinted with a funky accent colour: the joints read as
+// real jewels, not just the struts between them.
 function buildPointList(V, colorsRgb, radius) {
   const n = V.length;
   const positions = new Float32Array(n * 3);
@@ -93,7 +76,7 @@ function buildPointList(V, colorsRgb, radius) {
     positions[i * 3] = p[0] * radius;
     positions[i * 3 + 1] = p[1] * radius;
     positions[i * 3 + 2] = p[2] * radius;
-    const c = colorsRgb[territoryOf(p)];
+    const c = colorsRgb[accentOf(i, colorsRgb.length)];
     colors[i * 3] = c[0];
     colors[i * 3 + 1] = c[1];
     colors[i * 3 + 2] = c[2];
@@ -101,10 +84,10 @@ function buildPointList(V, colorsRgb, radius) {
   return { positions, colors, count: n };
 }
 
-// Every triangle edge once, each end tinted by its own territory, as a flat
-// vertex-coloured line list for a single LineSegments draw call. `pairs`
-// carries the two vertex indices behind each edge, in the same order as the
-// instances, so a caller can find "the strut between vertex a and b".
+// Every triangle edge once, each end tinted with its own accent colour, as a
+// flat vertex-coloured line list for a single LineSegments draw call.
+// `pairs` carries the two vertex indices behind each edge, in the same order
+// as the instances, so a caller can find "the strut between vertex a and b".
 function buildEdges(V, F, colorsRgb, radius) {
   const seen = new Set();
   const positions = [];
@@ -116,75 +99,12 @@ function buildEdges(V, F, colorsRgb, radius) {
     seen.add(key);
     const pa = V[a], pb = V[b];
     positions.push(pa[0] * radius, pa[1] * radius, pa[2] * radius, pb[0] * radius, pb[1] * radius, pb[2] * radius);
-    const ca = colorsRgb[territoryOf(pa)], cb = colorsRgb[territoryOf(pb)];
+    const ca = colorsRgb[accentOf(a, colorsRgb.length)], cb = colorsRgb[accentOf(b, colorsRgb.length)];
     colors.push(ca[0], ca[1], ca[2], cb[0], cb[1], cb[2]);
     pairs.push(a, b);
   };
   for (const [a, b, c] of F) { pushEdge(a, b); pushEdge(b, c); pushEdge(c, a); }
   return { positions: new Float32Array(positions), colors: new Float32Array(colors), pairs };
-}
-
-// The evictions the figure narrates, computed the way fig.js computes them
-// (teerthsharma.github.io/fig.js, "collapse —"): repeatedly contract the
-// shortest edge whose two ends both have at least 4 neighbours and share
-// exactly 2 of them (the link condition — the mesh stays a sphere), folding
-// the more crowded end onto the other. Each contraction reports the victim
-// vertex `a`, its target `b`, the ORIGINAL mesh's edges that meet `a` (so a
-// building can find and re-aim the struts that follow it), and the 1-2
-// original faces between `a` and `b` (the coral fold), as vertex indices —
-// positions come from the vertex list itself, so nothing here is ever the
-// wrong scale.
-function pickContractions(V, F, count, radius) {
-  const len = (a, b) => {
-    const dx = V[a][0] - V[b][0], dy = V[a][1] - V[b][1], dz = V[a][2] - V[b][2];
-    return Math.hypot(dx, dy, dz);
-  };
-  // Neighbours in the UNREDUCED mesh: what the drawn struts actually
-  // connect, regardless of how many earlier folds have relabelled `cur`.
-  const baseN = V.map(() => new Set());
-  for (const [a, b, c] of F) {
-    baseN[a].add(b); baseN[a].add(c);
-    baseN[b].add(a); baseN[b].add(c);
-    baseN[c].add(a); baseN[c].add(b);
-  }
-  const scale = (p) => [p[0] * radius, p[1] * radius, p[2] * radius];
-
-  let cur = F.map((f) => f.slice());
-  const out = [];
-  while (out.length < count) {
-    const N = V.map(() => []);
-    const link = (a, b) => {
-      if (!N[a].includes(b)) N[a].push(b);
-      if (!N[b].includes(a)) N[b].push(a);
-    };
-    for (const [a, b, c] of cur) { link(a, b); link(b, c); link(c, a); }
-
-    const edges = [];
-    for (let i = 0; i < V.length; i++) for (const j of N[i]) if (i < j) edges.push([i, j, len(i, j)]);
-    edges.sort((x, y) => x[2] - y[2]);
-    const crowd = (x) => N[x].reduce((s, n) => s + len(x, n), 0) / N[x].length;
-
-    let pick = null;
-    for (const [a, b] of edges) {
-      if (N[a].length < 4 || N[b].length < 4) continue;
-      let common = 0;
-      for (const n of N[a]) if (N[b].includes(n)) common++;
-      if (common !== 2) continue; // the link condition: still a sphere
-      const v = crowd(a) < crowd(b) ? a : b; // the more crowded end folds
-      pick = { v, u: v === a ? b : a };
-      break;
-    }
-    if (!pick) break;
-
-    const { v, u } = pick;
-    const folds = cur.filter((f) => f.includes(v) && f.includes(u)).map((f) => f.slice());
-    out.push({ a: v, b: u, pa: scale(V[v]), pb: scale(V[u]), edges: [...baseN[v]].map((n) => [v, n]), folds });
-
-    cur = cur
-      .filter((f) => !(f.includes(v) && f.includes(u)))
-      .map((f) => f.map((x) => (x === v ? u : x)));
-  }
-  return out;
 }
 
 // The two points a file's payload travels between: vertex 0 and whichever
@@ -201,15 +121,14 @@ function travelPair(V, radius) {
 }
 
 // Everything the sculpture needs, built once at module load.
-export function buildCollapse({ outerDetail, innerDetail, outerR, innerR, contractionCount, territoryHex }) {
-  const colorsRgb = territoryHex.map(hexToRgb01);
+export function buildCollapse({ outerDetail, innerDetail, outerR, innerR, accentHex }) {
+  const colorsRgb = accentHex.map(hexToRgb01);
   const outer = buildIcosphere(outerDetail);
   const inner = buildIcosphere(innerDetail);
   return {
     outer: buildEdges(outer.V, outer.F, colorsRgb, outerR),
     inner: buildEdges(inner.V, inner.F, colorsRgb, innerR),
     points: buildPointList(outer.V, colorsRgb, outerR),
-    contractions: pickContractions(outer.V, outer.F, contractionCount, outerR),
     travel: travelPair(outer.V, outerR * 0.985),
   };
 }

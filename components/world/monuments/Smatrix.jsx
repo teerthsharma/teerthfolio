@@ -25,7 +25,8 @@
 // stack" moment. A giant translucent ice core (the everyday job made
 // literal) skewers the whole hut on cradle saddles, its tips poking out
 // through both side walls -- what the light-core turns inside. Faster and
-// brighter, and the ground glows harder, when `near`.
+// brighter when `near`; a drilled core sample hovers by the door with no
+// support, slowly turning -- the anomaly every radioactive area carries.
 //
 // One reconciliation: the review's fix 11 gives the ice core "length 3.0 m"
 // AND "both ends stick out 0.3 m through the side walls" -- those two
@@ -41,7 +42,6 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
-  AdditiveBlending,
   BoxGeometry,
   CatmullRomCurve3,
   CircleGeometry,
@@ -119,10 +119,16 @@ const REOPEN_END = FLAT_END + 1.0; // eases back to depth and turns away
 const CYCLE = REOPEN_END + 0.5;
 const POP = 0.18; // seconds for one bead to pop in once its hop arrives
 
-// ---- ground radiation (fix 8) ----------------------------------------------
-const GLOW_R = 4.5;
-const POOL_W = 1.6, POOL_H = 1.2;
+// ---- ground radiation ------------------------------------------------------
 const MOTE_N = 16, MOTE_R = 3.5;
+
+// ---- the anomaly: a drilled core sample, hovering with no support, slowly
+// turning (round 2 fix 4) -- the flat ground-glow pools it replaces read as
+// "yellow pee stains"; a crisp floating object is the area's radiation shown,
+// not stated.
+const ANOM_POS = [1.6, 0.85, HALF_Z + 1.4];
+const ANOM_R = 0.22, ANOM_LEN = 0.5;
+const AMBER_HEX = "#f0b23c"; // violet's warm complement -- round 2 fix 5
 
 const dummy = new Object3D();
 const tmpColor = new Color();
@@ -158,6 +164,7 @@ export default function Smatrix({ place, near: nearProp }) {
   const scanRef = useRef();
   const turnRef = useRef();
   const moteRef = useRef();
+  const anomalyRef = useRef();
   const phase = useRef(0);
 
   const sliceLayout = useMemo(
@@ -284,30 +291,31 @@ export default function Smatrix({ place, near: nearProp }) {
   const sumMat = useMemo(() => mat("#241636", { emissive: VIOLET_HEX, emissiveIntensity: 0.6, roughness: 0.5 }).clone(), []);
   const scanMat = useMemo(() => glow(VIOLET_HEX, 0.5).clone(), []);
   const ventMat = useMemo(() => lamp(shellAccent, 0.8).clone(), [shellAccent]);
-  const groundGlowMat = useMemo(
-    () => new MeshBasicMaterial({ color: accent, transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false, opacity: 0.14 }),
-    [accent],
-  );
 
   const wall = mat(C.warmWhite, { roughness: 0.75 });
   const frame = mat(C.charcoal, { roughness: 0.6 });
   const gableMat = mat(C.warmWhite, { roughness: 0.75, side: DoubleSide });
-  // fix 2/3: near-neutral, a step brighter than the warmWhite walls. A faint
-  // self emissive floor (like every other accent material in this file)
-  // keeps the slope legible even at a grazing sun angle on a 45 deg pitch.
-  // fix 2/3: near-neutral, a step brighter than the warmWhite walls. This
-  // slope's own diffuse response reads very dark at this sun angle (flat
-  // shading on a merged, rotated box -- every other accent material in this
-  // file carries the same emissiveIntensity ~0.4-0.5 for exactly this
-  // reason), so a matching emissive floor keeps it legible as snow, not
-  // charcoal.
-  const roofBodyMat = mat(C.snow, { roughness: 0.7, emissive: C.snow, emissiveIntensity: 0.4 });
+  // round 2 fix 3: the old C.snow + 0.4 emissive matched the sky/ground snow
+  // value almost exactly, so the tallest surface on the building read as one
+  // flat pale card. Shifted a clear step darker/warmer (toward C.charcoal)
+  // and the emissive floor cut back so it stops competing with the snow --
+  // the ridge break now reads as an actual value line, not just a stripe.
+  const roofBodyMat = mat("#d9d6d2", { roughness: 0.7, emissive: "#d9d6d2", emissiveIntensity: 0.12 });
   const winFrameMat = useMemo(() => mat(shellAccent, { roughness: 0.5, emissive: shellAccent, emissiveIntensity: 0.4 }), [shellAccent]);
   const roofMat = useMemo(() => mat(shellAccent, { roughness: 0.5, flatShading: true }), [shellAccent]); // now just the ridge cap
-  const doorKnobMat = useMemo(() => mat(shellAccent, { roughness: 0.4, emissive: shellAccent, emissiveIntensity: 0.5 }), [shellAccent]);
-  const coreMat = useMemo(() => new MeshBasicMaterial({ color: C.ice, transparent: true, opacity: 0.45, depthWrite: false, toneMapped: false }), []); // fix 1: 0.18 -> 0.45
-  const lightPool = useMemo(() => glow(accent, 0.3), [accent]);
+  // round 2 fix 5: every accent detail shared the one shellAccent violet: the
+  // doorknob is retuned to violet's warm complement so the hut carries a
+  // second, contrasting pop colour.
+  const doorKnobMat = useMemo(() => mat(AMBER_HEX, { roughness: 0.4, emissive: AMBER_HEX, emissiveIntensity: 0.6 }), []);
+  // round 2 fix 2: 0.45 opacity of near-pure C.ice was near-invisible against
+  // the pale sky/snow background. Raised toward 0.8 and swapped to the
+  // palette's own deeper, more saturated ice so the poke-through and collar
+  // rings actually read from outside the hut.
+  const coreMat = useMemo(() => new MeshBasicMaterial({ color: C.deepIce, transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false }), []);
   const moteMat = useMemo(() => lamp(accent, 1), [accent]);
+  // round 2 fix 4: the crisp, physics-defying anomaly every radioactive area
+  // needs -- a drilled core sample hovering with no support, slowly turning.
+  const anomalyMat = useMemo(() => mat(VIOLET_HEX, { roughness: 0.35, emissive: VIOLET_HEX, emissiveIntensity: 0.5 }), []);
 
   // unlit, not a real dielectric: a low-roughness standard material here
   // catches the sun disc as a hard streak and washes the case out behind it.
@@ -420,8 +428,12 @@ export default function Smatrix({ place, near: nearProp }) {
 
     ventMat.emissiveIntensity = (0.7 + 0.6 * collapseK) * boost;
 
-    // fix 8: the ground glows harder as the stack lands on its sum.
-    groundGlowMat.opacity = 0.14 + 0.1 * collapseK;
+    // round 2 fix 4: the hovering core sample turns steadily and bobs gently
+    // in place -- no support, no explanation, just the anomaly.
+    if (anomalyRef.current) {
+      anomalyRef.current.rotation.z = phase.current * 0.9;
+      anomalyRef.current.position.y = ANOM_POS[1] + Math.sin(phase.current * 1.6) * 0.08;
+    }
 
     // fix 8: motes rise round the hut and, during the end-on hold, stream in
     // toward the window -- the area's radiation being drawn into the story.
@@ -500,12 +512,10 @@ export default function Smatrix({ place, near: nearProp }) {
         </mesh>
       </group>
 
-      {/* fix 8: the ground itself glows with this area's radiation */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} material={groundGlowMat}>
-        <circleGeometry args={[GLOW_R, 24]} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[WIN_CX, 0.03, HALF_Z + 0.9]} material={lightPool}>
-        <planeGeometry args={[POOL_W, POOL_H]} />
+      {/* round 2 fix 4: the anomaly -- a drilled core sample hovering with no
+          support, slowly turning, in the case's own violet */}
+      <mesh ref={anomalyRef} position={ANOM_POS} rotation={[Math.PI / 2, 0, 0]} material={anomalyMat}>
+        <cylinderGeometry args={[ANOM_R, ANOM_R, ANOM_LEN, 12]} />
       </mesh>
       <instancedMesh ref={moteRef} args={[moteGeo, moteMat, MOTE_N]} />
     </group>

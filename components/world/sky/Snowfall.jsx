@@ -78,7 +78,12 @@ export default function Snowfall() {
     u.uCentre.value[0] = focus.x;
     u.uCentre.value[2] = focus.z;
     u.uBox.value[0] = u.uBox.value[2] = 1.7 * d;
-    u.uBox.value[1] = camera.position.y + 1;
+    // Capped, not scaled to full camera altitude: at a pulled-back zoom the
+    // box used to reach 57-114 m tall while the visible band is only ~17.5
+    // degrees, so almost every flake spent its cycle above frame. 28 m is
+    // roughly the zoom=1 camera height -- density near the ground stays
+    // constant instead of thinning as the camera pulls back.
+    u.uBox.value[1] = Math.min(camera.position.y + 1, 28);
     u.uPx.value = (size.height * viewport.dpr) / (2 * Math.tan((camera.fov * Math.PI) / 360));
   });
 

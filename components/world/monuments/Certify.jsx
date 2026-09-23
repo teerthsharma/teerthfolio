@@ -26,7 +26,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, IcosahedronGeometry, Object3D, RingGeometry } from "three";
+import { BoxGeometry, ConeGeometry, CylinderGeometry, IcosahedronGeometry, Object3D, RingGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useUi } from "../../../lib/world/store";
 import { damp } from "../life/util";
@@ -49,6 +49,13 @@ import {
 const DEG = Math.PI / 180;
 const lerp = (a, b, t) => a + (b - a) * t;
 
+// Score fix #1: the palette read two-tone (radiation teal + warm-white/
+// charcoal neutrals), no second saturated colour. A boom gate's warning
+// beacon is amber/orange in real life anyway, so the arm's light bands and
+// the beacon both take this coral-orange -- roughly complementary to A's
+// ~189deg teal -- instead of plain warm white.
+const ACCENT = "#ff6a4d";
+
 // The booth stands under the roof, its front (dock-facing) wall carrying
 // the window and door; corners reach hypot(1.7, 1.3) = 2.14 m, inside the
 // 3 m place radius.
@@ -65,12 +72,22 @@ const HOPPER_POS = [BOOTH_X, 4.9, ROOF_HALF_Z];
 const HOPPER_SIZE = [0.6, 0.5, 0.6];
 
 // The boom gate, off the booth face: its own lane, marked on the snow.
-const GATE_X = -1.9, GATE_Z = 1.7, GATE_PIVOT_Y = 1.0, GATE_POST_H = 1.7;
+// GATE_X pulled from -1.9 to -2.6 (review fix #3: post+arm sat only 0.2 m
+// clear of the booth's -1.7 m edge and the arm read as plugged into the
+// window; -2.6 is the low end of the judged range, chosen over -2.8 to stay
+// close to the place's own 3 m collision radius). That alone also answers
+// review fix #2: the beacon (GATE_X - 0.3) was 0.05 m from the left pool's
+// x, nearly coincident on screen -- at -2.6 the gap is 0.65 m, 13x wider,
+// so GATE_Z is left at 1.7 rather than also pushed to 2.4 (the fix's other
+// option), which would have put the post 3.5 m out, well past that 3 m
+// circle. LANE_X now matches GATE_X (review fix #4: the gate guards the
+// lane it's drawn over instead of standing beside a strip a metre off).
+const GATE_X = -2.6, GATE_Z = 1.7, GATE_PIVOT_Y = 1.0, GATE_POST_H = 1.7;
 const ARM_LEN = 2.4, ARM_BANDS = 6, ARM_BAND_W = ARM_LEN / ARM_BANDS;
 // Capped at 80 deg (short of vertical): 108 deg swung the resting-open arm
 // past straight up, reading as a diagonal stick disconnected from its post.
 const ARM_UP = 80 * DEG;
-const LANE_X = 0.9, LANE_Z0 = 1.2, LANE_Z1 = 2.8;
+const LANE_X = -GATE_X, LANE_Z0 = 1.2, LANE_Z1 = 2.8;
 
 // The two attractor pools, edge at 2.25 + 0.7 = 2.95 m, inside radius 3.
 const POOL_X = 2.25, POOL_R = 0.7, POOL_H = 0.12;
@@ -115,12 +132,13 @@ const winPaneGeo = new BoxGeometry(WIN_W, WIN_H, 0.05).translate(BOOTH_X, WIN_Y,
 // is seen edge-on along z (its own faces foreshorten to a line from there).
 const ribbonGeo = buildRibbonGeo(0.5, 0.2);
 const ribbonGlowGeo = buildRibbonGeo(0.72, 0.3);
-// The lane markings and the ground decal are both flat markings under the
-// same booth -- one merged mesh/material (matDecal) instead of two, each
-// piece keeping its own baked Y (lane 0.011, decal 0.02) so the decal still
-// layers over the lane where their footprints overlap.
+// Review fix #1: the booth used to sit on a 2.9 m-radius additive,
+// low-opacity CircleGeometry disc -- the exact "soft flat glow blob on the
+// snow" pattern the owner named and banned, just teal instead of yellow.
+// Dropped entirely; only the two lane strips remain, painted with matDecal,
+// now a mat()-based low-emissive, non-additive material instead of glow(),
+// so they read as a sharp painted stripe, not a wash.
 const decalGeo = mergeGeometries([
-  new CircleGeometry(2.9, 32).rotateX(-Math.PI / 2).translate(0, 0.02, 0),
   new BoxGeometry(0.2, 0.02, LANE_Z1 - LANE_Z0).translate(-LANE_X, 0.011, (LANE_Z0 + LANE_Z1) / 2),
   new BoxGeometry(0.2, 0.02, LANE_Z1 - LANE_Z0).translate(LANE_X, 0.011, (LANE_Z0 + LANE_Z1) / 2),
 ]);
@@ -150,23 +168,24 @@ export default function Certify({ place, near: nearProp }) {
 
   const matCharcoal = useMemo(() => mat(C.charcoal), []);
   const matWarmWhite = useMemo(() => mat(C.warmWhite), []);
+  const matAccent = useMemo(() => mat(ACCENT, { emissive: ACCENT, emissiveIntensity: 1.5 }), []);
   const matWindow = useMemo(() => lamp(A, 0.9), [A]);
   const matRibbon = useMemo(() => lamp(A, 1.2), [A]);
   const matRibbonGlow = useMemo(() => glow(A, 0.3), [A]);
   // Saturated accent body, not near-white snow: a near-white marble on a
   // near-white roof has almost no value contrast and reads as invisible.
-  // Intensity raised from 1.5: once the frustum-culling bug (fix #1) no
+  // Intensity raised from 1.5: once the frustum-culling bug (round-1 fix #1) no
   // longer hid the instances outright, 1.5 still read as a faint dot next
   // to the roof's warm-white at normal camera distance.
   const matMarble = useMemo(() => mat(A, { emissive: A, emissiveIntensity: 2.5 }), [A]);
   const matMote = useMemo(() => lamp(A, 2), [A]);
   const matPulse = useMemo(() => lamp(A, 3), [A]);
-  const matDecal = useMemo(() => glow(A, 0.16), [A]);
+  const matDecal = useMemo(() => mat(A, { emissive: A, emissiveIntensity: 0.5, roughness: 0.6 }), [A]);
   const matRing = useMemo(() => glow(A, 0.5), [A]);
 
   // The only three materials that mutate per frame; cloned so the mutation
   // never touches another building sharing the cached A-coloured lamp.
-  const matBeacon = useMemo(() => lamp(A, 1).clone(), [A]);
+  const matBeacon = useMemo(() => lamp(ACCENT, 1).clone(), []);
   const matPoolL = useMemo(() => lamp(A, 1).clone(), [A]);
   const matPoolR = useMemo(() => lamp(A, 1).clone(), [A]);
   useEffect(() => () => {
@@ -323,18 +342,18 @@ export default function Certify({ place, near: nearProp }) {
       <mesh geometry={winPaneGeo} material={matWindow} />
       <mesh geometry={ribbonGeo} material={matRibbon} />
       <mesh geometry={ribbonGlowGeo} material={matRibbonGlow} />
-      <mesh geometry={decalGeo} material={matDecal} receiveShadow={false} />
+      <mesh geometry={decalGeo} material={matDecal} receiveShadow />
       <mesh ref={ringRef} geometry={ringGeo} material={matRing} visible={false} />
 
       <group ref={gateRef} position={[GATE_X, GATE_PIVOT_Y, GATE_Z]}>
         <mesh geometry={armDarkGeo} material={matCharcoal} castShadow />
-        <mesh geometry={armLightGeo} material={matWarmWhite} castShadow />
+        <mesh geometry={armLightGeo} material={matAccent} castShadow />
       </group>
       {/* Off the post's +x side by 0.3 m: the arm's bands only ever
           translate to x >= 0 in the gate's local frame (see armBand above)
           and the gate group only rotates about Z, so the arm's swept
           silhouette never crosses x < GATE_X at any angle -- the beacon
-          can no longer fuse into "one more ball" on its tip (review fix #4). */}
+          can no longer fuse into "one more ball" on its tip (round-1 fix #4). */}
       <mesh geometry={beaconGeo} material={matBeacon} position={[GATE_X - 0.3, GATE_POST_H + 0.22, GATE_Z]} />
 
       <mesh geometry={poolGeo} material={matPoolL} position={[-POOL_X, POOL_H / 2, 0]} receiveShadow />
@@ -343,7 +362,7 @@ export default function Certify({ place, near: nearProp }) {
       {/* frustumCulled=false on marbleMesh/pulseMesh: three's InstancedMesh
           only computes its bounding sphere once, lazily, from whatever
           instance matrices exist the first time culling runs; both meshes
-          park hidden instances at (0,-4,0) most of the time (review fix #1
+          park hidden instances at (0,-4,0) most of the time (round-1 fix #1
           root cause -- confirmed live: mesh/material were correct, only
           frustumCulled stuck true against a sphere frozen on a parked
           frame), so a frozen sphere anchored there can cull the whole mesh

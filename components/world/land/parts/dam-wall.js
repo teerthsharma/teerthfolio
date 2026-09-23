@@ -62,9 +62,13 @@ export function buildWall() {
     const dz = b.z - a.z;
     const len = Math.hypot(dx, dz) + 0.7; // small overlap so corners stay shut
     const h = (a.h + b.h) / 2;
+    // several segments per axis so rough() breaks each box face into a
+    // handful of small lumps -- with 1x1x1 (the old count) each face was 2
+    // giant flat triangles, which read as sharp origami facets, not ice.
+    const lenSegs = Math.max(2, Math.round(len / 2.2));
     // non-indexed to match IcosahedronGeometry below: mergeGeometries needs
     // every part either indexed or not, never a mix.
-    const geo = new BoxGeometry(a.half + b.half, h, len, 1, 1, 1).toNonIndexed();
+    const geo = new BoxGeometry(a.half + b.half, h, len, 2, 2, lenSegs).toNonIndexed();
     geo.translate(0, h / 2, 0);
     geo.rotateY(Math.atan2(dx, dz));
     geo.translate((a.x + b.x) / 2, 0, (a.z + b.z) / 2);
@@ -73,7 +77,13 @@ export function buildWall() {
   for (const p of RIDGE) {
     // detail 2: at this close a range (~10 m) a detail-1 icosahedron's few,
     // large flat facets read as sharp shards, not a rounded ice boulder.
-    const geo = new IcosahedronGeometry(Math.min(p.half, p.h * 0.6 + 0.6), 2);
+    // Radius must reach at least the adjoining box segments' own half-width
+    // (p.half) or the sharp mitred corner pokes out past the rounded
+    // boulder -- the old min() clamped it smaller than that on purpose,
+    // which was the bug. Max, plus a flat overlap margin, so the boulder
+    // always overlaps both faces it sits between.
+    const radius = Math.max(p.half, p.h * 0.6 + 0.6) + 0.5;
+    const geo = new IcosahedronGeometry(radius, 2);
     geo.translate(p.x, p.h * 0.42, p.z);
     parts.push(geo);
   }
@@ -81,7 +91,11 @@ export function buildWall() {
 }
 
 // A point on the crest's two segments at fraction t (0..1 by length): world
-// (x, z), the crest height there, and the outward (front, south-ish) normal.
+// (x, z), the crest height there, the outward (front, south-ish) normal, and
+// `face` -- the box segment's own half-width there (buildWall's box spans
+// -face..+face along this same normal), so a caller can sit a mesh AT the
+// wall's real outer skin instead of guessing a small constant that lands
+// deep inside the solid ice.
 function crestPoint(t) {
   const segs = [];
   let total = 0;
@@ -89,7 +103,7 @@ function crestPoint(t) {
     const a = CREST[i];
     const b = CREST[i + 1];
     const len = Math.hypot(b.x - a.x, b.z - a.z);
-    segs.push({ a, b, len });
+    segs.push({ a, b, len, face: (a.half + b.half) / 2 });
     total += len;
   }
   let d = t * total;
@@ -106,11 +120,12 @@ function crestPoint(t) {
         h: s.a.h + (s.b.h - s.a.h) * u,
         nx: -dz / len,
         nz: dx / len,
+        face: s.face,
       };
     }
     d -= s.len;
   }
-  return { x: CREST[0].x, z: CREST[0].z, h: CREST[0].h, nx: 0, nz: 1 };
+  return { x: CREST[0].x, z: CREST[0].z, h: CREST[0].h, nx: 0, nz: 1, face: CREST[0].half };
 }
 
 // The four channels, west to east: index 0 is the redundant bypass (c4 ->

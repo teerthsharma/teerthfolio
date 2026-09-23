@@ -6,32 +6,26 @@
 // +z faces the camera and the dock. Props: { place, near }.
 //
 // Sources: data/showcase.json's p-topological-ml-toolkit entry (claim,
-// specs, figure) and teerthsharma.github.io/fig.js's cut() design comment.
-// The project turns a noisy point cloud's shape into a fixed-size feature as
-// a scale grows: pieces and loops are born and die, and only the long-lived
-// ones -- two loops, two pieces -- cross a cut and survive; the rest is
-// noise (figure.labels: "grow the scale, and holes are born and die" / "long
-// bars are structure, short bars are noise" / "what crosses the cut becomes
-// a feature").
+// specs, figure) and teerthsharma.github.io/fig.js's cut() design comment,
+// for the project's own mint/violet colour split only -- the figure's own
+// birth/death barcode animation is NOT re-enacted here (round 2 review: it
+// read as a plotted curve with lumber skin, the exact class SHOW NEVER TELL
+// bans).
 //
 // Physically: a SAWMILL -- an ordinary mill's everyday job (cut logs to
 // length, keep what's long enough) done the way this project does it. Eight
-// logs lie in a deck in the open yard in front of a small back shed: two
-// mint logs (the long-lived pieces), two violet logs (the long-lived loops
-// -- fig.js's own barcode draws loops as violet bars too), four dim ice logs
-// (noise). Act one: a small neutral scan gauge sweeps the yard, and every
-// log grows from its own birth point for exactly as long as its piece or
-// loop survived -- the SAME growing scale the figure sweeps through. Act
-// two, the figure's own payoff: every log slides to start at zero (fig.js:
-// "then every bar slides to start at zero, so its length is how long it
-// lived"), then one big spinning saw blade -- the radiation-coloured cut --
-// sweeps in from the right and stops at the exact span where the two mint
-// and two violet logs, and only those four, still reach past it: a bead
-// lights on the blade line for each ("what crosses the cut becomes a
-// feature"). It holds, then the whole deck shrinks back to nothing and
-// sweeps again. Faster and brighter near the seal. The mill's open intake
-// faces the deck, logs visibly feeding out of it; a smokestack -- the area's
-// radiation hot spot -- is the tallest point.
+// logs lie in a static pile in the open yard in front of a small back shed,
+// flush against a stop rail, already stocked with varied lengths the way a
+// real log deck looks: two mint logs, two violet logs (fig.js's own token
+// colours), four dim charcoal offcuts. No log grows or slides -- every
+// length is fixed. One big spinning saw blade -- the radiation-coloured cut
+// -- rests visible at the yard's edge, then periodically sweeps in and stops
+// at a fixed sort line: the two mint and two violet logs, and only those
+// four, are long enough to still reach past it, and a bead lights on the
+// blade line for each. It holds, then retracts back out to rest and sweeps
+// again. Faster near the seal. The mill's open intake faces the deck, logs
+// flush against its threshold; a smokestack -- the area's radiation hot spot
+// -- is the tallest point.
 //
 // Colours are the figure's own (site.css --mint-500 / --violet-500) for the
 // logs, not the radiation accent, which marks the building itself instead
@@ -56,7 +50,6 @@ import {
   BLADE_X_STOP,
   BLADE_Y,
   BLADE_Z,
-  coreProgress,
   CUT_DUR,
   EASE_RATE,
   HOLD_DUR,
@@ -64,12 +57,10 @@ import {
   LANE_Z1,
   LOG_Y,
   LOGS,
-  SHRINK_DUR,
-  SLIDE_DUR,
+  REST_DUR,
+  REST_DUR_NEAR_DELTA,
+  RETRACT_DUR,
   SURVIVORS,
-  SWEEP_RANGE,
-  SWEEP_X0,
-  SWEEP_X1,
 } from "./parts/cut-cores";
 
 // The whole building is modelled at this scale, then shrunk to fit the lab
@@ -84,7 +75,10 @@ const MINT = "#0b93ab"; // a surviving piece (H0)
 const VIOLET = "#a66cf0"; // a surviving loop (H1)
 const MINT_C = new Color(MINT);
 const VIOLET_C = new Color(VIOLET);
-const ICE_C = new Color(C.ice);
+// Noise logs were C.ice, nearly invisible against the pale snow (round 2
+// review: only the mint+violet logs read, the 4 offcuts vanished); charcoal
+// reads as dim discarded offcuts instead.
+const NOISE_C = new Color(C.charcoal);
 
 // ---- the shed: a small back shed, roofed, and an open yard in front ------
 const GABLE_X = 2.4; // the shed's side walls (its own east/west gable ends)
@@ -120,8 +114,6 @@ const RAIL_Z1 = LANE_Z1 + 0.2;
 const WINDOW_X = GABLE_X + GABLE_DEPTH / 2 + 0.04;
 const WINDOW_Y = 1.1;
 const WINDOW_ZS = [-1.3, -0.3]; // two per gable end
-
-const GAUGE_Y = 0.5;
 
 // mergeGeometries needs every input to carry the same attribute set and the
 // same indexed/non-indexed state. ExtrudeGeometry (the gable ends) comes out
@@ -206,6 +198,22 @@ const WALL_CHUNK = paint(
   C.warmWhite,
 );
 
+// The accent roof's front-pitch width, hugging the door bay (not the old
+// 5.4 that spanned the whole building) -- round 1 review: the accent roof
+// was "one giant plank", the single dominant shape in every capture; a
+// narrower front-only plank plus the deck logs read first. Declared here
+// (ahead of CHARCOAL_CHUNK) so the fascia trim below can size itself to it.
+const ROOF_W = 2.3; // narrowed from 3.0 (round 2 review: still the single largest saturated shape, spanning ~full building width) to roughly the DOOR_W=1.4 intake bay plus margin, so the log deck and blade compete for first read instead of "pink-roofed shed"
+
+// The front roof pitch's fascia: a charcoal trim strip along its lower edge
+// so the accent plane reads as a sloped roof with depth, not a flat colour
+// card pasted on the facade (round 2 review). Hangs just below the eave and
+// stands slightly proud of the front wall, so it catches its own light/
+// shadow edge from the dock camera.
+const FASCIA_W = ROOF_W + 0.14;
+const FASCIA_H = 0.16;
+const FASCIA_T = 0.1;
+
 const SKID_LEN = GABLE_X * 2 + 0.4;
 const CHARCOAL_CHUNK = paint(
   mergeGeometries(
@@ -219,6 +227,7 @@ const CHARCOAL_CHUNK = paint(
       prep(new CylinderGeometry(STACK_R, STACK_R, STACK_H, 10).translate(STACK_X, STACK_H / 2, STACK_Z)), // the mill smokestack
       prep(new BoxGeometry(RAIL_LEN, 0.18, 0.18).translate(RAIL_X, 0.09, RAIL_Z0)), // deck rail
       prep(new BoxGeometry(RAIL_LEN, 0.18, 0.18).translate(RAIL_X, 0.09, RAIL_Z1)), // deck rail
+      prep(new BoxGeometry(FASCIA_W, FASCIA_H, FASCIA_T).translate(0, EAVE_Y - FASCIA_H / 2, SHED_Z1 + FASCIA_T / 2)), // front roof fascia
     ],
     false,
   ),
@@ -227,11 +236,7 @@ const CHARCOAL_CHUNK = paint(
 
 // The radiation-coloured accent (front roof pitch, trim): built fresh per
 // place since it depends on A, then merged with the three A-independent
-// chunks above. Front pitch only, hugging the door bay (ROOF_W ~3.0, not
-// the old 5.4 that spanned the whole building) -- round 1 review: the
-// accent roof was "one giant plank", the single dominant shape in every
-// capture; a narrower front-only plank plus the deck logs read first.
-const ROOF_W = 2.3; // narrowed from 3.0 (round 2 review: still the single largest saturated shape, spanning ~full building width) to roughly the DOOR_W=1.4 intake bay plus margin, so the log deck and blade compete for first read instead of "pink-roofed shed"
+// chunks above. ROOF_W is declared above, ahead of CHARCOAL_CHUNK's fascia.
 function buildAccentChunk(A) {
   const trimBack = tiltedSlab(TRIM_W, TRIM_W, EAVE_BACK, RIDGE);
   const trimFront = tiltedSlab(TRIM_W, TRIM_W, RIDGE, EAVE_FRONT);
@@ -260,8 +265,6 @@ const WINDOW_GEO = mergeGeometries(
 
 const CAP_GEO = new CylinderGeometry(0.3, 0.34, 0.4, 10);
 const CAP_GLOW_GEO = new SphereGeometry(0.5, 10, 8);
-
-const GAUGE_GEO = new BoxGeometry(0.2, 1.0, 0.5);
 
 // A disc standing in the Y-Z plane (its flat faces perpendicular to x, the
 // axis it sweeps along): a cylinder's own axis runs along Y, so rotateZ
@@ -297,9 +300,16 @@ const BLADE_GEO = buildBladeGeo(BLADE_RADIUS, BLADE_THICK);
 const BLADE_GLOW_GEO = new CylinderGeometry(BLADE_RADIUS + 0.12, BLADE_RADIUS + 0.12, BLADE_THICK + 0.18, 24).rotateZ(Math.PI / 2);
 
 // Unit-length cylinder, axis along local +X, running 0..1 -- so scale.x is
-// directly a log's current visible length in metres, and position.x is its
-// current start point: it grows away from its own start, never its centre.
-const PIECE_GEO = new CylinderGeometry(0.13, 0.13, 1, 8).rotateZ(Math.PI / 2).translate(0.5, 0, 0);
+// directly a log's fixed visible length in metres, and position.x is its
+// fixed start point (every log's near end at PILE_X0). Radius thickened
+// from 0.13 (round 2 review: at dock/game distance the deck read as "two
+// thin tube shapes," not logs).
+const LOG_RADIUS = 0.22;
+const PIECE_GEO = new CylinderGeometry(LOG_RADIUS, LOG_RADIUS, 1, 8).rotateZ(Math.PI / 2).translate(0.5, 0, 0);
+// A round end-cap sized to the log's own radius, at each log's fixed tip --
+// a log reads as a cut round, not a flat bar. BEAD_GEO stays its own
+// smaller size for the survivor marker beads on the blade line.
+const LOG_END_GEO = new SphereGeometry(LOG_RADIUS, 10, 8);
 const BEAD_GEO = new SphereGeometry(BEAD_DIAMETER / 2, 10, 8);
 
 // Scratch reused every frame: never allocate inside useFrame (Refuse.jsx's
@@ -313,16 +323,14 @@ export default function Cut({ place }) {
   const bodyGeo = useMemo(() => mergeGeometries([WALL_CHUNK, ICE_CHUNK, CHARCOAL_CHUNK, buildAccentChunk(A)], false), [A]);
   const bodyMat = useMemo(() => mat("#ffffff", { vertexColors: true, roughness: 0.65 }), []);
 
-  // Plain instance-tinted material, no emissive: mint, violet and ice must
-  // stay three distinct hues (the review's own complaint was fuchsia,
-  // violet and coral blurring into one pink-purple), so the logs carry no
-  // radiation glow of their own -- the blade, windows and smokestack cap
-  // already put A on 20-35% of the building.
+  // Plain instance-tinted material, no emissive: mint, violet and charcoal
+  // must stay three distinct hues (round 1 review: fuchsia, violet and
+  // coral blurred into one pink-purple; round 2: ice logs vanished against
+  // the snow), so the logs carry no radiation glow of their own -- the
+  // blade, windows and smokestack cap already put A on 20-35% of the
+  // building.
   const logMat = useMemo(() => mat("#ffffff", { roughness: 0.4 }), []);
   const beadMat = useMemo(() => lamp(A, 1.3), [A]);
-  // The gauge is the old r-scale slider, kept but now neutral -- the cut is
-  // the blade below, not this.
-  const gaugeMat = useMemo(() => mat(C.charcoal, { roughness: 0.4 }), []);
   // vertexColors: BLADE_GEO carries the two charcoal spokes baked in
   // (buildBladeGeo, above), so the material multiplies its own A tint by
   // white (full A) or charcoal (the spoke, dented darker) per vertex.
@@ -334,32 +342,52 @@ export default function Cut({ place }) {
   const windowMat = useMemo(() => lamp(A, 1.0).clone(), [A]);
 
   const logMeshRef = useRef(null);
-  const capMeshRef = useRef(null); // round end-cap at each log's growing tip -- a log unmistakably reads as a cut round, not a flat bar
+  const capMeshRef = useRef(null); // round end-cap at each log's fixed tip -- a log unmistakably reads as a cut round, not a flat bar
   const beadMeshRef = useRef(null);
-  const gaugeRef = useRef(null);
   const bladeRef = useRef(null); // position + the static camera-facing tilt only, never spun
   const bladeSpinRef = useRef(null); // nested inside bladeRef: spins about its OWN local axis (the disc's face normal, pre-tilt), so the spin can never rotate the face out of its tilt
   const kRef = useRef(0); // eased 0..1 toward `near`
-  // sweep: the gauge grows every log from its birth point.
-  // slide: every log's start slides to zero (fig.js: "bars slide to start at zero").
-  // cut: the blade sweeps in from the right.
-  // reveal: the blade holds at the threshold, a bead per survivor.
-  // shrink: the whole deck shrinks back to nothing, then it sweeps again.
-  const phase = useRef({ mode: "sweep", t: 0 });
+  // rest: the blade sits parked at BLADE_X_START, resting pose, always visible.
+  // cut: the blade sweeps in to its fixed stop line.
+  // hold: the blade holds at the stop line, a bead per survivor log.
+  // retract: the blade sweeps back out to rest, then it sweeps again.
+  // The log pile itself never moves in any phase -- fixed lengths, fixed
+  // positions, set once below (round 2 review: no growth, no axis cursor).
+  const phase = useRef({ mode: "rest", t: 0 });
 
+  // The pile is static: every log's matrix and colour is set once here, not
+  // per frame -- cheaper, and there is nothing left that changes it (round 2
+  // review dropped the birth/death growth and the start-at-zero slide).
   useLayoutEffect(() => {
     const logMesh = logMeshRef.current;
+    const capMesh = capMeshRef.current;
+    LOGS.forEach((log, i) => {
+      const tint = log.kind === "piece" ? MINT_C : log.kind === "loop" ? VIOLET_C : NOISE_C;
+      if (logMesh) {
+        dummy.position.set(log.x0, LOG_Y, log.z);
+        dummy.scale.set(log.length, 1, 1);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        logMesh.setMatrixAt(i, dummy.matrix);
+        logMesh.setColorAt(i, tint);
+      }
+      // the round end-cap sits at the log's fixed tip (local x=1 of the unit
+      // cylinder -> world x0 + length).
+      if (capMesh) {
+        dummy.position.set(log.x0 + log.length, LOG_Y, log.z);
+        dummy.scale.setScalar(1);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        capMesh.setMatrixAt(i, dummy.matrix);
+        capMesh.setColorAt(i, tint);
+      }
+    });
     if (logMesh) {
-      LOGS.forEach((log, i) => {
-        logMesh.setColorAt(i, log.kind === "piece" ? MINT_C : log.kind === "loop" ? VIOLET_C : ICE_C);
-      });
+      logMesh.instanceMatrix.needsUpdate = true;
       if (logMesh.instanceColor) logMesh.instanceColor.needsUpdate = true;
     }
-    const capMesh = capMeshRef.current;
     if (capMesh) {
-      LOGS.forEach((log, i) => {
-        capMesh.setColorAt(i, log.kind === "piece" ? MINT_C : log.kind === "loop" ? VIOLET_C : ICE_C);
-      });
+      capMesh.instanceMatrix.needsUpdate = true;
       if (capMesh.instanceColor) capMesh.instanceColor.needsUpdate = true;
     }
     const beadMesh = beadMeshRef.current;
@@ -376,60 +404,41 @@ export default function Cut({ place }) {
 
     const p = phase.current;
     p.t += dt;
-    const sweepDur = 7 - 2.5 * k; // 7 s far, 4.5 s near
+    const restDur = REST_DUR - REST_DUR_NEAR_DELTA * k; // 3.2 s far, 1.6 s near
 
-    let gaugeX = SWEEP_X1;
-    let shrinkMul = 1;
-    let slideAmt = 1; // 0: logs sit at their own birth points; 1: slid to start at zero
-    let bladeVisible = false;
     let bladeX = BLADE_X_START;
     let beadsVisible = false;
 
-    if (p.mode === "sweep") {
-      gaugeX = SWEEP_X0 + SWEEP_RANGE * Math.min(1, p.t / sweepDur);
-      slideAmt = 0;
-      if (p.t >= sweepDur) {
-        p.mode = "slide";
-        p.t = 0;
-      }
-    } else if (p.mode === "slide") {
-      slideAmt = smoothstep(0, 1, Math.min(1, p.t / SLIDE_DUR));
-      if (p.t >= SLIDE_DUR) {
+    if (p.mode === "rest") {
+      if (p.t >= restDur) {
         p.mode = "cut";
         p.t = 0;
       }
     } else if (p.mode === "cut") {
-      bladeVisible = true;
       bladeX = BLADE_X_START + (BLADE_X_STOP - BLADE_X_START) * smoothstep(0, 1, Math.min(1, p.t / CUT_DUR));
       if (p.t >= CUT_DUR) {
-        p.mode = "reveal";
+        p.mode = "hold";
         p.t = 0;
       }
-    } else if (p.mode === "reveal") {
-      bladeVisible = true;
+    } else if (p.mode === "hold") {
       bladeX = BLADE_X_STOP;
       beadsVisible = true;
       if (p.t >= HOLD_DUR) {
-        p.mode = "shrink";
+        p.mode = "retract";
         p.t = 0;
       }
     } else {
-      // shrink
-      shrinkMul = 1 - Math.min(1, p.t / SHRINK_DUR);
-      if (p.t >= SHRINK_DUR) {
-        p.mode = "sweep";
+      // retract
+      bladeX = BLADE_X_STOP + (BLADE_X_START - BLADE_X_STOP) * smoothstep(0, 1, Math.min(1, p.t / RETRACT_DUR));
+      if (p.t >= RETRACT_DUR) {
+        p.mode = "rest";
         p.t = 0;
       }
     }
 
-    if (gaugeRef.current) {
-      gaugeRef.current.visible = p.mode === "sweep";
-      gaugeRef.current.position.x = gaugeX;
-    }
-    if (bladeRef.current) {
-      bladeRef.current.visible = bladeVisible;
-      bladeRef.current.position.x = bladeX;
-    }
+    // The blade is always visible (round 2 review: an establishing shot
+    // must read "mill + log pile + blade" immediately, not only mid-cycle).
+    if (bladeRef.current) bladeRef.current.position.x = bladeX;
     // spin lives on the inner group, in its own local frame (before the
     // outer group's static tilt is applied), so it turns the two charcoal
     // spokes round the disc's own face normal without ever moving that
@@ -439,34 +448,6 @@ export default function Cut({ place }) {
     if (bladeSpinRef.current) bladeSpinRef.current.rotation.x += dt * (3 + 9 * k);
 
     windowMat.emissiveIntensity = 1.0 + 1.2 * k;
-
-    const logMesh = logMeshRef.current;
-    const capMesh = capMeshRef.current;
-    if (logMesh) {
-      for (let i = 0; i < LOGS.length; i++) {
-        const log = LOGS[i];
-        const growProgress = p.mode === "sweep" ? coreProgress(log, gaugeX) : 1;
-        const scaleX = Math.max(0.0001, log.span * growProgress * shrinkMul);
-        const x = log.x0 + (SWEEP_X0 - log.x0) * slideAmt;
-        dummy.position.set(x, LOG_Y, log.z);
-        dummy.scale.set(scaleX, 1, 1);
-        dummy.rotation.set(0, 0, 0);
-        dummy.updateMatrix();
-        logMesh.setMatrixAt(i, dummy.matrix);
-
-        // the round end-cap rides the log's growing tip (local x=1 of the
-        // unit cylinder -> world x + scaleX), so a log unmistakably reads
-        // as a cut round, not a flat bar.
-        if (capMesh) {
-          dummy.position.set(x + scaleX, LOG_Y, log.z);
-          dummy.scale.setScalar(1);
-          dummy.updateMatrix();
-          capMesh.setMatrixAt(i, dummy.matrix);
-        }
-      }
-      logMesh.instanceMatrix.needsUpdate = true;
-      if (capMesh) capMesh.instanceMatrix.needsUpdate = true;
-    }
 
     const beadMesh = beadMeshRef.current;
     if (beadMesh) {
@@ -490,10 +471,8 @@ export default function Cut({ place }) {
       <mesh position={[STACK_X, CAP_Y, STACK_Z]} geometry={CAP_GEO} material={capMat} />
       <mesh position={[STACK_X, CAP_Y, STACK_Z]} geometry={CAP_GLOW_GEO} material={capGlowMat} />
 
-      {/* the old r-scale gauge: a neutral marker now, the blade is the cut */}
-      <mesh ref={gaugeRef} position={[SWEEP_X0, GAUGE_Y, BLADE_Z]} geometry={GAUGE_GEO} material={gaugeMat} />
-
-      {/* the cut: one big spinning saw blade, act two. A static two-axis
+      {/* the cut: one big spinning saw blade, resting visible at the yard's
+          edge and periodically sweeping in to sort the static pile. A static two-axis
           tilt (rotation=[0.35, 0.55, 0]) tips the disc's face normal up and
           round toward CameraRig's fixed 42-degree-elevation follow camera,
           so it reads as a disc, not its own edge (round 2 review: rotation.y
@@ -509,13 +488,14 @@ export default function Cut({ place }) {
         </group>
       </group>
 
-      {/* the log deck: 2 mint pieces, 2 violet loops, 4 ice noise -- one InstancedMesh */}
+      {/* the log deck: a static pile, flush against the intake threshold --
+          2 mint pieces, 2 violet loops, 4 charcoal offcuts -- one InstancedMesh */}
       <instancedMesh ref={logMeshRef} args={[PIECE_GEO, logMat, LOGS.length]} castShadow receiveShadow frustumCulled={false} />
 
-      {/* round end-cap at each log's growing tip -- reuses BEAD_GEO, tinted
-          the same per-log MINT_C/VIOLET_C/ICE_C, so a log reads as a cut
-          round rather than a flat bar */}
-      <instancedMesh ref={capMeshRef} args={[BEAD_GEO, logMat, LOGS.length]} castShadow frustumCulled={false} />
+      {/* round end-cap at each log's fixed tip, sized to the log's own
+          radius and tinted the same per-log MINT_C/VIOLET_C/NOISE_C, so a
+          log reads as a cut round rather than a flat bar */}
+      <instancedMesh ref={capMeshRef} args={[LOG_END_GEO, logMat, LOGS.length]} castShadow frustumCulled={false} />
 
       {/* "what crosses the cut becomes a feature": a bead per survivor */}
       <instancedMesh ref={beadMeshRef} args={[BEAD_GEO, beadMat, SURVIVORS.length]} frustumCulled={false} />

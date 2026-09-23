@@ -12,7 +12,8 @@ import { useMemo, useRef } from "react";
 import { MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry } from "three";
 import { riverAt } from "../../../lib/world/river";
 import { coastRadius } from "../../../lib/world/terrain";
-import { buildWaterSurface, streakSpawn, surfaceY } from "./build";
+import { mat } from "../palette";
+import { buildLoopRibbon, buildWaterSurface, streakSpawn, surfaceY } from "./build";
 
 const STREAKS = 130;
 const DRIFT = 0.8; // streaks travel at this share of the current (they read as the surface, not the fastest thread)
@@ -32,8 +33,8 @@ function waterMaterial(time) {
         "#include <color_fragment>",
         `#include <color_fragment>
         float wob = sin(uTime * 1.5 + vXZ.x * 0.63 + vXZ.y * 0.81) * 0.5 + sin(uTime * 0.9 - vXZ.x * 1.37 + vXZ.y * 0.52) * 0.5;
-        float lip = 0.15 + 0.045 * wob;
-        float aa = fwidth(vDepth) * 0.75 + 1e-4;
+        float lip = 0.21 + 0.05 * wob;
+        float aa = fwidth(vDepth) * 1.1 + 1e-4;
         float foam = 1.0 - smoothstep(lip - aa, lip + aa, vDepth);
         float ring = 0.34 + 0.07 * sin(uTime * 1.1 + vXZ.x * 0.21 - vXZ.y * 0.17);
         foam = max(foam, 0.75 * (1.0 - smoothstep(0.022 - aa, 0.022 + aa, abs(vDepth - ring))));
@@ -47,6 +48,10 @@ export default function River() {
   const geometry = useMemo(buildWaterSurface, []);
   const time = useMemo(() => ({ value: 0 }), []);
   const material = useMemo(() => waterMaterial(time), [time]);
+
+  // THE ANOMALY: the loop-the-loop, always on, by the spill (build.js's LOOP)
+  const loop = useMemo(() => buildLoopRibbon(), []);
+  const loopMat = useMemo(() => mat("#ffffff", { vertexColors: true }), []);
 
   // the streaks: flat dashes riding the flow, each growing in and shrinking
   // out over its short life
@@ -105,6 +110,7 @@ export default function River() {
   return (
     <>
       <mesh geometry={geometry} material={material} receiveShadow />
+      <mesh geometry={loop.geometry} material={loopMat} />
       <instancedMesh ref={streaks} args={[streakGeo, streakMat, STREAKS]} frustumCulled={false} />
     </>
   );

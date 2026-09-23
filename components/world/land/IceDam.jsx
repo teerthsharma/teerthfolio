@@ -42,7 +42,7 @@ import { PLACE_BY_ID } from "../../../lib/world/places";
 import { useUi } from "../../../lib/world/store";
 import { clamp, smoothstep } from "../life/util";
 import { C, glow, lamp, mat } from "../palette";
-import { buildFrozenSplash, DROPS, ERUPT_PERIOD, FALL, RISE, VENT_H, VENT_R } from "./parts/dam-geyser";
+import { buildFrozenSplash, DROPS, ERUPT_PERIOD, FALL, RISE, STEAM, STEAM_PERIOD, VENT_H, VENT_R } from "./parts/dam-geyser";
 import { buildWall, CHANNELS } from "./parts/dam-wall";
 
 const DAM_PLACE = PLACE_BY_ID["pr-tensorflow-124410"];
@@ -58,8 +58,17 @@ const wallGeo = buildWall();
 
 // ---- the channels: three run, one stands frozen shut ------------------------
 
-const CHANNEL_W = 0.62;
-const CHANNEL_INSET = 0.22; // how far the groove's face sits proud of the wall
+const CHANNEL_W = 1.1;
+// How far proud of (RECESS_PROUD, negative = recessed into) or beyond
+// (FLOW_PROUD) the wall's own outer skin each part sits, in metres, measured
+// from each channel's own `ch.face` (dam-wall.js: the box segment's real
+// half-width there). A fixed small constant here used to sit deep inside the
+// solid ice -- the wall's front face is `face` (2.5-3.6 m) from the crest
+// centreline, not a few tenths -- so nothing ever broke the surface.
+const RECESS_PROUD = -0.3;
+const FLOW_PROUD = 0.45;
+const PLUG_PROUD = 0.05;
+const RECESS_COLOR = "#1d4a5c"; // deep ice blue, distinct from the wall's own lavender ambient shadow
 const bodyGeo = new BoxGeometry(CHANNEL_W, 1, 0.3);
 const flowGeo = new BoxGeometry(CHANNEL_W * 0.6, 1, 0.08);
 const plugGeo = new IcosahedronGeometry(0.5, 0);
@@ -76,7 +85,9 @@ function Channels({ boost }) {
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
     flowMats.forEach((m, i) => {
-      m.emissiveIntensity = (0.55 + 0.35 * Math.sin(t * 2.2 + i * 1.7)) * (0.8 + boost * 0.5);
+      // raised base + range so the groove reads as a loud, glowing orange
+      // presence at dock distance even dormant, not just a bright peak.
+      m.emissiveIntensity = (0.95 + 0.4 * Math.sin(t * 2.2 + i * 1.7)) * (1 + boost * 0.5);
     });
     const beads = beadRef.current;
     if (!beads) return;
@@ -88,8 +99,8 @@ function Channels({ boost }) {
         const speed = 0.5 + boost * 0.6;
         const p = (t * speed + b / BEADS_PER + ci * 0.31) % 1;
         const y = top - (top - base) * p;
-        const fx = ch.x + ch.nx * (CHANNEL_INSET + 0.08);
-        const fz = ch.z + ch.nz * (CHANNEL_INSET + 0.08);
+        const fx = ch.x + ch.nx * (ch.face + FLOW_PROUD + 0.06);
+        const fz = ch.z + ch.nz * (ch.face + FLOW_PROUD + 0.06);
         dummy.position.set(fx, y, fz);
         dummy.scale.setScalar(0.7 + 0.4 * Math.sin(p * Math.PI));
         dummy.rotation.set(0, 0, 0);
@@ -107,12 +118,15 @@ function Channels({ boost }) {
         const h = ch.h * 0.78;
         return (
           <group key={i} position={[ch.x, 0, ch.z]} rotation={[0, angle, 0]}>
-            {/* the cut itself: a dark recess so the groove reads at distance */}
-            <mesh position={[0, h / 2 + 0.35, CHANNEL_INSET * 0.4]} geometry={bodyGeo} scale={[1, h, 1]} material={mat(C.charcoal, { roughness: 0.6 })} receiveShadow />
+            {/* the cut itself: a dark recess so the groove reads at distance.
+                Positioned off ch.face -- the wall's own real half-width at
+                this point on the crest -- so it sits AT the outer skin,
+                never buried inside the solid box. */}
+            <mesh position={[0, h / 2 + 0.35, ch.face + RECESS_PROUD]} geometry={bodyGeo} scale={[1, h, 1]} material={mat(RECESS_COLOR, { roughness: 0.6 })} receiveShadow />
             {ch.flowing ? (
-              <mesh position={[0, h / 2 + 0.35, CHANNEL_INSET]} geometry={flowGeo} scale={[1, h * 0.92, 1]} material={flowMats[FLOWING.indexOf(ch)]} />
+              <mesh position={[0, h / 2 + 0.35, ch.face + FLOW_PROUD]} geometry={flowGeo} scale={[1, h * 0.92, 1]} material={flowMats[FLOWING.indexOf(ch)]} />
             ) : (
-              <group position={[0, h + 0.15, CHANNEL_INSET * 0.7]}>
+              <group position={[0, h + 0.15, ch.face + PLUG_PROUD]}>
                 <mesh geometry={plugGeo} scale={[0.62, 0.42, 0.34]} material={mat(C.deepIce, { roughness: 0.3 })} castShadow />
                 <mesh position={[0, -0.28, 0.08]} geometry={plugGeo} scale={[0.4, 0.26, 0.24]} material={mat(C.ice, { roughness: 0.3 })} />
               </group>
@@ -127,15 +141,18 @@ function Channels({ boost }) {
 
 // ---- the anomaly: ice spikes grow up out of the snow, a glint climbing ----
 
+// Spread across the dry riverbed (3-4.5 m apart, was bunched inside a
+// 5.6x2.3 m patch and fused into one blob at dock distance) and taller, so
+// each reads as its own rising spike, not a smear.
 const SPIKES = [
-  [-3.2, -30.4, 1.5],
-  [-1.4, -31.6, 1.9],
-  [0.6, -30.9, 1.4],
-  [2.4, -31.9, 1.7],
-  [-0.5, -29.6, 1.1],
-  [1.6, -29.9, 1.2],
+  [-5.0, -31.5, 1.8],
+  [-2.4, -33.0, 2.3],
+  [0.6, -32.0, 1.7],
+  [3.4, -33.4, 2.1],
+  [-1.0, -29.4, 1.4],
+  [2.0, -29.6, 1.6],
 ];
-const spikeGeo = new ConeGeometry(0.16, 1, 6, 1);
+const spikeGeo = new ConeGeometry(0.22, 1, 6, 1);
 spikeGeo.translate(0, 0.5, 0);
 const tipGeo = new IcosahedronGeometry(0.1, 0);
 const glintGeo = new IcosahedronGeometry(0.05, 0);
@@ -144,7 +161,9 @@ function Spikes({ boost }) {
   const groupRef = useRef();
   const tipMat = useMemo(() => lamp(DAM_COLOR, 1.1), []);
   const glintRef = useRef();
-  const glintMat = useMemo(() => glow(DAM_COLOR, 0.8), []);
+  // lower than before (0.8): bloom was merging the whole cluster into one
+  // flat starburst -- indistinguishable from the banned "glow blob".
+  const glintMat = useMemo(() => glow(DAM_COLOR, 0.4), []);
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
@@ -193,19 +212,45 @@ const rimGeo = new TorusGeometry(VENT_R * 0.62, 0.09, 6, 20);
 const ventGeo = new CylinderGeometry(VENT_R * 0.42, VENT_R * 0.5, 0.4, 12);
 const dropGeo = new IcosahedronGeometry(1, 1);
 const frozenGeo = new IcosahedronGeometry(1, 0);
+const steamGeo = new IcosahedronGeometry(0.24, 1);
 
 function Geyser({ boost }) {
   const dropRef = useRef();
+  const steamRef = useRef();
   const rimMat = useMemo(() => lamp(GEYSER_COLOR, 0.8), []);
   const dropMat = useMemo(() => mat(C.ice, { flat: false, roughness: 0.1, emissive: GEYSER_COLOR, emissiveIntensity: 0.6 }), []);
   const frozenMat = useMemo(() => mat(C.ice, { flat: false, roughness: 0.15, emissive: GEYSER_COLOR, emissiveIntensity: 0.35 }), []);
+  const steamMat = useMemo(() => mat(C.warmWhite, { flat: false, roughness: 0.9, opacity: 0.24, emissive: GEYSER_COLOR, emissiveIntensity: 0.12 }), []);
   const frozen = useMemo(buildFrozenSplash, []);
 
   useFrame(({ clock }) => {
     // real seconds: the geyser is the determinism fix -- it never speeds up
     // for the seal being near, only glows brighter.
     const t = clock.elapsedTime % ERUPT_PERIOD;
-    rimMat.emissiveIntensity = 0.55 + 0.25 * Math.sin(clock.elapsedTime * 1.4) + boost * 0.3;
+    // dormant baseline stays low (the ring must read "off" most of the
+    // cycle, never an always-lit portal collar); a brief flare only while
+    // the column is actually climbing.
+    const flareWindow = RISE * ERUPT_PERIOD;
+    const flare = t < flareWindow ? (t / flareWindow) * 1.1 : 0;
+    rimMat.emissiveIntensity = 0.175 + 0.025 * Math.sin(clock.elapsedTime * 1.4) + flare + boost * 0.15;
+
+    // the always-on tell: pale steam puffs rise on their own slow loop,
+    // never gated to the eruption clock, so the mound reads hot even
+    // dormant.
+    const steam = steamRef.current;
+    if (steam) {
+      STEAM.forEach((s, i) => {
+        const p = ((clock.elapsedTime + s.offset * STEAM_PERIOD) % STEAM_PERIOD) / STEAM_PERIOD;
+        const r = s.radius + 0.2 * p;
+        const fade = Math.sin(p * Math.PI);
+        dummy.position.set(Math.cos(s.angle) * r, VENT_H + s.apex * p, Math.sin(s.angle) * r);
+        dummy.scale.setScalar(0.45 + 0.55 * fade);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        steam.setMatrixAt(i, dummy.matrix);
+      });
+      steam.instanceMatrix.needsUpdate = true;
+    }
 
     const drops = dropRef.current;
     if (!drops) return;
@@ -238,9 +283,14 @@ function Geyser({ boost }) {
 
   return (
     <group position={[GEYSER_PLACE.x, 0, GEYSER_PLACE.z]}>
-      <mesh geometry={moundGeo} material={mat(C.warmWhite, { roughness: 0.7 })} castShadow receiveShadow />
+      {/* mineral sinter crust, not painted plaster: warmWhite sat in the
+          same value family as the snow around it and the mound vanished
+          fully dormant. C.wood is darker and warmer, so it holds its own
+          silhouette against the ground with no eruption running at all. */}
+      <mesh geometry={moundGeo} material={mat(C.wood, { roughness: 0.75 })} castShadow receiveShadow />
       <mesh position={[0, VENT_H - 0.05, 0]} rotation={[Math.PI / 2, 0, 0]} geometry={rimGeo} material={rimMat} />
       <mesh position={[0, VENT_H, 0]} geometry={ventGeo} material={mat(C.charcoal, { roughness: 0.6 })} />
+      <instancedMesh ref={steamRef} args={[steamGeo, steamMat, STEAM.length]} frustumCulled={false} />
       <instancedMesh ref={dropRef} args={[dropGeo, dropMat, DROPS.length]} frustumCulled={false} />
       {/* the frozen splash: fixed for good, offset from the vent so the live
           jet is never read as part of it */}

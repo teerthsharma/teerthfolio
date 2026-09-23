@@ -1,206 +1,185 @@
 "use client";
 
-// MOUNT MUJORUSH: the granite massif on the valley's west side (its bulk and
-// its slope are lib/world/terrain.js's MUJO cone; this file only carves what
-// stands on that rock). Three giant seal faces, Rushmore-style, cut into the
-// smooth south cliff, one per landed MuJoCo contribution, west to east in
-// the landing site's own order:
-//   pr-mujoco-3396      "units"  1,281.6x less scratch
-//   pr-mujoco-warp-1541 "funnel" 1.513x faster
-//   pr-mujoco-3450      "hull"   15,361x fewer probes
-// Each face wears its merged PR number as a carved collar band round its
-// neck (#3396, #1541, #3450 -- lib/world/land.js's own note on the joke).
-// Below each face, on the open snow at its reading point, that
-// contribution's story plays (the drafts Units.jsx, Funnel.jsx, Hull.jsx,
-// absorbed here unchanged but grounded instead of plinthed -- no pedestal,
-// this is a natural shelf at the cliff's foot), and its headline is cut in
-// stone in front of it, verbatim from data/showcase.json.
+// MOUNT MUJORUSH: Mount Rushmore, for seals. The massif on the valley's west
+// side (lib/world/terrain.js shapes its rough rock) wears a smooth carved
+// granite face along its south cliff, and out of it look three giant seal
+// pups, one per landed MuJoCo contribution, west to east in the landing
+// site's own order: google-deepmind/mujoco #3396, mujoco_warp #1541,
+// mujoco #3450. Each wears its merged PR number on its neck, a collar band
+// in the district's radiation colour, gold-studded: the only words on the
+// mountain. Their crowns are lost in the uncarved rock, the way Rushmore's
+// are. One grins, one winks with its tongue out, one wears Rushmore's
+// spectacles. A heap of blasted granite lies at each face's foot (the
+// reading point: the seal docks at its toe, under the collar).
 //
-// THE ANOMALY (the district's radiation, mujorush's own hue): boulders
-// break off the cliff near each collar and float up past the faces,
-// charging from bare granite to the radiation's colour as they rise, then
-// dissolve and the next one calves.
+// THE ANOMALY (mujorush's radiation): boulders that broke off the cliff and
+// never came down. They hang in the gaps between the faces, bobbing on
+// their own slow beat, each speared by a glowing magenta crystal, and
+// radioactive crystals push up through the talus. The faces are alive: they
+// blink, their eyes follow the seal along the cliff, and the collar of the
+// face it stands under pulses.
+//
+// Nothing here explains anything (SHOW, NEVER TELL): the stories the old
+// drafts (monuments/Units, Funnel, Hull) told are not mounted.
 
-import { useFrame } from "@react-three/fiber";
 import { Center, Text3D } from "@react-three/drei";
-import { useMemo, useRef } from "react";
-import { Color, IcosahedronGeometry, Object3D } from "three";
-import { PLACE_BY_ID } from "../../../lib/world/places";
-import { heightAt } from "../../../lib/world/terrain";
-import { useUi } from "../../../lib/world/store";
-import { smoothstep } from "../life/util";
-import { C, mat } from "../palette";
-import Funnel from "../monuments/Funnel";
-import Hull from "../monuments/Hull";
-import Units from "../monuments/Units";
+import { useFrame } from "@react-three/fiber";
+import { Suspense, useLayoutEffect, useMemo, useRef } from "react";
+import { Color, IcosahedronGeometry, Object3D, OctahedronGeometry, SphereGeometry } from "three";
+import { live, useUi } from "../../../lib/world/store";
+import { lamp, mat } from "../palette";
+import { buildCliff, buildHeads, COLLAR_FRONT, COLLAR_Y, CRYSTALS, EYES, FACES, FLOATERS, SPARKS, TALUS } from "./parts/mujorush-build";
 
-// Match Terrain.jsx's own granite so the carving reads as the same rock.
-const GRANITE = "#b9aea8";
-const GRANITE_DARK = "#978a84";
-const IRIS = "#23262e";
+const RAD = FACES[0].place.radiation;
+const CARVED = "#d8c2b3"; // fresh-cut granite, a step warmer and paler than the rock round it
+const ROUGH = "#a0948f"; // blasted talus
+const FONT = "/fonts/helvetiker_bold.typeface.json";
 
-// Where every face's neck sits: right at the toe of the cliff, close behind
-// the reading point, not deep up the slope -- the follow camera pitches
-// down at the dock (checked live against its real matrix), so anything
-// pushed north and high climbs out of frame long before it reads as a face.
-const HEAD_Z = -55.2;
-const HEAD_SCALE = 0.42;
+let stone = null; // built once, shared by every mount
+const getStone = () => stone ?? (stone = { cliff: buildCliff(), ...buildHeads() });
 
-const FACES = [
-  { id: "pr-mujoco-3396", collar: "#3396", Story: Units },
-  { id: "pr-mujoco-warp-1541", collar: "#1541", Story: Funnel },
-  { id: "pr-mujoco-3450", collar: "#3450", Story: Hull },
-].map((f) => {
-  const place = PLACE_BY_ID[f.id];
-  return { ...f, place, x: place.x, headY: heightAt(place.x, HEAD_Z), ledgeY: heightAt(place.x, place.z) };
-});
-
-// ---- one carved face -------------------------------------------------------
-
-function Face({ face, near }) {
-  const { place, x, headY, collar, Story } = face;
-  const accent = mat(place.color, { roughness: 0.5 });
-  return (
-    <group>
-      {/* the neck, dug well underground so no slope under it ever shows a
-          gap: only the top few metres, where it meets the actual cliff, are
-          ever seen. Scaled down as a whole: low and close beats tall and
-          cropped -- the follow camera never tilts up far. */}
-      <group position={[x, headY, HEAD_Z]} scale={HEAD_SCALE}>
-        <mesh position={[0, -1.9, 0.3]} castShadow receiveShadow material={mat(GRANITE_DARK)}>
-          <boxGeometry args={[3.2, 8.2, 2]} />
-        </mesh>
-
-        {/* the collar: a carved band wearing the PR number */}
-        <mesh position={[0, 1.1, 1.32]} castShadow material={accent}>
-          <boxGeometry args={[3.3, 0.55, 0.22]} />
-        </mesh>
-        <Center position={[0, 1.1, 1.46]} disableZ>
-          <Text3D font="/fonts/helvetiker_bold.typeface.json" size={0.34} height={0.08} bevelEnabled bevelSize={0.01} bevelThickness={0.015} curveSegments={4} castShadow>
-            {collar}
-            <meshStandardMaterial color={C.warmWhite} roughness={0.5} />
-          </Text3D>
-        </Center>
-
-        {/* the dome */}
-        <mesh position={[0, 4.5, 0.15]} scale={[1, 1.15, 0.95]} castShadow receiveShadow material={mat(GRANITE)}>
-          <icosahedronGeometry args={[2.6, 1]} />
-        </mesh>
-        {/* the snout */}
-        <mesh position={[0, 3.05, 2.55]} scale={[1.25, 0.85, 1.5]} castShadow receiveShadow material={mat(GRANITE)}>
-          <icosahedronGeometry args={[1.05, 1]} />
-        </mesh>
-        {/* the eyes: big, round, a catchlight -- the seal's own look, carved big */}
-        {[-1, 1].map((s) => (
-          <group key={s} position={[s * 0.95, 4.15, 2.4]}>
-            <mesh castShadow material={mat(IRIS, { roughness: 0.3 })}>
-              <sphereGeometry args={[0.5, 12, 10]} />
-            </mesh>
-            <mesh position={[s * -0.14, 0.16, 0.36]} material={mat(C.warmWhite, { emissive: C.warmWhite, emissiveIntensity: 0.4 })}>
-              <sphereGeometry args={[0.12, 8, 6]} />
-            </mesh>
-          </group>
-        ))}
-        {/* nostrils */}
-        {[-1, 1].map((s) => (
-          <mesh key={s} position={[s * 0.32, 2.78, 3.75]} material={mat(IRIS)}>
-            <sphereGeometry args={[0.13, 8, 6]} />
-          </mesh>
-        ))}
-      </group>
-
-      {/* the ledge: the story grounded at its own reading point, no plinth --
-          a natural shelf of open snow at the cliff's foot -- and its
-          headline cut in stone in front of it, in the org's own accent. */}
-      <group position={[place.x, face.ledgeY, place.z]}>
-        <Story place={place} near={near} />
-      </group>
-      <group position={[place.x, face.ledgeY + 0.1, place.z + 2]}>
-        <Center disableZ disableY>
-          <Text3D font="/fonts/helvetiker_bold.typeface.json" size={0.46} height={0.16} bevelEnabled bevelSize={0.012} bevelThickness={0.018} curveSegments={4} castShadow>
-            {place.headline}
-            <meshStandardMaterial color={place.color} roughness={0.45} />
-          </Text3D>
-        </Center>
-      </group>
-    </group>
-  );
-}
-
-// ---- the anomaly: boulders calve off the cliff and float ------------------
-
-const PER_FACE = 3;
-const N = FACES.length * PER_FACE;
-const RISE = 3.2; // m a boulder climbs before it dissolves -- past the dome, not past the frame
-const CYCLE = 5.5; // s per boulder, staggered so they never calve together
-const BOULDER_GEO = new IcosahedronGeometry(1, 0);
-
+const ROCK_GEO = new IcosahedronGeometry(1, 0);
+const CRYSTAL_GEO = new OctahedronGeometry(1, 0);
+const EYE_GEO = new SphereGeometry(1, 20, 14);
 const dummy = new Object3D();
-const tmpColor = new Color();
-const granite = new Color(GRANITE);
+const tint = new Color();
+const GRANITE_C = new Color("#b9aea8");
+const RAD_C = new Color(RAD);
 
-function Boulders({ nearAny }) {
+// Instances placed once.
+function Placed({ geometry, material, items, set, castShadow = false }) {
   const ref = useRef(null);
-  const clock = useRef(0);
-  const rockMat = mat("#ffffff", { roughness: 0.7 });
-
-  // one home per boulder: a jittered spot at each face's collar, its own
-  // radius and phase so the three per face calve out of step.
-  const homes = useMemo(
-    () =>
-      FACES.flatMap((f, fi) =>
-        Array.from({ length: PER_FACE }, (_, k) => {
-          const jx = Math.sin(fi * 7.3 + k * 2.9) * 1.1;
-          const jz = Math.cos(fi * 5.1 + k * 3.7) * 0.5;
-          return {
-            x: f.x + jx * HEAD_SCALE,
-            z: HEAD_Z + 1 + jz * HEAD_SCALE,
-            y0: f.headY + 0.3,
-            r: 0.22 + 0.07 * k,
-            radiation: f.place.radiation,
-            phase: ((fi * PER_FACE + k) / N) * CYCLE,
-          };
-        })
-      ),
-    []
-  );
-  const radColors = useMemo(() => homes.map((h) => new Color(h.radiation)), [homes]);
-
-  useFrame((state, dt) => {
+  useLayoutEffect(() => {
     const mesh = ref.current;
-    if (!mesh) return;
-    clock.current += Math.min(dt, 0.1) * (nearAny ? 1.5 : 1);
-    const t = state.clock.elapsedTime;
-    for (let i = 0; i < homes.length; i++) {
-      const b = homes[i];
-      const p = ((clock.current + b.phase) % CYCLE) / CYCLE;
-      const grow = smoothstep(0, 0.12, p) * (1 - smoothstep(0.82, 1, p));
-      const rise = smoothstep(0, 1, p);
-      dummy.position.set(b.x + Math.sin(t * 0.5 + i) * 0.1, b.y0 + RISE * rise, b.z + Math.cos(t * 0.4 + i) * 0.1);
-      dummy.rotation.set(t * 0.5 + i, t * 0.7 + i * 1.3, t * 0.3 + i * 0.6);
-      const s = b.r * grow;
-      dummy.scale.set(s, s * 0.86, s * 0.96);
+    items.forEach((it, i) => {
+      set(it);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-      tmpColor.copy(granite).lerp(radColors[i], smoothstep(0.1, 0.75, p));
-      mesh.setColorAt(i, tmpColor);
-    }
+    });
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  });
-
-  return <instancedMesh ref={ref} args={[BOULDER_GEO, rockMat, N]} castShadow frustumCulled={false} />;
+    mesh.computeBoundingSphere();
+  }, [items, set]);
+  return <instancedMesh ref={ref} args={[geometry, material, items.length]} castShadow={castShadow} receiveShadow />;
 }
+const setRock = (b) => {
+  dummy.position.set(b.x, b.y, b.z);
+  dummy.rotation.set(b.rx, b.ry, 0);
+  dummy.scale.set(b.r, b.r * (b.sy ?? 0.78), b.r * (b.sz ?? 0.92));
+};
+const setCrystal = (c) => {
+  dummy.position.set(c.x, c.y + c.h * 0.45, c.z);
+  dummy.rotation.set(c.tilt * 0.5, c.ry, c.tilt);
+  dummy.scale.set(c.r, c.h, c.r);
+};
 
 export default function MujoRush() {
   const near = useUi((s) => s.near);
-  const nearAny = FACES.some((f) => f.id === near);
+  const nearFace = FACES.findIndex((f) => f.id === near);
+  const g = getStone();
+
+  const collarMats = useMemo(() => FACES.map(() => mat(RAD, { flat: false, roughness: 0.4, emissive: RAD, emissiveIntensity: 0.32 }).clone()), []);
+  const floatMat = mat("#ffffff", { roughness: 0.75, emissive: RAD, emissiveIntensity: 0.1 });
+
+  const eyes = useRef(null);
+  const sparks = useRef(null);
+  const floaters = useRef(null);
+  const spears = useRef(null);
+  const clock = useRef(0);
+  const lift = useRef(1);
+
+  useFrame((state, dt) => {
+    const t = state.clock.elapsedTime;
+    const step = Math.min(dt, 0.1);
+    const seal = live.seal;
+
+    // the collar of the face the seal stands under pulses
+    for (let i = 0; i < collarMats.length; i++) {
+      const target = i === nearFace ? 0.8 + 0.3 * Math.sin(t * 5) : 0.32;
+      collarMats[i].emissiveIntensity += (target - collarMats[i].emissiveIntensity) * Math.min(1, step * 6);
+    }
+
+    // eyes: follow the seal along the cliff, blink on staggered beats
+    const em = eyes.current;
+    const sm = sparks.current;
+    if (em && sm) {
+      for (let i = 0; i < EYES.length; i++) {
+        const eye = EYES[i];
+        const fx = FACES[eye.face].x;
+        const look = Math.max(-1, Math.min(1, ((seal?.x ?? fx) - fx) / 14)) * 0.14;
+        const beat = (t + eye.face * 1.9) % (4.6 + eye.face * 0.8);
+        const shut = beat < 0.2 ? Math.sin((beat / 0.2) * Math.PI) : 0;
+        const down = eye.face === nearFace ? -0.06 : 0;
+        dummy.rotation.set(0, 0, 0);
+        dummy.position.set(eye.x + look, eye.y + down, eye.z);
+        dummy.scale.set(eye.sx, eye.sy * (1 - 0.9 * shut), eye.sz);
+        dummy.updateMatrix();
+        em.setMatrixAt(i, dummy.matrix);
+        const sp = SPARKS[i];
+        dummy.position.set(eye.x + look + sp.x, eye.y + down + sp.y * (1 - shut), eye.z + sp.z);
+        dummy.scale.setScalar(sp.r * (1 - shut));
+        dummy.updateMatrix();
+        sm.setMatrixAt(i, dummy.matrix);
+      }
+      em.instanceMatrix.needsUpdate = true;
+      sm.instanceMatrix.needsUpdate = true;
+    }
+
+    // the floating boulders: livelier while the seal is on the mountain
+    const fm = floaters.current;
+    const spm = spears.current;
+    if (fm && spm) {
+      const k = nearFace >= 0 ? 1.7 : 1;
+      lift.current += (k - lift.current) * Math.min(1, step * 2);
+      clock.current += step * lift.current;
+      const c = clock.current;
+      for (let i = 0; i < FLOATERS.length; i++) {
+        const b = FLOATERS[i];
+        dummy.position.set(b.x, b.y + Math.sin(c * b.speed + b.phase) * 0.35 * lift.current, b.z);
+        dummy.rotation.set(c * 0.23 * b.speed + b.phase, c * 0.31 * b.speed + i, 0.3 * Math.sin(c * 0.4 + i));
+        dummy.scale.set(b.r, b.r * 0.82, b.r * 0.94);
+        dummy.updateMatrix();
+        fm.setMatrixAt(i, dummy.matrix);
+        tint.copy(GRANITE_C).lerp(RAD_C, 0.16 + 0.12 * Math.sin(c * 1.3 + b.phase));
+        fm.setColorAt(i, tint);
+        dummy.scale.set(b.r * 0.42, b.r * 1.45, b.r * 0.42); // the crystal through it, poking out both ends
+        dummy.updateMatrix();
+        spm.setMatrixAt(i, dummy.matrix);
+      }
+      fm.instanceMatrix.needsUpdate = true;
+      spm.instanceMatrix.needsUpdate = true;
+      if (fm.instanceColor) fm.instanceColor.needsUpdate = true;
+    }
+  });
+
   return (
     <group>
-      {FACES.map((face) => (
-        <Face key={face.id} face={face} near={near === face.id} />
+      {/* drawn first: it hides the rough terrain cliff behind it, so early-z
+          rejects those fragments instead of shading them twice */}
+      <mesh geometry={g.cliff} material={mat("#ffffff", { flat: false, roughness: 0.85, vertexColors: true })} renderOrder={-1} receiveShadow />
+      <mesh geometry={g.granite} material={mat(CARVED, { flat: false, roughness: 0.72 })} castShadow receiveShadow />
+      <mesh geometry={g.blush} material={mat("#ff8fb1", { flat: false, roughness: 0.6 })} />
+      <mesh geometry={g.dark} material={mat("#26252c", { flat: false, roughness: 0.45 })} castShadow />
+      <mesh geometry={g.gold} material={mat("#ffc233", { flat: false, roughness: 0.3, metalness: 0.55 })} />
+      {g.collars.map((geo, i) => (
+        <mesh key={FACES[i].id} geometry={geo} material={collarMats[i]} castShadow receiveShadow />
       ))}
-      <Boulders nearAny={nearAny} />
+      <Suspense fallback={null}>
+        {FACES.map((f) => (
+          <Center key={f.id} position={[f.x, COLLAR_Y, COLLAR_FRONT - 0.1]} disableZ>
+            <Text3D font={FONT} size={0.74} height={0.2} bevelEnabled bevelSize={0.02} bevelThickness={0.03} curveSegments={4} material={mat("#fff8ec", { flat: false, roughness: 0.5, emissive: "#fff8ec", emissiveIntensity: 0.3 })}>
+              {f.collar}
+            </Text3D>
+          </Center>
+        ))}
+      </Suspense>
+
+      <instancedMesh ref={eyes} args={[EYE_GEO, mat("#121218", { flat: false, roughness: 0.12, metalness: 0.1 }), EYES.length]} frustumCulled={false} />
+      <instancedMesh ref={sparks} args={[EYE_GEO, mat("#ffffff", { flat: false, emissive: "#ffffff", emissiveIntensity: 0.9 }), SPARKS.length]} frustumCulled={false} />
+
+      <Placed geometry={ROCK_GEO} material={mat(ROUGH, { roughness: 0.9 })} items={TALUS} set={setRock} castShadow />
+      <Placed geometry={CRYSTAL_GEO} material={lamp(RAD, 1.2)} items={CRYSTALS} set={setCrystal} />
+      <instancedMesh ref={floaters} args={[ROCK_GEO, floatMat, FLOATERS.length]} castShadow frustumCulled={false} />
+      <instancedMesh ref={spears} args={[CRYSTAL_GEO, lamp(RAD, 1.2), FLOATERS.length]} frustumCulled={false} />
     </group>
   );
 }
