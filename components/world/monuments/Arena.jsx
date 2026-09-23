@@ -9,7 +9,12 @@
 // sitting there all along, and carries the hero down into it: the arena's
 // lid — its tallest slab, for the whole run — comes down with it, and the
 // old peak is left behind as a fading mark in the place's own colour.
-// Local origin: the top of the plinth; +z faces the camera and the dock.
+// THE ANOMALY (XNNPACK Peak's radiation, place.radiation): cube snow. Small
+// cubes -- the wall's own language, every value here is a box -- lift out of
+// the cave and drift up past the skyline, tumbling, thinning as they go, and
+// loop. Snow falling upward, cast in the place's own colour.
+//
+// Local origin: on the snow at the place centre; +z faces the camera and the dock.
 // Props: { place, near }.
 
 import { useFrame } from "@react-three/fiber";
@@ -34,6 +39,12 @@ import {
 const unitBox = new BoxGeometry(1, 1, 1);
 const dummy = new Object3D();
 const tmpColor = new Color();
+
+// ---- the anomaly: cube snow, rising out of the cave -----------------------
+const SNOW_N = 14;
+const SNOW_CYCLE = 4.2; // s for one cube to lift clear of the skyline
+const SNOW_RISE = 5; // m climbed before it thins out of sight
+const frac = (x) => x - Math.floor(x);
 
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const ease = (x) => {
@@ -89,6 +100,8 @@ export default function Arena({ place, near }) {
     () => new MeshBasicMaterial({ color: C.lamp, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, toneMapped: false }),
     [],
   );
+  const snowMat = useMemo(() => mat(place.radiation, { flat: false, roughness: 0.3, emissive: place.radiation, emissiveIntensity: 0.7 }), [place.radiation]);
+  const snowRef = useRef();
 
   // The wall never moves: every column is placed and coloured once.
   useLayoutEffect(() => {
@@ -143,6 +156,25 @@ export default function Arena({ place, near }) {
       heroRef.current.scale.set(visible * (1 + 0.09 * squash), visible * (1 - 0.18 * squash), visible * (1 + 0.09 * squash));
       heroMat.emissiveIntensity = (1.1 + 0.5 * glow) * boost;
     }
+
+    // the anomaly: cube snow, lifting out of the cave and thinning upward
+    const snow = snowRef.current;
+    if (snow) {
+      const rawT = clock.elapsedTime * speed;
+      for (let i = 0; i < SNOW_N; i++) {
+        const p = frac(rawT / SNOW_CYCLE + i / SNOW_N);
+        const a = i * 2.39996;
+        const spread = 0.35 + 0.35 * ((i * 0.618) % 1);
+        const r = 0.1 + p * spread;
+        const s = (0.22 - 0.08 * p) * Math.min(1, p / 0.08) * (p > 0.82 ? (1 - p) / 0.18 : 1);
+        dummy.position.set(CAVE_X + Math.cos(a + p * 2.4) * r, FLOAT_BOTTOM * 0.35 + SNOW_RISE * p * p, CAVE_Z + Math.sin(a + p * 2.4) * r * 0.7);
+        dummy.scale.setScalar(s);
+        dummy.rotation.set(p * 6 + i, p * 4 - i, i * 1.3);
+        dummy.updateMatrix();
+        snow.setMatrixAt(i, dummy.matrix);
+      }
+      snow.instanceMatrix.needsUpdate = true;
+    }
   });
 
   const wallX = WALL_HALF_X * 2;
@@ -177,6 +209,9 @@ export default function Arena({ place, near }) {
       <mesh ref={ghostRef} material={ghostMat} position={[0, OLD_TOP, 0]}>
         <boxGeometry args={[wallX + 0.2, 0.05, wallZ + 0.2]} />
       </mesh>
+
+      {/* the anomaly: cube snow, lifting out of the cave */}
+      <instancedMesh ref={snowRef} args={[unitBox, snowMat, SNOW_N]} frustumCulled={false} castShadow />
     </group>
   );
 }

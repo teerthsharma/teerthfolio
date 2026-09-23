@@ -21,7 +21,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useRef, useState } from "react";
-import { ConeGeometry, SphereGeometry, TorusGeometry } from "three";
+import { ConeGeometry, CylinderGeometry, SphereGeometry, TorusGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { districtAt } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
@@ -56,9 +56,18 @@ function band(r, tube, y, z = 0, tilt = 0) {
 function buns() {
   return mergeGeometries([1, -1].map((s) => new SphereGeometry(0.14, 12, 8).translate(s * 0.3, 0.36, -0.08)));
 }
-function crownCone(h = 0.2) {
-  const g = new ConeGeometry(0.26, h, 8);
-  g.translate(0, h / 2 + R * 0.68, -0.05);
+function crownCone(h = 0.22, baseY = R * 0.72) {
+  const g = new ConeGeometry(0.24, h, 8);
+  g.translate(0, h / 2 + baseY, -0.05);
+  return g;
+}
+// A flat wide plate round the head (a torus, squashed AFTER it is laid flat
+// so the squash only shrinks its height, never its reach): a straw-hat brim.
+function brim(r = 0.5, spread = 0.17, y = 0.26) {
+  const g = new TorusGeometry(r, spread, 8, 28);
+  g.rotateX(Math.PI / 2);
+  g.scale(1, 0.26, 1);
+  g.translate(0, y, -0.02);
   return g;
 }
 // A shell over the crown: hard-hat dome / beanie. Its own high point clears
@@ -74,11 +83,21 @@ function pom(y = R * 1.05) {
   g.translate(0, y, -0.05);
   return g;
 }
-// A lens over each eye: a torus faces +z by default (no rotation needed).
-// z clears the snout's own surface (MOUTH sits at 0.485) so the rim reads
+// A solid lens over each eye plus a bridge across the nose, so the pair
+// reads as one "goggles" silhouette from any yaw, not two loose hoops. z
+// clears the snout's own surface (MOUTH sits at 0.485) so the rim reads
 // outside the coat instead of sinking into it.
-function lenses(r = 0.15, tube = 0.04, y = -0.03, z = 0.48) {
-  return mergeGeometries([1, -1].map((s) => new TorusGeometry(r, tube, 6, 16).translate(s * 0.27, y, z)));
+function lenses(r = 0.15, rim = 0.055, y = -0.03, z = 0.48) {
+  const eyes = [1, -1].map((s) => {
+    const g = new CylinderGeometry(r, r, rim, 14);
+    g.rotateX(Math.PI / 2); // the cylinder's axis becomes +z, facing forward
+    g.translate(s * 0.27, y, z);
+    return g;
+  });
+  const bridge = new CylinderGeometry(0.03, 0.03, 0.3, 6);
+  bridge.rotateZ(Math.PI / 2);
+  bridge.translate(0, y, z - 0.03);
+  return mergeGeometries([...eyes, bridge]);
 }
 // One continuous band across both eyes (a torus stretched wide and flat):
 // the moat's visor, held proud of the face on the same z as the goggles.
@@ -106,27 +125,32 @@ function auraShell() {
 
 // Explicit "friendlier gear" at five named places (the brief's own words).
 const EXPLICIT = {
-  mujorush: { main: () => mergeGeometries([lenses(0.15), band(0.46, 0.045, -0.4)]) }, // goggles + a lab collar
-  moat: { main: () => faceArc(0.46, 0.06, 0.05) }, // a green visor
-  dam: { main: () => mergeGeometries([dome(0.5, 0.5, 0.1), band(0.56, 0.05, 0.24)]) }, // a hard hat
-  triton: { main: () => lenses(0.17, 0.045) }, // frost goggles
-  home: { main: () => mergeGeometries([dome(0.52, 0.62, 0.1), pom()]) }, // a knit beanie
+  mujorush: { main: () => mergeGeometries([lenses(0.15), band(0.4, 0.05, -0.34)]) }, // goggles + a lab collar
+  moat: { main: () => visorShield() }, // a green visor
+  dam: { main: () => mergeGeometries([dome(0.54, 0.62, 0.16), band(0.5, 0.05, 0.2)]) }, // a hard hat
+  triton: { main: () => lenses(0.18, 0.06) }, // frost goggles
+  home: { main: () => mergeGeometries([dome(0.54, 0.7, 0.14), pom(0.6)]) }, // a knit beanie
 };
 
 // Anime-inspired homage pool for every other radioactive area, picked by a
 // stable hash of the district id so neighbours read differently.
 const POOL = [
-  { main: () => band(0.46, 0.045, 0.1), gold: () => spikes(5), extra: sparkle }, // golden spikes + a thin band to anchor them
-  { main: () => band(0.44, 0.055, 0.17), extra: cheekMarks }, // a ninja-style headband
+  { main: () => band(0.42, 0.045, 0.24), gold: () => spikes(5), extra: sparkle }, // golden spikes + a thin band to anchor them
+  { main: () => band(0.42, 0.055, 0.26), extra: cheekMarks }, // a ninja-style headband
   { main: buns, gold: () => spikes(3, 0.7), extra: sparkle }, // twin buns
-  { main: () => mergeGeometries([band(0.58, 0.045, 0.26, -0.05, 0.08), crownCone()]) }, // a straw-hat-like brim
-  { main: () => mergeGeometries([band(0.45, 0.04, 0.12), buns()]), extra: cheekMarks }, // headband + buns together
+  { main: () => mergeGeometries([brim(), crownCone()]) }, // a straw-hat-like brim
+  { main: () => mergeGeometries([band(0.4, 0.04, 0.24), buns()]), extra: cheekMarks }, // headband + buns together
 ];
 
+// FNV-1a: a plain (h*31+c) hash clustered almost every district id onto 2
+// of the 5 pool looks; this one spreads them across all 5.
 function hashId(id) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return Math.abs(h);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
 const cache = new Map();
@@ -166,14 +190,19 @@ export default function Outfit() {
         sp.v = 0;
         sp.target = 1;
       } else {
-        sp.v += 2.6; // the outward kick: a smaller burst on leaving
+        sp.v += 7; // the outward kick: a smaller burst on leaving
         sp.target = 0;
       }
       sp.id = id;
     }
     // An underdamped spring: the scale overshoot the brief asks for.
-    sp.v += ((sp.target - sp.scale) * 130 - sp.v * 11) * dt;
-    sp.scale = Math.max(0, sp.scale + sp.v * dt);
+    // Substepped: at 130 stiffness one explicit step diverges below ~20 fps.
+    const n = Math.min(8, Math.ceil(dt * 60));
+    const h = Math.min(dt, 8 / 60) / n;
+    for (let i = 0; i < n; i++) {
+      sp.v += ((sp.target - sp.scale) * 130 - sp.v * 11) * h;
+      sp.scale = Math.max(0, sp.scale + sp.v * h);
+    }
     if (sp.target === 0 && sp.scale < 0.01 && Math.abs(sp.v) < 0.02) {
       sp.scale = 0;
       if (look) setLook(null);

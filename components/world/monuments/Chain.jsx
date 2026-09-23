@@ -1,36 +1,41 @@
 "use client";
 
-// Sculpture for the "chain" figure: facebook/pyrefly #4180 (place id
-// pr-pyrefly-4180). Retells the landing figure in 3D (data/showcase.json,
-// figure.desc; teerthsharma.github.io/fig.js, "chain — pyrefly-4180"):
+// The animated story for facebook/pyrefly #4180 (place id pr-pyrefly-4180),
+// grown into THE PYREFLY FLOES landform (components/world/land/Floes.jsx
+// draws the basalt pin and the stranded floes; lib/world/land/parts/
+// floes-layout.js has the funnel's geometry -- 208 floes hung in the air
+// above the river, the anomaly). This file only paints the story onto that
+// funnel (data/showcase.json, this place's figure.desc; teerthsharma.
+// github.io/fig.js, "chain -- pyrefly-4180"):
 //
 // The reproducer from the pull request, built as it is built: 208
 // two-module strongly connected components, chained so each depends on the
-// one before, wound into a tapering coil that descends to commit at its
-// foot. One export change (blue -> mint) enters at the top and propagates
-// down the coil. A violet hoop marks where the 100-epoch incremental budget
-// runs out (labels[1]); the change spends the budget reaching it and a
+// one before, wound into the funnel that descends to commit at the pin. One
+// export change (blue -> mint) enters at the top and propagates down. A
+// violet hoop marks where the 100-epoch incremental budget runs out
+// (floes-layout DOOR); the change spends the budget reaching it and a
 // membrane closes across the hoop -- the door shuts. Forced invalidation
 // then produces another export change (coral) on the far side, which runs
-// the rest of the coil into commit with that change still pending
-// (labels[2]). Arrival bursts -- Transaction has uncommitted changes
-// (labels[3]) -- a swell runs back up every still-pending component, and a
-// ring closes around the burst and holds it: pinned with should_panic so it
-// cannot return quietly (labels[4]). Then everything eases back to blue and
-// the next change enters. Loops continuously; faster and brighter near.
+// the rest of the funnel into commit with that change still pending.
+// Arrival bursts -- Transaction has uncommitted changes -- a swell runs
+// back up every still-pending component, and a ring closes around the
+// burst and holds it: pinned with should_panic so it cannot return quietly.
+// Then everything eases back to blue and the next change enters. Loops
+// continuously; faster and brighter near.
 //
-// Every bead position is baked once (parts/chain-layout.js, ported from the
-// figure's own arc-length coil); only instance colour and a handful of
-// small meshes move per frame.
+// Each floe is two lobes (one per module) frozen along a short thick
+// pressure ridge, joined to the next floe by a thin ice thread. Every
+// position and orientation is baked once from floes-layout.js's FLOES; only
+// instance colour and a handful of small meshes move per frame.
 //
-// Local origin: the top of the plinth; +z faces the camera and the dock.
+// Local origin: the pin (floes-layout.js's PIN), at the water plane, y = 0.
 // Props: { near }.
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
-import { Color, CylinderGeometry, Object3D, Quaternion, SphereGeometry, TorusGeometry, Vector3 } from "three";
+import { Color, CylinderGeometry, IcosahedronGeometry, Matrix4, Object3D, Quaternion, TorusGeometry, Vector3 } from "three";
 import { glow, mat } from "../palette";
-import { CHAIN, CHAIN_COMMIT, CHAIN_DOOR, CHAIN_DOOR_POINT, CHAIN_DOOR_TANGENT, CHAIN_N, chainFrontPoint } from "./parts/chain-layout";
+import { COMMIT, DOOR, DOOR_AT, DOOR_AXIS, FLOE, FLOES, frontPoint, N, THREADS } from "../land/parts/floes-layout";
 
 // fig.js's own tokens for this figure (chain(), token() calls) -- the same
 // hexes the landing site paints, kept exact rather than reached for place.color.
@@ -40,17 +45,14 @@ const CORAL = "#d9376e"; // the second change, on the far side of the door
 const CORAL_DARK = "#a0183f"; // the should_panic ring: it catches the coral failure
 const VIOLET = "#a66cf0"; // the door: the incremental budget's edge
 
-const BEAD_R = 0.09;
-const BOND_R = 0.052; // the short, thick link binding each component's own two beads
-const LINK_R = 0.034; // the thin link joining one component to the next
+const RIDGE_R = 0.07; // the short thick ridge freezing a floe's two lobes together
+const THREAD_R = 0.028; // the thin ice thread to the next floe
 
-const BEADS_N = CHAIN_N * 2;
-const LINKS_N = CHAIN_N; // N-1 component-to-component + 1 final link into commit
-
-const BEAD_GEO = new SphereGeometry(BEAD_R, 8, 6);
+const LOBES_N = N * 2;
+const LOBE_GEO = new IcosahedronGeometry(1, 1); // scaled per instance into an ice-chip ellipsoid
 const STICK_GEO = new CylinderGeometry(1, 1, 1, 6, 1); // unit cylinder, scaled per instance
 
-const CYCLE_FAR = 9.5; // s per loop, far from the plinth
+const CYCLE_FAR = 9.5; // s per loop, far from the reading point
 const CYCLE_NEAR = 6.2; // faster once the seal is close
 const EASE_RATE = 4; // shared near/far blend rate: k = 1 - exp(-EASE_RATE*dt)
 
@@ -76,9 +78,10 @@ const UP = new Vector3(0, 1, 0);
 const AXIS_Z = new Vector3(0, 0, 1);
 const qTmp = new Quaternion();
 const vTmp = new Vector3();
+const basisM = new Matrix4();
 
 // Places a unit stick between two points, radius `r`: used once to bake the
-// bond and link instances, which never move again.
+// ridge and thread instances, which never move again.
 function placeStick(p0, p1, r) {
   vTmp.set(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
   const len = Math.max(0.001, vTmp.length());
@@ -90,13 +93,13 @@ function placeStick(p0, p1, r) {
   dummy.updateMatrix();
 }
 
-const doorTangent = new Vector3(...CHAIN_DOOR_TANGENT);
+const doorTangent = new Vector3(...DOOR_AXIS);
 const doorQuat = new Quaternion().setFromUnitVectors(AXIS_Z, doorTangent);
 
 export default function Chain({ near }) {
-  const beadsRef = useRef(null);
-  const bondsRef = useRef(null);
-  const linksRef = useRef(null);
+  const lobesRef = useRef(null);
+  const ridgesRef = useRef(null);
+  const threadsRef = useRef(null);
   const hoopRef = useRef(null);
   const membraneRef = useRef(null);
   const burstRef = useRef(null);
@@ -123,39 +126,45 @@ export default function Chain({ near }) {
   const nearK = useRef(0);
   const phase = useRef(0);
 
-  // Bake every bead, bond and link position once: the coil never moves,
-  // only its colour does. Also seat the hoop and membrane on the door.
+  // Bake every lobe, ridge and thread position once: the funnel never
+  // moves, only its colour does. Also seat the hoop and membrane on the door.
   useEffect(() => {
-    const beads = beadsRef.current, bonds = bondsRef.current, links = linksRef.current;
-    if (!beads || !bonds || !links) return;
-    for (let i = 0; i < CHAIN_N; i++) {
-      const { a, b } = CHAIN[i];
+    const lobes = lobesRef.current, ridges = ridgesRef.current, threads = threadsRef.current;
+    if (!lobes || !ridges || !threads) return;
+    for (let i = 0; i < N; i++) {
+      const f = FLOES[i];
+      const off = FLOE.lobeOff * f.scale;
+      const a = [f.c[0] - f.x[0] * off, f.c[1] - f.x[1] * off, f.c[2] - f.x[2] * off];
+      const b = [f.c[0] + f.x[0] * off, f.c[1] + f.x[1] * off, f.c[2] + f.x[2] * off];
+
+      basisM.makeBasis(new Vector3(...f.x), new Vector3(...f.y), new Vector3(...f.z));
+      qTmp.setFromRotationMatrix(basisM);
+      dummy.quaternion.copy(qTmp);
+      dummy.scale.set(FLOE.lobeX * f.scale, FLOE.thick * f.scale, FLOE.lobeZ * f.scale);
       dummy.position.set(a[0], a[1], a[2]);
-      dummy.quaternion.identity();
-      dummy.scale.setScalar(1);
       dummy.updateMatrix();
-      beads.setMatrixAt(i * 2, dummy.matrix);
+      lobes.setMatrixAt(i * 2, dummy.matrix);
       dummy.position.set(b[0], b[1], b[2]);
       dummy.updateMatrix();
-      beads.setMatrixAt(i * 2 + 1, dummy.matrix);
+      lobes.setMatrixAt(i * 2 + 1, dummy.matrix);
 
-      placeStick(a, b, BOND_R);
-      bonds.setMatrixAt(i, dummy.matrix);
+      placeStick(a, b, RIDGE_R);
+      ridges.setMatrixAt(i, dummy.matrix);
 
-      const next = i < CHAIN_N - 1 ? CHAIN[i + 1].a : CHAIN_COMMIT;
-      placeStick(b, next, LINK_R);
-      links.setMatrixAt(i, dummy.matrix);
+      const [t, h] = THREADS[i];
+      placeStick(t, h, THREAD_R);
+      threads.setMatrixAt(i, dummy.matrix);
     }
-    beads.instanceMatrix.needsUpdate = true;
-    bonds.instanceMatrix.needsUpdate = true;
-    links.instanceMatrix.needsUpdate = true;
+    lobes.instanceMatrix.needsUpdate = true;
+    ridges.instanceMatrix.needsUpdate = true;
+    threads.instanceMatrix.needsUpdate = true;
 
     if (hoopRef.current) {
-      hoopRef.current.position.set(...CHAIN_DOOR_POINT);
+      hoopRef.current.position.set(...DOOR_AT);
       hoopRef.current.quaternion.copy(doorQuat);
     }
     if (membraneRef.current) {
-      membraneRef.current.position.set(...CHAIN_DOOR_POINT);
+      membraneRef.current.position.set(...DOOR_AT);
       membraneRef.current.quaternion.copy(doorQuat);
     }
   }, []);
@@ -167,14 +176,14 @@ export default function Chain({ near }) {
     const p = phase.current;
     const glowMul = 1 + 0.6 * nearK.current;
 
-    const wave1Front = p < WAVE1_END ? CHAIN_DOOR * easeClamp(p / WAVE1_END) : CHAIN_DOOR;
+    const wave1Front = p < WAVE1_END ? DOOR * easeClamp(p / WAVE1_END) : DOOR;
     const doorShut = p < WAVE1_END ? 0
       : p < SHUT_END ? easeClamp((p - WAVE1_END) / (SHUT_END - WAVE1_END))
       : p < HOLD_END ? 1
       : 1 - easeClamp((p - HOLD_END) / (1 - HOLD_END));
-    const wave2Front = p < SHUT_END ? CHAIN_DOOR
-      : p < WAVE2_END ? CHAIN_DOOR + (CHAIN_N - CHAIN_DOOR) * easeClamp((p - SHUT_END) / (WAVE2_END - SHUT_END))
-      : CHAIN_N;
+    const wave2Front = p < SHUT_END ? DOOR
+      : p < WAVE2_END ? DOOR + (N - DOOR) * easeClamp((p - SHUT_END) / (WAVE2_END - SHUT_END))
+      : N;
     const burstPulse = Math.exp(-Math.pow((p - WAVE2_END) / 0.02, 2));
     const ringAmt = p < WAVE2_END ? 0
       : p < BURST_END ? easeClamp((p - WAVE2_END) / (BURST_END - WAVE2_END))
@@ -182,28 +191,28 @@ export default function Chain({ near }) {
       : 1 - easeClamp((p - HOLD_END) / (1 - HOLD_END));
     const swellU = p < WAVE2_END ? -1 : (p - WAVE2_END) / 0.08;
     const swellActive = swellU >= 0 && swellU <= 1;
-    const swellPos = CHAIN_N - (CHAIN_N - CHAIN_DOOR) * easeClamp(swellU);
+    const swellPos = N - (N - DOOR) * easeClamp(swellU);
     const resetT = p < HOLD_END ? 0 : easeClamp((p - HOLD_END) / (1 - HOLD_END));
 
     // Every component's colour: blue -> mint ahead of the door, blue ->
     // coral beyond it, a bright swell running back up the pending span
     // right after the burst, then everything eases back to blue.
-    const beads = beadsRef.current, bonds = bondsRef.current, links = linksRef.current;
-    for (let i = 0; i < CHAIN_N; i++) {
-      const passed = i < CHAIN_DOOR ? i < wave1Front : i < wave2Front;
-      scratch.set(i < CHAIN_DOOR ? (passed ? MINT : BLUE) : passed ? CORAL : BLUE);
+    const lobes = lobesRef.current, ridges = ridgesRef.current, threads = threadsRef.current;
+    for (let i = 0; i < N; i++) {
+      const passed = i < DOOR ? i < wave1Front : i < wave2Front;
+      scratch.set(i < DOOR ? (passed ? MINT : BLUE) : passed ? CORAL : BLUE);
       if (resetT > 0) scratch.lerp(blueColor, resetT);
-      if (swellActive && i >= CHAIN_DOOR) {
+      if (swellActive && i >= DOOR) {
         const d = i - swellPos;
         scratch.lerp(whiteColor, Math.exp(-(d * d) / 90) * 0.85);
       }
-      if (beads) { beads.setColorAt(i * 2, scratch); beads.setColorAt(i * 2 + 1, scratch); }
-      if (bonds) bonds.setColorAt(i, scratch);
-      if (links) links.setColorAt(i, scratch);
+      if (lobes) { lobes.setColorAt(i * 2, scratch); lobes.setColorAt(i * 2 + 1, scratch); }
+      if (ridges) ridges.setColorAt(i, scratch);
+      if (threads) threads.setColorAt(i, scratch);
     }
-    if (beads?.instanceColor) beads.instanceColor.needsUpdate = true;
-    if (bonds?.instanceColor) bonds.instanceColor.needsUpdate = true;
-    if (links?.instanceColor) links.instanceColor.needsUpdate = true;
+    if (lobes?.instanceColor) lobes.instanceColor.needsUpdate = true;
+    if (ridges?.instanceColor) ridges.instanceColor.needsUpdate = true;
+    if (threads?.instanceColor) threads.instanceColor.needsUpdate = true;
 
     hoopMat.current.emissiveIntensity = (0.45 + 0.5 * doorShut) * glowMul;
     membraneMat.current.opacity = 0.15 + 0.5 * doorShut;
@@ -222,7 +231,7 @@ export default function Chain({ near }) {
       marker1Ref.current.scale.setScalar(m1On ? 1 : 0);
       marker1GlowRef.current.scale.setScalar(m1On ? 1 : 0);
       if (m1On) {
-        chainFrontPoint(wave1Front, front3);
+        frontPoint(wave1Front, front3);
         marker1Ref.current.position.set(front3[0], front3[1], front3[2]);
         marker1GlowRef.current.position.copy(marker1Ref.current.position);
       }
@@ -232,7 +241,7 @@ export default function Chain({ near }) {
       marker2Ref.current.scale.setScalar(m2On ? 1 : 0);
       marker2GlowRef.current.scale.setScalar(m2On ? 1 : 0);
       if (m2On) {
-        chainFrontPoint(wave2Front, front3);
+        frontPoint(wave2Front, front3);
         marker2Ref.current.position.set(front3[0], front3[1], front3[2]);
         marker2GlowRef.current.position.copy(marker2Ref.current.position);
       }
@@ -246,9 +255,9 @@ export default function Chain({ near }) {
           material itself must NOT set vertexColors: with no per-vertex
           "color" attribute on these geometries that flag zeroes vColor
           before the per-instance multiply, i.e. every instance goes black. */}
-      <instancedMesh ref={beadsRef} args={[BEAD_GEO, mat("#ffffff", { roughness: 0.4, emissive: BLUE, emissiveIntensity: 0.22 }), BEADS_N]} castShadow frustumCulled={false} />
-      <instancedMesh ref={bondsRef} args={[STICK_GEO, mat("#ffffff", { roughness: 0.4, emissive: BLUE, emissiveIntensity: 0.22 }), CHAIN_N]} castShadow frustumCulled={false} />
-      <instancedMesh ref={linksRef} args={[STICK_GEO, mat("#ffffff", { roughness: 0.5, emissive: BLUE, emissiveIntensity: 0.15 }), LINKS_N]} frustumCulled={false} />
+      <instancedMesh ref={lobesRef} args={[LOBE_GEO, mat("#ffffff", { roughness: 0.4, emissive: BLUE, emissiveIntensity: 0.22 }), LOBES_N]} castShadow frustumCulled={false} />
+      <instancedMesh ref={ridgesRef} args={[STICK_GEO, mat("#ffffff", { roughness: 0.4, emissive: BLUE, emissiveIntensity: 0.22 }), N]} castShadow frustumCulled={false} />
+      <instancedMesh ref={threadsRef} args={[STICK_GEO, mat("#ffffff", { roughness: 0.5, emissive: BLUE, emissiveIntensity: 0.15 }), N]} frustumCulled={false} />
 
       <mesh ref={hoopRef} material={hoopMat.current}>
         <torusGeometry args={[0.32, 0.045, 8, 20]} />
@@ -257,13 +266,13 @@ export default function Chain({ near }) {
         <circleGeometry args={[0.3, 20]} />
       </mesh>
 
-      <mesh ref={burstRef} position={CHAIN_COMMIT} material={burstMat.current}>
+      <mesh ref={burstRef} position={COMMIT} material={burstMat.current}>
         <sphereGeometry args={[0.16, 12, 10]} />
       </mesh>
-      <mesh ref={burstGlowRef} position={CHAIN_COMMIT} material={glow("#ffffff", 0.35)}>
+      <mesh ref={burstGlowRef} position={COMMIT} material={glow("#ffffff", 0.35)}>
         <sphereGeometry args={[0.34, 10, 8]} />
       </mesh>
-      <mesh ref={ringRef} position={CHAIN_COMMIT} material={ringMat.current} scale={0.001}>
+      <mesh ref={ringRef} position={COMMIT} material={ringMat.current} scale={0.001}>
         <torusGeometry args={[0.34, 0.045, 8, 20]} />
       </mesh>
 

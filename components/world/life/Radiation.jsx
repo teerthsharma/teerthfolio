@@ -1,9 +1,11 @@
 "use client";
 
 // THE STORY, made visible (show, never tell): every district's radiation
-// colour drifting as motes, glowing in the snow at its hot spots, and a
-// scatter of toppled trefoil warning signs at district edges. Mounted once
-// inside Effects.jsx. Three InstancedMeshes, three draw calls total.
+// colour drifting as crisp motes that stream into the seal, and a scatter
+// of toppled trefoil warning signs at district edges. Each lab area's own
+// anomaly (components/world/life/anomalies/LabAnomalies.jsx) carries the
+// hot-spot spectacle now -- no soft glow discs here any more. Mounted once
+// inside Effects.jsx. Two InstancedMeshes, two draw calls total.
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -15,7 +17,6 @@ import {
   Float32BufferAttribute,
   IcosahedronGeometry,
   MeshBasicMaterial,
-  NormalBlending,
   Object3D,
   Quaternion,
   Shape,
@@ -30,8 +31,6 @@ import { C } from "../palette";
 
 const MOTES_PER_DISTRICT = 8;
 const MOTE_COUNT = DISTRICTS.length * MOTES_PER_DISTRICT; // 20 * 8 = 160
-const GLOW_PER_DISTRICT = 3;
-const GLOW_COUNT = DISTRICTS.length * GLOW_PER_DISTRICT; // 20 * 3 = 60
 // Every lab district plus the three set pieces the brief names.
 const SIGN_DISTRICT_IDS = [...DISTRICTS.filter((d) => d.id.startsWith("p-")).map((d) => d.id), "triton", "mujorush", "moat"];
 
@@ -73,55 +72,6 @@ function buildMotes() {
 
 const MOTE_GEO = new IcosahedronGeometry(0.14, 0);
 const MOTE_MAT = new MeshBasicMaterial({ toneMapped: false });
-
-// ---- snow glow: 3 static discs per district, only their opacity animates --
-
-function buildGlowDiscGeometry() {
-  const geo = new CircleGeometry(1, 32);
-  const pos = geo.attributes.position;
-  const n = pos.count;
-  const col = new Float32Array(n * 4);
-  for (let i = 0; i < n; i++) {
-    const dist = Math.min(1, Math.hypot(pos.getX(i), pos.getY(i)));
-    const a = 0.28 * (1 - dist); // 0.28 at the centre, 0 at the rim
-    col[i * 4] = 1;
-    col[i * 4 + 1] = 1;
-    col[i * 4 + 2] = 1;
-    col[i * 4 + 3] = a;
-  }
-  geo.setAttribute("color", new Float32BufferAttribute(col, 4));
-  geo.rotateX(-Math.PI / 2); // baked flat: instances need only translate + scale
-  return geo;
-}
-const GLOW_GEO = buildGlowDiscGeometry();
-const GLOW_MAT = new MeshBasicMaterial({
-  vertexColors: true,
-  transparent: true,
-  depthWrite: false,
-  polygonOffset: true,
-  polygonOffsetFactor: -2,
-  polygonOffsetUnits: -6,
-  blending: NormalBlending, // additive disappears on white snow
-  toneMapped: false,
-});
-
-function buildGlowSpots() {
-  const rand = mulberry32(20260927);
-  const spots = [];
-  for (const d of DISTRICTS) {
-    for (let k = 0; k < GLOW_PER_DISTRICT; k++) {
-      const angle = k * ((Math.PI * 2) / GLOW_PER_DISTRICT) + rand() * 0.8;
-      const r = d.radius * 0.5;
-      spots.push({
-        x: d.x + Math.cos(angle) * r,
-        z: d.z + Math.sin(angle) * r,
-        scale: 2.5 + rand() * 1.5,
-        color: d.radiation ?? d.color,
-      });
-    }
-  }
-  return spots;
-}
 
 // ---- trefoil signs: static, seeded, one merged geometry -------------------
 
@@ -220,31 +170,12 @@ const UP = new Vector3(0, 1, 0);
 
 export default function Radiation() {
   const moteRef = useRef();
-  const glowRef = useRef();
   const signRef = useRef();
 
   const motes = useMemo(buildMotes, []);
-  const glowSpots = useMemo(buildGlowSpots, []);
   const signs = useMemo(buildSigns, []);
 
   // Static instances: written once, never touched again.
-  useEffect(() => {
-    const mesh = glowRef.current;
-    if (mesh) {
-      for (let i = 0; i < glowSpots.length; i++) {
-        const g = glowSpots[i];
-        dummy.position.set(g.x, 0.02, g.z);
-        dummy.rotation.set(0, 0, 0);
-        dummy.scale.setScalar(g.scale);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(i, dummy.matrix);
-        mesh.setColorAt(i, new Color(g.color));
-      }
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    }
-  }, [glowSpots]);
-
   useEffect(() => {
     const mesh = signRef.current;
     if (mesh) {
@@ -371,16 +302,11 @@ export default function Radiation() {
       }
       moteMesh.instanceMatrix.needsUpdate = true;
     }
-
-    // ---- snow glow: geometry is static, only the shared pulse animates ----
-    // (one material for all 60 discs: they pulse together, not out of phase)
-    GLOW_MAT.opacity = 1 + (0.06 / 0.28) * Math.sin(t * Math.PI * 2 * 0.5);
   });
 
   return (
     <>
       <instancedMesh ref={moteRef} args={[MOTE_GEO, MOTE_MAT, MOTE_COUNT]} frustumCulled={false} />
-      <instancedMesh ref={glowRef} args={[GLOW_GEO, GLOW_MAT, GLOW_COUNT]} frustumCulled={false} />
       <instancedMesh ref={signRef} args={[SIGN_GEO, SIGN_MAT, signs.length]} castShadow frustumCulled={false} />
     </>
   );

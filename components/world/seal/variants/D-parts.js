@@ -27,8 +27,8 @@ export const SKULL = [0.52, 0.47, 0.5];
 export const EYE_R = 0.13;
 // The eye is a lens, flattened along its axis and sunk into the skull, so it
 // bulges only ~1.4 cm: a far eye never pokes past the head's silhouette.
-const EYE_DEPTH = 0.3;
-const EYE_SINK = 0.04;
+const EYE_DEPTH = 0.45;
+const EYE_SINK = 0.03;
 
 // Fore-flippers at rest (rad), Euler order YZX: (twist, back, -down). Splayed
 // out like a starfish, tips on the snow: the old pup's triangle silhouette.

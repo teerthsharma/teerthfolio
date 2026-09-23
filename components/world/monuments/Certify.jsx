@@ -131,13 +131,15 @@ const armBand = (i) => new BoxGeometry(ARM_BAND_W - 0.02, 0.14, 0.14).translate(
 const armDarkGeo = mergeGeometries([armBand(0), armBand(2), armBand(4)]);
 const armLightGeo = mergeGeometries([armBand(1), armBand(3), armBand(5)]);
 
-// A small cone, not a ball: the arm's own bands and the marbles are both
-// round, so a matching icosahedron beacon fused into "one more ball" at
-// whichever silhouette it sat closest to.
-const beaconGeo = new ConeGeometry(0.16, 0.34, 8);
+// A cone, not a ball: the arm's own bands and the marbles are both round,
+// so a matching icosahedron beacon fused into "one more ball" at whichever
+// silhouette it sat closest to. Sized up from an initial 0.16/0.34 pass,
+// which a scale debug capture showed rendering fine but reading as a thin,
+// near-illegible sliver next to the 3.4 m booth at normal camera distance.
+const beaconGeo = new ConeGeometry(0.24, 0.46, 8);
 const poolGeo = new CylinderGeometry(POOL_R, POOL_R, POOL_H, 20);
 const ringGeo = new RingGeometry(0.3, 0.46, 24).rotateX(-Math.PI / 2);
-const marbleGeo = new IcosahedronGeometry(0.22, 1);
+const marbleGeo = new IcosahedronGeometry(0.26, 1);
 const moteGeo = new IcosahedronGeometry(0.12, 0);
 const pulseGeo = new BoxGeometry(0.5, 0.1, 0.3);
 
@@ -153,7 +155,10 @@ export default function Certify({ place, near: nearProp }) {
   const matRibbonGlow = useMemo(() => glow(A, 0.3), [A]);
   // Saturated accent body, not near-white snow: a near-white marble on a
   // near-white roof has almost no value contrast and reads as invisible.
-  const matMarble = useMemo(() => mat(A, { emissive: A, emissiveIntensity: 1.5 }), [A]);
+  // Intensity raised from 1.5: once the frustum-culling bug (fix #1) no
+  // longer hid the instances outright, 1.5 still read as a faint dot next
+  // to the roof's warm-white at normal camera distance.
+  const matMarble = useMemo(() => mat(A, { emissive: A, emissiveIntensity: 2.5 }), [A]);
   const matMote = useMemo(() => lamp(A, 2), [A]);
   const matPulse = useMemo(() => lamp(A, 3), [A]);
   const matDecal = useMemo(() => glow(A, 0.16), [A]);

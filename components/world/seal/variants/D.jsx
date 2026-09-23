@@ -261,6 +261,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     const hereId = hereDistrict ? hereDistrict.id : null;
     if (hereId !== f.districtId) {
       f.districtId = hereId;
+      if (hereDistrict) mats.coat.emissive.set(hereDistrict.radiation ?? hereDistrict.color);
       f.squishV += 7;
       f.districtFlash = 1;
     } else {
@@ -273,8 +274,8 @@ export default function SealD({ pose, near, drive, headRef }) {
     } else if (f.absorbFlash > 0) {
       f.absorbFlash = Math.max(0, f.absorbFlash - dt / 0.35);
     }
-    if (hereDistrict) mats.coat.emissive.set(hereDistrict.radiation ?? hereDistrict.color);
-    mats.coat.emissiveIntensity = Math.max(hereDistrict ? 0.22 : 0, 0.8 * f.absorbFlash);
+    // A tint, not a lamp: a white pup at 0.22 read as a coloured blob.
+    mats.coat.emissiveIntensity = Math.max(hereDistrict ? 0.06 : 0, 0.35 * f.absorbFlash);
 
     // Face. Blinks close fast and open a little slower; every fourth blink
     // while it rests is a slow, content one. A hard bump squeezes them shut,
