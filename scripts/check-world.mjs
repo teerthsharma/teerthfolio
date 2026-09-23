@@ -1,7 +1,7 @@
 // The rules the island has to keep, checked against the real motion code.
 // Run: npm run check
 
-import { HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
+import { GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
@@ -582,6 +582,30 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   for (const c of colliders) assert.ok(Math.hypot(rider.x - c.x, rider.z - c.z) >= c.radius, `${at}, inside a collider at ${c.x}, ${c.z}`);
 }
 
+// The geyser: every landing spot is dry, flat, on the island and clear; a
+// seal that stands at the vent's rim is thrown within `hold` seconds, and so
+// is one caught there by the scheduled eruption; both come to rest dry and
+// clear of every place and landform.
+{
+  for (const [x, z] of GEYSER.landings) {
+    assert.ok(!riverAt(x, z).inside && waterGap(x, z) > 1 && Math.abs(heightAt(x, z)) <= 0.3 && Math.hypot(x, z) < ISLAND_RADIUS - 4, `the geyser's landing ${x}, ${z} is not dry flat ground`);
+    for (const c of colliders) assert.ok(Math.hypot(x - c.x, z - c.z) >= c.radius + MOTION.sealRadius, `the geyser's landing ${x}, ${z} is inside a collider at ${c.x}, ${c.z}`);
+  }
+  for (const scheduled of [false, true]) {
+    const gw = { ...world, geyser: GEYSER, time: scheduled ? GEYSER.period - 0.2 : 1 };
+    const s = createSeal(GEYSER.x, GEYSER.z + 4.1);
+    let thrown = null;
+    for (let t = 0; t < 8; t += 1 / 120) {
+      if (scheduled) gw.time = GEYSER.period - 0.2 + t;
+      stepSeal(s, {}, 1 / 120, gw);
+      if (thrown === null && s.flight > 0) thrown = t;
+    }
+    assert.ok(thrown !== null && thrown <= (scheduled ? 0.3 : GEYSER.hold + 0.05), `the geyser did not throw a seal at its rim (${scheduled ? "the scheduled eruption" : "standing"})`);
+    assert.ok(s.flight === 0 && s.water === 0 && !riverAt(s.x, s.z).inside && Math.abs(heightAt(s.x, s.z)) <= 0.3, `the geyser's throw left the seal at ${s.x.toFixed(1)}, ${s.z.toFixed(1)}`);
+    for (const c of colliders) assert.ok(Math.hypot(s.x - c.x, s.z - c.z) >= c.radius, `the geyser's throw left the seal inside a collider at ${c.x}, ${c.z}`);
+  }
+}
+
 // The highway: every sample of its asphalt (legs, ring, car park) is on the
 // island, dry, flat (the terrain contract) and clear of every place and
 // landform except the roundabout's own island; its place sits in the ring,
@@ -645,4 +669,4 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   }
 }
 
-console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the highway, mutation looks`);
+console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, mutation looks`);

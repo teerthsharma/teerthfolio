@@ -71,7 +71,7 @@ export default function Seal() {
   useFrame((state, delta) => {
     const s = live.seal;
     stepDrive(drive, s, near, state.clock.elapsedTime, delta);
-    root.current.position.set(s.x, (s.air || 0) * 3.2, s.z); // air: the whirlpool's throw (motion.js)
+    root.current.position.set(s.x, (s.air || 0) * (s.airHeight || 3.2), s.z); // air: a whirlpool or geyser throw (motion.js)
     root.current.rotation.y = s.heading + drive.bodyYaw;
     // The chest lifting off the snow thins the contact under it.
     shadow.uniforms.strength.value = 1 - drive.hump * 0.35;

@@ -4,7 +4,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { stepSeal, nearestPlace } from "../../lib/world/motion";
-import { LAND_COLLIDERS } from "../../lib/world/land";
+import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
 import { ARRIVAL } from "../../lib/world/moments";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
 import { WHIRLPOOL } from "../../lib/world/river";
@@ -13,7 +13,8 @@ import { getUi, live, setUi } from "../../lib/world/store";
 const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 // live.props is created once and never reassigned (store.js), so the world
 // object can be built once too instead of every frame.
-const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, places: PLACES };
+const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, places: PLACES, time: 0 };
+let seenBursts = 0;
 
 // Places whose arrival showcase already played this session (moments.js
 // ARRIVAL). Storage can be missing or blocked (private windows): then every
@@ -86,6 +87,7 @@ export default function Controller() {
     CONTROLS.target = holding ? null : live.target;
     CONTROLS.boost = live.boost;
 
+    WORLD.time = t;
     // Fixed small steps so a slow frame cannot tunnel the seal through a wall.
     let remaining = Math.min(delta, 0.1);
     while (remaining > 0) {
@@ -95,6 +97,10 @@ export default function Controller() {
     }
 
     const seal = live.seal;
+    if (seal.bursts !== seenBursts) {
+      seenBursts = seal.bursts;
+      live.geyser.burstAt = t; // the geyser erupts as it throws the seal
+    }
     if (live.target && Math.hypot(live.target.x - seal.x, live.target.z - seal.z) < 0.3 && seal.speed < 0.3) {
       live.target = null;
     }
