@@ -176,6 +176,42 @@ const POOL = {
 
 
 const DISTRICT_BY_ID = Object.fromEntries(DISTRICTS.map((d) => [d.id, d]));
+// THE EASTER-EGG PUPS' COSTUMES (components/world/life/SealColony.jsx): the
+// mutation looks above plus three more, all anime homages in shape and
+// colour only, never a copied logo or character (the owner: "DBS, Anos,
+// Magi, JJK, Naruto etc"). Each takes an accent colour.
+export const COSTUMES = {
+  saiyan: (c) => [[spikes(), lamp(c, 0.6)], [sparkle(), lamp("#ffffff", 1)]],
+  ninja: POOL.ninja,
+  // a raised blindfold on the brow under a white tuft
+  sorcerer: (c) => [[spikes(), mat("#f4f6fb", { roughness: 0.6 })], [band(0.44, 0.07, 0.2, 0, -0.25), mat(C.charcoal)], [sparkle(), lamp(c, 1)]],
+  // black demon-king spikes and a magic circle behind the head
+  demonKing: (c) => [
+    [spikes(), mat("#23222b", { roughness: 0.5 })],
+    [mergeGeometries([new TorusGeometry(0.62, 0.03, 6, 48), new TorusGeometry(0.46, 0.02, 6, 40)]).translate(0, 0.18, -0.42), lamp(c, 1.3)],
+  ],
+  // a turban with a jewel and a long braid
+  magi: (c) => [
+    [mergeGeometries([dome(0.44, 0.8, 0.12), band(0.43, 0.08, 0.18)]), mat(C.snow, { roughness: 0.7 })],
+    [new SphereGeometry(0.08, 10, 8).translate(0, 0.3, 0.42), lamp(c, 1.2)],
+    [mergeGeometries([0, 1, 2, 3].map((k) => new SphereGeometry(0.1 - k * 0.012, 8, 6).translate(0, 0.08 - k * 0.13, -0.46 - k * 0.03))), mat("#3f6fe0", { roughness: 0.5 })],
+  ],
+  straw: POOL.straw,
+  flame: POOL.flame,
+  buns: POOL.buns,
+  goggles: EXPLICIT.mujorush,
+  frost: EXPLICIT.triton,
+  visor: EXPLICIT.moat,
+  hardHat: EXPLICIT.dam,
+  cap: EXPLICIT.highway,
+};
+const costumeCache = new Map();
+export function costume(name, color) {
+  const key = `${name}|${color}`;
+  if (!costumeCache.has(key)) costumeCache.set(key, (COSTUMES[name] ?? COSTUMES.saiyan)(color));
+  return costumeCache.get(key);
+}
+
 const aura = new SphereGeometry(R * 1.32, 12, 8);
 const cache = new Map();
 function lookFor(district) {

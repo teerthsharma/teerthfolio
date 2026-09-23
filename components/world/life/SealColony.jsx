@@ -39,16 +39,20 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Color, MeshBasicMaterial, MeshPhysicalMaterial, Object3D, RingGeometry } from "three";
+import { Color, MeshBasicMaterial, MeshPhysicalMaterial, Object3D, RingGeometry, Vector3 } from "three";
 import { live } from "../../../lib/world/store";
 import { WATER_Y } from "../../../lib/world/terrain";
 import { C } from "../palette";
-import { buildSealD, FLIPPER_REST, PIVOT } from "../seal/variants/D-parts";
+import { HEAD_RADIUS, costume } from "../seal/Outfit";
+import { buildSealD, FLIPPER_REST, PIVOT, SKULL } from "../seal/variants/D-parts";
 import { COLONY, JUMPERS, RING_CENTER } from "./seals-seed";
 import { clamp, damp, smoothstep, wrapAngle } from "./util";
 
 // ---- the shared pup rig, built once (D-parts.js; no React, no scene graph) --
 const D = buildSealD();
+// Each pup's costume rides its head frame, scaled as the player's outfit is (D.jsx).
+const OUTFIT_SCALE = (SKULL[0] + SKULL[1] + SKULL[2]) / 3 / HEAD_RADIUS;
+const OUTFIT_V = new Vector3(OUTFIT_SCALE, OUTFIT_SCALE, OUTFIT_SCALE);
 
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const HEAD_OFFSET = sub3(PIVOT.head, PIVOT.rear); // head pivot, in the body's own rear-origin frame
@@ -118,6 +122,7 @@ export default function SealColony() {
   const lensRef = useRef(null);
   const glintRef = useRef(null);
   const splashRef = useRef(null);
+  const costumeRefs = useRef([]);
 
   // Mutable per-seal state (notice/bow easing), built once, mutated in
   // place every frame -- never replaced, so useFrame never allocates.
@@ -224,6 +229,11 @@ export default function SealColony() {
       headPivot.scale.setScalar(1);
       bodyPivot.updateMatrixWorld(true);
       headMesh.setMatrixAt(i, headPivot.matrixWorld);
+      const worn = costumeRefs.current[i];
+      if (worn) {
+        worn.matrix.copy(headPivot.matrixWorld).scale(OUTFIT_V);
+        worn.matrixWorldNeedsUpdate = true;
+      }
 
       // ---- eyes + catchlights: head matrix * the eye pivot, rigid with the head
       facePivot.position.set(EYE_PIVOT[0], EYE_PIVOT[1], EYE_PIVOT[2]);
@@ -348,6 +358,13 @@ export default function SealColony() {
       <instancedMesh ref={lensRef} args={[D.lenses, EYE_MAT, TOTAL]} frustumCulled={false} />
       <instancedMesh ref={glintRef} args={[D.glints, GLINT_MAT, TOTAL]} frustumCulled={false} />
       <instancedMesh ref={splashRef} args={[SPLASH_GEO, SPLASH_MAT, JUMPERS.length]} frustumCulled={false} />
+      {colony.map((s, i) => (
+        <group key={s.id} ref={(g) => (costumeRefs.current[i] = g)} matrixAutoUpdate={false}>
+          {costume(s.costume, s.color).map(([geometry, material], k) => (
+            <mesh key={k} geometry={geometry} material={material} />
+          ))}
+        </group>
+      ))}
     </>
   );
 }

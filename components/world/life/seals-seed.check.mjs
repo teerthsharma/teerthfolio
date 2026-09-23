@@ -12,14 +12,14 @@ import { PLACE_BY_ID, dockPoint } from "../../../lib/world/places.js";
 
 assert.equal(COLONY.length, 18, `expected 18 colony seals, got ${COLONY.length}`);
 
-const place = PLACE_BY_ID["p-aether-lang"];
-const dock = dockPoint(place);
 for (const s of COLONY) {
-  assert.ok(sealClear(s.x, s.z), `colony seal ${s.id} at (${s.x.toFixed(2)}, ${s.z.toFixed(2)}) is not clear`);
-  const toBuilding = Math.hypot(s.x - place.x, s.z - place.z);
-  assert.ok(toBuilding > place.radius, `colony seal ${s.id} is inside the building`);
-  const toDock = Math.hypot(s.x - dock.x, s.z - dock.z);
-  assert.ok(toDock > 1, `colony seal ${s.id} is on the dock`);
+  assert.ok(sealClear(s.x, s.z, 1.5), `Easter-egg pup ${s.id} at (${s.x.toFixed(2)}, ${s.z.toFixed(2)}) is not clear`);
+  for (const p of Object.values(PLACE_BY_ID)) {
+    const dock = dockPoint(p);
+    assert.ok(Math.hypot(s.x - dock.x, s.z - dock.z) > 2, `Easter-egg pup ${s.id} is on ${p.id}'s dock`);
+  }
+  for (const q of COLONY) if (q !== s) assert.ok(Math.hypot(s.x - q.x, s.z - q.z) > 12, `Easter-egg pups ${s.id} and ${q.id} are too close`);
+  assert.ok(s.costume && s.color, `Easter-egg pup ${s.id} has no costume`);
 }
 // Every onBack pup points at a real seal that comes before it in the array.
 for (const s of COLONY) {
@@ -36,4 +36,4 @@ for (const j of JUMPERS) {
   }
 }
 
-console.log(`seals-seed: ok (${COLONY.length} colony seals in 4 piles, ${JUMPERS.length} moat jumpers)`);
+console.log(`seals-seed: ok (${COLONY.length} Easter-egg pups spread over the island, ${JUMPERS.length} moat jumpers)`);
