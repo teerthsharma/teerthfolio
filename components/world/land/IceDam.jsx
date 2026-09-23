@@ -127,8 +127,13 @@ function Channels({ boost }) {
               <mesh position={[0, h / 2 + 0.35, ch.face + FLOW_PROUD]} geometry={flowGeo} scale={[1, h * 0.92, 1]} material={flowMats[FLOWING.indexOf(ch)]} />
             ) : (
               <group position={[0, h + 0.15, ch.face + PLUG_PROUD]}>
-                <mesh geometry={plugGeo} scale={[0.62, 0.42, 0.34]} material={mat(C.deepIce, { roughness: 0.3 })} castShadow />
-                <mesh position={[0, -0.28, 0.08]} geometry={plugGeo} scale={[0.4, 0.26, 0.24]} material={mat(C.ice, { roughness: 0.3 })} />
+                {/* was C.deepIce, the same tone as wallMat -- the plug
+                    vanished into the wall. warmWhite base (brighter than
+                    the blue wall) plus a low-roughness front cap (a
+                    sharper specular gleam) plus a thin DAM_COLOR emissive
+                    rim now read it as a distinct capped groove. */}
+                <mesh geometry={plugGeo} scale={[0.62, 0.42, 0.34]} material={mat(C.warmWhite, { roughness: 0.35 })} castShadow />
+                <mesh position={[0, -0.28, 0.08]} geometry={plugGeo} scale={[0.4, 0.26, 0.24]} material={mat(C.ice, { roughness: 0.08, emissive: DAM_COLOR, emissiveIntensity: 0.3 })} />
               </group>
             )}
           </group>
@@ -219,7 +224,11 @@ function Geyser({ boost }) {
   const steamRef = useRef();
   const rimMat = useMemo(() => lamp(GEYSER_COLOR, 0.8), []);
   const dropMat = useMemo(() => mat(C.ice, { flat: false, roughness: 0.1, emissive: GEYSER_COLOR, emissiveIntensity: 0.6 }), []);
-  const frozenMat = useMemo(() => mat(C.ice, { flat: false, roughness: 0.15, emissive: GEYSER_COLOR, emissiveIntensity: 0.35 }), []);
+  // was roughness 0.15 / intensity 0.35 -- close enough to steamMat's own
+  // pale value that the two clusters read as one blob. Near-zero roughness
+  // (a sharp specular gleam, translucent mist has none) plus a slight
+  // metalness plus a brighter emissive now reads it as solid ice, not mist.
+  const frozenMat = useMemo(() => mat(C.ice, { flat: false, roughness: 0.04, metalness: 0.2, emissive: GEYSER_COLOR, emissiveIntensity: 0.55 }), []);
   const steamMat = useMemo(() => mat(C.warmWhite, { flat: false, roughness: 0.9, opacity: 0.24, emissive: GEYSER_COLOR, emissiveIntensity: 0.12 }), []);
   const frozen = useMemo(buildFrozenSplash, []);
 
@@ -293,12 +302,13 @@ function Geyser({ boost }) {
       <instancedMesh ref={steamRef} args={[steamGeo, steamMat, STEAM.length]} frustumCulled={false} />
       <instancedMesh ref={dropRef} args={[dropGeo, dropMat, DROPS.length]} frustumCulled={false} />
       {/* the frozen splash: fixed for good, offset from the vent so the live
-          jet is never read as part of it */}
-      <group position={[VENT_R * 1.6, 0, VENT_R * 0.4]}>
+          jet is never read as part of it. Pushed further out (was 1.6/0.4)
+          so it clears the always-on STEAM cluster hugging the vent lip. */}
+      <group position={[VENT_R * 2.6, 0, VENT_R * 0.9]}>
         {frozen.map((d, i) => (
           <mesh key={i} position={[d.x, d.y, d.z]} scale={d.scale} geometry={frozenGeo} material={frozenMat} />
         ))}
-        <mesh geometry={frozenGeo} scale={0.55} position={[0, VENT_H * 0.4, 0]} material={mat(C.ice, { roughness: 0.2 })} />
+        <mesh geometry={frozenGeo} scale={0.6} position={[0, VENT_H * 0.4, 0]} material={frozenMat} />
       </group>
     </group>
   );

@@ -121,10 +121,13 @@ function buildCrate() {
 
   // Y raised above the upper box's top face (y=1.1) and x/z pushed outward
   // so heads clear the box instead of nesting inside its solid interior.
+  // Corners of a ~0.55 m triangle (was: all within 0.35 m of each other) so
+  // three heads read as three fish instead of merging into one blob, with a
+  // narrow yaw fan so tails don't cross through neighbouring bodies.
   const fishAngles = [
-    [0.05, 1.15, 0.35, 0.35, -0.2],
-    [-0.15, 1.1, -0.35, -0.9, 0.15],
-    [0.2, 1.2, 0.3, 2.4, -0.1],
+    [0.05, 1.15, 0.29, -0.55, -0.15],
+    [-0.23, 1.1, -0.19, 0.05, 0.1],
+    [0.33, 1.2, -0.19, 0.55, -0.05],
   ];
   const heads = fishAngles.map(([x, y, z, yaw, tilt]) => {
     const f = buildFish(1.3);

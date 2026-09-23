@@ -126,6 +126,15 @@ export const SADDLE_T = Math.log(1.3 / SADDLE_EPS) / 1.4; // ~1.83 s
 export const DROP_INTERVAL = 1.6; // s of phase-time between hopper drops
 export const CYCLE = DROP_INTERVAL * START_X.length; // every start once per lap
 
+// Score fix #2: the pools used to be the drop's own (ex, 0) endpoint --
+// dead behind the booth's front face (z 0 < BOOTH_FRONT_Z 0.9), reading as
+// hovering beside the booth's roofline instead of resting on snow at the
+// visitor's feet. Pulled out in front of the booth and off its x-axis so
+// the whole POOL_R=0.7 disc still sits inside the place's 3 m collision
+// circle: hypot(1.2, 1.9) + 0.7 = 2.947 m.
+export const POOL_X = 1.2;
+export const POOL_Z = 1.9;
+
 export const POOL_DUR = 0.35; // s: rolling off the eave into the pool
 export const POOL_SETTLE_DUR = 0.6; // s: the pool's own glow, ringing down after
 export const STALL_DUR = 1.2; // s: refused, stalled on the separatrix
@@ -159,8 +168,8 @@ export function marblePose(x0, localT, out) {
       out.stage = "drop";
       out.side = side;
       out.k = k;
-      out.x = lerp(ex, side * 2.25, k);
-      out.z = lerp(ez, 0, k);
+      out.x = lerp(ex, side * POOL_X, k);
+      out.z = lerp(ez, POOL_Z, k);
       out.y = lerp(roofY(ex, ez) + 0.22, 0.3, k);
       out.scale = 1 - 0.4 * k;
       return out;

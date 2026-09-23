@@ -211,8 +211,8 @@ const ROOF_W = 2.3; // narrowed from 3.0 (round 2 review: still the single large
 // stands slightly proud of the front wall, so it catches its own light/
 // shadow edge from the dock camera.
 const FASCIA_W = ROOF_W + 0.14;
-const FASCIA_H = 0.16;
-const FASCIA_T = 0.1;
+const FASCIA_H = 0.26; // round 3 review: 0.16 (0.13 m after SCALE) cast too thin a shadow to separate the roof plane from the wall at dock/game distance, so the roof still read as a flat colour card
+const FASCIA_T = 0.18;
 
 const SKID_LEN = GABLE_X * 2 + 0.4;
 const CHARCOAL_CHUNK = paint(
@@ -304,7 +304,7 @@ const BLADE_GLOW_GEO = new CylinderGeometry(BLADE_RADIUS + 0.12, BLADE_RADIUS + 
 // fixed start point (every log's near end at PILE_X0). Radius thickened
 // from 0.13 (round 2 review: at dock/game distance the deck read as "two
 // thin tube shapes," not logs).
-const LOG_RADIUS = 0.22;
+const LOG_RADIUS = 0.14; // round 3 review: 0.22 made every log 0.44 wide against a lane pitch of ~0.314 (cut-cores.js LANE_Z0..LANE_Z1 / 7 lanes), so neighbouring cylinders physically overlapped and fused into two-tone rods; 0.14 (0.28 wide) clears the pitch with room, while staying thicker than the pre-round-2 0.13 that read as thin tubes
 const PIECE_GEO = new CylinderGeometry(LOG_RADIUS, LOG_RADIUS, 1, 8).rotateZ(Math.PI / 2).translate(0.5, 0, 0);
 // A round end-cap sized to the log's own radius, at each log's fixed tip --
 // a log reads as a cut round, not a flat bar. BEAD_GEO stays its own
@@ -472,16 +472,23 @@ export default function Cut({ place }) {
       <mesh position={[STACK_X, CAP_Y, STACK_Z]} geometry={CAP_GLOW_GEO} material={capGlowMat} />
 
       {/* the cut: one big spinning saw blade, resting visible at the yard's
-          edge and periodically sweeping in to sort the static pile. A static two-axis
-          tilt (rotation=[0.35, 0.55, 0]) tips the disc's face normal up and
-          round toward CameraRig's fixed 42-degree-elevation follow camera,
-          so it reads as a disc, not its own edge (round 2 review: rotation.y
-          alone can't lift a horizontal-axis disc's face into an elevated
-          camera). The inner group spins round the disc's own local axis
-          only -- see the useFrame comment -- carrying the two baked-in
-          charcoal spokes so the spin is visible on an otherwise symmetric
-          disc, without ever moving the outer tilt. */}
-      <group ref={bladeRef} position={[BLADE_X_START, BLADE_Y, BLADE_Z]} rotation={[0.35, 0.55, 0]}>
+          edge and periodically sweeping in to sort the static pile. A static
+          two-axis tilt tips the disc's face normal to face the dock camera
+          head-on. Round 2's [0.35, 0.55, 0] still solved to a face normal of
+          (0.85, 0.18, -0.49) (verified with THREE.Vector3.applyEuler) --
+          dominant on local X, the axis the blade slides along, so the ~1.5m
+          disc was viewed almost edge-on and read as a thin rod (round 3
+          review). CameraRig's OFFSET is (0, sin(42deg), cos(42deg)) from the
+          place to the camera (CameraRig.jsx), so the camera looks back along
+          (0, -sin42, -cos42); solving cos(ry)=0, sin(rx)=sin42, cos(rx)=-cos42
+          for the buildBladeGeo local-+X face normal gives ry=PI/2,
+          rx=PI-42deg, which puts the normal exactly on that line (0, 0.669,
+          0.743) -- the disc face points straight at the camera. The inner
+          group spins round the disc's own local axis only -- see the
+          useFrame comment -- carrying the two baked-in charcoal spokes so
+          the spin is visible on an otherwise symmetric disc, without ever
+          moving the outer tilt. */}
+      <group ref={bladeRef} position={[BLADE_X_START, BLADE_Y, BLADE_Z]} rotation={[Math.PI - (42 * Math.PI) / 180, Math.PI / 2, 0]}>
         <group ref={bladeSpinRef}>
           <mesh geometry={BLADE_GEO} material={bladeMat} />
           <mesh geometry={BLADE_GLOW_GEO} material={bladeGlowMat} />

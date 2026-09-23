@@ -38,6 +38,8 @@ import {
   buildRoofGeo,
   localTimeFor,
   marblePose,
+  POOL_X,
+  POOL_Z,
   poolSettle,
   ROOF_HALF_X,
   ROOF_HALF_Z,
@@ -83,14 +85,21 @@ const HOPPER_SIZE = [0.6, 0.5, 0.6];
 // circle. LANE_X now matches GATE_X (review fix #4: the gate guards the
 // lane it's drawn over instead of standing beside a strip a metre off).
 const GATE_X = -2.6, GATE_Z = 1.7, GATE_PIVOT_Y = 1.0, GATE_POST_H = 1.7;
+// The beacon sits off the post's own axis (see the frustum note by its
+// mesh below) so the arm's swept silhouette never fuses into it; that
+// left it with nothing bridging it to the post (score fix #1). A charcoal
+// bracket, built from these same two points, closes the gap below.
+const BEACON_POS = [GATE_X - 0.3, GATE_POST_H + 0.22, GATE_Z];
 const ARM_LEN = 2.4, ARM_BANDS = 6, ARM_BAND_W = ARM_LEN / ARM_BANDS;
 // Capped at 80 deg (short of vertical): 108 deg swung the resting-open arm
 // past straight up, reading as a diagonal stick disconnected from its post.
 const ARM_UP = 80 * DEG;
 const LANE_X = -GATE_X, LANE_Z0 = 1.2, LANE_Z1 = 2.8;
 
-// The two attractor pools, edge at 2.25 + 0.7 = 2.95 m, inside radius 3.
-const POOL_X = 2.25, POOL_R = 0.7, POOL_H = 0.12;
+// The two attractor pools: POOL_X/POOL_Z live in certify-roof.js (the
+// marble drop physics lerps onto the same point, so position and target
+// can't drift apart). POOL_R/POOL_H are pure rendering, so they stay local.
+const POOL_R = 0.7, POOL_H = 0.12;
 
 // A charcoal skirt band around the booth's foot, its own dark base
 // separate from the fascia at the roof line -- so the silhouette holds
@@ -121,8 +130,18 @@ const gatePostGeo = new CylinderGeometry(0.09, 0.11, GATE_POST_H, 8).translate(G
 const skirtGeo = new BoxGeometry(BOOTH_W + SKIRT_PAD * 2, SKIRT_H, BOOTH_D + SKIRT_PAD * 2).translate(
   BOOTH_X, SKIRT_H / 2, BOOTH_Z,
 );
-for (const g of [doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo]) g.deleteAttribute("uv");
-const charcoalStaticGeo = mergeGeometries([buildFasciaGeo(), doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo]);
+// Score fix #1: a strut from the post top to the beacon's base, built from
+// the same two points as the mesh position below, so it always meets both
+// ends exactly regardless of either constant.
+const beaconBaseY = BEACON_POS[1] - 0.23; // ConeGeometry height 0.46, centred -> base is -0.23
+const bracketDX = BEACON_POS[0] - GATE_X, bracketDY = beaconBaseY - GATE_POST_H;
+const bracketGeo = new BoxGeometry(Math.hypot(bracketDX, bracketDY), 0.12, 0.12)
+  .rotateZ(Math.atan2(bracketDY, bracketDX))
+  .translate((GATE_X + BEACON_POS[0]) / 2, (GATE_POST_H + beaconBaseY) / 2, GATE_Z);
+for (const g of [doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo, bracketGeo]) g.deleteAttribute("uv");
+const charcoalStaticGeo = mergeGeometries([
+  buildFasciaGeo(), doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo, bracketGeo,
+]);
 
 const winPaneGeo = new BoxGeometry(WIN_W, WIN_H, 0.05).translate(BOOTH_X, WIN_Y, BOOTH_FRONT_Z + 0.05);
 // Widened well past the 0.06-0.08 m the first review round asked for --
@@ -354,10 +373,10 @@ export default function Certify({ place, near: nearProp }) {
           and the gate group only rotates about Z, so the arm's swept
           silhouette never crosses x < GATE_X at any angle -- the beacon
           can no longer fuse into "one more ball" on its tip (round-1 fix #4). */}
-      <mesh geometry={beaconGeo} material={matBeacon} position={[GATE_X - 0.3, GATE_POST_H + 0.22, GATE_Z]} />
+      <mesh geometry={beaconGeo} material={matBeacon} position={BEACON_POS} />
 
-      <mesh geometry={poolGeo} material={matPoolL} position={[-POOL_X, POOL_H / 2, 0]} receiveShadow />
-      <mesh geometry={poolGeo} material={matPoolR} position={[POOL_X, POOL_H / 2, 0]} receiveShadow />
+      <mesh geometry={poolGeo} material={matPoolL} position={[-POOL_X, POOL_H / 2, POOL_Z]} receiveShadow />
+      <mesh geometry={poolGeo} material={matPoolR} position={[POOL_X, POOL_H / 2, POOL_Z]} receiveShadow />
 
       {/* frustumCulled=false on marbleMesh/pulseMesh: three's InstancedMesh
           only computes its bounding sphere once, lazily, from whatever

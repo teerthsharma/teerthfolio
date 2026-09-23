@@ -338,22 +338,24 @@ export default function Effects() {
       }
     }
 
-    // Skid: outward from the flank on the outside of the turn.
+    // Skid: outward from the flank on the outside of the turn. Size and
+    // spawn offset are both randomised per puff so a sustained turn drops a
+    // scatter of kicked-up snow, not a uniform ring of matching pearls.
     const skid = live.seal.skid ?? 0;
     if (skid > 0.25) {
       const cross = forwardX * seal.vz - forwardZ * seal.vx;
       const side = cross > 0 ? -1 : 1;
-      puffs.skidAccum += 45 * skid * puffMul * dt;
+      puffs.skidAccum += 28 * skid * puffMul * dt;
       while (puffs.skidAccum >= 1) {
         puffs.skidAccum -= 1;
         addPuff(
           puffs,
-          seal.x + leftX * side * 0.5,
-          seal.z + leftZ * side * 0.5,
+          seal.x + leftX * side * 0.5 + (Math.random() - 0.5) * 0.3,
+          seal.z + leftZ * side * 0.5 + (Math.random() - 0.5) * 0.3,
           leftX * side * 2.2,
           1.8,
           leftZ * side * 2.2,
-          0.12 + Math.random() * 0.08,
+          0.06 + Math.random() * 0.22,
           0.5 + Math.random() * 0.3,
         );
       }

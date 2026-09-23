@@ -130,4 +130,10 @@ function crestPoint(t) {
 
 // The four channels, west to east: index 0 is the redundant bypass (c4 ->
 // c1), frozen; 1..3 are the real chain's three edges, and run.
-export const CHANNELS = [0.1, 0.4, 0.65, 0.9].map((t, i) => ({ ...crestPoint(t), flowing: i !== 0 }));
+//
+// t=0.1 (round 3) landed right on CREST[0] == RIDGE[4], exactly where
+// buildWall() drops its joint boulder (radius up to ~4.1 m there) -- the
+// frozen channel's recess and plug were sitting inside that boulder and
+// never broke the visible front face. 0.22 lands mid-segment-0, clear of
+// both the RIDGE[4] and RIDGE[5] joints, on open crest face.
+export const CHANNELS = [0.22, 0.4, 0.65, 0.9].map((t, i) => ({ ...crestPoint(t), flowing: i !== 0 }));

@@ -12,24 +12,13 @@
 // never guesses and it is instant: 0 wrong certificates in 2,000 diagrams
 // and 80 scenes (data/showcase.json, p-tangle.specs).
 //
-// The story (figure.desc, teerthsharma.github.io/fig.js's link()): two solid
-// rings, one ink and one grey, genuinely linked in three dimensions (a Hopf
-// link). Both centres sit on one pull axis (here, world Y -- the hook hangs
-// ring A, ring B is pulled straight down away from it) and both rings'
-// PLANES contain that axis. A circle whose plane contains a line meets that
-// line at exactly two fixed points, R either side of its centre, no matter
-// how the circle is spun about the line -- that is why the two rings can
-// roll and scissor forever without ever coming apart (linking number stays
-// at 1), and why the two crossing markers sit exactly on the rings, at
-// (ANCHOR_Y - R) and (byY + R), whatever their roll: those two points ARE
-// the axis-fixed points, so spinning the ring never moves them, it only
-// turns the tangent direction the ring's tube runs through them in -- which
-// is exactly what the crossing collars track (rotation.y = the ring's own
-// roll). The rig pulls ring B AWAY from ring A to test the link (the bigger
-// the pull, the tauter the hold, the same as a real certifying rig loading a
-// real chain link); it catches at SEP_TIGHT, recoils, and is held while a
-// crate visibly lifts off the snow -- the normal job, hoisting, done by a
-// contribution that is really about a linking number.
+// The rig: an A-frame hoist grips a single heavy test coupon between a
+// fixed top clamp (hung from the hook by a rigid rod) and a lower clamp
+// that pulls away from it on a beat, holds the pull taut while the gauge
+// climbs and a crate lifts off the snow, and ejects a certificate plate
+// from the head housing the instant the hold catches. An ordinary tensile
+// rig doing an ordinary tensile-rig cycle -- ungeared from the landing
+// figure's own two interlocked rings and their crossing points.
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -37,7 +26,8 @@ import { BoxGeometry, CylinderGeometry, TorusGeometry } from "three";
 import { useUi } from "../../../lib/world/store";
 import { C, glow, mat } from "../palette";
 
-const INK = "#1c1b19"; // the landing site's own --ink: the lacquered ring
+const INK = "#1c1b19"; // the landing site's own --ink: the lacquered test coupon
+const POP = "#ff8a3d"; // warm amber pop, alongside the radiation-green accent
 
 // --- frame -------------------------------------------------------------
 const POST_X = 2.0, POST_W = 0.6, POST_D = 0.6, POST_H = 6.6;
@@ -59,13 +49,18 @@ const BRACE_LEN = Math.hypot(BRACE_DX, BRACE_DY);
 const BRACE_ANGLE = Math.atan2(BRACE_DY, BRACE_DX);
 const BRACE_MID_Y = (BRACE_Y_LOW + BRACE_Y_HIGH) / 2;
 
-// --- the rings -----------------------------------------------------------
-const R = 1.2, RT = 0.26; // ring radius, tube radius -- reads at 35 m
-const ANCHOR_Y = 3.9; // ring A (ink): fixed, hangs from the hook
-const ROD_LEN = ROD_Y0 - (ANCHOR_Y + R);
-const SEP_REST = R; // full centre separation at rest (fig.js D0 = R/2 is the half separation)
-const SEP_TIGHT = 2 * (R - RT) - 0.04; // just short of where the tubes would meet (fig.js D1)
-const ROLL_SPEED = 0.5, SCIS_AMP = 0.32, SCIS_FREQ = 0.85, SWING_AMP = 0.14, SWING_FREQ = 0.5;
+// --- the test coupon -------------------------------------------------------
+// One item, gripped top and bottom -- not a pair of rings, so there is no
+// crossing point to track: the top clamp is bolted to the rod (fixed), the
+// bottom clamp descends to pull the coupon taut and rises to release it.
+const CLAMP_W = 0.6, CLAMP_H = 0.34, CLAMP_D = 0.6;
+const COUPON_R = 0.22; // reads chunky at 35 m
+const ANCHOR_Y = 3.9; // top clamp centre: fixed, hangs from the hook
+const ANCHOR_TOP = ANCHOR_Y + CLAMP_H / 2;
+const ROD_LEN = ROD_Y0 - ANCHOR_TOP;
+const SEP_REST = 1.2; // clamp-centre gap at rest
+const SEP_TIGHT = 1.84; // full test pull
+const SWING_AMP = 0.14, SWING_FREQ = 0.5;
 
 const CYCLE_FAR = 7.5, CYCLE_NEAR = 4.2, EASE = 4;
 
@@ -91,8 +86,8 @@ const BRACE_GEO = new BoxGeometry(BRACE_LEN, BRACE_SECTION, BRACE_SECTION);
 const HOOK_GEO = new TorusGeometry(0.11, 0.032, 8, 16);
 const LOAD_HOOK_GEO = new TorusGeometry(0.16, 0.05, 8, 16);
 const ROD_GEO = new CylinderGeometry(0.024, 0.024, Math.max(0.08, ROD_LEN), 6);
-const RING_GEO = new TorusGeometry(R, RT, 9, 30); // shared: ring A and ring B
-const MARK_GEO = new TorusGeometry(RT * 1.35, 0.07, 8, 20); // a collar wrapped round the tube
+const CLAMP_GEO = new BoxGeometry(CLAMP_W, CLAMP_H, CLAMP_D);
+const COUPON_GEO = new CylinderGeometry(COUPON_R, COUPON_R, 1, 10); // unit height; scale.y is the span
 const GAUGE_GEO = new BoxGeometry(0.5, GAUGE_H, 0.12);
 const GAUGE_FILL_GEO = new BoxGeometry(0.34, 1, 0.03); // unit height; scale.y is the fill level
 const GAUGE_GLOW_GEO = new BoxGeometry(0.62, GAUGE_H + 0.14, 0.05);
@@ -115,23 +110,19 @@ export default function Link({ place }) {
   const frameMat = useMemo(() => mat(C.charcoal, { roughness: 0.55, metalness: 0.35 }), []);
   const skidMat = useMemo(() => mat(C.metal, { roughness: 0.6, metalness: 0.3 }), []);
   const inkMat = useMemo(() => mat(INK, { flat: false, roughness: 0.2, metalness: 0.55 }), []);
-  const greyMat = useMemo(() => mat(C.metal, { flat: false, roughness: 0.3, metalness: 0.6 }), []);
+  const clampMat = useMemo(() => mat(C.metal, { flat: false, roughness: 0.3, metalness: 0.6 }), []);
   const accentMat = useMemo(() => mat(accent, { roughness: 0.4, metalness: 0.2 }), [accent]);
   const bandMat = useMemo(() => mat(accent, { emissive: accent, emissiveIntensity: 1.4, roughness: 0.3 }), [accent]);
-  const markMat = useMemo(() => mat("#ffffff", { emissive: accent, emissiveIntensity: 0.6, roughness: 0.25 }).clone(), [accent]);
+  const popMat = useMemo(() => mat(POP, { roughness: 0.35, metalness: 0.25 }), []);
   const gaugeMat = useMemo(() => mat(accent, { emissive: accent, emissiveIntensity: 0.6, roughness: 0.35 }).clone(), [accent]);
-  const markGlowMat = useMemo(() => glow(accent, 0.3), [accent]);
   const gaugeGlowMat = useMemo(() => glow(accent, 0.24), [accent]);
   const plateWhiteMat = useMemo(() => mat("#ffffff", { roughness: 0.25, metalness: 0.05 }), []);
 
-  useEffect(() => () => { markMat.dispose(); gaugeMat.dispose(); }, [markMat, gaugeMat]);
+  useEffect(() => () => { gaugeMat.dispose(); }, [gaugeMat]);
 
-  const ringAYawRef = useRef(null);
-  const ringBRef = useRef(null);
-  const markARef = useRef(null);
-  const markBRef = useRef(null);
-  const markAGlowRef = useRef(null);
-  const markBGlowRef = useRef(null);
+  const topClampRef = useRef(null);
+  const bottomClampRef = useRef(null);
+  const couponRef = useRef(null);
   const loadHookRef = useRef(null);
   const crateGroupRef = useRef(null);
   const gaugeFillRef = useRef(null);
@@ -145,14 +136,13 @@ export default function Link({ place }) {
     const raw = state.clock.elapsedTime;
     const t = raw * (1 + 0.6 * boost);
 
-    // the pull cycle first: scis needs glowK, to square the planes while
-    // held (fig.js: sc = SCIS*sin(2th)*(1-P))
+    // the pull cycle: clamp apart, hold (catch, recoil), release
     const cycle = CYCLE_FAR - (CYCLE_FAR - CYCLE_NEAR) * boost;
     const p = ((raw % cycle) / cycle + 1) % 1;
     let sep, glowK;
     if (p < 0.3) {
       const e = smooth(p / 0.3);
-      sep = SEP_REST + (SEP_TIGHT - SEP_REST) * e; // pulled APART: separation grows
+      sep = SEP_REST + (SEP_TIGHT - SEP_REST) * e; // pulled taut: separation grows
       glowK = e;
     } else if (p < 0.55) {
       const u = (p - 0.3) / 0.25;
@@ -166,54 +156,26 @@ export default function Link({ place }) {
       sep = SEP_REST;
       glowK = 0;
     }
-    const byY = ANCHOR_Y - sep; // ring B moves DOWN, away from ring A, as it is pulled
-    if (ringBRef.current) ringBRef.current.position.y = byY;
-
-    const roll = t * ROLL_SPEED + Math.PI / 4; // fixed phase offset: keeps both rings off the edge-on extreme at spawn
-    const scis = SCIS_AMP * Math.sin(t * SCIS_FREQ) * (1 - glowK); // square while held
-    const rollA = roll + scis, rollB = roll - scis;
-    if (ringAYawRef.current) ringAYawRef.current.rotation.y = rollA;
-    if (ringBRef.current) ringBRef.current.rotation.y = rollB;
+    const byY = ANCHOR_Y - sep; // bottom clamp moves DOWN, away from the fixed top clamp
 
     const swing = SWING_AMP * Math.sin(t * SWING_FREQ);
     const sx = Math.sin(swing) * 0.05;
-    if (ringAYawRef.current) ringAYawRef.current.position.x = sx;
-    if (ringBRef.current) ringBRef.current.position.x = sx;
+
+    if (topClampRef.current) topClampRef.current.position.x = sx;
+    if (bottomClampRef.current) bottomClampRef.current.position.set(sx, byY, 0);
+    if (couponRef.current) {
+      const span = Math.max(0.1, ANCHOR_Y - CLAMP_H / 2 - (byY + CLAMP_H / 2));
+      couponRef.current.position.set(sx, (ANCHOR_Y + byY) / 2, 0);
+      couponRef.current.scale.y = span;
+    }
 
     const glowMul = 1 + 0.4 * boost;
     const intensity = (0.12 + 2.6 * glowK) * glowMul;
-    markMat.emissiveIntensity = intensity;
     gaugeMat.emissiveIntensity = intensity;
-    const s = 0.8 + 0.9 * glowK;
-    const gs = s * (1.1 + 0.5 * glowK); // halo, kept inside 1.1x-1.6x
 
-    // the two crossings: fixed points of each ring's own rotation axis (see
-    // header), so they sit exactly on the ring whatever roll or scissor
-    // does; the collar's own hole tracks the ring's tangent there.
-    if (markARef.current) {
-      markARef.current.position.set(sx, ANCHOR_Y - R, 0);
-      markARef.current.rotation.y = rollA;
-      markARef.current.scale.setScalar(s);
-    }
-    if (markAGlowRef.current) {
-      markAGlowRef.current.position.set(sx, ANCHOR_Y - R, 0);
-      markAGlowRef.current.rotation.y = rollA;
-      markAGlowRef.current.scale.setScalar(gs);
-    }
-    if (markBRef.current) {
-      markBRef.current.position.set(sx, byY + R, 0);
-      markBRef.current.rotation.y = rollB - Math.PI / 2;
-      markBRef.current.scale.setScalar(s);
-    }
-    if (markBGlowRef.current) {
-      markBGlowRef.current.position.set(sx, byY + R, 0);
-      markBGlowRef.current.rotation.y = rollB - Math.PI / 2;
-      markBGlowRef.current.scale.setScalar(gs);
-    }
-
-    // the load: a hook riding ring B's own lowest point, a crate that lifts
-    // while the rig holds the pull -- the rig's normal job, done visibly.
-    if (loadHookRef.current) loadHookRef.current.position.set(sx, byY - R, 0);
+    // the load: a hook riding the bottom clamp, a crate that lifts while
+    // the rig holds the pull -- the rig's normal job, done visibly.
+    if (loadHookRef.current) loadHookRef.current.position.set(sx, byY - CLAMP_H / 2 - 0.12, 0);
     if (crateGroupRef.current) crateGroupRef.current.position.y = CRATE_H / 2 + 0.4 * glowK;
 
     // the gauge fill: a real level climbing the housing, not a decoration
@@ -223,7 +185,7 @@ export default function Link({ place }) {
       gaugeFillRef.current.position.y = GAUGE_Y - GAUGE_H / 2 + 0.08 + fillH / 2;
     }
 
-    // the certificate: only shown while the rings are actually held taut
+    // the certificate: only shown while the coupon is actually held taut
     if (plateGroupRef.current) {
       const slideK = clamp01((glowK - 0.95) / 0.05);
       plateGroupRef.current.position.z = PLATE_RETRACT_Z + (PLATE_OUT_Z - PLATE_RETRACT_Z) * slideK;
@@ -245,17 +207,17 @@ export default function Link({ place }) {
       <mesh geometry={FRONT_PANEL_GEO} material={accentMat} position={[0, BEAM_Y, BEAM_D / 2 + 0.03]} />
       <mesh geometry={WINDOW_BAND_GEO} material={bandMat} position={[0, BEAM_Y - BEAM_H / 2 + 0.16, BEAM_D / 2 + 0.06]} />
       <mesh geometry={CAB_GEO} material={frameMat} position={[CAB_X, BEAM_Y, 0]} castShadow />
-      <mesh geometry={CAB_CAP_GEO} material={accentMat} position={[CAB_X, BEAM_Y + CAB_H / 2 + 0.06, 0]} castShadow />
+      <mesh geometry={CAB_CAP_GEO} material={popMat} position={[CAB_X, BEAM_Y + CAB_H / 2 + 0.06, 0]} castShadow />
       <mesh geometry={CAB_WINDOW_GEO} material={mat(C.lampGlow, { emissive: C.lampGlow, emissiveIntensity: 1.1, roughness: 0.3 })} position={[CAB_X, BEAM_Y + 0.05, CAB_D / 2 + 0.02]} />
       <mesh geometry={HOOK_GEO} material={frameMat} position={[0, HOOK_Y, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow />
-      <mesh geometry={ROD_GEO} material={frameMat} position={[0, (ROD_Y0 + ANCHOR_Y + R) / 2, 0]} />
+      <mesh geometry={ROD_GEO} material={frameMat} position={[0, (ROD_Y0 + ANCHOR_TOP) / 2, 0]} />
 
       {/* the certificate gauge, mounted on the near post: a housing, a real fill level, a soft backing glow */}
       <mesh geometry={GAUGE_GLOW_GEO} material={gaugeGlowMat} position={[-POST_X, GAUGE_Y, GAUGE_Z + 0.1]} />
       <mesh geometry={GAUGE_GEO} material={frameMat} position={[-POST_X, GAUGE_Y, GAUGE_Z]} castShadow />
       <mesh ref={gaugeFillRef} geometry={GAUGE_FILL_GEO} material={gaugeMat} position={[-POST_X, GAUGE_Y, GAUGE_Z + 0.05]} />
 
-      {/* the load: hooked to ring B, lifted while the rig holds the pull */}
+      {/* the load: hooked below the bottom clamp, lifted while the rig holds the pull */}
       <mesh ref={loadHookRef} geometry={LOAD_HOOK_GEO} material={frameMat} rotation={[Math.PI / 2, 0, 0]} />
       <group ref={crateGroupRef} position={[0, CRATE_H / 2, CRATE_Z]}>
         <mesh geometry={CRATE_GEO} material={frameMat} castShadow receiveShadow />
@@ -265,21 +227,13 @@ export default function Link({ place }) {
         <mesh geometry={CORNER_GEO} material={accentMat} position={[-0.49, 0, -0.49]} />
       </group>
 
-      {/* the two rings, genuinely linked: both planes contain the world-Y pull
-          axis, offset 90 deg (a real chain, not a hoop through a hoop). Ring
-          A's tilt is a fixed rotation on the mesh itself; the yaw group
-          around it carries only the shared roll, so the two never compose
-          onto one Euler and fight each other. */}
-      <group ref={ringAYawRef} position={[0, ANCHOR_Y, 0]}>
-        <mesh geometry={RING_GEO} material={inkMat} rotation={[0, Math.PI / 2, 0]} castShadow receiveShadow />
-      </group>
-      <mesh ref={ringBRef} geometry={RING_GEO} material={greyMat} position={[0, ANCHOR_Y - SEP_REST, 0]} castShadow receiveShadow />
-
-      {/* the two crossings: collars wrapped round the tube, always exactly on the ring */}
-      <mesh ref={markARef} geometry={MARK_GEO} material={markMat} position={[0, ANCHOR_Y - R, 0]} />
-      <mesh ref={markAGlowRef} geometry={MARK_GEO} material={markGlowMat} position={[0, ANCHOR_Y - R, 0]} />
-      <mesh ref={markBRef} geometry={MARK_GEO} material={markMat} position={[0, ANCHOR_Y - SEP_REST + R, 0]} />
-      <mesh ref={markBGlowRef} geometry={MARK_GEO} material={markGlowMat} position={[0, ANCHOR_Y - SEP_REST + R, 0]} />
+      {/* the test coupon: one heavy item gripped top and bottom, pulled taut
+          on a beat -- an ordinary tensile rig, not a restaging of two
+          interlocked rings. Top clamp is bolted to the rod (fixed); the
+          bottom clamp does the pulling. */}
+      <mesh ref={topClampRef} geometry={CLAMP_GEO} material={clampMat} position={[0, ANCHOR_Y, 0]} castShadow receiveShadow />
+      <mesh ref={bottomClampRef} geometry={CLAMP_GEO} material={clampMat} position={[0, ANCHOR_Y - SEP_REST, 0]} castShadow receiveShadow />
+      <mesh ref={couponRef} geometry={COUPON_GEO} material={inkMat} position={[0, ANCHOR_Y - SEP_REST / 2, 0]} castShadow />
 
       {/* the certificate: slides out of the head housing only while held, and retracts on release */}
       <group ref={plateGroupRef} position={[PLATE_X, BEAM_Y, PLATE_RETRACT_Z]}>

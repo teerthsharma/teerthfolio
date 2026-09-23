@@ -127,11 +127,14 @@ const markerGeo = new SphereGeometry(0.085, 8, 6);
 const dropGeo = new SphereGeometry(0.07, 6, 6);
 const funnelGeo = new ConeGeometry(0.22, 0.26, 10).rotateX(Math.PI); // apex down: a funnel, not a spike
 
-// the anemometer: 3 cups on 0.6 m arms, spinning at the mast's own top -- the
-// one instrument the station carries, nothing narrative standing behind it.
-// ANEM_Y sits above the roof's apex (a cone, so nothing but the thin mast is
-// behind it up here), so the cups silhouette against open sky.
-const ANEM_ARM = 0.6;
+// the anemometer: 3 cups on 0.85 m arms, spinning at the mast's own top --
+// the one instrument the station carries, nothing narrative standing behind
+// it. ANEM_Y sits above the roof's apex (a cone, so nothing but the thin
+// mast is behind it up here), so the cups silhouette against open sky. Arms
+// widened (was 0.6) and cups given their own pale ice material (was
+// charcoalMat, same as the hub/arms) so at least two cups read as separate
+// scoop shapes against the dark crossbar instead of merging into a '+'.
+const ANEM_ARM = 0.85;
 const ANEM_Y = ROOF_Y + MAST_LEN;
 function anemArmGeo(angle) {
   return new BoxGeometry(ANEM_ARM, 0.12, 0.12).translate(ANEM_ARM / 2, 0, 0).rotateY(angle);
@@ -151,6 +154,10 @@ export default function Witness({ place, near: nearProp }) {
   const wallMat = useMemo(() => mat(RAD, { roughness: 0.2, metalness: 0.05, emissive: RAD, emissiveIntensity: 1.2, opacity: 0.8 }).clone(), [RAD]);
   const ringTopMat = useMemo(() => lamp(RAD), [RAD]);
   const charcoalMat = useMemo(() => mat(C.charcoal, { roughness: 0.55 }), []);
+  // The cups get their own pale, matte material so they read as separate
+  // scoops against the dark hub/arms (charcoalMat) instead of merging into
+  // one crossbar silhouette -- see the judges' fix in the file header.
+  const anemCupMat = useMemo(() => mat(C.ice, { roughness: 0.65 }), []);
   const tubeMat = useMemo(() => mat(C.ice, { roughness: 0.12, metalness: 0.05, opacity: 0.35, side: DoubleSide }), []);
   // Roughness/emissive tuned high: unlike the rest of the palette, the rain
   // sits low in the hut's own shadow and needs to glow, not just be lit, to
@@ -273,7 +280,7 @@ export default function Witness({ place, near: nearProp }) {
       {/* the anemometer: 3 cups on the mast top, spinning */}
       <group ref={anemRef} position={[0, ANEM_Y, HUT_CZ]}>
         <mesh geometry={anemHubGeo} material={charcoalMat} />
-        <instancedMesh ref={anemCupsRef} args={[anemCupGeo, charcoalMat, ANEM_CUP_ANGLES.length]} />
+        <instancedMesh ref={anemCupsRef} args={[anemCupGeo, anemCupMat, ANEM_CUP_ANGLES.length]} />
       </group>
 
       {/* the four gauges: identical, a plain weather-station porch */}

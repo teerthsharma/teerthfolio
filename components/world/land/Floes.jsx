@@ -16,7 +16,7 @@
 //   - Plain floes are stranded along the outflow's banks, afloat and
 //     unremarkable: what floes normally do, for the anomaly to read against.
 
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CylinderGeometry, IcosahedronGeometry, Matrix4, Object3D, Quaternion, Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../lib/world/places";
@@ -103,10 +103,11 @@ function Funnel({ near }) {
   // Ice base, a rim glow in the district's own radiation colour, loud enough
   // to read against pale snow and ice from a distance -- one static material
   // shared by every instance, never a per-frame colour loop.
-  const iceMat = useMemo(() => mat(C.ice, { roughness: 0.4, emissive: RADIATION, emissiveIntensity: 0.65 }).clone(), []);
+  const iceMat = useMemo(() => mat(C.ice, { roughness: 0.4, emissive: "#ff00ff", emissiveIntensity: 5 }).clone(), []);
 
   useEffect(() => {
     const lobes = lobesRef.current, ridges = ridgesRef.current, threads = threadsRef.current;
+    console.log("funnel bake", N, lobes?.count, ridges?.count, threads?.count);
     if (!lobes || !ridges || !threads) return;
     for (let i = 0; i < N; i++) {
       const f = FLOES[i];
@@ -135,7 +136,13 @@ function Funnel({ near }) {
     lobes.instanceMatrix.needsUpdate = true;
     ridges.instanceMatrix.needsUpdate = true;
     threads.instanceMatrix.needsUpdate = true;
+    if (typeof window !== "undefined") window.__floesDebug = { lobes, ridges, threads, group: groupRef.current, iceMat };
   }, []);
+
+  const three = useThree();
+  useEffect(() => {
+    if (typeof window !== "undefined") window.__floesThree = three;
+  }, [three]);
 
   // The last floe commits onto the pin's centre (floes-layout's COMMIT sits
   // on the y axis), so turning this whole group around y leaves that point

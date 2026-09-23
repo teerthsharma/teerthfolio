@@ -242,18 +242,25 @@ function buildArch() {
   return paint(g, { base: -0.35 });
 }
 
-// Chunky icicles hanging off the arch's front lip, longest at the crown.
+// A few chunky icicles hanging off the crown of the arch's front lip only
+// (u ~65-115 deg; strung leg to leg they read as a ring of teeth), uneven in
+// spacing and length so the cluster reads as melt, not a jaw.
 function buildIcicles() {
   const parts = [];
   const rIn = ARCH_R - ARCH_TUBE * 0.85;
   const zLip = CAVE.z + ARCH_TUBE * ARCH_DEPTH * 0.55;
-  for (let k = 0; k < 9; k++) {
-    const u = Math.PI * (0.17 + (0.66 * k) / 8);
-    const len = 0.9 + 1.2 * Math.sin(u) ** 2 * (0.7 + 0.6 * hash(k * 2.7));
-    const r = 0.22 + 0.12 * hash(k * 4.1);
+  // [angle on the lip (deg, 90 = crown), length, radius, set back from the lip]
+  for (const [deg, len, r, back] of [
+    [68, 0.8, 0.2, 0.3],
+    [80, 2.3, 0.36, 0],
+    [86, 1.2, 0.24, 0.45],
+    [99, 1.7, 0.3, 0.15],
+    [111, 0.7, 0.18, 0.35],
+  ]) {
+    const u = (deg * Math.PI) / 180;
     const g = new ConeGeometry(r, len, 5, 1);
     g.rotateX(Math.PI);
-    g.translate(CAVE.x + rIn * Math.cos(u), -0.35 + rIn * Math.sin(u) - len / 2 + 0.2, zLip);
+    g.translate(CAVE.x + rIn * Math.cos(u), -0.35 + rIn * Math.sin(u) - len / 2 + 0.2, zLip - back);
     parts.push(paint(g, { solid: ICICLE }));
   }
   return parts;

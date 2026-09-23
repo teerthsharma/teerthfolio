@@ -177,10 +177,12 @@ function trefoilBlade(startDeg) {
 const TREFOIL_GEO = mergeGeometries([0, 120, 240].map((d) => trefoilBlade(d)));
 
 // The coupling's in-sheet glow: two discs over the wires, one at centre --
-// rises and fades with the coupling core, not a static decal.
+// rises and fades with the coupling core, not a static decal. Radius kept
+// well under half the 1.1 m gap between centres so the three stay distinct
+// pools instead of merging into one puddle (round-5 fix).
 const SHEET_GLOW_GEO = mergeGeometries(
   [-WIRE_X, 0, WIRE_X].map((wx) => {
-    const g = new CircleGeometry(0.9, 24);
+    const g = new CircleGeometry(0.45, 24);
     g.rotateX(-Math.PI / 2);
     g.translate(wx, DECK_Y + 0.03, 0);
     return g;
@@ -285,7 +287,7 @@ export default function Glass({ place }) {
       glowRef.current.scale.setScalar(0.6 + 2.2 * coupleK);
       glowRef.current.position.y = riseY;
     }
-    sheetGlowMat.opacity = 0.75 * coupleK;
+    sheetGlowMat.opacity = 0.4 * coupleK;
 
     const rise = riseRef.current;
     if (rise) {

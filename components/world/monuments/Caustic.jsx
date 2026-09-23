@@ -24,7 +24,7 @@ const TAU = Math.PI * 2;
 // room -> roof. Every radius stays well inside place.radius (3 m).
 const BASE_R = 1.05, BASE_H = 0.3;
 const FOOT_R = 1.0, FOOT_H = 0.14, FOOT_Y = BASE_H;
-const SHAFT_Y = FOOT_Y + FOOT_H, SHAFT_H = 4.6, SHAFT_BASE_R = 0.92, SHAFT_TOP_R = 0.66;
+const SHAFT_Y = FOOT_Y + FOOT_H, SHAFT_H = 2.6, SHAFT_BASE_R = 0.92, SHAFT_TOP_R = 0.66;
 const GALLERY_Y = SHAFT_Y + SHAFT_H, GALLERY_H = 0.16, GALLERY_R = 1.05;
 const LAMP_Y = GALLERY_Y + GALLERY_H, LAMP_H = 0.62, LAMP_R = 0.56;
 const ROOF_Y = LAMP_Y + LAMP_H, ROOF_H = 0.85, ROOF_R = 0.62;
@@ -35,7 +35,7 @@ const shaftRAt = (y) => {
   return SHAFT_BASE_R + (SHAFT_TOP_R - SHAFT_BASE_R) * t;
 };
 
-const BULB_R = 0.42, BULB_Y = LAMP_Y + LAMP_H / 2; // the beacon ring inside the lamp room
+const BULB_R = 0.64, BULB_Y = LAMP_Y + LAMP_H / 2; // the beacon ring inside the lamp room
 const BOUND_R = 1.0, BOUND_Y = GALLERY_Y + GALLERY_H + 0.1; // the five proved-bound lamps
 const BOUND_N = 5;
 const RAIL_R = GALLERY_R * 0.97, RAIL_Y = GALLERY_Y + GALLERY_H + 0.09, RAIL_N = 10; // gallery railing: reads "lighthouse" in silhouette

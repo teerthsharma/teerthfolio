@@ -81,7 +81,7 @@ const LEG_COLLAR_H = 0.3;
 const SKIRT_H = 0.5;
 const SKIRT_TOP_R = PLATFORM_R * 1.06; // flush with the platform's own bottom rim: no seam
 const SKIRT_BOT_R = PLATFORM_R * 1.4; // flares wide at the snow
-const SKIRT_Y = PLATFORM_H - SKIRT_H / 2; // top at the platform's underside, bottom buried past y = 0
+const SKIRT_Y = -SKIRT_H / 2; // top at the platform's underside (y = 0), bottom buried past y = 0
 
 const RIM_LAMP_N = 10;
 const RIM_LAMP_H = 0.42;
@@ -264,11 +264,12 @@ export default function Collapse({ place, near }) {
   );
   const liftTubeMat = useMemo(() => mat(accent, { roughness: 0.15, metalness: 0.1, opacity: 0.55 }), [accent]);
   const liftCarMat = useMemo(() => lamp(C.lamp, 1.3), []);
-  // Shinier than the platform's own matte charcoal (lower roughness, real
-  // metalness) so it catches the rim/key light in bright glints: the kiosk
-  // needs to read as its own volume against the platform's shadow, not
-  // vanish into it. The roof cap below is the surer cue (self-lit).
-  const kioskMat = useMemo(() => mat(C.charcoal, { roughness: 0.3, metalness: 0.4 }), []);
+  // A painted-wall warmWhite body (not the platform's charcoal, which made
+  // the kiosk merge into the plaza's own dark disc/shadow at KIOSK_Z, the
+  // exact side the seal approaches from at the dock): the light body now
+  // silhouettes against the charcoal platform on sight, with the lit door
+  // and roof cap below reading as their own volume on top of that contrast.
+  const kioskMat = useMemo(() => mat(C.warmWhite, { roughness: 0.45, metalness: 0.05 }), []);
   const doorMat = useMemo(() => lamp(accent, 1.4), [accent]);
   // A step dimmer than the door so the roof cap silhouettes as its own thin
   // bright line instead of merging into the door's glow below it.

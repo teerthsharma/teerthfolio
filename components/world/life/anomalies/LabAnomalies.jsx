@@ -89,27 +89,32 @@ const BOULDER_GEO = new IcosahedronGeometry(0.38, 0);
 function OrbitingBoulders({ place }) {
   const A = place.radiation ?? place.color;
   const AX = -6.0, AZ = -1.4;
-  const r1 = useRef(null), r2 = useRef(null), r3 = useRef(null);
-  const matBoulder = mat(C.ice, { emissive: A, emissiveIntensity: 0.4 });
+  // Was C.ice (near-white) at 0.4 emissive -- read as a pale smudge even
+  // after raising intensity, since the lit diffuse base still dominated.
+  // Base tint is now the area's own radiation colour, loud as the art
+  // direction asks, with emissive on top for the glow.
+  const matBoulder = mat(A, { emissive: A, emissiveIntensity: 1.2 });
+  const boulderRefs = useRef([null, null, null]);
   const anim = useRef({ t: 0 });
   useFrame((state, dt) => {
     const a = anim.current;
     a.t += dt * 0.8 * areaPulse(place);
     const t = a.t;
     const R = 1.1, Y = 2.1;
-    [r1, r2, r3].forEach((ref, i) => {
-      if (!ref.current) return;
+    for (let i = 0; i < 3; i++) {
+      const ref = boulderRefs.current[i];
+      if (!ref) continue;
       const ang = t + i * ((Math.PI * 2) / 3);
-      ref.current.position.set(AX + R * Math.cos(ang), Y + Math.sin(t * 1.3 + i) * 0.15, AZ + R * Math.sin(ang));
-      ref.current.rotation.x = t * 0.6 + i;
-      ref.current.rotation.y = t * 0.4 + i;
-    });
+      ref.position.set(AX + R * Math.cos(ang), Y + Math.sin(t * 1.3 + i) * 0.15, AZ + R * Math.sin(ang));
+      ref.rotation.x = t * 0.6 + i;
+      ref.rotation.y = t * 0.4 + i;
+    }
   });
   return (
     <>
-      <mesh ref={r1} geometry={BOULDER_GEO} material={matBoulder} castShadow />
-      <mesh ref={r2} geometry={BOULDER_GEO} material={matBoulder} castShadow />
-      <mesh ref={r3} geometry={BOULDER_GEO} material={matBoulder} castShadow />
+      <mesh ref={(el) => (boulderRefs.current[0] = el)} geometry={BOULDER_GEO} material={matBoulder} castShadow />
+      <mesh ref={(el) => (boulderRefs.current[1] = el)} geometry={BOULDER_GEO} material={matBoulder} castShadow />
+      <mesh ref={(el) => (boulderRefs.current[2] = el)} geometry={BOULDER_GEO} material={matBoulder} castShadow />
     </>
   );
 }
@@ -130,12 +135,19 @@ function buildTopGeo() {
   return mergeGeometries([cone, handle]);
 }
 const TOP_GEO = buildTopGeo();
-const FROZEN_RING_GEO = new RingGeometry(0.42, 0.55, 32);
+// thetaSegments=32, phiSegments defaults to 1 -> its index buffer is built
+// in strict increasing-angle order (3 theta segs -> the next 6 indices),
+// so setDrawRange can reveal a growing arc with no per-frame rebuild.
+const FROZEN_RING_SEGMENTS = 32;
+const FROZEN_RING_GEO = new RingGeometry(0.42, 0.55, FROZEN_RING_SEGMENTS);
+const FROZEN_RING_INDEX_COUNT = FROZEN_RING_GEO.index.count; // 32 * 6 = 192
+FROZEN_RING_GEO.setDrawRange(0, 0); // nothing drawn until the first frame
 
 function FrozenTop({ place }) {
   const A = place.radiation ?? place.color;
   const AX = 6.4, AZ = -0.6;
   const topRef = useRef(null);
+  const ringRef = useRef(null);
   const matTop = mat(C.charcoal, { emissive: A, emissiveIntensity: 0.3 });
   const matRing = useMemo(() => glow(A, 0).clone(), [A]);
   const anim = useRef({ phase: 0, spin: 0 });
@@ -154,16 +166,22 @@ function FrozenTop({ place }) {
       topRef.current.position.set(AX + R * Math.cos(orbitAngle), 0, AZ + R * Math.sin(orbitAngle));
       topRef.current.rotation.y = a.spin;
     }
-    let op;
-    if (ph < DRAW) op = ph / DRAW;
-    else if (ph < DRAW + HOLD) op = 1;
-    else op = 1 - (ph - DRAW - HOLD) / FADE;
+    // The ring lies flat via rotation=[-PI/2,0,0], which flips its swept
+    // direction against the top's orbitAngle (world z = -r*sin(localTheta),
+    // vs the top's world z = +R*sin(orbitAngle)) -- so the arc the top has
+    // "travelled" is the END of the index buffer, not the start. Revealing
+    // from the tail as u grows keeps the visible arc under the top's path.
+    const u = orbitAngle / (Math.PI * 2);
+    const drawnSegs = Math.round(u * FROZEN_RING_SEGMENTS);
+    const startIdx = (FROZEN_RING_SEGMENTS - drawnSegs) * 6;
+    if (ringRef.current) ringRef.current.geometry.setDrawRange(startIdx, FROZEN_RING_INDEX_COUNT - startIdx);
+    const op = ph < DRAW + HOLD ? 1 : 1 - (ph - DRAW - HOLD) / FADE;
     matRing.opacity = Math.max(0, Math.min(1, op)) * 0.85;
   });
   return (
     <>
       <mesh ref={topRef} geometry={TOP_GEO} material={matTop} castShadow />
-      <mesh geometry={FROZEN_RING_GEO} material={matRing} position={[AX, 0.02, AZ]} rotation={[-Math.PI / 2, 0, 0]} />
+      <mesh ref={ringRef} geometry={FROZEN_RING_GEO} material={matRing} position={[AX, 0.02, AZ]} rotation={[-Math.PI / 2, 0, 0]} />
     </>
   );
 }
@@ -225,13 +243,19 @@ const ICICLE_OFFSETS = [
   [-0.55, -0.12], [0.48, -0.42], [-0.08, 0.5], [0.38, 0.2], [-0.42, 0.38],
 ];
 const ICICLE_BASE_H = [0.64, 1.0, 0.28, 0.82, 0.46];
-const ICICLE_ORDER = [2, 4, 0, 3, 1]; // which shard shrinks at slot i
+// [2,4,0,3,1] shrank in strict ascending height order (0.28,0.46,0.64,0.82,
+// 1.0) despite the positional scatter -- read as a sorted bar chart. This
+// order is non-monotonic in height too (0.82, 0.64, 0.46, 1.0, 0.28).
+const ICICLE_ORDER = [3, 0, 4, 1, 2]; // which shard shrinks at slot i
 
 function BackwardIcicles({ place }) {
   const A = place.radiation ?? place.color;
   const AX = 6.0, AZ = -1.6;
   const meshRef = useRef(null);
-  const matIce = mat(C.ice, { emissive: A, emissiveIntensity: 0.5 });
+  // Was C.ice at 0.5 -- barely-visible slivers next to the tower at normal
+  // play distance, even after raising emissive alone. Base tint swapped to
+  // the area's radiation colour for real value contrast against the snow.
+  const matIce = mat(A, { emissive: A, emissiveIntensity: 1.2 });
   const anim = useRef({ phase: 0 });
   const SLOT = 0.85, SHRINK = 0.5;
   const CYCLE = 5 * SLOT;
@@ -312,7 +336,9 @@ function UphillTrickle({ place }) {
   const A = place.radiation ?? place.color;
   const AX = 6.2, AZ = -1.2;
   const meshRef = useRef(null);
-  const matRamp = mat(C.ice, { emissive: A, emissiveIntensity: 0.15, roughness: 0.5 });
+  // Was C.ice at 0.15 -- almost no value contrast against snow. Base tint
+  // swapped to the area's radiation colour, same fix as the other three.
+  const matRamp = mat(A, { emissive: A, emissiveIntensity: 1.2, roughness: 0.5 });
   const matWater = lamp(A, 1.0);
   const anim = useRef({ t: 0 });
   const N = 6;
@@ -431,7 +457,9 @@ function RefusingFish({ place }) {
   const A = place.radiation ?? place.color;
   const AX = -6.2, AZ = -1.4;
   const ref = useRef(null);
-  const matFish = mat(C.ice, { emissive: A, emissiveIntensity: 0.5 });
+  // Was C.ice at 0.5 -- pale against the snow. Base tint swapped to the
+  // area's radiation colour, same fix as the other three.
+  const matFish = mat(A, { emissive: A, emissiveIntensity: 1.2 });
   const anim = useRef({ t: 0 });
   const RISE = 0.7, HOLD = 1.6, SINK = 0.5;
   const CYCLE = RISE + HOLD + SINK;
