@@ -375,6 +375,15 @@ a {
   overflow: hidden;
 }
 
+/* Dismissing the card plays JUMP_IN (the camera swoop into the follow
+   framing): the card zooms through toward the camera and clears the view
+   for the swoop, instead of fading in place on its own slower clock. */
+.hud-intro[data-state="closed"] {
+  --from: translateY(-6vh) scale(1.18);
+  transition: opacity 520ms cubic-bezier(0.4, 0, 0.2, 1), transform 520ms cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 520ms;
+}
+
 .hud-intro-loading {
   position: absolute;
   top: 0;
@@ -403,20 +412,10 @@ a {
   }
 }
 
-.hud-intro-eyebrow {
-  margin: 0 0 10px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 .hud-intro h2 {
   margin: 0 0 10px;
-  font-size: 40px;
-  line-height: 1.08;
+  font-size: 56px;
+  line-height: 1.05;
   letter-spacing: -0.02em;
   font-weight: 700;
 }
@@ -427,6 +426,20 @@ a {
   line-height: 1.6;
   color: var(--muted);
   max-width: 60ch;
+}
+
+.hud-intro-logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 18px;
+}
+
+.hud-intro-logos img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
 }
 
 .hud-intro-how {
@@ -488,13 +501,7 @@ a {
     padding: 20px;
   }
   .hud-intro h2 {
-    font-size: 28px;
-  }
-  .hud-intro-body {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-size: 36px;
   }
   .hud-intro-actions {
     display: grid;
@@ -547,7 +554,6 @@ a {
   font-size: 11px;
   line-height: 1.3;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -556,16 +562,6 @@ a {
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.01em;
-}
-
-.hud-near-hook {
-  font-size: 14px;
-  line-height: 1.4;
-  color: var(--muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .hud-near-cta {
@@ -580,42 +576,113 @@ a {
   white-space: nowrap;
 }
 
-@media (max-width: 720px) {
-  .hud-near-hook {
-    -webkit-line-clamp: 2;
-  }
-}
-
 /* ============================================================
-   District toast — a radioactive area announcing itself
+   Area banner — a district announcing itself, big, game-style
    ============================================================ */
-.hud-toast {
-  --from: translateY(-10px);
+.hud-banner {
+  --from: translateY(-24px) scale(0.96);
   position: absolute;
   left: 0;
   right: 0;
+  top: 16vh;
   margin-inline: auto;
-  top: calc(max(var(--gutter), env(safe-area-inset-top)) + var(--bar) + 12px);
-  width: max-content;
-  max-width: min(360px, calc(100vw - 2 * var(--gutter)));
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 999px;
-  background: var(--raised);
-  border: 1px solid var(--hair2);
-  box-shadow: var(--e2);
-  font-size: 14px;
-  font-weight: 600;
+  width: min(760px, calc(100vw - 2 * var(--gutter)));
+  text-align: center;
+  text-shadow: 0 2px 24px rgba(28, 27, 25, 0.2);
 }
 
-.hud-toast-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent, var(--blue-700));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, var(--blue-700)) 25%, transparent);
+.hud-banner[data-state] {
+  transition: opacity 320ms var(--ease-out), transform 320ms var(--ease-out);
+}
+
+/* A soft plate behind the banner, so its words sit on their own ground and
+   never mix with the world or the labels under it. */
+.hud-banner::before {
+  content: "";
+  position: absolute;
+  inset: -28px -48px;
+  z-index: -1;
+  border-radius: 28px;
+  background: radial-gradient(ellipse at center, rgba(251, 250, 247, 0.92) 0%, rgba(251, 250, 247, 0.78) 55%, rgba(251, 250, 247, 0) 100%);
+}
+
+/* Labels step back while a banner is up. */
+:root[data-banner="on"] .place-label {
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+
+.hud-banner[data-state="closed"] {
+  transition: opacity 400ms var(--ease-in), transform 400ms var(--ease-in), visibility 0s 400ms;
+}
+
+.hud-banner-band {
+  display: block;
+  width: 64px;
+  height: 6px;
+  margin: 0 auto 16px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.hud-banner-name {
+  margin: 0;
+  font-size: clamp(40px, 7vw, 88px);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.hud-banner-rows {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-banner-rows li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hud-banner-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.hud-banner-repo {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.hud-banner-headline {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.hud-banner-lab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 18px 0 0;
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.hud-banner-trefoil {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  color: var(--accent);
 }
 
 /* ============================================================
@@ -665,6 +732,20 @@ a {
   stroke-width: 1.5;
 }
 
+.minimap-district {
+  fill: var(--accent);
+  fill-opacity: 0.22;
+  stroke: none;
+  pointer-events: none;
+}
+
+.minimap-water {
+  fill: none;
+  stroke: #1fa3c4;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
 .minimap-dot {
   fill: var(--accent);
   stroke: rgba(28, 27, 25, 0.25);
@@ -691,7 +772,13 @@ a {
   cursor: pointer;
 }
 
-.minimap-seal circle:last-child {
+.minimap-seal-dot {
+  fill: var(--blue-700);
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.minimap-seal-heading {
   fill: var(--blue-700);
 }
 
@@ -716,12 +803,27 @@ a {
   }
 }
 
+@media (min-width: 721px) {
+  .minimap-panel svg {
+    width: 200px;
+    height: 200px;
+  }
+}
+
 @media (max-width: 720px) {
   .minimap-toggle {
     display: flex;
   }
   .minimap[data-open="false"] .minimap-panel {
     display: none;
+  }
+  /* Anchor to the top on phones: at the bottom it sat on top of the near
+     prompt's "Tap to open". */
+  .minimap {
+    top: calc(max(12px, env(safe-area-inset-top)) + var(--bar) + 20px);
+    right: 12px;
+    bottom: auto;
+    flex-direction: column;
   }
 }
 
@@ -1093,6 +1195,17 @@ h2[tabindex="-1"]:focus {
   font-weight: 700;
 }
 
+/* The upstream headline, whole and verbatim — never proof[0]'s first word
+   split off (that turned "4 edges to 3" into a giant "4"). */
+.panel-hero {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 40px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
 .panel-hook {
   margin: 0 0 10px;
   font-size: 17px;
@@ -1111,6 +1224,9 @@ h2[tabindex="-1"]:focus {
 @media (max-width: 720px) {
   .panel-title {
     font-size: 26px;
+  }
+  .panel-hero {
+    font-size: 32px;
   }
 }
 
@@ -1264,6 +1380,13 @@ h2[tabindex="-1"]:focus {
   color: var(--ink);
 }
 
+.list-group-lead {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .list-rows {
   list-style: none;
   margin: 0 0 8px;
@@ -1336,7 +1459,6 @@ h2[tabindex="-1"]:focus {
   font-size: 11px;
   line-height: 1.3;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -1463,23 +1585,12 @@ h2[tabindex="-1"]:focus {
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
 .fallback-card-name {
   font-size: 16px;
   font-weight: 700;
-}
-
-.fallback-card-hook {
-  font-size: 14px;
-  line-height: 1.4;
-  color: var(--muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .fallback-card-figure {
@@ -1520,13 +1631,20 @@ h2[tabindex="-1"]:focus {
   white-space: nowrap;
   user-select: none;
   transition: width 200ms var(--ease-out), height 200ms var(--ease-out), padding 200ms var(--ease-out),
-    border-radius 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+    border-radius 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out),
+    opacity 200ms var(--ease-out);
 }
 
 .place-label-logo,
-.place-label-kind,
 .place-label-name {
   display: none;
+}
+
+/* A sheet is open: fade out rather than repeat what the sheet already says
+   (and stop clipping at the top edge or sitting under the phone nav bar). */
+.place-label[data-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .place-label[data-close="true"] {
@@ -1568,20 +1686,19 @@ h2[tabindex="-1"]:focus {
 
 .place-label[data-close="true"] .place-label-logo {
   display: inline-block;
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  object-fit: contain;
+  height: 18px;
+  width: auto;
+  max-width: 48px;
 }
 
 .place-label.is-near {
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   width: auto;
   height: auto;
-  gap: 0;
+  gap: 8px;
   padding: 8px 14px;
-  border-radius: 12px;
+  border-radius: 999px;
   box-shadow: 0 0 0 3px var(--accent), 0 0 0 4px rgba(28, 27, 25, 0.18),
     0 8px 20px rgba(28, 27, 25, 0.2);
   animation: place-pop 320ms var(--ease-out);
@@ -1592,13 +1709,8 @@ h2[tabindex="-1"]:focus {
   display: none;
 }
 
-.place-label.is-near .place-label-kind {
-  display: block;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+.place-label.is-near .place-label-logo {
+  height: 22px;
 }
 
 .place-label.is-near .place-label-name {

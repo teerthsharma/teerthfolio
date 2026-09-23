@@ -15,25 +15,17 @@
 // a name or a number.
 
 import { useEffect, useRef, useState } from "react";
-import { JUMP_IN } from "../../lib/world/moments";
-import { PLACE_BY_ID, PLACES, PROFILE, dockPoint } from "../../lib/world/places";
+import showcase from "../../data/showcase.json" with { type: "json" };
+import { PLACE_BY_ID, PLACES, PROFILE, districtAt, dockPoint } from "../../lib/world/places";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import Minimap from "./ui/Minimap";
 import Sheet from "./ui/Sheet";
-import { IconArrow, IconCheck, IconChevron, IconSoundOff, IconSoundOn } from "./ui/icons";
+import { IconArrow, IconCheck, IconChevron, IconSoundOff, IconSoundOn, IconTrefoil } from "./ui/icons";
 
-// PLACES mixes buildings and landmarks, and its length has moved more than
-// once — say the real count in words instead of a stale literal.
-const NUMBER_WORDS = [
-  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
-  "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
-  "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "twenty-one",
-  "twenty-two", "twenty-three", "twenty-four", "twenty-five",
-];
-const inWords = (n) => NUMBER_WORDS[n] ?? String(n);
-const COUNT = inWords(PLACES.length);
 const UPSTREAM = PLACES.filter((p) => p.section === "upstream");
 const LAB = PLACES.filter((p) => p.section === "lab");
+// One logo per org, in landing rank order (the order UPSTREAM already carries).
+const UPSTREAM_LOGOS = [...new Set(UPSTREAM.map((p) => p.logo))].filter(Boolean);
 
 // Every caller that wants the seal to travel to a building goes through this,
 // so the no-WebGL fallback (no seal to send anywhere) only needs one guard.
@@ -45,70 +37,115 @@ function sendTo(place) {
   setUi({ list: false, open: null, started: true });
 }
 
-// How often (ms) the district toast samples the seal's position: a toast is
-// a once-in-a-while event, not a per-frame one, so a timer beats a render loop.
-const DISTRICT_POLL = 300;
-// Roughly one neighbourhood, until a district carries its own footprint —
-// the world director may replace this proximity guess with a real shape.
-const DISTRICT_REACH = 26;
-const DISTRICT_SHOWN = 2600; // ms the toast stays up
+// How often (ms) the banner samples the seal's real position against the
+// district circles (lib/world/places.js districtAt): an area announcement is
+// a once-in-a-while event, not a per-frame one, so a timer beats a render
+// loop. Two consecutive polls must agree on the same district before it
+// switches, so walking a boundary doesn't flicker it.
+const BANNER_POLL = 300;
+const BANNER_HOLD = 2800; // ms the banner stays up
+const BANNER_COOLDOWN = 20000; // ms before the same district can announce again
 
-// Reads place.district once the world director adds it (a string, or an
-// { name, radiation | color } object) and announces the nearest one's name
-// when the seal walks close enough to a place that carries it.
-function useDistrictToast(active) {
-  const [toast, setToast] = useState(null);
-  const currentName = useRef(null);
+function useDistrictBanner(active) {
+  const [district, setDistrict] = useState(null);
+  const pendingId = useRef(undefined);
+  const shownId = useRef(null);
+  const lastShown = useRef(new Map());
   const hideTimer = useRef(null);
 
   useEffect(() => {
     if (!active) return undefined;
     const id = setInterval(() => {
+      if (getUi().open || getUi().list) return;
       const seal = live.seal;
-      let nearest = null;
-      let bestDist = DISTRICT_REACH;
-      for (const p of PLACES) {
-        if (!p.district) continue;
-        const dist = Math.hypot(seal.x - p.x, seal.z - p.z);
-        if (dist < bestDist) {
-          bestDist = dist;
-          nearest = p.district;
-        }
+      const d = districtAt(seal.x, seal.z);
+      const nextId = d?.id ?? null;
+      if (nextId !== pendingId.current) {
+        pendingId.current = nextId;
+        return; // wait for the next poll to confirm
       }
-      const name = typeof nearest === "string" ? nearest : nearest?.name;
-      if (name === currentName.current) return;
-      currentName.current = name;
+      if (nextId === shownId.current) return;
+      shownId.current = nextId;
       clearTimeout(hideTimer.current);
-      if (!name) return;
-      const color = typeof nearest === "object" ? nearest.radiation ?? nearest.color : undefined;
-      setToast({ name, color });
-      hideTimer.current = setTimeout(() => setToast(null), DISTRICT_SHOWN);
-    }, DISTRICT_POLL);
+      if (!nextId) {
+        setDistrict(null);
+        return;
+      }
+      const now = Date.now();
+      const last = lastShown.current.get(nextId);
+      if (last && now - last < BANNER_COOLDOWN) return;
+      lastShown.current.set(nextId, now);
+      setDistrict(d);
+      hideTimer.current = setTimeout(() => setDistrict(null), BANNER_HOLD);
+    }, BANNER_POLL);
     return () => {
       clearInterval(id);
       clearTimeout(hideTimer.current);
     };
   }, [active]);
 
-  return toast;
+  return district;
 }
 
 function Curtain({ ready }) {
   return <div className="hud-curtain" data-ready={ready} aria-hidden="true" />;
 }
 
-function DistrictToast({ toast }) {
+// A district's arrival, announced big: its name, then every upstream
+// contribution inside it (logo, verbatim repo #PR, verbatim headline) — or,
+// for a lab building's own radioactive area, its tagline and a trefoil.
+// Never explanatory text: the world shows what the trefoil means, this
+// doesn't spell it out. Suppressed while a sheet is open.
+function DistrictBanner({ district: current, open, list }) {
+  const show = Boolean(current) && !open && !list;
+  // Keep the last district after the hook clears it, so its words fade out
+  // with the plate instead of vanishing and leaving a blank smear.
+  const [district, setDistrict] = useState(current);
+  if (current && current !== district) setDistrict(current);
+  const labPlace = district && PLACE_BY_ID[district.id]?.section === "lab" ? PLACE_BY_ID[district.id] : null;
+  // Rows come from the district, not from `show`, so the words stay on screen
+  // while the banner fades out together with its plate.
+  const rows =
+    district && !labPlace ? PLACES.filter((p) => p.section === "upstream" && p.district?.id === district.id) : null;
+  // While the banner is up, the floating place labels step back so the two
+  // never print over each other (the owner's screenshot: "the text overlaps").
+  useEffect(() => {
+    const root = document.documentElement;
+    if (show) root.dataset.banner = "on";
+    else delete root.dataset.banner;
+    return () => {
+      delete root.dataset.banner;
+    };
+  }, [show]);
   return (
     <div
-      className="hud-toast"
-      data-state={toast ? "open" : "closed"}
-      style={toast?.color ? { "--accent": toast.color } : undefined}
+      className="hud-banner"
+      data-state={show ? "open" : "closed"}
+      style={district ? { "--accent": district.radiation ?? district.color } : undefined}
       aria-live="polite"
     >
-      {toast && (
+      {district && (
         <>
-          <span className="hud-toast-dot" aria-hidden="true" />
-          <span className="hud-toast-name">{toast.name}</span>
+          <span className="hud-banner-band" aria-hidden="true" />
+          <h2 className="hud-banner-name">{district.name}</h2>
+          {labPlace ? (
+            <p className="hud-banner-lab">
+              <IconTrefoil className="hud-banner-trefoil" />
+              {labPlace.tagline}
+            </p>
+          ) : (
+            <ul className="hud-banner-rows">
+              {rows.map((p) => (
+                <li key={p.id}>
+                  {p.logo && <img className="hud-banner-logo" src={p.logo} alt="" width="28" height="28" />}
+                  <span className="hud-banner-repo">
+                    {p.repo} #{p.pr}
+                  </span>
+                  <span className="hud-banner-headline">{p.headline}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </div>
@@ -186,22 +223,19 @@ function Intro({ started, ready, failed }) {
       aria-labelledby="intro-title"
       data-state={started || failed ? "closed" : "open"}
       inert={started || failed}
-      // Dismissing the card plays JUMP_IN (the camera swoop into the follow
-      // framing): the card's own exit lasts exactly that long, so it reads
-      // as zooming away with the camera, not fading out on its own clock.
-      style={started ? { "--t-out": `${JUMP_IN.duration * 1000}ms` } : undefined}
     >
       {!ready && (
         <div className="hud-intro-loading" aria-hidden="true">
           <span />
         </div>
       )}
-      <p className="hud-intro-eyebrow">A seal, an island, {COUNT} places</p>
-      <h2 id="intro-title">Every building here is something Teerth built.</h2>
-      <p className="hud-intro-body">
-        Slide up to one to look inside: {inWords(UPSTREAM.length)} contributions landed upstream, a bare-metal Rust
-        OS, a runtime whose loops stop when their shape does, and maths proved in Lean.
-      </p>
+      <h2 id="intro-title">{showcase.intro.heading}</h2>
+      <p className="hud-intro-body">{showcase.intro.lead}</p>
+      <div className="hud-intro-logos" aria-hidden="true">
+        {UPSTREAM_LOGOS.map((src) => (
+          <img key={src} src={src} alt="" width="36" height="36" />
+        ))}
+      </div>
       <p className="hud-intro-how">
         <span className="only-fine">
           <kbd>W</kbd>
@@ -251,7 +285,6 @@ function NearPrompt({ near, open, list, failed }) {
             <span className="hud-near-body">
               <span className="hud-near-kind">{place.kind}</span>
               <span className="hud-near-name">{place.name}</span>
-              <span className="hud-near-hook">{place.hook}</span>
             </span>
             <span className="hud-near-cta">
               <span className="only-fine">
@@ -312,7 +345,6 @@ function Tags({ items }) {
 // Upstream: the org, "{verb} {repo} #{pr}", the title, the headline as the
 // hero number, the body, the result line, the tags, every check, the PR.
 function UpstreamPanel({ place, titleRef }) {
-  const hero = place.proof[0];
   return (
     <>
       <div className="panel-org">
@@ -324,12 +356,7 @@ function UpstreamPanel({ place, titleRef }) {
       <h2 id="panel-title" tabIndex={-1} ref={titleRef} className="panel-title">
         {place.title}
       </h2>
-      <dl className="proof">
-        <div className="proof-row" style={{ "--i": 0 }}>
-          <dt>{hero.label}</dt>
-          <dd>{hero.value}</dd>
-        </div>
-      </dl>
+      <p className="panel-hero">{place.headline}</p>
       <p className="panel-body">{place.body}</p>
       <p className="panel-result">
         <span className="panel-result-label">Result</span>
@@ -386,9 +413,8 @@ function LabPanel({ place, titleRef }) {
 function HomePanel({ place, titleRef }) {
   return (
     <>
-      <p className="panel-eyebrow">{place.kind}</p>
       <h2 id="panel-title" tabIndex={-1} ref={titleRef} className="panel-title">
-        {place.name}
+        {place.kind}
       </h2>
       <dl className="proof">
         {place.proof.map((p, i) => (
@@ -399,7 +425,6 @@ function HomePanel({ place, titleRef }) {
         ))}
       </dl>
       <p className="panel-hook">{place.hook}</p>
-      <p className="panel-body">{place.body}</p>
       <Links items={place.links} />
     </>
   );
@@ -447,15 +472,20 @@ function ListRow({ place }) {
 
 function FallbackCard({ place }) {
   const upstream = place.section === "upstream";
-  const hero = place.proof[0];
+  const hero = upstream ? null : place.proof[0];
   return (
     <button type="button" className="fallback-card" style={{ "--accent": place.color }} onClick={() => sendTo(place)}>
       {upstream && place.logo && <img className="fallback-card-logo" src={place.logo} alt="" width="24" height="24" />}
       <span className="fallback-card-kind">{upstream ? `${place.repo} #${place.pr}` : place.kind}</span>
       <span className="fallback-card-name">{upstream ? place.title : place.name}</span>
-      <span className="fallback-card-hook">{upstream ? place.body : place.hook}</span>
-      <span className="fallback-card-figure">{hero.value}</span>
-      <span className="fallback-card-label">{hero.label}</span>
+      {upstream ? (
+        <span className="fallback-card-figure">{place.headline}</span>
+      ) : (
+        <>
+          <span className="fallback-card-figure">{hero.value}</span>
+          <span className="fallback-card-label">{hero.label}</span>
+        </>
+      )}
     </button>
   );
 }
@@ -483,8 +513,9 @@ function List({ list, failed, titleRef }) {
             <FallbackCard place={PLACE_BY_ID.home} />
           </div>
           <h3 className="list-group-head">
-            Landed upstream <span className="list-group-count">{UPSTREAM.length}</span>
+            {showcase.intro.upstreamHeading} <span className="list-group-count">{UPSTREAM.length}</span>
           </h3>
+          <p className="list-group-lead">{showcase.intro.upstreamLead}</p>
           <div className="fallback-grid">
             {UPSTREAM.map((place) => (
               <FallbackCard key={place.id} place={place} />
@@ -502,7 +533,7 @@ function List({ list, failed, titleRef }) {
       ) : (
         <>
           <h2 id="list-title" tabIndex={-1} ref={titleRef} className="list-title">
-            {COUNT[0].toUpperCase() + COUNT.slice(1)} places
+            Projects
           </h2>
           <p className="list-sub">Pick one and the seal slides there.</p>
           <button type="button" className="list-home-link" onClick={() => sendTo(PLACE_BY_ID.home)}>
@@ -510,8 +541,9 @@ function List({ list, failed, titleRef }) {
             About — {PLACE_BY_ID.home.name}
           </button>
           <h3 className="list-group-head">
-            Landed upstream <span className="list-group-count">{UPSTREAM.length}</span>
+            {showcase.intro.upstreamHeading} <span className="list-group-count">{UPSTREAM.length}</span>
           </h3>
+          <p className="list-group-lead">{showcase.intro.upstreamLead}</p>
           <ul className="list-rows">
             {UPSTREAM.map((place) => (
               <ListRow key={place.id} place={place} />
@@ -555,7 +587,7 @@ export default function Hud() {
     if (new URLSearchParams(window.location.search).has("fallback")) setUi({ failed: true });
   }, []);
 
-  const toast = useDistrictToast(started && !failed);
+  const district = useDistrictBanner(started && !failed);
   const panelTitleRef = useRef(null);
   const listTitleRef = useRef(null);
 
@@ -575,7 +607,7 @@ export default function Hud() {
     <div className="hud" onKeyDown={onHudKeyDown}>
       <Curtain ready={ready} />
       <TopBar started={started} list={list} sound={sound} learned={learned} failed={failed} />
-      <DistrictToast toast={toast} />
+      <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />
       <NearPrompt near={near} open={open} list={list} failed={failed} />
       {started && !failed && <Minimap onSelect={sendTo} />}
