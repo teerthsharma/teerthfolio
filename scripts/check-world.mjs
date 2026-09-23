@@ -7,6 +7,7 @@ import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, riverAt, waterGap } from "../lib/world/river.js";
+import { WATER_Y, heightAt } from "../lib/world/terrain.js";
 
 const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 const world = { colliders, radius: ISLAND_RADIUS, props: [] };
@@ -211,6 +212,34 @@ for (const a of DISTRICTS) {
   }
 }
 
+// Terrain (lib/world/terrain.js): wherever the seal can walk (inside the
+// rim, outside every collider circle, outside the water) the ground is flat
+// within 0.3 m of y = 0; every place and dock stands at y = 0 within 5 cm;
+// the water's middle lies under its surface; and the mountains rise.
+{
+  const solid = [...PLACES, ...LAND_COLLIDERS];
+  for (let x = -ISLAND_RADIUS; x <= ISLAND_RADIUS; x += 1.3) {
+    for (let z = -ISLAND_RADIUS; z <= ISLAND_RADIUS; z += 1.3) {
+      if (Math.hypot(x, z) >= ISLAND_RADIUS || waterGap(x, z) < 0) continue;
+      if (solid.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius)) continue;
+      const h = heightAt(x, z);
+      assert.ok(Math.abs(h) <= 0.3, `the ground at ${x.toFixed(1)}, ${z.toFixed(1)} is ${h.toFixed(2)} m off the plain where the seal walks`);
+    }
+  }
+  for (const p of PLACES) {
+    const dock = dockPoint(p);
+    for (const [x, z, what] of [[p.x, p.z, p.id], [dock.x, dock.z, `${p.id}'s dock`]]) {
+      assert.ok(Math.abs(heightAt(x, z)) <= 0.05, `${what} does not stand on flat ground (${heightAt(x, z).toFixed(2)} m)`);
+    }
+  }
+  for (const line of WATERS) {
+    for (const [x, z] of line.points) {
+      if (Math.hypot(x, z) < ISLAND_RADIUS) assert.ok(heightAt(x, z) < WATER_Y - 0.5, `the water at ${x}, ${z} has no bed under it`);
+    }
+  }
+  assert.ok(heightAt(-35, -62) > 20 && heightAt(38, -80) > 3, "the mountains do not rise");
+}
+
 // Motion: holding a direction reaches top speed and releasing glides to a stop.
 const seal = createSeal(SPAWN.x, SPAWN.z);
 run(seal, { input: { x: 1, z: 0 } }, 3);
@@ -340,6 +369,26 @@ assert.ok(crateLoss > snowballLoss, `a crate should slow the seal more than a sn
   assert.ok(worstOff < (20 * Math.PI) / 180, `heading turned away from the wall after a bump: ${worstOff}`);
 }
 
+// Bridges: a seal that slides onto a deck from the bank crosses it dry and
+// comes off the far bank; the current never takes it. (The owner found it
+// swimming on top of the planks.)
+for (const b of RIVER.bridges) {
+  const at = riverAt(b.x, b.z);
+  const flow = Math.hypot(at.flowX, at.flowZ) || 1;
+  const across = { x: -at.flowZ / flow, z: at.flowX / flow };
+  const reach = at.half + 2.5;
+  const walker = createSeal(b.x - across.x * reach, b.z - across.z * reach);
+  const bridgeWorld = { colliders: [], radius: 1000 };
+  let wettest = 0;
+  for (let t = 0; t < 4; t += 1 / 120) {
+    stepSeal(walker, { input: across }, 1 / 120, bridgeWorld);
+    wettest = Math.max(wettest, walker.water ?? 0);
+  }
+  const past = (walker.x - b.x) * across.x + (walker.z - b.z) * across.z;
+  assert.ok(wettest === 0, `${b.name}: the seal got wet crossing the deck (${wettest.toFixed(2)})`);
+  assert.ok(past > at.half, `${b.name}: the seal never reached the far bank`);
+}
+
 // Click-to-move: an 8 m straight move doesn't overshoot much, and doesn't
 // spin the body round to face the target while arriving.
 {
@@ -426,7 +475,16 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   assert.ok(rode !== null, `an idle rider never reached the mouth: stopped at ${rider.x.toFixed(1)}, ${rider.z.toFixed(1)}`);
   assert.equal(dry, 0, "the current beached an idle rider on a bend");
 
-  const [[ax, az], [bx, bz]] = RIVER.points.slice(2, 4);
+  // The narrowest stretch of channel (the lake and the moat are wider and a
+  // longer paddle there is fair): the rule is about crossing the river.
+  const widthAt = (p) => p[2] ?? RIVER.width;
+  let narrow = 0;
+  for (let i = 1; i < RIVER.points.length - 1; i++) {
+    const w = Math.max(widthAt(RIVER.points[i]), widthAt(RIVER.points[i + 1]));
+    const best = Math.max(widthAt(RIVER.points[narrow]), widthAt(RIVER.points[narrow + 1]));
+    if (w < best) narrow = i;
+  }
+  const [[ax, az], [bx, bz]] = RIVER.points.slice(narrow, narrow + 2);
   const len = Math.hypot(bx - ax, bz - az);
   for (const side of [1, -1]) {
     const swimmer = createSeal((ax + bx) / 2, (az + bz) / 2);
@@ -488,4 +546,4 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   assert.equal(dryland.water, 0, "the seal is wet at spawn");
 }
 
-console.log(`world check passed: ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride`);
+console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride`);

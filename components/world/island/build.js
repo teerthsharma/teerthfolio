@@ -1,7 +1,7 @@
 // Pure geometry builders for the island: no React, no per-frame state. Every
 // export is called once from Island.jsx (useMemo) and merged into the small
 // number of meshes the draw-call budget allows. Colour comes in as vertex
-// attributes where a mesh mixes hues (cliff, icebergs, signpost tips); a
+// attributes where a mesh mixes hues (icebergs, signpost tips); a
 // mesh that is one flat colour just gets one material and no colour buffer.
 
 import {
@@ -13,15 +13,13 @@ import {
   CylinderGeometry,
   Float32BufferAttribute,
   IcosahedronGeometry,
-  RingGeometry,
-  SphereGeometry,
-  TorusGeometry,
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { LAND_COLLIDERS, PATHS, SIGNPOSTS } from "../../../lib/world/land";
 import { dockPoint, ISLAND_RADIUS, PLACE_BY_ID, PLACES, SPAWN } from "../../../lib/world/places";
 import { RIVER, riverAt, waterGap } from "../../../lib/world/river";
+import { groundAt, heightAt, SEA_Y } from "../../../lib/world/terrain";
 import { mulberry32 } from "../life/spawn";
 import { C } from "../palette";
 
@@ -84,7 +82,7 @@ function annulusPoints(count, seed, rMin, rMax, gap, avoid = [], pad = 0) {
 }
 
 // mergeGeometries requires every input to carry the same attribute set. The
-// hand-built strips (cliff bands, path ribbons) have no uv; drop it from any
+// hand-built strips (path ribbons) have no uv; drop it from any
 // three.js primitive before it merges with one of those.
 function bare(geometry) {
   geometry.deleteAttribute("uv");
@@ -104,75 +102,7 @@ function paint(geometry, hex) {
   return geometry;
 }
 
-// ---- ground: snow drifts + the snow lip torus (smooth, C.snow) -----------
-
-function buildSnowSmooth() {
-  const rand = mulberry32(SEED + 1);
-  const drifts = [];
-  // 6 in the rim band, 5 in the open snow between the areas.
-  const taken = [];
-  for (const [n, rMin, rMax] of [[6, 62, 78], [5, 16, 58]]) {
-    for (const { x, z } of annulusPoints(n, SEED + 1 + rMin, rMin, rMax, 9, taken, 4)) {
-      taken.push({ x, z });
-      const radius = 3 + rand() * 3;
-      const geo = new SphereGeometry(radius, 14, 10).toNonIndexed();
-      geo.scale(1, 0.1, 1);
-      geo.translate(x, -0.2, z);
-      drifts.push(geo);
-    }
-  }
-  const lip = new TorusGeometry(R - 0.1, 0.25, 10, 96).toNonIndexed();
-  lip.rotateX(-Math.PI / 2);
-  lip.scale(1, 0.5, 1);
-  lip.translate(0, 0.02, 0);
-  return mergeGeometries([...drifts, lip], false);
-}
-
-// ---- edge: faceted cliff, two merged colour bands -------------------------
-
-// One flat-shaded band between two rings (radii arrays, length segs+1), one
-// solid colour. Outward-facing winding: (a, c, b) then (c, d, b).
-function ringBand(radiiTop, yTop, radiiBottom, yBottom, segs, hex) {
-  const positions = [];
-  for (let i = 0; i < segs; i++) {
-    const a0 = (i / segs) * Math.PI * 2;
-    const a1 = ((i + 1) / segs) * Math.PI * 2;
-    const a = new Vector3(Math.cos(a0) * radiiTop[i], yTop, Math.sin(a0) * radiiTop[i]);
-    const c = new Vector3(Math.cos(a1) * radiiTop[i + 1], yTop, Math.sin(a1) * radiiTop[i + 1]);
-    const b = new Vector3(Math.cos(a0) * radiiBottom[i], yBottom, Math.sin(a0) * radiiBottom[i]);
-    const d = new Vector3(Math.cos(a1) * radiiBottom[i + 1], yBottom, Math.sin(a1) * radiiBottom[i + 1]);
-    positions.push(a.x, a.y, a.z, c.x, c.y, c.z, b.x, b.y, b.z);
-    positions.push(c.x, c.y, c.z, d.x, d.y, d.z, b.x, b.y, b.z);
-  }
-  const geo = new BufferGeometry();
-  geo.setAttribute("position", new Float32BufferAttribute(positions, 3));
-  geo.computeVertexNormals();
-  return paint(geo, hex);
-}
-
-function buildCliff() {
-  const rand = mulberry32(SEED + 2);
-  const segs = 72;
-  const bottomExtra = 1.2;
-  const bottomY = -1.6;
-  const midT = 0.4; // upper 40% is ice, the rest deepIce
-  const top = [];
-  const mid = [];
-  const bottom = [];
-  for (let i = 0; i <= segs; i++) {
-    const jitter = i === segs ? top[0] - R : (rand() * 2 - 1) * 0.5; // close the loop
-    top.push(R + jitter);
-    bottom.push(R + bottomExtra + jitter);
-    mid.push(top[i] + (bottom[i] - top[i]) * midT);
-  }
-  const midY = bottomY * midT;
-  return [
-    ringBand(top, 0, mid, midY, segs, C.ice),
-    ringBand(mid, midY, bottom, bottomY, segs, C.deepIce),
-  ];
-}
-
-// ---- rock batch: cliff + icebergs + dark rim rocks, one flat vertex-coloured mesh
+// ---- rock batch: icebergs + dark rim rocks, one flat vertex-coloured mesh
 
 function buildIceberg(cx, cz, radius, height) {
   const body = new IcosahedronGeometry(radius, 0).toNonIndexed();
@@ -194,12 +124,12 @@ function buildIceberg(cx, cz, radius, height) {
 }
 
 function buildRockBatch() {
-  // Out in the south and west sea: the north coast is Triton's and the
-  // Google range's, rising out of the water there.
+  // Out in the south and west sea, past the coast's headlands (the north
+  // coast is Triton's and the Google range's, rising out of the water).
   const icebergs = [
-    buildIceberg(-88, 22, 5, 7),
-    buildIceberg(60, 72, 7, 10),
-    buildIceberg(-44, 82, 6, 8),
+    buildIceberg(-108, 26, 5, 7),
+    buildIceberg(66, 88, 7, 10),
+    buildIceberg(-50, 104, 6, 8),
   ];
 
   const rand = mulberry32(SEED + 3);
@@ -212,7 +142,7 @@ function buildRockBatch() {
     return paint(bare(geo), C.charcoal);
   });
 
-  return mergeGeometries([...buildCliff(), ...icebergs, ...rocks], false);
+  return mergeGeometries([...icebergs, ...rocks], false);
 }
 
 // ---- sea: floes (instanced) and the shallows gradient ring ----------------
@@ -236,7 +166,7 @@ function buildFloeTemplate() {
 
 function buildFloes() {
   const rand = mulberry32(SEED + 4);
-  const points = annulusPoints(10, SEED + 4, R + 6, R + 30, 3);
+  const points = annulusPoints(14, SEED + 4, R + 10, R + 32, 3).filter(({ x, z }) => heightAt(x, z) < SEA_Y - 1.5);
   return points.map(({ x, z }) => ({
     x,
     z,
@@ -245,34 +175,64 @@ function buildFloes() {
   }));
 }
 
-function buildShallows() {
-  const inner = R + 1.8;
-  const outer = R + 6;
-  const geo = new RingGeometry(inner, outer, 72, 1).toNonIndexed();
-  geo.rotateX(-Math.PI / 2);
-  geo.translate(0, -0.59, 0);
-  const shallow = new Color(C.shallows);
-  const sea = new Color(C.sea);
-  const pos = geo.attributes.position;
-  const n = pos.count;
-  const arr = new Float32Array(n * 3);
-  const tmp = new Vector3();
-  for (let i = 0; i < n; i++) {
-    tmp.fromBufferAttribute(pos, i);
-    const t = Math.min(1, Math.max(0, (Math.hypot(tmp.x, tmp.z) - inner) / (outer - inner)));
-    arr[i * 3] = shallow.r + (sea.r - shallow.r) * t;
-    arr[i * 3 + 1] = shallow.g + (sea.g - shallow.g) * t;
-    arr[i * 3 + 2] = shallow.b + (sea.b - shallow.b) * t;
+// Where the land meets the sea, round the island: for each of SEA_SEGS
+// angles, the first radius past the rim where the ground drops under the
+// sea, or null where there is none (the mountains in the north run on out
+// of view). `river` marks the river's mouth.
+const SEA_SEGS = 240;
+let WATERLINE = null;
+function waterline() {
+  if (WATERLINE) return WATERLINE;
+  const o = {};
+  WATERLINE = [];
+  for (let i = 0; i <= SEA_SEGS; i++) {
+    const a = (i / SEA_SEGS) * Math.PI * 2;
+    let found = null;
+    for (let r = R; r < R + 36 && !found; r += 0.25) {
+      groundAt(Math.cos(a) * r, Math.sin(a) * r, o);
+      if (o.h < SEA_Y) found = { r, river: o.gap < 0 };
+    }
+    WATERLINE.push(found);
   }
-  geo.setAttribute("color", new Float32BufferAttribute(arr, 3));
+  return WATERLINE;
+}
+
+// A flat band on the sea from `from` to `to` metres past the waterline, at
+// height y, coloured by colorAt(t) (t 0 inner, 1 outer) when given.
+function coastBand(from, to, y, colorAt, skipRiver) {
+  const line = waterline();
+  const positions = [];
+  const colors = [];
+  const at = (i, d) => {
+    const a = (i / SEA_SEGS) * Math.PI * 2;
+    return [Math.cos(a) * (line[i].r + d), y, Math.sin(a) * (line[i].r + d)];
+  };
+  for (let i = 0; i < SEA_SEGS; i++) {
+    const w0 = line[i];
+    const w1 = line[i + 1];
+    if (!w0 || !w1 || (skipRiver && (w0.river || w1.river))) continue;
+    const quad = [[at(i, from), 0], [at(i + 1, from), 0], [at(i, to), 1], [at(i + 1, to), 0 + 1], [at(i, to), 1], [at(i + 1, from), 0]];
+    for (const [p, t] of quad) {
+      positions.push(...p);
+      if (colorAt) colors.push(...colorAt(t));
+    }
+  }
+  const geo = new BufferGeometry();
+  geo.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  if (colorAt) geo.setAttribute("color", new Float32BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
   return geo;
 }
 
+function buildShallows() {
+  const shallow = new Color(C.shallows);
+  const sea = new Color(C.sea);
+  const c = new Color();
+  return coastBand(-2, 7, SEA_Y + 0.01, (t) => c.copy(shallow).lerp(sea, t).toArray(), false);
+}
+
 function buildFoam() {
-  const geo = new RingGeometry(R + 1.0, R + 1.8, 72, 1).toNonIndexed();
-  geo.rotateX(-Math.PI / 2);
-  geo.translate(0, -0.58, 0);
-  return geo;
+  return coastBand(-0.2, 1, SEA_Y + 0.02, null, true);
 }
 
 // ---- ice boulders: two InstancedMeshes, ice and deepIce --------------------
@@ -295,6 +255,19 @@ function buildBoulders() {
 // ---- paths and dock pads, one flat C.path mesh -----------------------------
 // The waypoints are lib/world/land.js PATHS (npm run check holds them dry,
 // or on a bridge, and clear of every place and landform).
+
+// Lay a flat piece on the land: each vertex `lift` above the ground, or
+// above the plain's level where it crosses water (under a bridge deck).
+function drape(geometry, lift = 0.045) {
+  const pos = geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const h = heightAt(pos.getX(i), pos.getZ(i));
+    pos.setY(i, (h > -0.25 ? h : 0) + lift);
+  }
+  pos.needsUpdate = true;
+  geometry.computeVertexNormals();
+  return geometry;
+}
 
 function buildRibbon(waypoints, width = 2.2, y = 0.012) {
   const curve = new CatmullRomCurve3(waypoints.map(([x, z]) => new Vector3(x, y, z)));
@@ -322,7 +295,7 @@ function buildRibbon(waypoints, width = 2.2, y = 0.012) {
   strip.computeVertexNormals();
 
   const cap = (p) => bare(new CircleGeometry(half, 12).toNonIndexed()).rotateX(-Math.PI / 2).translate(p.x, y, p.z);
-  return mergeGeometries([strip, cap(points[0]), cap(points[points.length - 1])], false);
+  return drape(mergeGeometries([strip, cap(points[0]), cap(points[points.length - 1])], false));
 }
 
 function buildPathsAndDocks() {
@@ -331,8 +304,8 @@ function buildPathsAndDocks() {
     const d = dockPoint(p);
     const geo = bare(new CircleGeometry(1.4, 16).toNonIndexed());
     geo.rotateX(-Math.PI / 2);
-    geo.translate(d.x, 0.013, d.z);
-    return geo;
+    geo.translate(d.x, 0, d.z);
+    return drape(geo, 0.05);
   });
   return mergeGeometries([...ribbons, ...docks], false);
 }
@@ -404,10 +377,12 @@ function buildBridges() {
       g.translate(b.x, 0, b.z);
       return g;
     };
-    decks.push(piece(span, 0.3, b.width, 0, 0.2, 0));
+    // The deck's top sits at y = 0.02, flush with the banks the seal walks
+    // on (TERRAIN CONTRACT): higher, and the planks buried the seal's body.
+    decks.push(piece(span, 0.3, b.width, 0, -0.13, 0));
     for (const side of [-1, 1]) {
-      dark.push(paint(piece(span, 0.34, 0.22, 0, 0.52, side * (b.width / 2 - 0.11)), C.charcoal));
-      dark.push(paint(piece(0.5, 1.2, b.width + 0.3, side * (span / 2 - 0.5), -0.4, 0), C.charcoal));
+      dark.push(paint(piece(span, 0.34, 0.22, 0, 0.19, side * (b.width / 2 - 0.11)), C.charcoal));
+      dark.push(paint(piece(0.5, 1.2, b.width + 0.3, side * (span / 2 - 0.5), -0.73, 0), C.charcoal));
     }
   }
   return { decks, dark };
@@ -431,7 +406,6 @@ export function buildIsland() {
   const boulders = buildBoulders();
 
   return {
-    snowSmoothGeo: buildSnowSmooth(),
     rockBatchGeo: buildRockBatch(),
     pathsDocksGeo: buildPathsAndDocks(),
     woodBatchGeo: mergeGeometries([...signposts.wood, ...bridges.decks], false),
