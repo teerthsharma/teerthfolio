@@ -1,29 +1,31 @@
 // Mount MujoRush's stone, as geometry: pure, built once, no React.
 //
-// ONE piece of granite. The massif's south cliff is a single heightfield
-// sheet (buildStone) and the three seal pups are carved INTO it, not stood
-// in front of it: at every point of the sheer face the surface is the
-// smooth union of the cliff, the uncarved rock band the heads are cut from,
-// and each pup's round head flowing straight into its plump body (no neck,
-// no ears), with its muzzle pads raised and its eye sockets, drilled
-// whisker dots, smile and harbour-seal spots chiselled in. Same stone, same
-// colour, same value for rock and faces; hollows are darkened by their own
-// depth (vertex cavity), so they hold shadow like real carving.
+// ONE piece of granite, the same granite lib/world/terrain.js gives the rest
+// of the massif. The south cliff is a single heightfield sheet (buildStone)
+// and the three seal pups are carved INTO it, not stood in front of it: at
+// every point of the face the surface is the smooth union of the jointed
+// rock and each pup's round head flowing straight into its plump body (no
+// neck, no ears), with its whisker pads raised and its eye sockets, whisker
+// dots, smile and harbour-seal spots chiselled in. Hollows are darkened by
+// their own depth (vertex cavity), so they hold shadow like real carving.
+// Above the heads the rock climbs in snowy ledges to the dome; at the foot
+// the rubble the carvers blasted off lies in talus fans between the pups.
 //
 // Three ways to seal, the way Rushmore's four men differ, west to east in
 // the landing site's order: the ROYAL seal in a crown (mujoco #3396), the
 // EVIL seal with little horns and angry brows (mujoco_warp #1541) and the
-// PATROL seal in a cap (mujoco #3450). Their accessories are carved from
-// the same granite and merged into the same mesh. The eyes and noses are
-// dark polished-stone inlays (so they stay big and cute); each PR number is
-// engraved on its pup's chest (MujoRush.jsx draws the glowing grooves).
+// PATROL seal in a cap (mujoco #3450), accessories carved from the same
+// granite and merged into the same mesh. Eyes and noses are dark polished
+// inlays (big and cute). Each PR number is ENGRAVED in its pup's throat:
+// V-walled grooves cut into a fine patch of the same surface, with the
+// radiation glowing faintly at their bottoms (MujoRush.jsx lights them).
 //
 // Local layout, world metres: each pup stands on its place's x; its belly
 // fills its reading point's collision circle (z = -50, r = 2.5) at the
-// snow line; everything reads from the follow camera, which sees the cliff
-// up to about y = 8 when the seal stands at a dock.
+// snow line; the follow camera sees the cliff up to about y = 8 when the
+// seal stands at a dock, and to about y = 21 at the overview's zoom.
 
-import { Color, ConeGeometry, CylinderGeometry, CapsuleGeometry, Float32BufferAttribute, BufferGeometry, Matrix4, Quaternion, SphereGeometry, Vector3, Euler } from "three";
+import { BufferGeometry, Color, ConeGeometry, CylinderGeometry, Euler, Float32BufferAttribute, Matrix4, Quaternion, SphereGeometry, Vector3 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { LAND_COLLIDERS } from "../../../../lib/world/land.js";
 import { PLACE_BY_ID } from "../../../../lib/world/places.js";
@@ -33,6 +35,7 @@ export const FACES = [
   { id: "pr-mujoco-warp-1541", number: "#1541", look: "evil" },
   { id: "pr-mujoco-3450", number: "#3450", look: "patrol" },
 ].map((f) => ({ ...f, x: PLACE_BY_ID[f.id].x, place: PLACE_BY_ID[f.id] }));
+const RAD = new Color(FACES[0].place.radiation);
 
 const s01 = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -67,8 +70,54 @@ function ellZ(cx, cy, cz, a, b, c, tilt, x, y) {
   const disc = B * B - 4 * A * C;
   return disc < 0 ? -Infinity : cz + (-B + Math.sqrt(disc)) / (2 * A);
 }
+function segDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(px - ax - dx * t, py - ay - dy * t);
+}
 
-// ---- the cliff ----------------------------------------------------------------
+// ---- the rock -------------------------------------------------------------------
+
+// Rough-hewn granite: a jittered grid of blocks w x h m, each one flat,
+// tilted face standing out of the cliff by 0..1 (times the caller's
+// amplitude), meeting its neighbours in a short crisp step. rockTone is
+// left holding the nearest block's own shade (0..1), so each block reads as
+// one facet, like the terrain's.
+let rockTone = 0;
+function rock(x, y, w, h) {
+  const gx = x / w;
+  const gy = y / h;
+  const i0 = Math.floor(gx);
+  const j0 = Math.floor(gy);
+  let f1 = Infinity;
+  let f2 = Infinity;
+  let p1 = 0;
+  let p2 = 0;
+  for (let j = j0 - 1; j <= j0 + 1; j++) {
+    for (let i = i0 - 1; i <= i0 + 1; i++) {
+      const cx = i + 0.2 + 0.6 * hash(i, j * 7.3);
+      const cy = j + 0.2 + 0.6 * hash(j * 3.1, i);
+      const dd = Math.hypot(gx - cx, gy - cy);
+      if (dd >= f2) continue;
+      const plane = 0.25 + 0.6 * hash(i * 1.7, j * 2.9) + 1.4 * (hash(i, j + 4.4) - 0.5) * (gx - cx) + 1.2 * (hash(i + 8.1, j) - 0.5) * (gy - cy);
+      if (dd < f1) {
+        f2 = f1;
+        p2 = p1;
+        f1 = dd;
+        p1 = plane;
+      } else {
+        f2 = dd;
+        p2 = plane;
+      }
+    }
+  }
+  const e = f2 - f1; // 0 on a joint
+  rockTone = (p1 * 7.31) % 1;
+  return p1 + (p2 - p1) * 0.5 * (1 - s01(0, 0.06, e));
+}
+
+// ---- the cliff ------------------------------------------------------------------
 
 // The massif's foot: the southmost edge of its three big circles (the fourth,
 // the west shoulder at z = -58, stays rough rock).
@@ -98,15 +147,16 @@ function dome(x, z) {
 
 export const CLIFF_X = [-54.6, -17.4];
 const TAPER = 3.2; // m over which each end rounds down into the rough rock
-const SHEER = 16; // m of rise per m back: the face stands near vertical
+const SHEER = 16; // m of rise per m back: the carved band stands near vertical
 const DX = 0.16; // m between columns, and between rows up the carved band
-const CARVED_TOP = 11.3; // m: the rows above this are the plain cliff, lip and dome
+const CARVED_TOP = 11.3; // m: above this the rock climbs in ledges to the dome
+const D_TOP = CARVED_TOP / SHEER - 0.3;
 // Rows, in metres back from the foot: every DX of height up the carved band,
-// then sparser up the sheer face, round the lip and over the dome.
+// every 5 cm back up the ledges, then sparser over the dome.
 const D = [];
-for (let y = -1.3; y <= CARVED_TOP + 1e-6; y += DX) D.push(y / SHEER - 0.3);
-const DENSE = D.length;
-D.push(0.5, 0.6, 0.72, 0.85, 1, 1.15, 1.4, 1.7, 2.1, 2.6, 3.2, 4, 5, 6.2, 7.6, 9.2, 11, 13, 15.2, 17.6, 20.2);
+for (let y = -1.3; y <= CARVED_TOP + 1e-6; y += y > 5.4 && y < 8 ? DX / 2 : DX) D.push(y / SHEER - 0.3);
+for (let d = D_TOP + 0.05; d < 4.2; d += 0.05) D.push(d);
+D.push(4.6, 5.1, 5.7, 6.4, 7.2, 8.2, 9.4, 10.8, 12.4, 14.2, 16.2, 18.2, 20.2);
 
 function taper(x) {
   const [x0, x1] = CLIFF_X;
@@ -114,46 +164,47 @@ function taper(x) {
   return Math.sqrt(Math.max(0, 1 - u * u));
 }
 
-// The uncarved rock band the pups are cut from: it stands forward of the
-// cliff from the talus up to a snowy ledge above their heads, in broad
-// chisel-flat facets (never jagged), so the heads come out of one mass of
-// granite the way Rushmore's do, never as busts against a wall.
-function blockZ(x, y) {
-  const up = s01(-1.5, 0.5, y) * (1 - s01(8.4, 11.2, y));
-  const facets = 0.3 * (Math.abs(Math.sin(x * 0.62 + 1.4 * Math.sin(y * 0.31))) - 0.5) + 0.18 * (Math.abs(Math.sin(y * 0.83 - x * 0.19)) - 0.5);
-  return -57.4 + up * (2.8 + facets);
+// The face's height d m back from the foot: sheer up the carved band, then
+// leaning back a little up to where the dome rounds it over.
+const LEAN = 4.2; // m of rise per m back above the carved band
+const rise = (d) => (d <= D_TOP ? SHEER * (d + 0.3) : CARVED_TOP + LEAN * (d - D_TOP));
+
+// The uncarved rock the pups are cut from: it stands forward of the cliff
+// from the talus up to a ledge above their heads, jointed into blocks.
+function bandZ(x, y, zb) {
+  const up = s01(-1.5, 0.5, y) * (1 - s01(8.2, 11, y));
+  return smax(zb, -57.2 + up * 2.6, 0.8) + 0.8 * rock(x, y, 2.6, 3.4) * s01(-1, 1, y);
 }
 
-// ---- the pups -----------------------------------------------------------------
+// ---- the pups -------------------------------------------------------------------
 
 const REF_Z = -55.3; // the plane the pups are cut back to
-const BODY = { y: 0.1, z: REF_Z, a: 5.7, b: 3.3, c: 5.2 }; // plump, spreading into the snow
-const HEAD = { y: 3.75, z: REF_Z - 0.1, a: 4.1, b: 3.05, c: 4.6, tilt: 0.3 }; // round, looking up at you
-const PAD = { x: 0.8, y: 2.6, a: 1.02, b: 0.8, c: 0.95 }; // the two whisker pads
-const EYE = { x: 1.72, y: 4.12, a: 0.74, b: 0.84, c: 0.42, socket: 0.5 };
-const NOSE = { y: 3.28, a: 0.56, b: 0.38, c: 0.34 };
-export const NUM_Y = 0.95; // the engraved number's centre height on the chest
+const LIFT = 0.25; // every feature this much higher than the old draft's
+// Relief, not busts: each form is broad and shallow, so the face (eyes,
+// pads, cheeks, whiskers) turns to the viewer, and the chest sits back
+// under the chin so the mouth is never lost in its crease.
+const BODY = { y: 0.1, z: REF_Z, a: 5.4, b: 3.4, c: 4.2 }; // plump, spreading into the talus
+const HEAD = { y: 3.85 + LIFT, z: REF_Z + 1.0, a: 4.4, b: 3.1, c: 3.4, tilt: 0.3 }; // round, looking up at you
+const KA = HEAD.a / 4; // the accessories were drawn for a 4 x 4.5 m head
+const KC = HEAD.c / 4.5;
+const PAD = { x: 0.8, y: 2.62 + LIFT, a: 1.0, b: 0.78, c: 0.95 }; // the two whisker pads
+const EYE = { x: 1.72, y: 4.2 + LIFT, a: 0.74, b: 0.84, c: 0.42, socket: 0.5 };
+const NOSE = { y: 3.3 + LIFT, a: 0.56, b: 0.38, c: 0.34 };
+export const NUM_Y = 0.98; // the engraved number's centre height on the throat
 
-const shellZ = (fx, x, y) => smax(ellZ(fx, BODY.y, BODY.z, BODY.a, BODY.b, BODY.c, 0, x, y), ellZ(fx, HEAD.y, HEAD.z, HEAD.a, HEAD.b, HEAD.c, HEAD.tilt, x, y), 2.2);
+const shellZ = (fx, x, y) => smax(ellZ(fx, BODY.y, BODY.z, BODY.a, BODY.b, BODY.c, 0, x, y), ellZ(fx, HEAD.y, HEAD.z, HEAD.a, HEAD.b, HEAD.c, HEAD.tilt, x, y), 2.4);
 
 // Harbour-seal spots, per pup (x relative to its centre, y, radius): on the
-// crown, the cheeks' outer sides and the flanks, clear of the face and
-// the number.
-const SPOTS = [[-3.05, 5.15, 0.4], [-2.45, 6.2, 0.3], [2.95, 5.55, 0.36], [2.35, 6.35, 0.27], [-3.45, 3.1, 0.44], [3.55, 3.55, 0.38], [-4.5, 1.3, 0.46], [4.55, 1.0, 0.42], [-3.35, 0.35, 0.34], [3.2, 0.1, 0.36], [-1.1, 6.55, 0.28], [0.95, 6.7, 0.25], [-4.9, -0.2, 0.3], [5.0, 2.4, 0.3]];
+// crown, the cheeks' outer sides and the flanks, clear of the face and the
+// number.
+const SPOTS = [[-3.0, 5.35, 0.4], [-2.4, 6.4, 0.3], [2.9, 5.75, 0.36], [2.3, 6.55, 0.27], [-3.4, 3.3, 0.44], [3.5, 3.75, 0.38], [-4.45, 1.5, 0.46], [4.5, 1.2, 0.42], [-3.3, 0.3, 0.34], [3.25, 0.2, 0.36], [-1.1, 6.75, 0.28], [0.95, 6.9, 0.25], [5.0, 2.6, 0.3]];
 
 // Smile grooves, per look: polylines under the pads (x relative, y).
 const MOUTH = {
-  royal: [[-1.55, 2.12], [-1.0, 1.72], [-0.35, 1.56], [0.35, 1.56], [1.0, 1.72], [1.55, 2.12]],
-  evil: [[-1.35, 1.9], [-0.6, 1.66], [0.25, 1.64], [0.95, 1.8], [1.5, 2.28]], // the smug one-sided smirk
+  royal: [[-1.5, 2.05], [-0.95, 1.62], [-0.33, 1.46], [0.33, 1.46], [0.95, 1.62], [1.5, 2.05]].map(([x, y]) => [x, y + LIFT]),
+  evil: [[-1.3, 1.82], [-0.6, 1.56], [0.25, 1.52], [0.95, 1.7], [1.55, 2.25]].map(([x, y]) => [x, y + LIFT]), // the smug one-sided smirk
   patrol: null, // an open grin (a hollow, below)
 };
-
-function segDist(px, py, ax, ay, bx, by) {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
-  return Math.hypot(px - ax - dx * t, py - ay - dy * t);
-}
 
 // Everything a pup carves, precomputed once per face.
 const PUPS = FACES.map((f) => {
@@ -163,8 +214,20 @@ const PUPS = FACES.map((f) => {
     return { x: px, y: PAD.y, z: shellZ(fx, px, PAD.y) - PAD.c * 0.36 };
   });
   const mouth = MOUTH[f.look]?.map(([x, y]) => [fx + x, y]) ?? null;
+  // whiskers: three bold chiselled lines a side fanning out over the cheeks
+  const whiskers = [];
+  for (const pad of pads) {
+    const sg = Math.sign(pad.x - fx);
+    for (const [a, len] of [[0.3, 1.4], [0.02, 1.6], [-0.27, 1.35]]) {
+      const x0 = pad.x + sg * 0.88;
+      const y0 = pad.y + 0.05 + a * 0.5;
+      whiskers.push([x0, y0, x0 + sg * len * Math.cos(a), y0 + len * Math.sin(a)]);
+    }
+  }
   const spots = SPOTS.map(([x, y, r], k) => [fx + (f.look === "evil" ? -x : x) + (hash(k, fx) - 0.5) * 0.4, y + (hash(fx, k) - 0.5) * 0.3, r]);
-  return { f, fx, pads, mouth, spots };
+  // the evil pup's angry brows: raised ridges slanting down to the snout
+  const brows = f.look === "evil" ? [-1, 1].map((sg) => [fx + sg * 0.75, EYE.y + 0.78, fx + sg * 2.35, EYE.y + 1.3]) : [];
+  return { f, fx, pads, mouth, whiskers, brows, spots };
 });
 
 // The pup's raised form (head, body, pads) at (x, y), before any chiselling.
@@ -175,8 +238,8 @@ function pupForm(p, x, y) {
   return z;
 }
 
-// What the chisel took out at (x, y): eye sockets, the smile, whisker dots,
-// spots. Returns [depth, spot weight].
+// What the chisel took out at (x, y): eye sockets, the smile, spots.
+// Returns [depth, spot weight].
 function chisel(p, x, y) {
   let depth = 0;
   let spot = 0;
@@ -187,11 +250,18 @@ function chisel(p, x, y) {
   if (p.mouth) {
     let d = Infinity;
     for (let i = 1; i < p.mouth.length; i++) d = Math.min(d, segDist(x, y, ...p.mouth[i - 1], ...p.mouth[i]));
-    depth += 0.24 * s01(0, 1, 1 - (d / 0.2) ** 2);
+    depth += 0.42 * s01(0, 1, 1 - (d / 0.22) ** 2);
   } else {
     // the patrol pup's open grin: a D under the pads
-    const r2 = ((x - p.fx) / 0.62) ** 2 + (Math.max(0, y - 1.95) / 0.3) ** 2 + (Math.min(0, y - 1.95) / 0.42) ** 2;
+    const my = 1.95 + LIFT;
+    const r2 = ((x - p.fx) / 0.62) ** 2 + (Math.max(0, y - my) / 0.3) ** 2 + (Math.min(0, y - my) / 0.42) ** 2;
     if (r2 < 1) depth += 0.42 * s01(0, 0.35, 1 - r2);
+  }
+  for (const b of p.brows) depth -= 0.34 * s01(0.3, 0.06, segDist(x, y, ...b));
+  if (Math.abs(y - PAD.y) < 1.4) {
+    let d = Infinity;
+    for (const w of p.whiskers) d = Math.min(d, segDist(x, y, ...w));
+    depth += 0.17 * s01(0.17, 0.05, d);
   }
   for (const [sx, sy, r] of p.spots) {
     const r2 = ((x - sx) ** 2 + (y - sy) ** 2) / (r * r);
@@ -204,36 +274,119 @@ function chisel(p, x, y) {
   return [depth, spot];
 }
 
-// The engraved number's field: the chest chiselled flat enough that the
-// number lies flush along its whole length (no band, no plaque: the rock
-// is only dressed where the letters go).
-const numField = PUPS.map((p) => {
-  const at = (y) => pupForm(p, p.fx, y);
-  const z0 = at(NUM_Y);
-  const slope = (at(NUM_Y + 0.2) - at(NUM_Y - 0.2)) / 0.4;
-  return { z0: z0 - 0.03, slope };
+// ---- the talus ------------------------------------------------------------------
+
+// Where two pups' bodies meet at the foot, and outside the end ones.
+const GAPS = [-51.9, -40.5, -29.5, -18.9];
+// A fan of blasted rubble heaped against the foot in each gap: a cone of
+// scree at its angle of repose, apex FAN_TOP m up the rock.
+const FAN_TOP = 3.4;
+const FAN_SLOPE = 1.35; // m out per m down
+const fanApex = (gx) => zFront(gx) + 0.6;
+function fanZ(x, y) {
+  let z = -Infinity;
+  for (const gx of GAPS) {
+    const r = (FAN_TOP - y) * FAN_SLOPE;
+    const dx = x - gx;
+    if (r > Math.abs(dx)) z = Math.max(z, fanApex(gx) + Math.sqrt(r * r - dx * dx) + 0.3 * rock(x, y, 0.8, 0.5));
+  }
+  return z;
+}
+
+// ---- the numbers ----------------------------------------------------------------
+
+// Stroke digits in a box one unit high, grooves NUM_W m either side of the
+// strokes, NUM_DEPTH m deep with a flat glowing bottom.
+const NUM_H = 0.95;
+const NUM_W = 0.1;
+const NUM_DEPTH = 0.1;
+const arc = (cx, cy, rx, ry, a0, a1, n = 14) =>
+  Array.from({ length: n + 1 }, (_, k) => {
+    const a = ((a0 + ((a1 - a0) * k) / n) * Math.PI) / 180;
+    return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)];
+  });
+const SIX = [arc(0.31, 0.28, 0.26, 0.26, 0, 360, 22), [[0.05, 0.28], ...arc(0.31, 0.5, 0.26, 0.46, 180, 55, 12)]];
+const GLYPHS = {
+  "#": { w: 0.74, strokes: [[[0.2, 0.02], [0.32, 0.98]], [[0.44, 0.02], [0.56, 0.98]], [[0.04, 0.34], [0.7, 0.34]], [[0.08, 0.66], [0.74, 0.66]]] },
+  0: { w: 0.62, strokes: [arc(0.31, 0.5, 0.27, 0.47, 0, 360, 30)] },
+  1: { w: 0.42, strokes: [[[0.04, 0.74], [0.3, 0.98], [0.3, 0.02]]] },
+  3: { w: 0.6, strokes: [arc(0.3, 0.74, 0.25, 0.23, 155, -90), arc(0.3, 0.27, 0.28, 0.26, 90, -155)] },
+  4: { w: 0.66, strokes: [[[0.48, 0.02], [0.48, 0.98], [0.02, 0.3], [0.66, 0.3]]] },
+  5: { w: 0.6, strokes: [[[0.56, 0.98], [0.12, 0.98], [0.08, 0.58]], arc(0.3, 0.31, 0.28, 0.28, 128, -150)] },
+  6: { w: 0.62, strokes: SIX },
+  9: { w: 0.62, strokes: SIX.map((line) => line.map(([x, y]) => [0.62 - x, 1 - y])) },
+};
+const GAP = 0.2;
+// Each number's grooves as world segments [ax, ay, bx, by] and its box.
+const NUMBERS = PUPS.map((p) => {
+  const chars = [...p.f.number];
+  const width = chars.reduce((s, ch) => s + GLYPHS[ch].w, 0) + GAP * (chars.length - 1);
+  let u = -width / 2;
+  const segs = [];
+  for (const ch of chars) {
+    for (const line of GLYPHS[ch].strokes) {
+      for (let i = 1; i < line.length; i++) {
+        const [ax, ay] = line[i - 1];
+        const [bx, by] = line[i];
+        segs.push([p.fx + (u + ax) * NUM_H, NUM_Y + (ay - 0.5) * NUM_H, p.fx + (u + bx) * NUM_H, NUM_Y + (by - 0.5) * NUM_H]);
+      }
+    }
+    u += GLYPHS[ch].w + GAP;
+  }
+  return { segs, x0: p.fx - (width / 2) * NUM_H, x1: p.fx + (width / 2) * NUM_H, y0: NUM_Y - NUM_H / 2, y1: NUM_Y + NUM_H / 2 };
 });
+// How far outside a number's box (x, y) is (0 inside).
+const boxOut = (n, x, y) => Math.hypot(Math.max(0, n.x0 - x, x - n.x1), Math.max(0, n.y0 - y, y - n.y1));
+function strokeDist(n, x, y) {
+  let d = Infinity;
+  for (const [ax, ay, bx, by] of n.segs) d = Math.min(d, segDist(x, y, ax, ay, bx, by));
+  return d;
+}
+// The sheet steps back out of the way under each number's fine patch (see
+// buildNumbers), which lies over it and carries the grooves.
+const POCKET = [0.06, 0.2]; // m outside the box: full depth, none
+const PATCH = 0.45; // m outside the box the patch reaches
+
+// ---- the carved surface ---------------------------------------------------------
 
 // The carved surface at (x, y) in front of the cliff base zb, and how much
 // of it is pup (0..1) and spot (0..1), for colour.
-const out = { z: 0, pup: 0, spot: 0 };
-function carve(x, y, zb) {
-  let z = smax(zb, blockZ(x, y), 0.8);
+const out = { z: 0, pup: 0, spot: 0, tone: 0 };
+function carve(x, y, zb, pocket = true) {
+  let z = bandZ(x, y, zb);
+  out.tone = rockTone;
   out.pup = 0;
   out.spot = 0;
   for (let i = 0; i < PUPS.length; i++) {
     const p = PUPS[i];
-    if (Math.abs(x - p.fx) > 6.3) continue;
-    const form = pupForm(p, x, y);
+    if (Math.abs(x - p.fx) > 6.4) continue;
+    // The dressed stone: the head and the throat that carries the number,
+    // smooth and never snowed on or weathered. The rest of the body is left
+    // rough-hewn, as Rushmore's busts are, rising out of the rock.
+    const X = x - p.fx;
+    const inHead = Math.hypot(X / HEAD.a, (y - HEAD.y) / (HEAD.b + 0.4));
+    const inThroat = Math.hypot(X / 3.4, (y - 1.35) / 1.9);
+    const dressed = s01(1.28, 1.0, Math.min(inHead, inThroat));
+    out.pup = Math.max(out.pup, dressed);
+    let form = pupForm(p, x, y);
     if (form === -Infinity) continue;
-    out.pup = Math.max(out.pup, s01(-0.3, 0.4, form - z));
-    z = smax(z, form, 1.1);
+    if (dressed < 1) {
+      form += 0.55 * rock(x, y, 1.5, 1.2) * (1 - dressed);
+      out.tone = rockTone;
+    }
+    z = smax(z, form, 1.7);
     const [depth, spot] = chisel(p, x, y);
     z -= depth;
     out.spot = Math.max(out.spot, spot);
-    const n = numField[i];
-    const w = (1 - s01(1.6, 2.4, Math.abs(x - p.fx))) * (1 - s01(0.42, 0.78, Math.abs(y - NUM_Y)));
-    if (w > 0) z += w * (n.z0 + n.slope * (y - NUM_Y) - z);
+    if (pocket) z -= 0.3 * s01(POCKET[1], POCKET[0], boxOut(NUMBERS[i], x, y));
+  }
+  const fan = fanZ(x, y);
+  if (fan > z - 1) {
+    const w = s01(-0.25, 0.25, fan - z);
+    z = smax(z, fan, 0.5);
+    if (w > 0.5) out.tone = rockTone;
+    out.pup *= 1 - w;
+    out.spot *= 1 - w;
   }
   out.z = z;
   return out;
@@ -242,60 +395,112 @@ function carve(x, y, zb) {
 // The sheet at column x, d m back from the foot: its height and its z.
 export function sheetAt(x, d) {
   const t = taper(x);
-  let y = smin(SHEER * (d + 0.3), dome(x, zFront(x) - d), 4.5);
+  let y = smin(rise(d), dome(x, zFront(x) - d), 4.5);
   if (d >= D[D.length - 1]) y -= 9; // the back edge tucks under the rock
   y = y * t - (1 - t) * 1.2;
   const zb = zFront(x) - d;
-  if (d > 0.62) return { y, z: zb, pup: 0, spot: 0 };
+  if (d > D_TOP + 0.02) {
+    // above: the same jointed rock in bigger blocks, fading out over the dome
+    const z = zb + 1.6 * rock(x, y, 3.6, 3.1) * (1 - s01(22, 28, y));
+    return { y, z: zb + (z - zb) * t, pup: 0, spot: 0, tone: rockTone };
+  }
   const c = carve(x, y, zb);
-  return { y, z: zb + (c.z - zb) * t, pup: c.pup * t, spot: c.spot * t };
+  return { y, z: zb + (c.z - zb) * t, pup: c.pup * t, spot: c.spot * t, tone: c.tone };
 }
 
 // The surface point of the carved face at (x, y), for placing things on it.
 export function faceZ(x, y) {
-  return carve(x, y, zFront(x) - (y / SHEER - 0.3)).z;
+  return carve(x, y, zFront(x) - (y / SHEER - 0.3), false).z;
 }
 
-// ---- colour -------------------------------------------------------------------
+// ---- colour ---------------------------------------------------------------------
 
-const GRANITE_LOW = new Color("#8b849b"); // at the foot, in the talus's shade
-const GRANITE = new Color("#b3acc3"); // grey-lavender granite, cliff and faces alike
-const DEEP = new Color("#5d5672"); // what a chiselled hollow darkens toward
+const GRANITE = new Color("#b9aea8"); // lib/world/terrain.js's granite (and its dark): one massif
+const GRANITE_DARK = new Color("#978a84");
+const CARVED = new Color("#9e928d"); // the same granite, dressed (it faces the sun square on, so a shade darker)
+const DEEP = new Color("#5e5568"); // what a chiselled hollow darkens toward
 const SNOW = new Color("#faf6f0");
 const tmp = new Color();
-function stone(c, x, y, ny, cav, spot, pup, snowFrom) {
-  const streak = 1 - (1 - pup) * 0.06 * (1 + Math.sin(x * 0.83 + 1.6 * Math.sin(y * 0.31 + x * 0.17)));
-  c.copy(GRANITE_LOW).lerp(GRANITE, s01(-0.5, 3.5, y)).multiplyScalar(streak);
-  c.lerp(DEEP, Math.min(0.85, cav + spot * 0.28));
-  c.lerp(SNOW, s01(snowFrom, snowFrom + 0.22, ny) * s01(4.8, 7, y) * (1 - cav));
+// cav: 0..1 how sunk the point is; spot: a seal spot; pup: 0 rough rock ..
+// 1 carved seal (weathering streaks and snow only on the rough rock).
+function stone(c, x, y, ny, cav, spot, pup, tone = 0.5) {
+  // the rough rock: each block its own shade, like the terrain's facets,
+  // and weathering streaks down the face; the carved pups the dressed mean
+  const streak = s01(0.5, 1, Math.sin(x * 1.9 + 2.2 * Math.sin(x * 0.41)) * 0.5 + 0.5) * s01(-1, 3, y);
+  c.copy(GRANITE).lerp(GRANITE_DARK, 0.6 * tone + 0.3 * streak);
+  c.lerp(CARVED, pup);
+  c.lerp(GRANITE_DARK, 0.4 * s01(2.2, -0.5, y));
+  c.lerp(DEEP, Math.min(0.85, cav + spot * 0.3));
+  c.lerp(SNOW, (1 - pup) * s01(0.7, 0.8, ny) * s01(2, 3.5, y) * (1 - Math.min(1, cav * 2)));
   return c;
 }
 
-// ---- the stone ----------------------------------------------------------------
+function setColors(g, colorOf) {
+  const p = g.attributes.position;
+  const n = g.attributes.normal;
+  const c = new Float32Array(p.count * 3);
+  for (let k = 0; k < p.count; k++) {
+    colorOf(tmp, p.getX(k), p.getY(k), p.getZ(k), n.getY(k), k);
+    c[k * 3] = tmp.r;
+    c[k * 3 + 1] = tmp.g;
+    c[k * 3 + 2] = tmp.b;
+  }
+  g.setAttribute("color", new Float32BufferAttribute(c, 3));
+}
+
+// A grid geometry (nx columns by ny rows, column-major) from a position
+// array, indexed, with smooth normals (taken from normalPos if given). Each
+// quad is split along its shorter diagonal, so steep stretches of the
+// heightfield shade smoothly instead of in sawtooth streaks.
+const d2 = (pos, a, b) => (pos[a * 3] - pos[b * 3]) ** 2 + (pos[a * 3 + 1] - pos[b * 3 + 1]) ** 2 + (pos[a * 3 + 2] - pos[b * 3 + 2]) ** 2;
+function grid(pos, nx, ny, keep = null, normalPos = null) {
+  const index = [];
+  for (let i = 0; i < nx - 1; i++) {
+    for (let j = 0; j < ny - 1; j++) {
+      const a = i * ny + j;
+      const b = a + ny;
+      const tris = d2(pos, a, b + 1) < d2(pos, b, a + 1) ? [[a, b, b + 1], [a, b + 1, a + 1]] : [[a, b, a + 1], [b, b + 1, a + 1]];
+      for (const tri of tris) if (!keep || keep(tri)) index.push(...tri);
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute("position", new Float32BufferAttribute(normalPos ?? pos, 3));
+  g.setIndex(index);
+  g.computeVertexNormals();
+  if (normalPos) g.setAttribute("position", new Float32BufferAttribute(pos, 3));
+  return g;
+}
+
+// Concavity of each grid point: how far its neighbours' mean (near, then
+// wide) sits in front of it along its normal. Hollows hold shadow.
+function cavity(pos, nrm, nx, ny, i, j, near, wide) {
+  let cav = 0;
+  for (const [r, k] of [[near, 2.4], [wide, 0.5]]) {
+    let s = 0;
+    for (const [di, dj] of [[-r, 0], [r, 0], [0, -r], [0, r]]) {
+      const q = (Math.min(nx - 1, Math.max(0, i + di)) * ny + Math.min(ny - 1, Math.max(0, j + dj))) * 3;
+      const p = (i * ny + j) * 3;
+      s += (pos[q] - pos[p]) * nrm.getX(i * ny + j) + (pos[q + 1] - pos[p + 1]) * nrm.getY(i * ny + j) + (pos[q + 2] - pos[p + 2]) * nrm.getZ(i * ny + j);
+    }
+    cav += (s / 4) * k;
+  }
+  return Math.min(0.8, Math.max(0, cav));
+}
+
+// ---- the stone ------------------------------------------------------------------
 
 const m4 = new Matrix4();
 const q = new Quaternion();
 const eul = new Euler();
 const v = new Vector3();
 const sc = new Vector3();
-const UP = new Vector3(0, 1, 0);
-function place(list, geo, x, y, z, sx, sy = sx, sz = sx, rx = 0, ry = 0, rz = 0, pre = null) {
+function place(list, geo, x, y, z, sx, sy = sx, sz = sx, rx = 0, ry = 0, rz = 0) {
   const g = geo.clone();
-  if (pre) g.applyMatrix4(pre);
   eul.set(rx, ry, rz);
   q.setFromEuler(eul);
   g.applyMatrix4(m4.compose(v.set(x, y, z), q, sc.set(sx, sy, sz)));
   list.push(g);
   return g;
-}
-// A rod of stone from a to b (brows, whiskers), radius r.
-function rod(list, a, b, r) {
-  const d = new Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-  const len = d.length();
-  q.setFromUnitVectors(UP, d.normalize());
-  const g = new CapsuleGeometry(r, len, 3, 10);
-  g.applyMatrix4(m4.compose(v.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), q, sc.set(1, 1, 1)));
-  list.push(g);
 }
 // The head's own frame: local (x, up its axis, forward) to world.
 const headFrame = (fx, extra = null) => {
@@ -310,11 +515,29 @@ function inFrame(list, geo, frame, x, y, z, sx, sy = sx, sz = sx, rx = 0, ry = 0
   g.applyMatrix4(frame);
   list.push(g);
 }
-const bare = (g) => g.deleteAttribute("uv");
+// mergeGeometries needs one attribute set: position, normal (and colour).
+const bare = (g) => {
+  g.deleteAttribute("uv");
+  return g;
+};
 
-// Eyes: dark polished-stone inlays set in their sockets, one catchlight each
-// (the evil pup's glow radiation-magenta instead). Instanced in
-// MujoRush.jsx, so they blink and follow the seal.
+// A little devil horn: a cone bent outward along its length, base at the
+// origin, tip at +y.
+function horn(sg) {
+  const g = new ConeGeometry(1, 1, 10, 6);
+  g.translate(0, 0.5, 0);
+  const p = g.attributes.position;
+  for (let k = 0; k < p.count; k++) {
+    const t = p.getY(k);
+    p.setX(k, p.getX(k) + sg * 0.55 * t * t);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+// Eyes: dark polished-stone inlays set in their sockets, one carved
+// catchlight each (the evil pup's pupils radiation-magenta instead).
+// Instanced in MujoRush.jsx, so they blink and follow the seal.
 export const EYES = []; // { face, x, y, z, sx, sy, sz, rx }
 export const SPARKS = []; // { dx, dy, dz, r, evil } relative to its eye
 PUPS.forEach((p, fi) => {
@@ -326,9 +549,59 @@ PUPS.forEach((p, fi) => {
     EYES.push({ face: fi, x: ex, y: EYE.y, z: zs - EYE.c + 0.02, sx: EYE.a, sy: EYE.b, sz: EYE.c, rx });
     const evil = p.f.look === "evil";
     const [lx, ly, lz] = evil ? [0, -0.06, EYE.c * 0.96] : [-0.24, 0.3, EYE.c * 0.8];
-    SPARKS.push({ dx: lx, dy: ly * Math.cos(rx) - lz * Math.sin(rx), dz: ly * Math.sin(rx) + lz * Math.cos(rx), r: evil ? 0.25 : 0.19, evil });
+    SPARKS.push({ dx: lx, dy: ly * Math.cos(rx) - lz * Math.sin(rx), dz: ly * Math.sin(rx) + lz * Math.cos(rx), r: evil ? 0.25 : 0.17, evil });
   }
 });
+
+// The engraved numbers: per face a fine patch of the same carved surface
+// (3 cm grid) lying over the sheet's pocket, with the grooves cut in; the
+// grooves' flat bottoms are split off as that face's glow geometry.
+const FINE = 0.03;
+function buildNumbers() {
+  const stoneParts = [];
+  const glows = [];
+  NUMBERS.forEach((n) => {
+    const xs = n.x0 - PATCH;
+    const ys = n.y0 - PATCH;
+    const nx = Math.round((n.x1 - n.x0 + 2 * PATCH) / FINE) + 1;
+    const ny = Math.round((n.y1 - n.y0 + 2 * PATCH) / FINE) + 1;
+    const pos = new Float32Array(nx * ny * 3);
+    const flat = new Float32Array(nx * ny * 3); // the same, unlifted: its normals
+    const dist = new Float32Array(nx * ny);
+    for (let i = 0; i < nx; i++) {
+      const x = xs + i * FINE;
+      for (let j = 0; j < ny; j++) {
+        const y = ys + j * FINE;
+        const k = i * ny + j;
+        const d = boxOut(n, x, y) < 0.2 ? strokeDist(n, x, y) : Infinity;
+        dist[k] = d;
+        // in front of the sheet over the pocket, tucked just under it at the
+        // patch's own edge so no seam shows
+        const lift = 0.015 - 0.025 * s01(PATCH - 0.12, PATCH, boxOut(n, x, y));
+        const z = faceZ(x, y) - NUM_DEPTH * s01(NUM_W, NUM_W * 0.5, d);
+        flat[k * 3] = pos[k * 3] = x;
+        flat[k * 3 + 1] = pos[k * 3 + 1] = y;
+        flat[k * 3 + 2] = z;
+        pos[k * 3 + 2] = z + lift;
+      }
+    }
+    const glowAt = (k) => dist[k] < NUM_W * 0.56;
+    const isGlow = (tri) => tri.every(glowAt);
+    const cut = grid(pos, nx, ny, (tri) => !isGlow(tri), flat);
+    const nrm = cut.attributes.normal;
+    setColors(cut, (c, x, y, z, nY, k) => {
+      const i = Math.floor(k / ny);
+      const j = k % ny;
+      const wall = s01(NUM_W * 1.05, NUM_W * 0.5, dist[k]);
+      stone(c, x, y, nY, Math.min(0.8, cavity(flat, nrm, nx, ny, i, j, 11, 32) + wall * 0.35), 0, 1);
+      c.lerp(RAD, wall * 0.3);
+    });
+    stoneParts.push(cut);
+    const glow = grid(pos, nx, ny, isGlow);
+    glows.push(glow);
+  });
+  return { stoneParts, glows };
+}
 
 export function buildStone() {
   // the sheet
@@ -337,6 +610,7 @@ export function buildStone() {
   const pos = new Float32Array(NX * rows * 3);
   const pup = new Float32Array(NX * rows);
   const spot = new Float32Array(NX * rows);
+  const tone = new Float32Array(NX * rows);
   for (let i = 0; i < NX; i++) {
     const x = CLIFF_X[0] + ((CLIFF_X[1] - CLIFF_X[0]) * i) / (NX - 1);
     for (let j = 0; j < rows; j++) {
@@ -347,44 +621,16 @@ export function buildStone() {
       pos[k * 3 + 2] = s.z;
       pup[k] = s.pup;
       spot[k] = s.spot;
+      tone[k] = s.tone;
     }
   }
-  const index = [];
-  for (let i = 0; i < NX - 1; i++) {
-    for (let j = 0; j < rows - 1; j++) {
-      const a = i * rows + j;
-      const b = a + rows;
-      index.push(a, b, a + 1, b, b + 1, a + 1);
-    }
-  }
-  const sheet = new BufferGeometry();
-  sheet.setAttribute("position", new Float32BufferAttribute(pos, 3));
-  sheet.setIndex(index);
-  sheet.computeVertexNormals();
-
-  // Cavity: how far each point of the carved band sits below its
-  // neighbours, near (a socket, a groove) and wide (where a head meets the
-  // rock). Hollows hold shadow; the sun never reaches into them.
+  const sheet = grid(pos, NX, rows);
   const nrm = sheet.attributes.normal;
-  const col = new Float32Array(pos.length);
-  const zAt = (i, j) => pos[(i * rows + j) * 3 + 2];
-  for (let i = 0; i < NX; i++) {
-    for (let j = 0; j < rows; j++) {
-      const k = i * rows + j;
-      let cav = 0;
-      if (i >= 6 && i < NX - 6 && j >= 6 && j < DENSE - 6) {
-        const z = zAt(i, j);
-        const near = (zAt(i - 2, j) + zAt(i + 2, j) + zAt(i, j - 2) + zAt(i, j + 2)) / 4 - z;
-        const wide = (zAt(i - 6, j) + zAt(i + 6, j) + zAt(i, j - 6) + zAt(i, j + 6)) / 4 - z;
-        cav = Math.min(0.8, Math.max(0, near * 2.6 + wide * 0.55));
-      }
-      stone(tmp, pos[k * 3], pos[k * 3 + 1], nrm.getY(k), cav, spot[k], pup[k], 0.6);
-      col[k * 3] = tmp.r;
-      col[k * 3 + 1] = tmp.g;
-      col[k * 3 + 2] = tmp.b;
-    }
-  }
-  sheet.setAttribute("color", new Float32BufferAttribute(col, 3));
+  setColors(sheet, (c, x, y, z, ny, k) => {
+    const i = Math.floor(k / rows);
+    const j = k % rows;
+    stone(c, x, y, ny, cavity(pos, nrm, NX, rows, i, j, 2, 6), spot[k], pup[k], tone[k]);
+  });
 
   // the carved accessories and brows, same granite
   const BALL = new SphereGeometry(1, 16, 12);
@@ -400,7 +646,6 @@ export function buildStone() {
   for (const p of PUPS) {
     const { fx } = p;
     const look = p.f.look;
-    const onFace = (x, y, lift = 0) => [x, y, faceZ(x, y) + lift];
 
     // nose: a small dark polished inlay on top of the pads' join
     place(inlay, BALL, fx, NOSE.y, pupForm(p, fx, NOSE.y) - NOSE.c * 0.45, NOSE.a, NOSE.b, NOSE.c, -0.25);
@@ -412,119 +657,95 @@ export function buildStone() {
         const y = pad.y + dy;
         place(inlay, BALL, x, y, pupForm(p, x, y) - 0.04, 0.12, 0.12, 0.08);
       }
-      // whiskers: three raised stone rods fanning out over the cheek
-      for (const [a, len] of [[0.28, 1.45], [0.02, 1.6], [-0.26, 1.4]]) {
-        const x0 = pad.x + sg * 0.85;
-        const y0 = pad.y + 0.05 + a * 0.5;
-        const x1 = x0 + sg * len * Math.cos(a);
-        const y1 = y0 + len * Math.sin(a);
-        rod(carved, onFace(x0, y0, -0.02), onFace(x1, y1, -0.06), 0.075);
-      }
     }
 
     if (look === "royal") {
       // the crown: a band on the crown of the head, five points with balls,
-      // three jewels lit by the radiation
-      const tilt = new Matrix4().makeRotationZ(-0.1);
-      const fr = headFrame(fx, tilt);
-      inFrame(carved, BAND, fr, 0, 2.78, 0, 2.2, 0.82, 2.42);
+      // jewels lit by the radiation
+      const fr = headFrame(fx, new Matrix4().makeRotationZ(-0.1));
+      inFrame(carved, BAND, fr, 0, 2.78, 0, 2.2 * KA, 0.82, 2.42 * KC);
       for (let k = -2; k <= 2; k++) {
         const a = k * 0.62;
-        const px = 2.2 * Math.sin(a);
-        const pz = 2.42 * Math.cos(a);
+        const px = 2.2 * KA * Math.sin(a);
+        const pz = 2.42 * KC * Math.cos(a);
         const h = k === 0 ? 1.05 : Math.abs(k) === 1 ? 0.9 : 0.75;
         inFrame(carved, CONE, fr, px, 3.19 + h / 2, pz, 0.36, h, 0.36);
         inFrame(carved, BALL, fr, px, 3.19 + h + 0.1, pz, 0.2);
-        if (Math.abs(k) < 2) inFrame(gems, BALL, fr, 2.2 * Math.sin(a + 0.31), 2.78, 2.42 * Math.cos(a + 0.31), 0.17, 0.17, 0.1);
+        if (Math.abs(k) < 2) inFrame(gems, BALL, fr, 2.2 * KA * Math.sin(a + 0.31), 2.78, 2.42 * KC * Math.cos(a + 0.31), 0.17, 0.17, 0.1);
       }
-      inFrame(gems, BALL, fr, 0, 2.78, 2.46, 0.24, 0.24, 0.12);
+      inFrame(gems, BALL, fr, 0, 2.78, 2.42 * KC + 0.04, 0.24, 0.24, 0.12);
     }
 
     if (look === "evil") {
-      // little horns, leaning out, and angry brows slanting down to the snout
+      // little devil horns curling up out of the crown of the head (its
+      // angry brows are carved into the sheet, see chisel)
       const fr = headFrame(fx);
-      for (const sg of [-1, 1]) {
-        inFrame(carved, CONE, fr, sg * 1.62, 3.22, 1.2, 0.5, 1.35, 0.5, 0.35, 0, -sg * 0.42);
-        const inner = [fx + sg * 0.72, EYE.y + 0.98];
-        const outer = [fx + sg * 2.45, EYE.y + 1.42];
-        rod(carved, onFace(...inner, -0.06), onFace(...outer, -0.08), 0.2);
-      }
+      for (const sg of [-1, 1]) inFrame(carved, horn(sg), fr, sg * 1.55, 2.45, 1.05, 0.52, 1.75, 0.52, 0.3, 0, -sg * 0.28);
     }
 
     if (look === "patrol") {
       // a patrol cap, a touch jaunty: dome, bill, button, and a badge lit by
       // the radiation
       const fr = headFrame(fx, new Matrix4().makeRotationZ(0.09));
-      inFrame(carved, DOME, fr, 0, 1.92, 0, 3.55, 1.75, 3.95);
-      inFrame(carved, BILL, fr, 0, 1.98, 3.0, 2.35, 0.2, 2.15, 0.14);
+      inFrame(carved, DOME, fr, 0, 1.92, 0, 3.55 * KA, 1.75, 3.95 * KC);
+      inFrame(carved, BILL, fr, 0, 1.98, 3.0 * KC, 2.35 * KA, 0.2, 2.15 * KC, 0.14);
       inFrame(carved, BALL, fr, 0, 3.62, 0, 0.34, 0.24, 0.34);
-      inFrame(gems, DISC, fr, 0, 2.55, 3.62, 0.36, 0.12, 0.36, Math.PI / 2 - 0.55);
+      inFrame(gems, DISC, fr, 0, 2.55, 3.62 * KC, 0.36, 0.12, 0.36, Math.PI / 2 - 0.55);
     }
   }
 
   // colour the carved pieces like the rock they are cut from
-  for (const g of carved) {
-    bare(g);
-    const p = g.attributes.position;
-    const n = g.attributes.normal;
-    const c = new Float32Array(p.count * 3);
-    for (let k = 0; k < p.count; k++) {
-      stone(tmp, p.getX(k), p.getY(k), n.getY(k), 0, 0, 1, 0.82);
-      c[k * 3] = tmp.r;
-      c[k * 3 + 1] = tmp.g;
-      c[k * 3 + 2] = tmp.b;
-    }
-    g.setAttribute("color", new Float32BufferAttribute(c, 3));
-  }
+  for (const g of carved) setColors(bare(g), (c, x, y, z, ny) => stone(c, x, y, ny, 0, 0, 1));
   for (const g of [...inlay, ...gems]) bare(g);
 
+  const numbers = buildNumbers();
   return {
-    stone: mergeGeometries([sheet, ...carved], false),
+    stone: mergeGeometries([sheet, ...carved, ...numbers.stoneParts], false),
     inlay: mergeGeometries(inlay, false),
     gems: mergeGeometries(gems, false),
-    numbers: PUPS.map((p, i) => ({ x: p.fx, y: NUM_Y, z: numField[i].z0, rx: Math.atan(numField[i].slope) })),
+    glows: numbers.glows, // one per face, in FACES order
   };
 }
 
-// ---- the talus, the radioactive crystals, the floating boulders ---------------
+// ---- the talus blocks, the radioactive crystals, the floating boulders ----------
 
-// Where two pups' bodies meet at the foot, and outside the end ones.
-const GAPS = [-51.9, -40.5, -29.5, -18.9];
-
-// Talus: blasted granite at the cliff's foot, heaped in the valley between
-// each pair of pups and beside the end ones; a few blocks at each belly's
-// flanks. Nothing in front of a face.
+// Blocks of the blasted granite lying on each fan and at the foot of each
+// belly's flanks; nothing in front of a face.
 export const TALUS = [];
-// Crystals: chunky prisms of the district's radiation poking out of the talus.
+// Crystals: chunky prisms of the district's radiation poking out of the fans.
 export const CRYSTALS = [];
+// On a fan: dx across it, r m out from its apex, block size.
+const onFan = (gx, dx, r) => [gx + dx, Math.max(0, FAN_TOP - r / FAN_SLOPE), fanApex(gx) + Math.sqrt(Math.max(0, r * r - dx * dx))];
 GAPS.forEach((gx, gi) => {
-  const z0 = faceZ(gx, 0.4);
-  [[0, 0.7, 0.95], [-0.85, 1.5, 0.62], [0.9, 1.7, 0.58], [0.1, 2.5, 0.45], [-1.25, 2.6, 0.38], [1.4, 2.9, 0.34]].forEach(([dx, dz, r], k) => {
-    TALUS.push({ x: gx + dx, y: r * 0.3, z: z0 + dz, r, ry: hash(gi, k) * 6.3, rx: hash(k, gi) * 0.8 });
+  [[0.2, 1.6, 0.5], [-0.7, 2.6, 0.62], [0.9, 3.0, 0.55], [-0.1, 3.9, 0.7], [-1.9, 4.2, 0.45], [1.9, 4.3, 0.5], [-0.9, 4.6, 0.95], [1.0, 4.7, 0.8], [2.9, 4.4, 0.36], [-3.0, 4.5, 0.4]].forEach(([dx, r, size], k) => {
+    const [x, y, z] = onFan(gx, dx, r);
+    TALUS.push({ x, y: y + size * 0.2, z, r: size, ry: hash(gi, k) * 6.3, rx: hash(k, gi) * 0.8 });
   });
-  CRYSTALS.push({ x: gx + 0.75, y: -0.1, z: z0 + 1.0, h: 1.3, r: 0.38, tilt: 0.3, ry: 1.1 + gi });
-  CRYSTALS.push({ x: gx - 0.9, y: -0.1, z: z0 + 2.1, h: 0.85, r: 0.3, tilt: -0.35, ry: 2.3 + gi });
+  const [cx, cy, cz] = onFan(gx, 0.6, 2.2);
+  CRYSTALS.push({ x: cx, y: cy - 0.3, z: cz, h: 1.4, r: 0.36, tilt: 0.3, ry: 1.1 + gi });
+  const [dx2, dy2, dz2] = onFan(gx, -1.2, 3.6);
+  CRYSTALS.push({ x: dx2, y: dy2 - 0.2, z: dz2, h: 0.95, r: 0.3, tilt: -0.35, ry: 2.3 + gi });
 });
 FACES.forEach((f, fi) => {
   for (const sg of [-1, 1]) {
-    [[4.25, -51.1, 0.55], [3.7, -50.25, 0.36]].forEach(([dx, z, r], k) => {
+    [[4.4, -51.2, 0.5], [3.8, -50.4, 0.34]].forEach(([dx, z, r], k) => {
       TALUS.push({ x: f.x + sg * dx, y: r * 0.3, z, r, ry: hash(fi + sg, k) * 6.3, rx: hash(k, fi) * 0.8 });
     });
   }
 });
 
-// The anomaly: granite boulders that broke off the cliff and never came
-// down, hanging in the notches between the heads and bobbing on their own
-// slow beat, each speared by a glowing crystal.
+// The anomaly: granite blocks that broke off the cliff and never came down.
+// They hang off the ledges above the notches between the heads, bobbing on
+// their own slow beat, each speared by a glowing crystal.
 export const FLOATERS = [];
 GAPS.forEach((gx, gi) => {
-  [[3.3, 0.7], [6.3, 0.55]].forEach(([y0, r], k) => {
-    const x = gx + (hash(gi, k) - 0.5) * 0.6;
-    const y = y0 + (hash(k, gi) - 0.5) * 0.5;
+  [[4.6, 0.62], [8.2, 0.75], [12.4, 0.55]].forEach(([y0, r], k) => {
+    const x = gx + (hash(gi, k) - 0.5) * 1.2;
+    const y = y0 + (hash(k, gi) - 0.5) * 0.6;
     FLOATERS.push({
       x,
       y,
-      z: faceZ(x, y) + r + 0.7 + hash(gi + 5, k) * 0.4, // just off the rock it broke from
+      z: Math.max(faceZ(x, Math.min(y, CARVED_TOP)), zFront(x) - 0.3) + r + 0.9 + hash(gi + 5, k) * 0.5, // just off the rock it broke from
       r,
       phase: hash(gi * 3 + k, 9) * 6.28,
       speed: 0.55 + hash(k, gi + 7) * 0.35,

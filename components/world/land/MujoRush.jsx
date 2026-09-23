@@ -22,16 +22,14 @@
 // Nothing here explains anything (SHOW, NEVER TELL): the stories the old
 // drafts (monuments/Units, Funnel, Hull) told are not mounted.
 
-import { Center, Text3D } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { Suspense, useLayoutEffect, useMemo, useRef } from "react";
-import { Color, IcosahedronGeometry, MeshBasicMaterial, Object3D, OctahedronGeometry, SphereGeometry } from "three";
+import { useLayoutEffect, useMemo, useRef } from "react";
+import { Color, IcosahedronGeometry, Object3D, OctahedronGeometry, SphereGeometry } from "three";
 import { live, useUi } from "../../../lib/world/store";
 import { lamp, mat } from "../palette";
 import { buildStone, CRYSTALS, EYES, FACES, FLOATERS, SPARKS, TALUS } from "./parts/mujorush-build";
 
 const RAD = FACES[0].place.radiation;
-const FONT = "/fonts/helvetiker_bold.typeface.json";
 
 let built = null; // built once, shared by every mount
 const getStone = () => built ?? (built = buildStone());
@@ -39,12 +37,15 @@ const getStone = () => built ?? (built = buildStone());
 const ROCK_GEO = new IcosahedronGeometry(1, 0);
 const CRYSTAL_GEO = new OctahedronGeometry(1, 0);
 const EYE_GEO = new SphereGeometry(1, 20, 14);
-const SPARK_MAT = new MeshBasicMaterial({ color: "#ffffff" });
 const dummy = new Object3D();
 const tint = new Color();
-const GRANITE_C = new Color("#aaa3ba");
+const GRANITE_C = new Color("#b0a49d");
 const RAD_C = new Color(RAD);
-const WHITE = new Color("#ffffff");
+// Each eye's light: a carved catchlight (a lit bump of pale granite in the
+// polished inlay, never a glossy toy highlight), or on the evil pup a pupil
+// glowing in the radiation. SLOT: the eye's index in its own mesh.
+const SLOT = SPARKS.map((s, i) => SPARKS.slice(0, i).filter((o) => o.evil === s.evil).length);
+const N_EVIL = SPARKS.filter((s) => s.evil).length;
 
 // Instances placed once.
 function Placed({ geometry, material, items, set, castShadow = false }) {
@@ -77,23 +78,16 @@ export default function MujoRush() {
   const nearFace = FACES.findIndex((f) => f.id === near);
   const g = getStone();
 
-  const numberMats = useMemo(() => FACES.map(() => lamp(RAD, 0.9).clone()), []);
+  const numberMats = useMemo(() => FACES.map(() => lamp(RAD, 0.7).clone()), []);
   const floatMat = mat("#ffffff", { roughness: 0.75, emissive: RAD, emissiveIntensity: 0.1 });
 
   const eyes = useRef(null);
   const sparks = useRef(null);
+  const pupils = useRef(null);
   const floaters = useRef(null);
   const spears = useRef(null);
   const clock = useRef(0);
   const lift = useRef(1);
-
-  // catchlights white, the evil pup's pupils radiation-magenta
-  useLayoutEffect(() => {
-    const sm = sparks.current;
-    if (!sm) return;
-    SPARKS.forEach((s, i) => sm.setColorAt(i, s.evil ? RAD_C : WHITE));
-    if (sm.instanceColor) sm.instanceColor.needsUpdate = true;
-  }, []);
 
   useFrame((state, dt) => {
     const t = state.clock.elapsedTime;
@@ -102,20 +96,32 @@ export default function MujoRush() {
 
     // the number of the pup the seal stands under pulses
     for (let i = 0; i < numberMats.length; i++) {
-      const target = i === nearFace ? 1.5 + 0.5 * Math.sin(t * 5) : 0.9;
+      const target = i === nearFace ? 1.3 + 0.5 * Math.sin(t * 5) : 0.7;
       numberMats[i].emissiveIntensity += (target - numberMats[i].emissiveIntensity) * Math.min(1, step * 6);
     }
 
-    // eyes: follow the seal along the cliff, blink on staggered beats
+    // eyes: follow the seal along the cliff, blink on staggered beats, wink
     const em = eyes.current;
     const sm = sparks.current;
-    if (em && sm) {
+    const pm = pupils.current;
+    if (em && sm && pm) {
       for (let i = 0; i < EYES.length; i++) {
         const eye = EYES[i];
         const fx = FACES[eye.face].x;
         const look = Math.max(-1, Math.min(1, ((seal?.x ?? fx) - fx) / 14)) * 0.12;
-        const beat = (t + eye.face * 1.9) % (4.6 + eye.face * 0.8);
-        const shut = beat < 0.2 ? Math.sin((beat / 0.2) * Math.PI) : 0;
+        // A blink every 3.4-4.8 s per face (0.3 s, long enough to catch),
+        // every other one a double; the evil pup also winks its right eye,
+        // slow and held, every 7 s (the owner: "all eyes must blink, and
+        // the middle evil one can wink too").
+        const period = 3.4 + eye.face * 0.7;
+        const cycle = Math.floor((t + eye.face * 1.9) / period);
+        const beat = (t + eye.face * 1.9) % period;
+        const blink = (u) => (u >= 0 && u < 0.3 ? Math.sin((u / 0.3) * Math.PI) : 0);
+        let shut = Math.max(blink(beat), cycle % 2 ? blink(beat - 0.42) : 0);
+        if (SPARKS[i].evil && i % 2 === 1) {
+          const w = (t + 2.3) % 7;
+          if (w < 0.9) shut = Math.max(shut, Math.min(1, w / 0.15, (0.9 - w) / 0.2));
+        }
         const down = eye.face === nearFace ? -0.05 : 0;
         dummy.rotation.set(eye.rx, 0, 0);
         dummy.position.set(eye.x + look, eye.y + down, eye.z);
@@ -127,10 +133,11 @@ export default function MujoRush() {
         dummy.position.set(eye.x + look * 1.4 + sp.dx, eye.y + down + sp.dy * (1 - shut), eye.z + sp.dz);
         dummy.scale.setScalar(sp.r * (1 - shut));
         dummy.updateMatrix();
-        sm.setMatrixAt(i, dummy.matrix);
+        (sp.evil ? pm : sm).setMatrixAt(SLOT[i], dummy.matrix);
       }
       em.instanceMatrix.needsUpdate = true;
       sm.instanceMatrix.needsUpdate = true;
+      pm.instanceMatrix.needsUpdate = true;
     }
 
     // the floating boulders: livelier while the seal is on the mountain
@@ -164,25 +171,18 @@ export default function MujoRush() {
     <group>
       {/* drawn first: it hides the rough terrain cliff behind it, so early-z
           rejects those fragments instead of shading them twice */}
-      <mesh geometry={g.stone} material={mat("#ffffff", { flat: false, roughness: 0.82, vertexColors: true })} renderOrder={-1} castShadow receiveShadow />
+      <mesh geometry={g.stone} material={mat("#ffffff", { flat: false, roughness: 0.85, vertexColors: true })} renderOrder={-1} castShadow receiveShadow />
       <mesh geometry={g.inlay} material={mat("#1c1824", { flat: false, roughness: 0.28 })} />
       <mesh geometry={g.gems} material={lamp(RAD, 1.2)} />
-      <Suspense fallback={null}>
-        {g.numbers.map((n, i) => (
-          <group key={FACES[i].id} position={[n.x, n.y, n.z]} rotation-x={n.rx}>
-            <Center disableZ position-z={-0.24}>
-              <Text3D font={FONT} size={0.82} height={0.3} bevelEnabled bevelSize={0.02} bevelThickness={0.02} curveSegments={4} material={numberMats[i]}>
-                {FACES[i].number}
-              </Text3D>
-            </Center>
-          </group>
-        ))}
-      </Suspense>
+      {g.glows.map((geo, i) => (
+        <mesh key={FACES[i].id} geometry={geo} material={numberMats[i]} />
+      ))}
 
       <instancedMesh ref={eyes} args={[EYE_GEO, mat("#1c1824", { flat: false, roughness: 0.28 }), EYES.length]} frustumCulled={false} />
-      <instancedMesh ref={sparks} args={[EYE_GEO, SPARK_MAT, SPARKS.length]} frustumCulled={false} />
+      <instancedMesh ref={sparks} args={[EYE_GEO, mat("#ddd4cc", { flat: false, roughness: 0.9 }), SPARKS.length - N_EVIL]} frustumCulled={false} />
+      <instancedMesh ref={pupils} args={[EYE_GEO, lamp(RAD, 1.2), N_EVIL]} frustumCulled={false} />
 
-      <Placed geometry={ROCK_GEO} material={mat("#9d96ab", { roughness: 0.9 })} items={TALUS} set={setRock} castShadow />
+      <Placed geometry={ROCK_GEO} material={mat("#a89c96", { roughness: 0.9 })} items={TALUS} set={setRock} castShadow />
       <Placed geometry={CRYSTAL_GEO} material={lamp(RAD, 1.2)} items={CRYSTALS} set={setCrystal} />
       <instancedMesh ref={floaters} args={[ROCK_GEO, floatMat, FLOATERS.length]} castShadow frustumCulled={false} />
       <instancedMesh ref={spears} args={[CRYSTAL_GEO, lamp(RAD, 1.2), FLOATERS.length]} frustumCulled={false} />

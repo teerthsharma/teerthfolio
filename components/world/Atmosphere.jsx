@@ -22,7 +22,6 @@
 // but not imported here.
 // Mounted by Scene.jsx.
 
-import Clouds from "./sky/Clouds";
 import Gulls from "./sky/Gulls";
 import Snowfall from "./sky/Snowfall";
 import Upfall from "./sky/Upfall";
@@ -31,7 +30,6 @@ export default function Atmosphere() {
   return (
     <>
       <Snowfall />
-      <Clouds />
       <Gulls />
       <Upfall />
     </>

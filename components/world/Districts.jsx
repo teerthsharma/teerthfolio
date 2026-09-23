@@ -10,6 +10,7 @@ import IceDam from "./land/IceDam";
 import LabAnomalies from "./life/anomalies/LabAnomalies";
 import Moat from "./land/Moat";
 import MujoRush from "./land/MujoRush";
+import SealColony from "./life/SealColony";
 import Terrain from "./land/Terrain";
 import Triton from "./land/Triton";
 
@@ -25,6 +26,7 @@ export default function Districts() {
       <IceDam />
       <MujoRush />
       <LabAnomalies />
+      <SealColony />
     </>
   );
 }
