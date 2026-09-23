@@ -4,6 +4,7 @@
 import { LAND_COLLIDERS, PATHS, SIGNPOSTS } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
+import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, riverAt, waterGap } from "../lib/world/river.js";
@@ -546,4 +547,22 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   assert.equal(dryland.water, 0, "the seal is wet at spawn");
 }
 
-console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride`);
+// Mutation looks: every district without named gear has a look, and two
+// areas wearing the same look are at least 62 m apart.
+{
+  const GEAR = new Set(["home", "triton", "mujorush", "dam", "moat"]);
+  for (const d of DISTRICTS) if (!GEAR.has(d.id)) assert.ok(LOOK_BY_ID[d.id], `${d.id} has no mutation look`);
+  const ids = Object.keys(LOOK_BY_ID);
+  for (const a of ids) {
+    const da = DISTRICTS.find((d) => d.id === a);
+    assert.ok(da, `LOOK_BY_ID names ${a}, which is not a district`);
+    for (const b of ids) {
+      if (a >= b || LOOK_BY_ID[a] !== LOOK_BY_ID[b]) continue;
+      const db = DISTRICTS.find((d) => d.id === b);
+      const gap = Math.hypot(da.x - db.x, da.z - db.z);
+      assert.ok(gap >= 62, `${a} and ${b} both wear ${LOOK_BY_ID[a]} only ${gap.toFixed(1)} m apart`);
+    }
+  }
+}
+
+console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, mutation looks`);

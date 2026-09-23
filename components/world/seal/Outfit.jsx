@@ -9,69 +9,41 @@
 // life (A/B/C/D never unmount it), so a module-level cache is fine: each
 // area's look is built once and reused every time the seal returns.
 //
-// Two "friendlier" gear looks are named by the brief; three homage looks
-// (spikes+aura, ninja headband, twin buns) cycle by a stable hash across
-// every other radioactive area so neighbours rarely repeat. Every look is at
-// most 3 draw calls (main + optional gold + glow) — under the 8-mesh budget
-// with room to spare — and every one carries the shared glow shell, so
-// "a soft glow in the colour while mutated" is never a look's own job to add.
+// Five named places wear "friendlier gear"; the other fifteen areas share
+// five anime-homage looks by an explicit table (LOOK_BY_ID), so two areas
+// with the same look are always at least 62 m apart (lib/world/looks.js). Every
+// look keeps the pup's big eyes visible, and is at most 3 meshes plus the
+// shared aura, which also carries the burst on arriving and leaving.
 //
 // The head group's frame (unchanged): origin the skull centre, +z the nose,
-// +y up, +x the seal's own left, size ~HEAD_RADIUS metres.
+// +y up, +x the seal's own left, size ~HEAD_RADIUS metres. The eyes sit at
+// about (±0.24, -0.04, 0.39): nothing below y 0.12 may cross z 0.36 there.
 
 import { useFrame } from "@react-three/fiber";
 import { useRef, useState } from "react";
-import { ConeGeometry, CylinderGeometry, SphereGeometry, TorusGeometry } from "three";
+import { BackSide, BoxGeometry, ConeGeometry, CylinderGeometry, NormalBlending, SphereGeometry, TorusGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { districtAt } from "../../../lib/world/places";
+import { LOOK_BY_ID } from "../../../lib/world/looks";
 import { live } from "../../../lib/world/store";
-import { glow, mat } from "../palette";
+import { C, glow, lamp, mat } from "../palette";
 
 export const HEAD_RADIUS = 0.45;
 const R = HEAD_RADIUS;
 const GOLD = "#ffd23f";
+const STRAW = "#f2c94c";
+const FLAME = "#ff8a1a";
 
 // ---------------------------------------------------------- pieces (head-local, +z the nose)
 
-function spikes(n = 5, size = 1) {
-  const parts = [];
-  for (let i = 0; i < n; i++) {
-    const t = (i - (n - 1) / 2) / ((n - 1) / 2); // -1..1 across the fan
-    const g = new ConeGeometry(0.085 * size, 0.32 * size, 5);
-    g.translate(0, 0.16 * size, 0); // base at its own root, tip up
-    g.rotateZ(-t * 0.55);
-    g.rotateX(-0.15);
-    g.translate(t * 0.24, R * 0.6, -0.06);
-    parts.push(g);
-  }
-  return mergeGeometries(parts);
-}
-// A ring flattened round the Y axis: headband, brim, hard-hat rim, collar.
+// A ring flattened round the Y axis: headband, hard-hat rim, strap.
 function band(r, tube, y, z = 0, tilt = 0) {
   const g = new TorusGeometry(r, tube, 6, 28);
   g.rotateX(Math.PI / 2 + tilt);
   g.translate(0, y, z);
   return g;
 }
-function buns() {
-  return mergeGeometries([1, -1].map((s) => new SphereGeometry(0.14, 12, 8).translate(s * 0.3, 0.36, -0.08)));
-}
-function crownCone(h = 0.22, baseY = R * 0.72) {
-  const g = new ConeGeometry(0.24, h, 8);
-  g.translate(0, h / 2 + baseY, -0.05);
-  return g;
-}
-// A flat wide plate round the head (a torus, squashed AFTER it is laid flat
-// so the squash only shrinks its height, never its reach): a straw-hat brim.
-function brim(r = 0.5, spread = 0.17, y = 0.26) {
-  const g = new TorusGeometry(r, spread, 8, 28);
-  g.rotateX(Math.PI / 2);
-  g.scale(1, 0.26, 1);
-  g.translate(0, y, -0.02);
-  return g;
-}
-// A shell over the crown: hard-hat dome / beanie. Its own high point clears
-// the skull's pole (~0.47R) so it reads as worn ON the head, not sunk in it.
+// A shell over the crown: hard-hat dome / beanie / hat crown.
 function dome(r, flat, y) {
   const g = new SphereGeometry(r, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.56);
   g.scale(1, flat, 1);
@@ -79,92 +51,134 @@ function dome(r, flat, y) {
   return g;
 }
 function pom(y = R * 1.05) {
-  const g = new SphereGeometry(0.09, 10, 8);
-  g.translate(0, y, -0.05);
-  return g;
+  return new SphereGeometry(0.09, 10, 8).translate(0, y, -0.05);
 }
-// A solid lens over each eye plus a bridge across the nose, so the pair
-// reads as one "goggles" silhouette from any yaw, not two loose hoops. z
-// clears the snout's own surface (MOUTH sits at 0.485) so the rim reads
-// outside the coat instead of sinking into it.
-function lenses(r = 0.15, rim = 0.055, y = -0.03, z = 0.48) {
-  const eyes = [1, -1].map((s) => {
-    const g = new CylinderGeometry(r, r, rim, 14);
-    g.rotateX(Math.PI / 2); // the cylinder's axis becomes +z, facing forward
-    g.translate(s * 0.27, y, z);
-    return g;
-  });
-  const bridge = new CylinderGeometry(0.03, 0.03, 0.3, 6);
-  bridge.rotateZ(Math.PI / 2);
-  bridge.translate(0, y, z - 0.03);
-  return mergeGeometries([...eyes, bridge]);
+// Goggles pushed up on the brow, lenses tipped to the sky: the eyes stay
+// bare. Returns the frame (rims + strap) and the lenses as separate meshes.
+function goggles(rim = 0.12) {
+  const at = (g, s) => g.rotateX(-0.5).translate(s * 0.2, 0.24, 0.36);
+  const rims = [1, -1].map((s) => at(new TorusGeometry(rim, 0.05, 8, 16), s));
+  const glass = [1, -1].map((s) => at(new CylinderGeometry(rim - 0.02, rim - 0.02, 0.04, 14).rotateX(Math.PI / 2), s));
+  const bridge = new CylinderGeometry(0.05, 0.05, 0.16, 6).rotateZ(Math.PI / 2).rotateX(-0.5).translate(0, 0.24, 0.36);
+  return { rims: mergeGeometries([...rims, bridge]), glass: mergeGeometries(glass), strap: band(0.47, 0.06, 0.22, 0, -0.3) };
 }
-// One continuous band across both eyes (a torus stretched wide and flat):
-// the moat's visor, held proud of the face on the same z as the goggles.
-function visorShield(rx = 0.42, ry = 0.15, tube = 0.055, y = -0.02, z = 0.47) {
-  const g = new TorusGeometry(0.24, tube, 6, 20);
-  g.scale(rx / 0.24, ry / 0.24, 1);
-  g.translate(0, y, z);
-  return g;
-}
-function cheekMarks(r = 0.055) {
-  return mergeGeometries([1, -1].map((s) => new SphereGeometry(r, 8, 6).scale(1, 1, 0.35).translate(s * 0.35, -0.08, 0.35)));
-}
-function sparkle(r = 0.045) {
+// A lab coat's two white lapels under the jaw.
+function lapels() {
   return mergeGeometries(
-    [1, -1].map((s) => new ConeGeometry(r, r * 2.4, 4).rotateX(Math.PI / 2).translate(s * 0.33, 0.07, 0.45)),
+    [1, -1].map((s) => new ConeGeometry(0.12, 0.26, 3).scale(1, 1, 0.3).rotateZ(s * 0.5).translate(s * 0.16, -0.4, 0.3)),
   );
 }
-// The shared "soft glow" shell: every look wears it, a size bigger than the
-// skull, additive and mostly transparent.
-function auraShell() {
-  return new SphereGeometry(R * 1.32, 12, 8);
+// A sun visor: a dark band and a half-disc brim over the front only.
+function visor() {
+  const brimArc = new CylinderGeometry(0.34, 0.34, 0.05, 20, 1, false, -1.2, 2.4).scale(1, 1, 0.8).rotateX(-0.25).translate(0, 0.2, 0.28);
+  return { band: band(0.46, 0.06, 0.2), brim: brimArc };
+}
+function spikes() {
+  const parts = [];
+  for (let i = 0; i < 7; i++) {
+    const t = i / 3 - 1; // -1..1 across the fan
+    parts.push(new ConeGeometry(0.12, 0.5, 5).translate(0, 0.25, 0).rotateZ(-t * 0.7).rotateX(-0.6).translate(t * 0.22, 0.35, -0.05));
+  }
+  return mergeGeometries(parts);
+}
+// A headband across the forehead (front high, knot low at the back), a
+// plain metal plate on it and two tails hanging from the knot.
+function ninja() {
+  const lift = 0.43 * Math.sin(0.35);
+  const reach = 0.43 * Math.cos(0.35);
+  const tails = [1, -1].map((s) => new BoxGeometry(0.07, 0.3, 0.03).translate(0, -0.15, 0).rotateZ(s * 0.35).translate(s * 0.06, 0.12 - lift, -reach - 0.03));
+  return {
+    cloth: mergeGeometries([band(0.43, 0.065, 0.12, 0, -0.35), ...tails]),
+    plate: new BoxGeometry(0.26, 0.13, 0.05).rotateX(-0.35).translate(0, 0.12 + lift, reach + 0.03),
+  };
+}
+function buns() {
+  return {
+    buns: mergeGeometries([1, -1].map((s) => new SphereGeometry(0.12, 12, 8).translate(s * 0.24, 0.42, -0.02))),
+    ties: mergeGeometries([1, -1].map((s) => new TorusGeometry(0.1, 0.04, 6, 14).rotateX(Math.PI / 2).translate(s * 0.24, 0.33, -0.02))),
+  };
+}
+// A straw hat tipped back so the brim clears the eyes from the chase camera.
+function straw() {
+  const brimRing = new TorusGeometry(0.45, 0.17, 8, 28).rotateX(Math.PI / 2).scale(1, 0.26, 1).translate(0, 0.34, -0.02);
+  return {
+    hat: mergeGeometries([dome(0.3, 0.6, 0.3), brimRing]).rotateX(-0.3),
+    ribbon: band(0.3, 0.06, 0.36).rotateX(-0.3),
+  };
+}
+// A spirit flame for hair: a teardrop swept back off the crown, gold inside.
+function flame() {
+  const drop = (r, h) => mergeGeometries([new SphereGeometry(r, 8, 6), new ConeGeometry(r, h, 6).translate(0, h / 2, 0)]);
+  const at = (g) => g.rotateX(-0.4).translate(0, 0.5, -0.06);
+  return { outer: at(drop(0.12, 0.34)), core: at(drop(0.06, 0.2).translate(0, 0.02, 0.07)) };
+}
+function cheekMarks() {
+  const parts = [];
+  for (const s of [1, -1]) for (const k of [-1, 0, 1]) parts.push(new BoxGeometry(0.16, 0.035, 0.03).rotateY(s * 0.35).translate(s * 0.34, -0.06 + k * 0.06, 0.38));
+  return mergeGeometries(parts);
+}
+// Four-point stars at the eyes' upper outer corners: sparkly eyes.
+function sparkle() {
+  return mergeGeometries([1, -1].map((s) => new ConeGeometry(0.07, 0.17, 4).rotateX(Math.PI / 2).translate(s * 0.36, 0.13, 0.4)));
 }
 
 // ---------------------------------------------------------- looks
 
-// Explicit "friendlier gear" at five named places (the brief's own words).
+// Each look is a list of [geometry, material] meshes; `radiation` is the
+// area's colour, so gear reads dark or neutral with the colour as accent.
 const EXPLICIT = {
-  mujorush: { main: () => mergeGeometries([lenses(0.15), band(0.4, 0.05, -0.34)]) }, // goggles + a lab collar
-  moat: { main: () => visorShield() }, // a green visor
-  dam: { main: () => mergeGeometries([dome(0.54, 0.62, 0.16), band(0.5, 0.05, 0.2)]) }, // a hard hat
-  triton: { main: () => lenses(0.18, 0.06) }, // frost goggles
-  home: { main: () => mergeGeometries([dome(0.54, 0.7, 0.14), pom(0.6)]) }, // a knit beanie
+  // goggles on the brow and a lab coat's lapels: the physics lab
+  mujorush: (radiation) => {
+    const g = goggles(0.12);
+    return [[mergeGeometries([g.rims, g.strap]), mat(C.charcoal)], [g.glass, lamp(radiation, 0.8)], [lapels(), mat(C.snow)]];
+  },
+  // frost goggles, white strap
+  triton: (radiation) => {
+    const g = goggles(0.14);
+    return [[g.rims, mat(C.charcoal)], [g.glass, lamp(radiation, 0.8)], [g.strap, mat(C.snow)]];
+  },
+  moat: (radiation) => {
+    const v = visor();
+    return [[v.band, mat(C.charcoal)], [v.brim, mat(radiation, { emissive: radiation, emissiveIntensity: 0.4, roughness: 0.4 })]];
+  },
+  dam: (radiation) => [[mergeGeometries([dome(0.54, 0.62, 0.16), band(0.5, 0.06, 0.2)]), mat(radiation, { roughness: 0.4 })]], // a hard hat
+  home: (radiation) => [[mergeGeometries([dome(0.54, 0.7, 0.14), pom(0.6)]), mat(radiation, { roughness: 0.4 })]], // a knit beanie
 };
 
-// Anime-inspired homage pool for every other radioactive area, picked by a
-// stable hash of the district id so neighbours read differently.
-const POOL = [
-  { main: () => band(0.42, 0.045, 0.24), gold: () => spikes(5), extra: sparkle }, // golden spikes + a thin band to anchor them
-  { main: () => band(0.42, 0.055, 0.26), extra: cheekMarks }, // a ninja-style headband
-  { main: buns, gold: () => spikes(3, 0.7), extra: sparkle }, // twin buns
-  { main: () => mergeGeometries([brim(), crownCone()]) }, // a straw-hat-like brim
-  { main: () => mergeGeometries([band(0.4, 0.04, 0.24), buns()]), extra: cheekMarks }, // headband + buns together
-];
+const POOL = {
+  spikes: (radiation) => [[spikes(), lamp(GOLD, 0.6)], [sparkle(), lamp(radiation, 1)]],
+  ninja: (radiation) => {
+    const n = ninja();
+    return [[n.cloth, mat(radiation, { roughness: 0.5 })], [n.plate, mat("#c9ced6", { roughness: 0.3 })], [cheekMarks(), lamp(radiation, 1)]];
+  },
+  buns: (radiation) => {
+    const b = buns();
+    return [[b.buns, mat(radiation, { roughness: 0.4 })], [b.ties, mat(C.charcoal)], [sparkle(), lamp(radiation, 1)]];
+  },
+  straw: (radiation) => {
+    const s = straw();
+    return [[s.hat, mat(STRAW, { roughness: 0.6 })], [s.ribbon, mat(radiation, { roughness: 0.4 })]];
+  },
+  flame: () => {
+    const f = flame();
+    return [[f.outer, lamp(FLAME, 1.2)], [f.core, lamp(GOLD, 1.5)], [sparkle(), lamp(GOLD, 1)]];
+  },
+};
 
-// FNV-1a: a plain (h*31+c) hash clustered almost every district id onto 2
-// of the 5 pool looks; this one spreads them across all 5.
-function hashId(id) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
 
+const aura = new SphereGeometry(R * 1.32, 12, 8);
 const cache = new Map();
 function lookFor(district) {
   const cached = cache.get(district.id);
   if (cached) return cached;
   const color = district.radiation ?? district.color ?? GOLD;
-  const cfg = EXPLICIT[district.id] ?? POOL[hashId(district.id) % POOL.length];
-  const glowGeo = cfg.extra ? mergeGeometries([auraShell(), cfg.extra()]) : auraShell();
-  const built = {
-    main: { geometry: cfg.main(), material: mat(color, { roughness: 0.4 }) },
-    gold: cfg.gold ? { geometry: cfg.gold(), material: mat(GOLD, { roughness: 0.35 }) } : null,
-    glow: { geometry: glowGeo, material: glow(color, 0.15).clone() },
-  };
+  const make = EXPLICIT[district.id] ?? POOL[LOOK_BY_ID[district.id] ?? "spikes"];
+  // The aura: back faces only, so it rims the silhouette instead of veiling
+  // the face; normal blending, because additive vanishes on white snow.
+  const auraMat = glow(color, 0.15).clone();
+  auraMat.blending = NormalBlending;
+  auraMat.side = BackSide;
+  const built = { meshes: make(color), auraMat };
   cache.set(district.id, built);
   return built;
 }
@@ -173,7 +187,8 @@ function lookFor(district) {
 
 export default function Outfit() {
   const group = useRef(null);
-  const spring = useRef({ id: null, scale: 0, v: 0, target: 0, glowMat: null });
+  const auraRef = useRef(null);
+  const spring = useRef({ id: null, scale: 0, v: 0, target: 0, burst: 0, auraMat: null });
   const [look, setLook] = useState(null);
 
   useFrame((state, dt) => {
@@ -185,13 +200,15 @@ export default function Outfit() {
       if (id) {
         const next = lookFor(district);
         setLook(next);
-        sp.glowMat = next.glow.material;
+        sp.auraMat = next.auraMat;
         sp.scale = sp.id === null ? 0 : 0.55; // arriving fresh vs. swapping area to area
         sp.v = 0;
         sp.target = 1;
+        sp.burst = 1;
       } else {
         sp.v += 7; // the outward kick: a smaller burst on leaving
         sp.target = 0;
+        sp.burst = 0.6;
       }
       sp.id = id;
     }
@@ -203,7 +220,8 @@ export default function Outfit() {
       sp.v += ((sp.target - sp.scale) * 130 - sp.v * 11) * h;
       sp.scale = Math.max(0, sp.scale + sp.v * h);
     }
-    if (sp.target === 0 && sp.scale < 0.01 && Math.abs(sp.v) < 0.02) {
+    sp.burst = Math.max(0, sp.burst - Math.min(dt, 0.1) / 0.45);
+    if (sp.target === 0 && sp.scale < 0.01 && Math.abs(sp.v) < 0.02 && sp.burst === 0) {
       sp.scale = 0;
       if (look) setLook(null);
     }
@@ -211,15 +229,23 @@ export default function Outfit() {
       group.current.visible = sp.scale > 0.001;
       group.current.scale.setScalar(sp.scale);
     }
-    if (sp.glowMat) sp.glowMat.opacity = 0.1 + 0.09 * (0.6 + 0.4 * Math.sin(state.clock.elapsedTime * 2.2));
+    if (auraRef.current) {
+      const k = Math.max(sp.scale, sp.burst) * (1 + 1.5 * (1 - sp.burst) * (sp.burst > 0 ? 1 : 0));
+      auraRef.current.visible = k > 0.001;
+      auraRef.current.scale.setScalar(k);
+    }
+    if (sp.auraMat) sp.auraMat.opacity = sp.burst > 0 ? 0.1 + 0.6 * sp.burst : 0.1 + 0.09 * (0.6 + 0.4 * Math.sin(state.clock.elapsedTime * 2.2));
   });
 
   if (!look) return <group ref={group} visible={false} />;
   return (
-    <group ref={group}>
-      <mesh geometry={look.main.geometry} material={look.main.material} />
-      {look.gold && <mesh geometry={look.gold.geometry} material={look.gold.material} />}
-      <mesh geometry={look.glow.geometry} material={look.glow.material} />
-    </group>
+    <>
+      <group ref={group}>
+        {look.meshes.map(([geometry, material], i) => (
+          <mesh key={i} geometry={geometry} material={material} />
+        ))}
+      </group>
+      <mesh ref={auraRef} geometry={aura} material={look.auraMat} />
+    </>
   );
 }
