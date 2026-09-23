@@ -25,7 +25,7 @@ import Effects from "./Effects";
 import Harbour from "./Harbour";
 import Island from "./Island";
 import Look from "./Look";
-import Monument from "./monuments/Monument";
+import { SCULPTURES } from "./monuments";
 import Penguins from "./Penguins";
 import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
@@ -60,11 +60,14 @@ function goTo(place) {
 
 function Buildings() {
   return PLACES.map((place) => {
-    const Building = BUILDINGS[place.id] ?? Monument;
+    // Upstream contributions ARE the landscape (Districts.jsx draws them), so
+    // they get only their label and click target here; lab projects are the
+    // buildings Teerth builds, standing straight on the snow.
+    const Building = BUILDINGS[place.id] ?? (place.section === "lab" ? SCULPTURES[place.figure?.name] : null);
     return (
       <group key={place.id} position={[place.x, 0, place.z]} onClick={goTo(place)}>
         <Contain name={place.id}>
-          <Building place={place} />
+          {Building && <Building place={place} />}
         </Contain>
         <PlaceLabel place={place} />
       </group>

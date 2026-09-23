@@ -4,10 +4,11 @@
 
 import { useFrame } from "@react-three/fiber";
 import { stepSeal, nearestPlace } from "../../lib/world/motion";
+import { LAND_COLLIDERS } from "../../lib/world/land";
 import { ISLAND_RADIUS, PLACES } from "../../lib/world/places";
 import { getUi, live, setUi } from "../../lib/world/store";
 
-const COLLIDERS = PLACES.map(({ x, z, radius }) => ({ x, z, radius }));
+const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 // live.props is created once and never reassigned (store.js), so the world
 // object can be built once too instead of every frame.
 const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props };

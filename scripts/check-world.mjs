@@ -1,12 +1,13 @@
 // The rules the island has to keep, checked against the real motion code.
 // Run: npm run check
 
+import { LAND_COLLIDERS } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { ISLAND_RADIUS, PLACES, SPAWN, dockPoint } from "../lib/world/places.js";
 import { RIVER, riverAt } from "../lib/world/river.js";
 
-const colliders = PLACES.map(({ x, z, radius }) => ({ x, z, radius }));
+const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 const world = { colliders, radius: ISLAND_RADIUS, props: [] };
 const run = (seal, controls, seconds) => {
   for (let t = 0; t < seconds; t += 1 / 120) stepSeal(seal, controls, 1 / 120, world);
