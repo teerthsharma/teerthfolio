@@ -10,7 +10,7 @@ import { COLONY, JUMPERS, RING_CENTER, sealClear } from "./seals-seed.js";
 import { riverAt } from "../../../lib/world/river.js";
 import { PLACE_BY_ID, dockPoint } from "../../../lib/world/places.js";
 
-assert.equal(COLONY.length, 8, `expected 8 colony seals, got ${COLONY.length}`);
+assert.equal(COLONY.length, 18, `expected 18 colony seals, got ${COLONY.length}`);
 
 const place = PLACE_BY_ID["p-aether-lang"];
 const dock = dockPoint(place);
@@ -36,4 +36,4 @@ for (const j of JUMPERS) {
   }
 }
 
-console.log(`seals-seed: ok (${COLONY.length} colony seals in 2 piles, ${JUMPERS.length} moat jumpers)`);
+console.log(`seals-seed: ok (${COLONY.length} colony seals in 4 piles, ${JUMPERS.length} moat jumpers)`);

@@ -3,10 +3,11 @@
 // a Node-runnable check (seals-seed.check.mjs) and as the component's data
 // source, the same split penguins-seed.js uses for the flock.
 //
-// The colony is TWO cuddle piles, not a ring: each pile's members are
-// authored by hand as small (dx, dz) offsets from the pile's own centre, in
-// a fixed local frame (never rotated to face the building), because a huddle
-// of seals leaning on each other doesn't care which way the building sits.
+// The colony is FOUR cuddle piles (18 seals), not a ring: each pile's
+// members are authored by hand as small (dx, dz) offsets from the pile's own
+// centre, in a fixed local frame (never rotated to face the building),
+// because a huddle of seals leaning on each other doesn't care which way the
+// building sits.
 // placePile() only has to find a centre, walking outward along one compass
 // direction from the building until every member's absolute position clears
 // the building, its dock, every path, every landform and the water -- the
@@ -26,7 +27,7 @@ const DOCK = dockPoint(PLACE);
 // bows at most ~0.4 m off its waypoints, absorbed by the margin below),
 // every landform's bulk, the highway, the water, and on flat ground (the
 // same 0.3 m band terrain.js's own contract promises everywhere walkable).
-export function sealClear(x, z, margin = 0.3) {
+export function sealClear(x, z, margin = 0.45) {
   if (Math.hypot(x - PLACE.x, z - PLACE.z) < PLACE.radius + margin) return false;
   if (Math.hypot(x - DOCK.x, z - DOCK.z) < 1.4 + margin) return false;
   for (const wp of PATHS) {
@@ -49,38 +50,56 @@ export function sealClear(x, z, margin = 0.3) {
 }
 
 // Each pile's composition: hand-placed (dx, dz) from the pile's own centre,
-// a size (a colony seal's own "1.0" is a good deal shorter nose-to-tail
-// than the player pup -- see BODY_LENGTH in seals-geo -- so every one of
-// these reads smaller than or level with the player), a coat, and whether
-// it rests its head up on the seal it leans against (onBack: lifted and
-// pitched forward, roughly onto that neighbour's shoulder).
+// a size (the colony now shares the player pup's own geometry -- see
+// D-parts.js buildSealD() -- so scale is a fraction of the pup itself: 0.7
+// to 1.0, still reading smaller than or level with the player), a coat tint
+// (SealColony.jsx multiplies it over the pup's own baked coat, so "spotted"
+// just means a tint dark enough that the pup's existing freckles and shading
+// read as spots), and whether it rests its head up on the seal it leans
+// against (onBack: lifted and pitched forward, onto that neighbour's back).
 const PILE_A = [
-  { dx: 0.0, dz: 0.0, scale: 1.05, coat: "grey", tone: 0.0 }, // the anchor the rest lean on
-  { dx: -0.62, dz: 0.3, scale: 0.88, coat: "grey", tone: -0.15 },
-  { dx: 0.6, dz: 0.22, scale: 0.82, coat: "grey", tone: 0.12 },
-  { dx: 0.12, dz: -0.16, scale: 0.6, coat: "grey", tone: 0.2, onBack: 0 }, // onBack: index of the seal it rests on, set below
-  { dx: -0.15, dz: 0.62, scale: 0.76, coat: "cream", tone: 0.0 },
+  { dx: 0.0, dz: 0.0, scale: 1.0, coat: "grey", tone: 0.0 }, // the anchor the rest lean on
+  { dx: -0.8, dz: 0.38, scale: 0.88, coat: "grey", tone: -0.12 },
+  { dx: 0.78, dz: 0.3, scale: 0.82, coat: "cream", tone: 0.1 },
+  { dx: 0.15, dz: -0.22, scale: 0.72, coat: "white", tone: 0.15, onBack: 0 },
+  { dx: -0.2, dz: 0.82, scale: 0.78, coat: "spotted", tone: 0.0 },
 ];
 const PILE_B = [
   { dx: 0.0, dz: 0.0, scale: 0.95, coat: "cream", tone: 0.0 },
-  { dx: 0.55, dz: -0.2, scale: 0.7, coat: "grey", tone: -0.1 },
-  { dx: -0.42, dz: 0.28, scale: 0.58, coat: "grey", tone: 0.15 },
+  { dx: 0.72, dz: -0.28, scale: 0.76, coat: "grey", tone: -0.1 },
+  { dx: -0.62, dz: 0.36, scale: 0.7, coat: "white", tone: 0.12 },
+  { dx: -0.15, dz: -0.74, scale: 0.85, coat: "grey", tone: 0.05 },
+  { dx: 0.22, dz: 0.12, scale: 0.72, coat: "spotted", tone: 0.0, onBack: 0 },
+];
+const PILE_C = [
+  { dx: 0.0, dz: 0.0, scale: 0.92, coat: "grey", tone: 0.0 },
+  { dx: -0.7, dz: -0.26, scale: 0.78, coat: "white", tone: -0.08 },
+  { dx: 0.62, dz: 0.3, scale: 0.74, coat: "cream", tone: 0.12 },
+  { dx: 0.06, dz: -0.64, scale: 0.7, coat: "grey", tone: 0.18, onBack: 0 },
+];
+const PILE_D = [
+  { dx: 0.0, dz: 0.0, scale: 1.0, coat: "cream", tone: 0.0 },
+  { dx: 0.72, dz: 0.32, scale: 0.8, coat: "spotted", tone: 0.0 },
+  { dx: -0.64, dz: 0.28, scale: 0.76, coat: "white", tone: 0.1 },
+  { dx: -0.1, dz: 0.72, scale: 0.72, coat: "grey", tone: -0.1 },
 ];
 
 // Walk outward from the building along one compass direction until every
-// member of `offsets` clears sealClear() at its absolute position.
+// member of `offsets` clears sealClear() at its absolute position. The pup's
+// own body (D-parts.js) is bigger than the old placeholder lump, so the
+// search now ranges well past the old 9 m ceiling before giving up.
 function placePile(angleDeg, offsets) {
   const rad = (angleDeg * Math.PI) / 180;
   const dirX = Math.cos(rad);
   const dirZ = Math.sin(rad);
-  for (let r = 6.4; r <= 9; r += 0.1) {
+  for (let r = 6.4; r <= 20; r += 0.15) {
     const cx = PLACE.x + dirX * r;
     const cz = PLACE.z + dirZ * r;
     if (offsets.every((o) => sealClear(cx + o.dx, cz + o.dz))) return { x: cx, z: cz };
   }
   // Never hit in practice (Aether-Lang's own clearing is generous on every
   // side but the dock's); land far out rather than crash the build.
-  return { x: PLACE.x + dirX * 9, z: PLACE.z + dirZ * 9 };
+  return { x: PLACE.x + dirX * 20, z: PLACE.z + dirZ * 20 };
 }
 
 function buildPile(centerAngle, offsets, idStart) {
@@ -112,12 +131,19 @@ function buildPile(centerAngle, offsets, idStart) {
   });
 }
 
-// Two piles on opposite flanks of the building: 200 deg (west, past the
-// building) and 350 deg (east, short of the path in from the science
-// quarter) -- both outside the sector the dock and its approach path sit
-// in (roughly 25..110 deg), found the same way placePile() finds every
-// centre: by trying, not by asserting the angle is clear.
-export const COLONY = [...buildPile(200, PILE_A, 0), ...buildPile(350, PILE_B, PILE_A.length)];
+// Four piles ringing the building, 18 seals total, each angle outside the
+// sector the dock and its approach path sit in (roughly 25..110 deg) --
+// found the same way placePile() finds every centre: by trying, not by
+// asserting the angle is clear.
+const B_START = PILE_A.length;
+const C_START = B_START + PILE_B.length;
+const D_START = C_START + PILE_C.length;
+export const COLONY = [
+  ...buildPile(150, PILE_A, 0),
+  ...buildPile(200, PILE_B, B_START),
+  ...buildPile(320, PILE_C, C_START),
+  ...buildPile(350, PILE_D, D_START),
+];
 
 // ---- the moat's porpoising seals ------------------------------------------
 
