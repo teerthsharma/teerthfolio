@@ -421,22 +421,27 @@ function buildJetty() {
 
 // ---- assembled result -------------------------------------------------------
 
+// The water ring, built separately so Sea.jsx owns it.
+export function buildSea() {
+  return {
+    shallowsGeo: buildShallows(),
+    foamGeo: buildFoam(),
+    floeTemplateGeo: buildFloeTemplate(),
+    floes: buildFloes(),
+  };
+}
+
 export function buildIsland() {
   const signposts = buildSignposts();
   const jetty = buildJetty();
   const boulders = buildBoulders();
-  const floeTemplate = buildFloeTemplate();
 
   return {
     snowSmoothGeo: buildSnowSmooth(),
     rockBatchGeo: buildRockBatch(),
-    shallowsGeo: buildShallows(),
-    foamGeo: buildFoam(),
     pathsDocksGeo: buildPathsAndDocks(),
     woodBatchGeo: mergeGeometries([...signposts.wood, jetty.deck], false),
     accentBatchGeo: mergeGeometries([...signposts.tips, ...jetty.dark], false),
-    floeTemplateGeo: floeTemplate,
-    floes: buildFloes(),
     boulderTemplateGeo: new IcosahedronGeometry(1, 0),
     boulders,
   };

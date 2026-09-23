@@ -1,16 +1,16 @@
 "use client";
 
-// The place itself: an ice island with a cliff edge in open sea, paths
-// between neighbourhoods, one warm sun, and Teerth's name pressed into the
-// snow where the seal starts. Geometry comes from island/build.js (pure,
-// built once); this file owns materials, light and the little motion.
+// The ground itself: snow, the cliff edge, paths between neighbourhoods,
+// signposts, boulders, one warm sun, and Teerth's name pressed into the snow
+// where the seal starts. Geometry comes from island/build.js (pure, built
+// once). The water around it is Sea.jsx; the sky is Atmosphere.jsx.
 
 import { Center, Text3D } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { DoubleSide, Object3D } from "three";
 import { ISLAND_RADIUS } from "../../lib/world/places";
 import { live } from "../../lib/world/store";
+import Instances from "./Instances";
 import { buildIsland } from "./island/build";
 import { C, LIGHT, mat } from "./palette";
 
@@ -72,29 +72,6 @@ function NameInSnow() {
   );
 }
 
-// Instanced things placed once (boulders) or bobbing on the swell (floes).
-function Instances({ geometry, items, material, bob = false, castShadow = true }) {
-  const ref = useRef();
-  const dummy = useMemo(() => new Object3D(), []);
-  const place = (t) => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    items.forEach((it, i) => {
-      const lift = bob ? Math.sin(t * 0.8 + it.phase) * 0.06 : 0;
-      dummy.position.set(it.x, bob ? -0.62 + lift : it.radius * 0.35, it.z);
-      dummy.rotation.set(0, it.rotY ?? it.phase, bob ? Math.sin(t * 0.6 + it.phase) * 0.03 : 0);
-      if (bob) dummy.scale.set(it.radius, 0.35, it.radius);
-      else dummy.scale.setScalar(it.radius);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-  };
-  useLayoutEffect(() => place(0));
-  useFrame(({ clock }) => bob && place(clock.elapsedTime));
-  return <instancedMesh ref={ref} args={[geometry, material, items.length]} castShadow={castShadow} receiveShadow />;
-}
-
 // Click or tap on the snow: the seal slides there.
 function walkHere(event) {
   if (event.delta > 8) return;
@@ -108,11 +85,6 @@ export default function Island() {
   useLayoutEffect(() => {
     gl.toneMapping = LIGHT.toneMapping;
   }, [gl]);
-
-  const foam = useRef();
-  useFrame(({ clock }) => {
-    if (foam.current) foam.current.material.opacity = 0.55 + Math.sin(clock.elapsedTime * 0.9) * 0.2;
-  });
 
   return (
     <>
@@ -132,17 +104,6 @@ export default function Island() {
       <mesh geometry={kit.woodBatchGeo} material={mat(C.wood)} castShadow receiveShadow />
       <mesh geometry={kit.accentBatchGeo} material={mat("#ffffff", { vertexColors: true })} castShadow />
 
-      {/* water: open sea, the lighter shelf by the cliff, a breathing foam line */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.6, 0]}>
-        <planeGeometry args={[700, 700]} />
-        <meshStandardMaterial color={C.sea} roughness={0.3} metalness={0.05} />
-      </mesh>
-      <mesh geometry={kit.shallowsGeo} material={mat("#ffffff", { vertexColors: true, flat: false, roughness: 0.3 })} />
-      <mesh ref={foam} geometry={kit.foamGeo}>
-        <meshBasicMaterial color={C.foam} transparent opacity={0.6} side={DoubleSide} />
-      </mesh>
-
-      <Instances geometry={kit.floeTemplateGeo} items={kit.floes} material={mat("#ffffff", { vertexColors: true })} bob />
       <Instances geometry={kit.boulderTemplateGeo} items={kit.boulders.ice} material={mat(C.ice, { roughness: 0.5 })} />
       <Instances geometry={kit.boulderTemplateGeo} items={kit.boulders.deepIce} material={mat(C.deepIce, { roughness: 0.5 })} />
 

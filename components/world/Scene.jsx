@@ -9,19 +9,25 @@
 //   CameraRig.jsx       the follow camera
 //   Controller.jsx      input -> motion -> "which building am I at"
 //   Trail, Effects, Penguins, Sound   the life around the seal
+//   Atmosphere, Sea, Harbour, Look    sky and weather, water, the upstream
+//                                     harbour, and the image-wide look
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Component, Suspense, useRef } from "react";
 import { PLACES, dockPoint } from "../../lib/world/places";
 import { live, setUi } from "../../lib/world/store";
 import { BUILDINGS } from "./buildings";
+import Atmosphere from "./Atmosphere";
 import CameraRig from "./CameraRig";
 import Controller from "./Controller";
 import Effects from "./Effects";
+import Harbour from "./Harbour";
 import Island from "./Island";
+import Look from "./Look";
 import Penguins from "./Penguins";
 import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
+import Sea from "./Sea";
 import Seal from "./Seal";
 import Sound from "./Sound";
 import Trail from "./Trail";
@@ -91,7 +97,10 @@ export default function Scene() {
       }}
     >
       <Suspense fallback={null}>
+        <Atmosphere />
         <Island />
+        <Sea />
+        <Harbour />
         <Buildings />
         <Props />
         <Seal />
@@ -103,6 +112,7 @@ export default function Scene() {
       <CameraRig />
       <Controller />
       <Sound />
+      <Look />
     </Canvas>
   );
 }
