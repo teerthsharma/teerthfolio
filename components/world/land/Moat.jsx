@@ -6,8 +6,8 @@
 //
 //   - Two ice islands float on the ring's south side, each straight behind
 //     its reading point: NVIDIA/NeMo-Relay #481 (west) and
-//     dsx-ai-factory/topograph #432 (east), each carrying its landing-site
-//     story (monuments/Gather.jsx, monuments/Grant.jsx), bobbing gently.
+//     dsx-ai-factory/topograph #432 (east), bare natural floes, bobbing
+//     gently (SHOW, NEVER TELL: no story rigs on them).
 //   - THE ANOMALY, the moat's radiation made visible: its water runs
 //     uphill. Five streams climb the keep's cliffs from the ring lake,
 //     turning uranium-glass green as they rise, spill UP over the rim into a
@@ -24,12 +24,9 @@ import { PLACES } from "../../../lib/world/places";
 import { MOAT } from "../../../lib/world/river";
 import { useUi } from "../../../lib/world/store";
 import { WATER_Y } from "../../../lib/world/terrain";
-import Gather from "../monuments/Gather";
-import Grant from "../monuments/Grant";
 import { C, mat } from "../palette";
 import { buildStreams, FOOT_R, POOL_R, POOL_Y, STREAM_ANGLES, streamMaterial } from "./parts/moat-uphill";
 
-const STORY = { gather: Gather, grant: Grant };
 const MINE = PLACES.filter((p) => p.district?.id === "moat");
 const RADIATION = MINE[0]?.radiation ?? "#84cc16";
 const { x: KX, z: KZ } = MOAT.ring;
@@ -69,9 +66,8 @@ function rough(geo, amount, seed) {
 const floeBody = (r, seed) => rough(new CylinderGeometry(r + 0.25, r + 0.5, 1.3, 9, 1).translate(0, -0.65, 0), 0.16, seed);
 const floeCap = (r, seed) => rough(new CylinderGeometry(r + 0.02, r + 0.2, 0.2, 9, 1).translate(0, 0.08, 0), 0.12, seed);
 
-function Floe({ floe, near, index }) {
+function Floe({ floe, index }) {
   const ref = useRef();
-  const Story = STORY[floe.place.figure?.name];
   const body = useMemo(() => floeBody(floe.radius, index * 3.7), [floe.radius, index]);
   const cap = useMemo(() => floeCap(floe.radius, index * 3.7), [floe.radius, index]);
   useFrame((state) => {
@@ -86,7 +82,6 @@ function Floe({ floe, near, index }) {
     <group ref={ref} position={[floe.x, floeTop, floe.z]}>
       <mesh geometry={body} material={mat(C.deepIce, { roughness: 0.35 })} castShadow receiveShadow />
       <mesh geometry={cap} material={mat(C.snow)} receiveShadow />
-      <group position={[0, 0.16, 0]}>{Story && <Story place={floe.place} near={near} />}</group>
     </group>
   );
 }
@@ -195,7 +190,7 @@ export default function Moat() {
     <group>
       <Uphill lively={lively} />
       {FLOES.map((floe, i) => (
-        <Floe key={floe.place.id} floe={floe} index={i} near={near === floe.place.id} />
+        <Floe key={floe.place.id} floe={floe} index={i} />
       ))}
     </group>
   );

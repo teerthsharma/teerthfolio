@@ -9,12 +9,10 @@
 //     valley's west bank, turning east into the crest that blocks it
 //     (parts/dam-wall.js). Never a jagged grey wall -- flat-shaded ice,
 //     rounded, its foot on the collider edge exactly as every landform's does.
-//   - THE CHANNELS: four meltwater cuts down the crest's front face, the
-//     transitive-reduction fix (tensorflow/tensorflow #124410) told in ice --
-//     three run (the real chain, c4->c3->c2->c1); the fourth, west, stands
-//     frozen shut, an ice plug over it (the redundant bypass, pruned).
-//     Closure.jsx's tower stands at the reading point in front, the same
-//     story again as the mechanism that decides it.
+//   - THE CHANNELS: four meltwater cuts down the crest's front face, three
+//     run (the real chain), the fourth, west, stands frozen shut, an ice
+//     plug over it (the redundant bypass, pruned) -- show, never tell, no
+//     tower or digit reads it any more.
 //   - THE ANOMALY (dam): ice spikes grow UP out of the snow in the dry
 //     riverbed below the front, stalagmites instead of icicles, a glint
 //     climbing each one -- the meltwater the fix keeps in three channels,
@@ -22,10 +20,13 @@
 //   - THE GEYSER: a sinter mound at the vent, erupting a fountain on the
 //     same exact beat every time (real seconds, never sped up for the seal
 //     being near -- the one thing that would make it non-deterministic).
-//     Settle.jsx's loom stands just behind it, the mechanism.
 //   - THE ANOMALY (geyser, the owner's own example): beside the live jet, an
 //     earlier eruption's crown of spray hangs frozen in the air for good,
 //     the same shape every cycle.
+//
+// Closure.jsx (the tower) and Settle.jsx (the loom) were explainer diagrams
+// for these two figures and are no longer mounted here (SHOW, NEVER TELL):
+// the channels and the geyser itself now carry the whole story.
 
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
@@ -40,8 +41,6 @@ import {
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { useUi } from "../../../lib/world/store";
 import { clamp, smoothstep } from "../life/util";
-import Closure from "../monuments/Closure";
-import Settle from "../monuments/Settle";
 import { C, glow, lamp, mat } from "../palette";
 import { buildFrozenSplash, DROPS, ERUPT_PERIOD, FALL, RISE, VENT_H, VENT_R } from "./parts/dam-geyser";
 import { buildWall, CHANNELS } from "./parts/dam-wall";
@@ -272,13 +271,6 @@ export default function IceDam() {
       <Channels boost={damBoost} />
       <Spikes boost={damBoost} />
       <Geyser boost={geyserBoost} />
-
-      <group position={[DAM_PLACE.x, 0, DAM_PLACE.z]}>
-        <Closure place={DAM_PLACE} near={damNear} />
-      </group>
-      <group position={[GEYSER_PLACE.x, 0, GEYSER_PLACE.z - 2.3]}>
-        <Settle near={geyserNear} />
-      </group>
     </group>
   );
 }
