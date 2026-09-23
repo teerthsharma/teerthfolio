@@ -19,7 +19,7 @@
 const COLS = 9;
 const ROWS = 5;
 export const PEG_COUNT = COLS * ROWS;
-export const PITCH = 0.3;
+export const PITCH = 0.36; // fix 2 (review round 0): was 0.3 -- 0.22 m pegs left an 0.08 m gap, rows read as stripes
 export const BOARD_W = (COLS - 1) * PITCH;
 export const BOARD_H = (ROWS - 1) * PITCH;
 const DIAG = 0.6; // fig.js's own wave front is x + 0.45*y; steeper here, a smaller grid
@@ -46,6 +46,7 @@ function board(seed, refFrac, badFrac) {
       pegs.push({
         x: (col - (COLS - 1) / 2) * PITCH,
         y: row * PITCH,
+        row,
         order: col + row * DIAG,
         ref: false,
         bad: false,
@@ -64,8 +65,18 @@ function board(seed, refFrac, badFrac) {
   }
   const nRef = Math.round(pegs.length * refFrac);
   const nBad = Math.round(pegs.length * badFrac);
-  idx.slice(0, nRef).forEach((i) => (pegs[i].ref = true));
-  idx.slice(nRef, nRef + nBad).forEach((i) => (pegs[i].bad = true));
+  // fix 1 (review round 1): a refused peg is the hero marker -- two parting
+  // halves, studs and a halo -- and needs real headroom, which the topmost
+  // row never has (jammed against the roof underside). With the seed fixed,
+  // any ref pick that lands there is wrong every cycle forever, not once by
+  // animation-timing bad luck. Keep the top row out of the ref candidate
+  // pool so all `nRef` refusals land somewhere they can fully pop.
+  const topRow = ROWS - 1;
+  const refPool = idx.filter((i) => pegs[i].row !== topRow);
+  const refIdx = (refPool.length >= nRef ? refPool : idx).slice(0, nRef);
+  refIdx.forEach((i) => (pegs[i].ref = true));
+  const badPool = idx.filter((i) => !pegs[i].ref);
+  badPool.slice(0, nBad).forEach((i) => (pegs[i].bad = true));
   return pegs;
 }
 

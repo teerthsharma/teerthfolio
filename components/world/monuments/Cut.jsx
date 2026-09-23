@@ -14,51 +14,59 @@
 // bars are structure, short bars are noise" / "what crosses the cut becomes
 // a feature").
 //
-// Physically: a cold-store shed (Rust core, kept out of the weather) with a
-// sample rack standing out front, facing the dock -- an ordinary archive's
-// everyday job (catalogue what's on the shelf, tell signal from noise) done
-// the way this project does it. A scan gauge sweeps the rack left to right,
-// the same growing scale the figure sweeps through: pieces grow as rods
-// from their birth point for exactly as long as they survive the sweep, the
-// two long ones glowing mint, the four short ones staying dim ice, greyed
-// noise. Above the rack, two portholes in the wall -- the two loops -- iris
-// open on the same scale and glow violet, shutting when their bar ends: a
-// hole opening, not a rod extending, the way the source figure's own holes
-// glow and fill. The gauge itself is the cut, so it runs coral -- fig.js's
-// own cut() comment: "Mint is always a piece, violet always a loop, and
-// coral is only ever the cut." The gauge then holds, the whole rack and
-// both portholes shrink back to nothing, and it sweeps again. Faster and
-// brighter near the seal.
+// Physically: a SAWMILL -- an ordinary mill's everyday job (cut logs to
+// length, keep what's long enough) done the way this project does it. Eight
+// logs lie in a deck in the open yard in front of a small back shed: two
+// mint logs (the long-lived pieces), two violet logs (the long-lived loops
+// -- fig.js's own barcode draws loops as violet bars too), four dim ice logs
+// (noise). Act one: a small neutral scan gauge sweeps the yard, and every
+// log grows from its own birth point for exactly as long as its piece or
+// loop survived -- the SAME growing scale the figure sweeps through. Act
+// two, the figure's own payoff: every log slides to start at zero (fig.js:
+// "then every bar slides to start at zero, so its length is how long it
+// lived"), then one big spinning saw blade -- the radiation-coloured cut --
+// sweeps in from the right and stops at the exact span where the two mint
+// and two violet logs, and only those four, still reach past it: a bead
+// lights on the blade line for each ("what crosses the cut becomes a
+// feature"). It holds, then the whole deck shrinks back to nothing and
+// sweeps again. Faster and brighter near the seal. The mill's open intake
+// faces the deck, logs visibly feeding out of it; a smokestack -- the area's
+// radiation hot spot -- is the tallest point.
 //
-// Colours are the figure's own (site.css --mint-500 / --violet-500 /
-// --coral-500), not the radiation accent, which marks the building itself
-// instead (trim, the roof lantern) -- same split Grant.jsx and Refuse.jsx
-// use.
+// Colours are the figure's own (site.css --mint-500 / --violet-500) for the
+// logs, not the radiation accent, which marks the building itself instead
+// (roof, trim, windows, the blade, the smokestack cap) -- same split
+// Grant.jsx and Refuse.jsx use.
 //
 // No words: every claim is a number or a name, not a shape a 3D letter
 // could carry without inventing one, so the story is told in shapes only.
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { BoxGeometry, CylinderGeometry, ExtrudeGeometry, Shape, TorusGeometry } from "three";
+import { useLayoutEffect, useMemo, useRef } from "react";
+import { BoxGeometry, Color, CylinderGeometry, ExtrudeGeometry, Float32BufferAttribute, Object3D, Shape, SphereGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useUi } from "../../../lib/world/store";
-import { damp } from "../life/util";
+import { damp, smoothstep } from "../life/util";
 import { C, glow, lamp, mat } from "../palette";
 import {
-  CORES,
+  BEAD_DIAMETER,
+  BLADE_RADIUS,
+  BLADE_THICK,
+  BLADE_X_START,
+  BLADE_X_STOP,
+  BLADE_Y,
+  BLADE_Z,
   coreProgress,
+  CUT_DUR,
   EASE_RATE,
   HOLD_DUR,
-  LOOPS,
-  PORTHOLE_RADIUS,
-  PORTHOLE_TUBE,
-  PORTHOLE_Y,
-  PORTHOLE_Z,
-  RACK_TOP_BEAM_Y,
-  RACK_POST_H,
-  RACK_Z,
+  LANE_Z0,
+  LANE_Z1,
+  LOG_Y,
+  LOGS,
   SHRINK_DUR,
+  SLIDE_DUR,
+  SURVIVORS,
   SWEEP_RANGE,
   SWEEP_X0,
   SWEEP_X1,
@@ -66,27 +74,68 @@ import {
 
 // The whole building is modelled at this scale, then shrunk to fit the lab
 // footprint (place.radius 3 m): its widest corner (the roof eave) measures
-// 3.42 m from the local origin unscaled, so 0.83 brings that under 3 m with
-// a margin, while keeping every dimension below tuned proportionally.
+// well under 3.6 m from the local origin unscaled, so 0.83 keeps every
+// dimension inside place.radius with a margin.
 const SCALE = 0.83;
 
-// fig.js's own tokens for this figure (site.css --mint-500 / --violet-500 /
-// --coral-500), kept exact: the figure's semantic colours, not the org/
-// radiation accent, which marks the building instead (trim, lantern).
+// fig.js's own tokens for this figure (site.css --mint-500 / --violet-500):
+// the figure's semantic colours, kept exact.
 const MINT = "#0b93ab"; // a surviving piece (H0)
 const VIOLET = "#a66cf0"; // a surviving loop (H1)
-const CORAL = "#d9376e"; // the cut, and only the cut
+const MINT_C = new Color(MINT);
+const VIOLET_C = new Color(VIOLET);
+const ICE_C = new Color(C.ice);
 
-const GABLE_X = 2.4;
+// ---- the shed: a small back shed, roofed, and an open yard in front ------
+const GABLE_X = 2.4; // the shed's side walls (its own east/west gable ends)
 const GABLE_DEPTH = 0.3;
 const TRIM_W = 0.16;
 const TRIM_X = GABLE_X + GABLE_DEPTH / 2 + TRIM_W / 2;
-const RIDGE = [4.6, -0.7]; // [y, z], gable's own ridge (roof cap adds ~0.2 more)
-const EAVE_BACK = [2.2, -1.8];
-const EAVE_FRONT = [2.2, 0.4];
+const WALL_T = 0.25;
+const SHED_Z0 = -1.8; // shed back
+const SHED_Z1 = 0.2; // shed front (the intake wall) -- the open yard runs on from here
+const SHED_ZC = (SHED_Z0 + SHED_Z1) / 2;
+const SHED_HALF_DEPTH = (SHED_Z1 - SHED_Z0) / 2;
+const EAVE_Y = 2.2;
+const RIDGE_Y = 3.6; // round 1 lowered this from 4.6 (the roof only shades the shed, not the story); round 2 review: 3.0 put the whole building at the low end of the 3-8m budget with X/Z unconstrained by height, so raised partway back for more presence -- still well under the old 4.6 and under STACK_H, so the stack stays the tallest point
+const RIDGE = [RIDGE_Y, SHED_ZC];
+const EAVE_BACK = [EAVE_Y, SHED_Z0];
+const EAVE_FRONT = [EAVE_Y, SHED_Z1];
+
+const DOOR_W = 1.4; // the mill's open intake
+const DOOR_H = 1.9;
+const FRAME_T = 0.18;
+
+const STACK_X = 1.8;
+const STACK_Z = -1.3;
+const STACK_R = 0.25;
+const STACK_H = 5.2; // 4.32 m after SCALE: the building's tallest point, its radiation hot spot -- raised from 4.0 (round 2 review: more world-expo-pavilion presence) while RIDGE_Y still clears the roof-ridge silhouette below it at game zoom, so the cap reads as a hot spot above the roof, not a frame-poking spike
+const CAP_Y = STACK_H + 0.22;
+
+const RAIL_X = -0.15;
+const RAIL_LEN = 4.6;
+const RAIL_Z0 = LANE_Z0 - 0.2;
+const RAIL_Z1 = LANE_Z1 + 0.2;
+
+const WINDOW_X = GABLE_X + GABLE_DEPTH / 2 + 0.04;
+const WINDOW_Y = 1.1;
+const WINDOW_ZS = [-1.3, -0.3]; // two per gable end
+
+const GAUGE_Y = 0.5;
+
+// mergeGeometries needs every input to carry the same attribute set and the
+// same indexed/non-indexed state. ExtrudeGeometry (the gable ends) comes out
+// differently shaped than BoxGeometry/CylinderGeometry, so every piece that
+// will be merged with another kind is normalised to the same (position,
+// normal, color) shape first -- island/build.js's own bare() does the uv
+// half of this for the same reason.
+function prep(geometry) {
+  geometry.deleteAttribute("uv");
+  return geometry.index ? geometry.toNonIndexed() : geometry;
+}
 
 // A box tilted in the Y-Z plane so its local +Z (length) axis runs from
-// `from` to `to` ([y, z] pairs); used for the two roof pitches and the four
+// `from` to `to` ([y, z] pairs); used for the roof pitches and the four
 // gable-edge trims. x stays centred at `xOffset`.
 function tiltedSlab(width, thickness, from, to, xOffset = 0) {
   const dy = to[0] - from[0];
@@ -95,7 +144,7 @@ function tiltedSlab(width, thickness, from, to, xOffset = 0) {
   const g = new BoxGeometry(width, thickness, length);
   g.rotateX(Math.atan2(-dy, dz));
   g.translate(xOffset, (from[0] + to[0]) / 2, (from[1] + to[1]) / 2);
-  return g;
+  return prep(g);
 }
 
 // The gable-end silhouette: a rectangle (walls, up to the eave) capped by a
@@ -103,115 +152,222 @@ function tiltedSlab(width, thickness, from, to, xOffset = 0) {
 // plane and depth-extruded, then turned to stand facing +/-x.
 function buildGable() {
   const shape = new Shape();
-  shape.moveTo(-1.1, 0);
-  shape.lineTo(1.1, 0);
-  shape.lineTo(1.1, 2.2);
-  shape.lineTo(0, 4.6);
-  shape.lineTo(-1.1, 2.2);
+  shape.moveTo(-SHED_HALF_DEPTH, 0);
+  shape.lineTo(SHED_HALF_DEPTH, 0);
+  shape.lineTo(SHED_HALF_DEPTH, EAVE_Y);
+  shape.lineTo(0, RIDGE_Y);
+  shape.lineTo(-SHED_HALF_DEPTH, EAVE_Y);
   shape.closePath();
   const g = new ExtrudeGeometry(shape, { depth: GABLE_DEPTH, bevelEnabled: false, curveSegments: 1 });
   g.rotateY(Math.PI / 2);
-  g.translate(-GABLE_DEPTH / 2, 0, -0.7);
-  return g;
+  g.translate(-GABLE_DEPTH / 2, 0, SHED_ZC);
+  return prep(g);
 }
 
-// ---- static geometry, built once ------------------------------------------
+// Paints every vertex of `geometry` one flat colour (island/build.js's own
+// helper, copied: mergeGeometries needs a matching attribute set on every
+// input, and this is how the island paints its own merged rock and trim).
+function paint(geometry, hex) {
+  const c = hex instanceof Color ? hex : new Color(hex);
+  const n = geometry.attributes.position.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    arr[i * 3] = c.r;
+    arr[i * 3 + 1] = c.g;
+    arr[i * 3 + 2] = c.b;
+  }
+  geometry.setAttribute("color", new Float32BufferAttribute(arr, 3));
+  return geometry;
+}
 
-// The body: painted-plaster walls (palette.js: warmWhite is for "painted
-// walls, plaster, ceramic"), near-neutral so the rack and the accent trim
-// are what carry colour.
-const WALL_GEO = mergeGeometries(
-  [
-    new BoxGeometry(5.0, 2.2, 0.25).translate(0, 1.1, -1.65), // back wall
-    new BoxGeometry(5.0, 2.2, 0.25).translate(0, 1.1, 0.3), // front wall
-  ],
-  false,
-);
-
-// The frame: charcoal is palette.js's own "frames, roofs, rails, hatches" --
-// skids, roof, door and the whole rack, kept shorter than the front eave so
-// the two portholes have their own band of wall to sit in, not the rack's
-// shadow.
-const CHARCOAL_GEO = mergeGeometries(
-  [
-    new BoxGeometry(5.6, 0.22, 0.3).translate(0, 0.11, 1.3), // skid runner
-    new BoxGeometry(5.6, 0.22, 0.3).translate(0, 0.11, -1.3), // skid runner
-    new BoxGeometry(0.9, 1.7, 0.3).translate(0, 0.85, 0.44), // door
-    tiltedSlab(5.4, 0.22, [4.8, -0.7], [2.2, -2.0]), // roof, back pitch
-    tiltedSlab(5.4, 0.22, [4.8, -0.7], [2.2, 0.6]), // roof, front pitch
-    new BoxGeometry(0.16, RACK_POST_H, 0.16).translate(2.25, RACK_POST_H / 2, RACK_Z), // rack post
-    new BoxGeometry(0.16, RACK_POST_H, 0.16).translate(-2.25, RACK_POST_H / 2, RACK_Z), // rack post
-    new BoxGeometry(4.66, 0.14, 0.16).translate(0, RACK_TOP_BEAM_Y, RACK_Z), // rack top beam
-    ...CORES.map((c) => new BoxGeometry(4.4, 0.12, 0.14).translate(0, c.y, RACK_Z)), // rails
-  ],
-  false,
-);
+// ---- static geometry, built once (module level: none of this depends on
+// the place's radiation colour) ---------------------------------------------
 
 const gableEnd = buildGable();
-const ICE_GEO = mergeGeometries(
-  [gableEnd.clone().translate(GABLE_X, 0, 0), gableEnd.clone().translate(-GABLE_X, 0, 0)],
+// The back roof pitch: structural coverage only, painted neutral (ice, like
+// the gables) instead of the radiation accent -- round 1 review found the
+// accent roof read as "one giant plank" dominating every capture, so only
+// the front pitch (buildAccentChunk, below) carries A now.
+const ROOF_BACK_GEO = tiltedSlab(5.4, 0.22, RIDGE, EAVE_BACK);
+const ICE_CHUNK = paint(
+  mergeGeometries([gableEnd.clone().translate(GABLE_X, 0, 0), gableEnd.clone().translate(-GABLE_X, 0, 0), ROOF_BACK_GEO], false),
+  C.ice,
+);
+
+const WALL_CHUNK = paint(
+  mergeGeometries(
+    [
+      prep(new BoxGeometry(5.0, EAVE_Y, WALL_T).translate(0, EAVE_Y / 2, SHED_Z0 + WALL_T / 2)), // back wall
+      prep(new BoxGeometry(1.8, EAVE_Y, WALL_T).translate(-(DOOR_W / 2 + 0.9), EAVE_Y / 2, SHED_Z1 - WALL_T / 2)), // front wall, left of the intake
+      prep(new BoxGeometry(1.8, EAVE_Y, WALL_T).translate(DOOR_W / 2 + 0.9, EAVE_Y / 2, SHED_Z1 - WALL_T / 2)), // front wall, right of the intake
+    ],
+    false,
+  ),
+  C.warmWhite,
+);
+
+const SKID_LEN = GABLE_X * 2 + 0.4;
+const CHARCOAL_CHUNK = paint(
+  mergeGeometries(
+    [
+      prep(new BoxGeometry(SKID_LEN, 0.22, 0.3).translate(0, 0.11, SHED_Z0 + 0.15)), // skid runner, back
+      prep(new BoxGeometry(SKID_LEN, 0.22, 0.3).translate(0, 0.11, SHED_Z1 - 0.15)), // skid runner, front
+      // the intake frame: an open doorway, logs visibly feed out of it onto the deck
+      prep(new BoxGeometry(DOOR_W + FRAME_T * 2, FRAME_T, WALL_T + 0.03).translate(0, DOOR_H + FRAME_T / 2, SHED_Z1 - WALL_T / 2)),
+      prep(new BoxGeometry(FRAME_T, DOOR_H, WALL_T + 0.03).translate(DOOR_W / 2 + FRAME_T / 2, DOOR_H / 2, SHED_Z1 - WALL_T / 2)),
+      prep(new BoxGeometry(FRAME_T, DOOR_H, WALL_T + 0.03).translate(-(DOOR_W / 2 + FRAME_T / 2), DOOR_H / 2, SHED_Z1 - WALL_T / 2)),
+      prep(new CylinderGeometry(STACK_R, STACK_R, STACK_H, 10).translate(STACK_X, STACK_H / 2, STACK_Z)), // the mill smokestack
+      prep(new BoxGeometry(RAIL_LEN, 0.18, 0.18).translate(RAIL_X, 0.09, RAIL_Z0)), // deck rail
+      prep(new BoxGeometry(RAIL_LEN, 0.18, 0.18).translate(RAIL_X, 0.09, RAIL_Z1)), // deck rail
+    ],
+    false,
+  ),
+  C.charcoal,
+);
+
+// The radiation-coloured accent (front roof pitch, trim): built fresh per
+// place since it depends on A, then merged with the three A-independent
+// chunks above. Front pitch only, hugging the door bay (ROOF_W ~3.0, not
+// the old 5.4 that spanned the whole building) -- round 1 review: the
+// accent roof was "one giant plank", the single dominant shape in every
+// capture; a narrower front-only plank plus the deck logs read first.
+const ROOF_W = 2.3; // narrowed from 3.0 (round 2 review: still the single largest saturated shape, spanning ~full building width) to roughly the DOOR_W=1.4 intake bay plus margin, so the log deck and blade compete for first read instead of "pink-roofed shed"
+function buildAccentChunk(A) {
+  const trimBack = tiltedSlab(TRIM_W, TRIM_W, EAVE_BACK, RIDGE);
+  const trimFront = tiltedSlab(TRIM_W, TRIM_W, RIDGE, EAVE_FRONT);
+  return paint(
+    mergeGeometries(
+      [
+        trimBack.clone().translate(TRIM_X, 0, 0),
+        trimFront.clone().translate(TRIM_X, 0, 0),
+        trimBack.clone().translate(-TRIM_X, 0, 0),
+        trimFront.clone().translate(-TRIM_X, 0, 0),
+        tiltedSlab(ROOF_W, 0.22, RIDGE, EAVE_FRONT), // roof, front pitch only
+      ],
+      false,
+    ),
+    A,
+  );
+}
+
+const WINDOW_GEO = mergeGeometries(
+  WINDOW_ZS.flatMap((z) => [
+    new BoxGeometry(0.08, 0.5, 0.6).translate(WINDOW_X, WINDOW_Y, z),
+    new BoxGeometry(0.08, 0.5, 0.6).translate(-WINDOW_X, WINDOW_Y, z),
+  ]),
   false,
 );
 
-const trimBack = tiltedSlab(TRIM_W, TRIM_W, EAVE_BACK, RIDGE);
-const trimFront = tiltedSlab(TRIM_W, TRIM_W, RIDGE, EAVE_FRONT);
-const TRIM_GEO = mergeGeometries(
-  [
-    trimBack.clone().translate(TRIM_X, 0, 0),
-    trimFront.clone().translate(TRIM_X, 0, 0),
-    trimBack.clone().translate(-TRIM_X, 0, 0),
-    trimFront.clone().translate(-TRIM_X, 0, 0),
-  ],
-  false,
-);
+const CAP_GEO = new CylinderGeometry(0.3, 0.34, 0.4, 10);
+const CAP_GLOW_GEO = new SphereGeometry(0.5, 10, 8);
 
-const SLAB_GEO = new BoxGeometry(5.4, 0.3, 3.6).translate(0, 0.15, 0);
-const GAUGE_GEO = new BoxGeometry(0.12, 2.0, 0.6);
-const GAUGE_GLOW_GEO = new BoxGeometry(0.16, 2.3, 0.75);
-// A soft halo shell round the roof lantern, the same box-glow pairing as
-// the gauge above.
-const LANTERN_GLOW_GEO = new BoxGeometry(1.6, 0.5, 0.6);
+const GAUGE_GEO = new BoxGeometry(0.2, 1.0, 0.5);
+
+// A disc standing in the Y-Z plane (its flat faces perpendicular to x, the
+// axis it sweeps along): a cylinder's own axis runs along Y, so rotateZ
+// turns that axis to X. Two near-black spokes (round 2 review) are painted
+// on while the axis is still Y -- angle = atan2(z, x) over the caps and the
+// rim alike -- so the spin (applied to this geometry's own local axis,
+// below) has something asymmetric to carry: a rotationally-symmetric disc
+// spinning about its own face normal is otherwise a no-op, nothing moves
+// relative to the silhouette.
+function angleDistance(a, b) {
+  const d = Math.abs(a - b) % (Math.PI * 2);
+  return d > Math.PI ? Math.PI * 2 - d : d;
+}
+function buildBladeGeo(radius, thick) {
+  const g = new CylinderGeometry(radius, radius, thick, 24);
+  const pos = g.attributes.position;
+  const n = pos.count;
+  const white = new Color("#ffffff");
+  const dark = new Color("#171717"); // near-black, not C.charcoal: the blade's own emissive glow (bladeMat) washes out a mid-grey mark, so the spoke needs the darkest contrast available to still read as the disc spins
+  const colors = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const angle = Math.atan2(pos.getZ(i), pos.getX(i));
+    const onSpoke = angleDistance(angle, 0) < 0.24 || angleDistance(angle, Math.PI) < 0.24; // two spokes, 180 deg apart
+    const c = onSpoke ? dark : white;
+    colors[i * 3] = c.r;
+    colors[i * 3 + 1] = c.g;
+    colors[i * 3 + 2] = c.b;
+  }
+  g.setAttribute("color", new Float32BufferAttribute(colors, 3));
+  return g.rotateZ(Math.PI / 2);
+}
+const BLADE_GEO = buildBladeGeo(BLADE_RADIUS, BLADE_THICK);
+const BLADE_GLOW_GEO = new CylinderGeometry(BLADE_RADIUS + 0.12, BLADE_RADIUS + 0.12, BLADE_THICK + 0.18, 24).rotateZ(Math.PI / 2);
 
 // Unit-length cylinder, axis along local +X, running 0..1 -- so scale.x is
-// directly a piece's current visible length in metres, and position.x is
-// its fixed birth point: it grows away from its own start, never its
-// centre.
+// directly a log's current visible length in metres, and position.x is its
+// current start point: it grows away from its own start, never its centre.
 const PIECE_GEO = new CylinderGeometry(0.13, 0.13, 1, 8).rotateZ(Math.PI / 2).translate(0.5, 0, 0);
-// A fixed-size ring, lying in the local X-Y plane so it faces +z, the dock.
-// Its size never animates (a ring that shrinks toward a point would thin
-// out below the island's chunky minimum); it lights up and dims instead,
-// the way a loop in the source figure glows from the moment it is born.
-const PORTHOLE_GEO = new TorusGeometry(PORTHOLE_RADIUS, PORTHOLE_TUBE, 6, 14);
+const BEAD_GEO = new SphereGeometry(BEAD_DIAMETER / 2, 10, 8);
+
+// Scratch reused every frame: never allocate inside useFrame (Refuse.jsx's
+// own pattern for an instanced mesh).
+const dummy = new Object3D();
 
 export default function Cut({ place }) {
   const A = place.radiation ?? place.color;
   const near = useUi((s) => s.near === place.id);
 
-  const warmMat = useMemo(() => mat(C.warmWhite), []);
-  const charcoalMat = useMemo(() => mat(C.charcoal), []);
-  const iceMat = useMemo(() => mat(C.ice), []);
-  const trimMat = useMemo(() => mat(A, { roughness: 0.55 }), [A]);
-  // The gauge is the cut itself, so it runs coral, fig.js's own colour for
-  // it -- never the radiation accent.
-  const gaugeMat = useMemo(() => lamp(CORAL, 1.5), []);
-  const gaugeGlowMat = useMemo(() => glow(CORAL), []);
-  // The lantern brightens near the seal, so it needs its own clone to mutate.
-  const lanternMat = useMemo(() => lamp(A, 0.9).clone(), [A]);
-  const lanternGlowMat = useMemo(() => glow(A, 0.3), [A]);
-  // Pieces that cross the cut glow mint and need their own material to
-  // brighten as they grow; noise never changes and shares one cached,
-  // unlit material.
-  const coreMats = useMemo(
-    () => CORES.map((c) => (c.kind === "noise" ? mat(C.ice, { roughness: 0.3 }) : lamp(MINT, 0.4).clone())),
-    [],
-  );
-  const loopMats = useMemo(() => LOOPS.map(() => lamp(VIOLET, 0.8).clone()), []);
+  const bodyGeo = useMemo(() => mergeGeometries([WALL_CHUNK, ICE_CHUNK, CHARCOAL_CHUNK, buildAccentChunk(A)], false), [A]);
+  const bodyMat = useMemo(() => mat("#ffffff", { vertexColors: true, roughness: 0.65 }), []);
 
+  // Plain instance-tinted material, no emissive: mint, violet and ice must
+  // stay three distinct hues (the review's own complaint was fuchsia,
+  // violet and coral blurring into one pink-purple), so the logs carry no
+  // radiation glow of their own -- the blade, windows and smokestack cap
+  // already put A on 20-35% of the building.
+  const logMat = useMemo(() => mat("#ffffff", { roughness: 0.4 }), []);
+  const beadMat = useMemo(() => lamp(A, 1.3), [A]);
+  // The gauge is the old r-scale slider, kept but now neutral -- the cut is
+  // the blade below, not this.
+  const gaugeMat = useMemo(() => mat(C.charcoal, { roughness: 0.4 }), []);
+  // vertexColors: BLADE_GEO carries the two charcoal spokes baked in
+  // (buildBladeGeo, above), so the material multiplies its own A tint by
+  // white (full A) or charcoal (the spoke, dented darker) per vertex.
+  const bladeMat = useMemo(() => mat(A, { vertexColors: true, emissive: A, emissiveIntensity: 1.0, roughness: 0.5 }), [A]);
+  const bladeGlowMat = useMemo(() => glow(A), [A]);
+  const capMat = useMemo(() => lamp(A, 1.2), [A]);
+  const capGlowMat = useMemo(() => glow(A, 0.3), [A]);
+  // Windows brighten near the seal, so they need their own clone to mutate.
+  const windowMat = useMemo(() => lamp(A, 1.0).clone(), [A]);
+
+  const logMeshRef = useRef(null);
+  const capMeshRef = useRef(null); // round end-cap at each log's growing tip -- a log unmistakably reads as a cut round, not a flat bar
+  const beadMeshRef = useRef(null);
   const gaugeRef = useRef(null);
-  const coreRefs = useRef([]);
-  const loopRefs = useRef([]);
+  const bladeRef = useRef(null); // position + the static camera-facing tilt only, never spun
+  const bladeSpinRef = useRef(null); // nested inside bladeRef: spins about its OWN local axis (the disc's face normal, pre-tilt), so the spin can never rotate the face out of its tilt
   const kRef = useRef(0); // eased 0..1 toward `near`
+  // sweep: the gauge grows every log from its birth point.
+  // slide: every log's start slides to zero (fig.js: "bars slide to start at zero").
+  // cut: the blade sweeps in from the right.
+  // reveal: the blade holds at the threshold, a bead per survivor.
+  // shrink: the whole deck shrinks back to nothing, then it sweeps again.
   const phase = useRef({ mode: "sweep", t: 0 });
+
+  useLayoutEffect(() => {
+    const logMesh = logMeshRef.current;
+    if (logMesh) {
+      LOGS.forEach((log, i) => {
+        logMesh.setColorAt(i, log.kind === "piece" ? MINT_C : log.kind === "loop" ? VIOLET_C : ICE_C);
+      });
+      if (logMesh.instanceColor) logMesh.instanceColor.needsUpdate = true;
+    }
+    const capMesh = capMeshRef.current;
+    if (capMesh) {
+      LOGS.forEach((log, i) => {
+        capMesh.setColorAt(i, log.kind === "piece" ? MINT_C : log.kind === "loop" ? VIOLET_C : ICE_C);
+      });
+      if (capMesh.instanceColor) capMesh.instanceColor.needsUpdate = true;
+    }
+    const beadMesh = beadMeshRef.current;
+    if (beadMesh) {
+      SURVIVORS.forEach((log, i) => beadMesh.setColorAt(i, log.kind === "piece" ? MINT_C : VIOLET_C));
+      if (beadMesh.instanceColor) beadMesh.instanceColor.needsUpdate = true;
+    }
+  }, []);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
@@ -220,24 +376,45 @@ export default function Cut({ place }) {
 
     const p = phase.current;
     p.t += dt;
-    const sweepDur = 7 + 3 * k; // 7 s normal, 10 s near
+    const sweepDur = 7 - 2.5 * k; // 7 s far, 4.5 s near
 
-    let gaugeX;
+    let gaugeX = SWEEP_X1;
     let shrinkMul = 1;
+    let slideAmt = 1; // 0: logs sit at their own birth points; 1: slid to start at zero
+    let bladeVisible = false;
+    let bladeX = BLADE_X_START;
+    let beadsVisible = false;
+
     if (p.mode === "sweep") {
       gaugeX = SWEEP_X0 + SWEEP_RANGE * Math.min(1, p.t / sweepDur);
+      slideAmt = 0;
       if (p.t >= sweepDur) {
-        p.mode = "hold";
+        p.mode = "slide";
         p.t = 0;
       }
-    } else if (p.mode === "hold") {
-      gaugeX = SWEEP_X1;
+    } else if (p.mode === "slide") {
+      slideAmt = smoothstep(0, 1, Math.min(1, p.t / SLIDE_DUR));
+      if (p.t >= SLIDE_DUR) {
+        p.mode = "cut";
+        p.t = 0;
+      }
+    } else if (p.mode === "cut") {
+      bladeVisible = true;
+      bladeX = BLADE_X_START + (BLADE_X_STOP - BLADE_X_START) * smoothstep(0, 1, Math.min(1, p.t / CUT_DUR));
+      if (p.t >= CUT_DUR) {
+        p.mode = "reveal";
+        p.t = 0;
+      }
+    } else if (p.mode === "reveal") {
+      bladeVisible = true;
+      bladeX = BLADE_X_STOP;
+      beadsVisible = true;
       if (p.t >= HOLD_DUR) {
         p.mode = "shrink";
         p.t = 0;
       }
     } else {
-      gaugeX = SWEEP_X1;
+      // shrink
       shrinkMul = 1 - Math.min(1, p.t / SHRINK_DUR);
       if (p.t >= SHRINK_DUR) {
         p.mode = "sweep";
@@ -245,76 +422,103 @@ export default function Cut({ place }) {
       }
     }
 
-    if (gaugeRef.current) gaugeRef.current.position.x = gaugeX;
+    if (gaugeRef.current) {
+      gaugeRef.current.visible = p.mode === "sweep";
+      gaugeRef.current.position.x = gaugeX;
+    }
+    if (bladeRef.current) {
+      bladeRef.current.visible = bladeVisible;
+      bladeRef.current.position.x = bladeX;
+    }
+    // spin lives on the inner group, in its own local frame (before the
+    // outer group's static tilt is applied), so it turns the two charcoal
+    // spokes round the disc's own face normal without ever moving that
+    // normal -- a group-level rotation.x here (the old code) rotates round
+    // the WORLD x axis after the y-tilt, which tumbles the face in and out
+    // of edge-on over time instead of spinning in place (round 2 review).
+    if (bladeSpinRef.current) bladeSpinRef.current.rotation.x += dt * (3 + 9 * k);
 
-    const peakGlow = 1.4 + 0.6 * k; // 1.4 normal, 2.0 near
-    lanternMat.emissiveIntensity = 0.9 + 1.3 * k; // 0.9 normal, 2.2 near
+    windowMat.emissiveIntensity = 1.0 + 1.2 * k;
 
-    for (let i = 0; i < CORES.length; i++) {
-      const c = CORES[i];
-      const meshEl = coreRefs.current[i];
-      if (!meshEl) continue;
-      const progress = coreProgress(c, gaugeX);
-      const visible = progress > 0.001 && shrinkMul > 0.001;
-      meshEl.visible = visible;
-      if (visible) meshEl.scale.x = c.span * progress * shrinkMul;
-      if (c.kind !== "noise") coreMats[i].emissiveIntensity = 0.4 + progress * (peakGlow - 0.4);
+    const logMesh = logMeshRef.current;
+    const capMesh = capMeshRef.current;
+    if (logMesh) {
+      for (let i = 0; i < LOGS.length; i++) {
+        const log = LOGS[i];
+        const growProgress = p.mode === "sweep" ? coreProgress(log, gaugeX) : 1;
+        const scaleX = Math.max(0.0001, log.span * growProgress * shrinkMul);
+        const x = log.x0 + (SWEEP_X0 - log.x0) * slideAmt;
+        dummy.position.set(x, LOG_Y, log.z);
+        dummy.scale.set(scaleX, 1, 1);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        logMesh.setMatrixAt(i, dummy.matrix);
+
+        // the round end-cap rides the log's growing tip (local x=1 of the
+        // unit cylinder -> world x + scaleX), so a log unmistakably reads
+        // as a cut round, not a flat bar.
+        if (capMesh) {
+          dummy.position.set(x + scaleX, LOG_Y, log.z);
+          dummy.scale.setScalar(1);
+          dummy.updateMatrix();
+          capMesh.setMatrixAt(i, dummy.matrix);
+        }
+      }
+      logMesh.instanceMatrix.needsUpdate = true;
+      if (capMesh) capMesh.instanceMatrix.needsUpdate = true;
     }
 
-    for (let i = 0; i < LOOPS.length; i++) {
-      const l = LOOPS[i];
-      const meshEl = loopRefs.current[i];
-      if (!meshEl) continue;
-      const progress = coreProgress(l, gaugeX);
-      const visible = progress > 0.001 && shrinkMul > 0.001;
-      meshEl.visible = visible;
-      // fixed size (see PORTHOLE_GEO); a small pop-in scale on birth only,
-      // then it just lights up -- never thins toward a point.
-      if (visible) meshEl.scale.setScalar(Math.min(1, 0.6 + 0.4 * shrinkMul) * Math.min(1, progress * 6));
-      loopMats[i].emissiveIntensity = (0.8 + progress * (peakGlow - 0.4)) * (visible ? 1 : 0);
+    const beadMesh = beadMeshRef.current;
+    if (beadMesh) {
+      for (let i = 0; i < SURVIVORS.length; i++) {
+        dummy.position.set(BLADE_X_STOP, LOG_Y + 0.22, SURVIVORS[i].z);
+        dummy.scale.setScalar(beadsVisible ? 1 : 0.0001);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        beadMesh.setMatrixAt(i, dummy.matrix);
+      }
+      beadMesh.instanceMatrix.needsUpdate = true;
     }
   });
 
   return (
     <group scale={SCALE}>
-      <mesh castShadow receiveShadow geometry={SLAB_GEO} material={warmMat} />
-      <mesh castShadow receiveShadow geometry={WALL_GEO} material={warmMat} />
-      <mesh castShadow receiveShadow geometry={CHARCOAL_GEO} material={charcoalMat} />
-      <mesh castShadow receiveShadow geometry={ICE_GEO} material={iceMat} />
-      <mesh castShadow receiveShadow geometry={TRIM_GEO} material={trimMat} />
+      <mesh castShadow receiveShadow geometry={bodyGeo} material={bodyMat} />
+      <mesh geometry={WINDOW_GEO} material={windowMat} />
 
-      <mesh castShadow position={[0, 5.0, -0.7]} material={lanternMat}>
-        <boxGeometry args={[1.4, 0.4, 0.5]} />
-      </mesh>
-      <mesh position={[0, 5.0, -0.7]} geometry={LANTERN_GLOW_GEO} material={lanternGlowMat} />
+      {/* the smokestack's cap: the tallest point, the building's radiation hot spot */}
+      <mesh position={[STACK_X, CAP_Y, STACK_Z]} geometry={CAP_GEO} material={capMat} />
+      <mesh position={[STACK_X, CAP_Y, STACK_Z]} geometry={CAP_GLOW_GEO} material={capGlowMat} />
 
-      <group ref={gaugeRef} position={[SWEEP_X0, 1.15, 1.45]}>
-        <mesh castShadow geometry={GAUGE_GEO} material={gaugeMat} />
-        <mesh geometry={GAUGE_GLOW_GEO} material={gaugeGlowMat} />
+      {/* the old r-scale gauge: a neutral marker now, the blade is the cut */}
+      <mesh ref={gaugeRef} position={[SWEEP_X0, GAUGE_Y, BLADE_Z]} geometry={GAUGE_GEO} material={gaugeMat} />
+
+      {/* the cut: one big spinning saw blade, act two. A static two-axis
+          tilt (rotation=[0.35, 0.55, 0]) tips the disc's face normal up and
+          round toward CameraRig's fixed 42-degree-elevation follow camera,
+          so it reads as a disc, not its own edge (round 2 review: rotation.y
+          alone can't lift a horizontal-axis disc's face into an elevated
+          camera). The inner group spins round the disc's own local axis
+          only -- see the useFrame comment -- carrying the two baked-in
+          charcoal spokes so the spin is visible on an otherwise symmetric
+          disc, without ever moving the outer tilt. */}
+      <group ref={bladeRef} position={[BLADE_X_START, BLADE_Y, BLADE_Z]} rotation={[0.35, 0.55, 0]}>
+        <group ref={bladeSpinRef}>
+          <mesh geometry={BLADE_GEO} material={bladeMat} />
+          <mesh geometry={BLADE_GLOW_GEO} material={bladeGlowMat} />
+        </group>
       </group>
 
-      {CORES.map((c, i) => (
-        <mesh
-          key={i}
-          ref={(el) => (coreRefs.current[i] = el)}
-          castShadow
-          receiveShadow
-          position={[c.x0, c.y, RACK_Z]}
-          geometry={PIECE_GEO}
-          material={coreMats[i]}
-        />
-      ))}
+      {/* the log deck: 2 mint pieces, 2 violet loops, 4 ice noise -- one InstancedMesh */}
+      <instancedMesh ref={logMeshRef} args={[PIECE_GEO, logMat, LOGS.length]} castShadow receiveShadow frustumCulled={false} />
 
-      {LOOPS.map((l, i) => (
-        <mesh
-          key={i}
-          ref={(el) => (loopRefs.current[i] = el)}
-          castShadow
-          position={[l.x, PORTHOLE_Y, PORTHOLE_Z]}
-          geometry={PORTHOLE_GEO}
-          material={loopMats[i]}
-        />
-      ))}
+      {/* round end-cap at each log's growing tip -- reuses BEAD_GEO, tinted
+          the same per-log MINT_C/VIOLET_C/ICE_C, so a log reads as a cut
+          round rather than a flat bar */}
+      <instancedMesh ref={capMeshRef} args={[BEAD_GEO, logMat, LOGS.length]} castShadow frustumCulled={false} />
+
+      {/* "what crosses the cut becomes a feature": a bead per survivor */}
+      <instancedMesh ref={beadMeshRef} args={[BEAD_GEO, beadMat, SURVIVORS.length]} frustumCulled={false} />
     </group>
   );
 }

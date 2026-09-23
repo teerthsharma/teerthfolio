@@ -3,7 +3,9 @@
 // The player. This file is the plumbing every seal body shares: it puts the
 // seal where live.seal says, steps the drive (seal/drive.js) that every body
 // animates from, and lays the contact shadow that keeps it on the snow. The
-// body is one of three candidates, picked by ?seal=A|B|C (default A).
+// body is variant D (seal/variants/D.jsx), the cutest of four candidates
+// judged in verification/J-seal-sheet.jpg; A/B/C stay in seal/variants/ for
+// the record but are no longer imported anywhere.
 //
 // Variant contract (seal/variants/*.jsx) - props:
 //   pose     object whose .current is live.seal {x, z, vx, vz, heading, speed, impact}
@@ -20,17 +22,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { CustomBlending, ShaderMaterial, SrcColorFactor, ZeroFactor } from "three";
 import { live, useUi } from "../../lib/world/store";
 import { createDrive, stepDrive } from "./seal/drive";
-import A from "./seal/variants/A";
-import B from "./seal/variants/B";
-import C from "./seal/variants/C";
-import D from "./seal/variants/D";
-
-const VARIANTS = { A, B, C, D };
-
-function pickVariant() {
-  const id = new URLSearchParams(window.location.search).get("seal");
-  return VARIANTS[id?.toUpperCase()] || A;
-}
+// The judge picked D (verification/J-seal-sheet.jpg): cutest of the four
+// candidates. The others' files stay in seal/variants/ but are unimported.
+import Variant from "./seal/variants/D";
 
 // Soft occlusion under the body. It multiplies the snow toward the lavender
 // of snow in shade (never black): a tight core where the belly touches and a
@@ -69,7 +63,6 @@ export default function Seal() {
   // A getter, so a variant never holds a stale seal if live.seal is replaced.
   const pose = useMemo(() => ({ get current() { return live.seal; } }), []);
   const drive = useMemo(createDrive, []);
-  const Variant = useMemo(pickVariant, []);
   const shadow = useMemo(contactShadow, []);
   useEffect(() => () => shadow.dispose(), [shadow]);
 

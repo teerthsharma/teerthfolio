@@ -1,14 +1,14 @@
 "use client";
 
-// The ground itself: snow, the cliff edge, paths between neighbourhoods,
-// signposts, boulders, one warm sun, and Teerth's name pressed into the snow
-// where the seal starts. Geometry comes from island/build.js (pure, built
-// once). The water around it is Sea.jsx; the sky is Atmosphere.jsx.
+// What lies on the land: paths between neighbourhoods, signposts, bridges,
+// boulders, one warm sun, and Teerth's name pressed into the snow where the
+// seal starts. Geometry comes from island/build.js (pure, built once). The
+// land itself (snow, mountains, banks, the coast, and clicking on it to walk)
+// is land/Terrain.jsx; the water around it is Sea.jsx; the sky Atmosphere.jsx.
 
 import { Center, Text3D } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { ISLAND_RADIUS } from "../../lib/world/places";
 import { live } from "../../lib/world/store";
 import Instances from "./Instances";
 import { buildIsland } from "./island/build";
@@ -72,13 +72,6 @@ function NameInSnow() {
   );
 }
 
-// Click or tap on the snow: the seal slides there.
-function walkHere(event) {
-  if (event.delta > 8) return;
-  live.target = { x: event.point.x, z: event.point.z };
-  live.pendingOpen = null;
-}
-
 export default function Island() {
   const kit = useMemo(buildIsland, []);
   const gl = useThree((s) => s.gl);
@@ -93,12 +86,6 @@ export default function Island() {
       <hemisphereLight args={[LIGHT.hemiSky, LIGHT.hemiGround, LIGHT.hemiIntensity]} />
       <Sun />
 
-      {/* the walkable snow, then the kit's smooth snow shaping above it */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow onClick={walkHere}>
-        <circleGeometry args={[ISLAND_RADIUS + 0.6, 128]} />
-        <meshStandardMaterial color={C.snow} roughness={0.95} />
-      </mesh>
-      <mesh geometry={kit.snowSmoothGeo} material={mat(C.snow, { flat: false, roughness: 0.95 })} receiveShadow />
       <mesh geometry={kit.pathsDocksGeo} material={mat(C.path, { flat: false, roughness: 0.9 })} receiveShadow />
       <mesh geometry={kit.rockBatchGeo} material={mat("#ffffff", { vertexColors: true, roughness: 0.6 })} castShadow receiveShadow />
       <mesh geometry={kit.woodBatchGeo} material={mat(C.wood)} castShadow receiveShadow />

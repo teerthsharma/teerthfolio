@@ -68,6 +68,7 @@ export function createDrive() {
     glances: 0,
     waveAt: -9,
     waves: 0,
+    arrivalWave: false,
   };
 }
 
@@ -102,6 +103,7 @@ export function stepDrive(d, seal, near, t, dt) {
       d.happy = 1;
       d.waveAt = t + LOOK_AT_PLACE + 0.4;
       d.waveSide = 1;
+      d.arrivalWave = true; // re-flash happy when this wave actually starts (below)
     }
   } else d.nearTime += dt;
   d.happy = Math.max(0, d.happy - dt / 1.4);
@@ -144,7 +146,7 @@ export function stepDrive(d, seal, near, t, dt) {
     // Default: look at the visitor, a little up toward the lens.
     yaw = clamp(toVisitor - d.bodyYaw, -1.3, 1.3);
     pitch = 0.3;
-    if (d.idle > 1.5 && t >= d.glanceAt) {
+    if (d.idle > 1.5 && d.idle < 3.3 && t >= d.glanceAt) {
       d.glances += 1;
       d.glanceEnd = t + 0.8 + hash(d.glances) * 1.4;
       d.glanceAt = d.glanceEnd + 2.5 + hash(d.glances + 50) * 3.5;
@@ -179,5 +181,12 @@ export function stepDrive(d, seal, near, t, dt) {
   }
   const w = (t - d.waveAt) / WAVE_SECONDS;
   d.wave = resting && w >= 0 && w <= 1 ? Math.sin(Math.PI * w) : 0;
+  // The seal turns to face the visitor before this wave (LOOK_AT_PLACE +
+  // 0.4s after arriving): flash happy again so the ^^ face is seen while it
+  // waves, not spent earlier while its back was still turned.
+  if (d.arrivalWave && d.wave > 0) {
+    d.happy = 1;
+    d.arrivalWave = false;
+  }
   return d;
 }

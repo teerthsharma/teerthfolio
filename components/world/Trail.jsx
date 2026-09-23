@@ -131,6 +131,17 @@ export default function Trail() {
     if (bufs.lastX === null) {
       bufs.lastX = seal.x;
       bufs.lastZ = seal.z;
+      // Every slot starts at world origin (typed arrays zero-fill): without
+      // this, the closing quad (slot 255 -> slot 0) draws a wedge from the
+      // seal to (0, 0) on every ?spawn= deep link, before a single row is
+      // ever written.
+      const { positions } = bufs;
+      for (let i = 0; i < ROWS * WIDTH_VERTS; i++) {
+        positions[i * 3] = seal.x;
+        positions[i * 3 + 1] = 0.012;
+        positions[i * 3 + 2] = seal.z;
+      }
+      bufs.geometry.attributes.position.needsUpdate = true;
     }
 
     let wrote = false;

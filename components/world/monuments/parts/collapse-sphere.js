@@ -102,11 +102,14 @@ function buildPointList(V, colorsRgb, radius) {
 }
 
 // Every triangle edge once, each end tinted by its own territory, as a flat
-// vertex-coloured line list for a single LineSegments draw call.
+// vertex-coloured line list for a single LineSegments draw call. `pairs`
+// carries the two vertex indices behind each edge, in the same order as the
+// instances, so a caller can find "the strut between vertex a and b".
 function buildEdges(V, F, colorsRgb, radius) {
   const seen = new Set();
   const positions = [];
   const colors = [];
+  const pairs = [];
   const pushEdge = (a, b) => {
     const key = a < b ? `${a}_${b}` : `${b}_${a}`;
     if (seen.has(key)) return;
@@ -115,30 +118,71 @@ function buildEdges(V, F, colorsRgb, radius) {
     positions.push(pa[0] * radius, pa[1] * radius, pa[2] * radius, pb[0] * radius, pb[1] * radius, pb[2] * radius);
     const ca = colorsRgb[territoryOf(pa)], cb = colorsRgb[territoryOf(pb)];
     colors.push(ca[0], ca[1], ca[2], cb[0], cb[1], cb[2]);
+    pairs.push(a, b);
   };
   for (const [a, b, c] of F) { pushEdge(a, b); pushEdge(b, c); pushEdge(c, a); }
-  return { positions: new Float32Array(positions), colors: new Float32Array(colors) };
+  return { positions: new Float32Array(positions), colors: new Float32Array(colors), pairs };
 }
 
-// A handful of faces, spread across the sphere by index stride: the facets
-// that flash coral as eviction folds a point onto its neighbour. Each
-// triangle's own vertices, relative to its centroid, so the mesh can sit at
-// [centroid] with no extra rotation — it's already that patch of the shell.
-function pickFolds(V, F, count, radius) {
-  const stride = Math.floor(F.length / count);
+// The evictions the figure narrates, computed the way fig.js computes them
+// (teerthsharma.github.io/fig.js, "collapse —"): repeatedly contract the
+// shortest edge whose two ends both have at least 4 neighbours and share
+// exactly 2 of them (the link condition — the mesh stays a sphere), folding
+// the more crowded end onto the other. Each contraction reports the victim
+// vertex `a`, its target `b`, the ORIGINAL mesh's edges that meet `a` (so a
+// building can find and re-aim the struts that follow it), and the 1-2
+// original faces between `a` and `b` (the coral fold), as vertex indices —
+// positions come from the vertex list itself, so nothing here is ever the
+// wrong scale.
+function pickContractions(V, F, count, radius) {
+  const len = (a, b) => {
+    const dx = V[a][0] - V[b][0], dy = V[a][1] - V[b][1], dz = V[a][2] - V[b][2];
+    return Math.hypot(dx, dy, dz);
+  };
+  // Neighbours in the UNREDUCED mesh: what the drawn struts actually
+  // connect, regardless of how many earlier folds have relabelled `cur`.
+  const baseN = V.map(() => new Set());
+  for (const [a, b, c] of F) {
+    baseN[a].add(b); baseN[a].add(c);
+    baseN[b].add(a); baseN[b].add(c);
+    baseN[c].add(a); baseN[c].add(b);
+  }
+  const scale = (p) => [p[0] * radius, p[1] * radius, p[2] * radius];
+
+  let cur = F.map((f) => f.slice());
   const out = [];
-  for (let i = 0; i < count; i++) {
-    const [a, b, c] = F[(i * stride + 3) % F.length];
-    const pa = V[a], pb = V[b], pc = V[c];
-    const cx = (pa[0] + pb[0] + pc[0]) / 3, cy = (pa[1] + pb[1] + pc[1]) / 3, cz = (pa[2] + pb[2] + pc[2]) / 3;
-    out.push({
-      centroid: [cx * radius, cy * radius, cz * radius],
-      verts: new Float32Array([
-        (pa[0] - cx) * radius, (pa[1] - cy) * radius, (pa[2] - cz) * radius,
-        (pb[0] - cx) * radius, (pb[1] - cy) * radius, (pb[2] - cz) * radius,
-        (pc[0] - cx) * radius, (pc[1] - cy) * radius, (pc[2] - cz) * radius,
-      ]),
-    });
+  while (out.length < count) {
+    const N = V.map(() => []);
+    const link = (a, b) => {
+      if (!N[a].includes(b)) N[a].push(b);
+      if (!N[b].includes(a)) N[b].push(a);
+    };
+    for (const [a, b, c] of cur) { link(a, b); link(b, c); link(c, a); }
+
+    const edges = [];
+    for (let i = 0; i < V.length; i++) for (const j of N[i]) if (i < j) edges.push([i, j, len(i, j)]);
+    edges.sort((x, y) => x[2] - y[2]);
+    const crowd = (x) => N[x].reduce((s, n) => s + len(x, n), 0) / N[x].length;
+
+    let pick = null;
+    for (const [a, b] of edges) {
+      if (N[a].length < 4 || N[b].length < 4) continue;
+      let common = 0;
+      for (const n of N[a]) if (N[b].includes(n)) common++;
+      if (common !== 2) continue; // the link condition: still a sphere
+      const v = crowd(a) < crowd(b) ? a : b; // the more crowded end folds
+      pick = { v, u: v === a ? b : a };
+      break;
+    }
+    if (!pick) break;
+
+    const { v, u } = pick;
+    const folds = cur.filter((f) => f.includes(v) && f.includes(u)).map((f) => f.slice());
+    out.push({ a: v, b: u, pa: scale(V[v]), pb: scale(V[u]), edges: [...baseN[v]].map((n) => [v, n]), folds });
+
+    cur = cur
+      .filter((f) => !(f.includes(v) && f.includes(u)))
+      .map((f) => f.map((x) => (x === v ? u : x)));
   }
   return out;
 }
@@ -157,7 +201,7 @@ function travelPair(V, radius) {
 }
 
 // Everything the sculpture needs, built once at module load.
-export function buildCollapse({ outerDetail, innerDetail, outerR, innerR, foldCount, territoryHex }) {
+export function buildCollapse({ outerDetail, innerDetail, outerR, innerR, contractionCount, territoryHex }) {
   const colorsRgb = territoryHex.map(hexToRgb01);
   const outer = buildIcosphere(outerDetail);
   const inner = buildIcosphere(innerDetail);
@@ -165,7 +209,7 @@ export function buildCollapse({ outerDetail, innerDetail, outerR, innerR, foldCo
     outer: buildEdges(outer.V, outer.F, colorsRgb, outerR),
     inner: buildEdges(inner.V, inner.F, colorsRgb, innerR),
     points: buildPointList(outer.V, colorsRgb, outerR),
-    folds: pickFolds(outer.V, outer.F, foldCount, outerR),
+    contractions: pickContractions(outer.V, outer.F, contractionCount, outerR),
     travel: travelPair(outer.V, outerR * 0.985),
   };
 }

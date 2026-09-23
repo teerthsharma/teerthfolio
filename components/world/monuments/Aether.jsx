@@ -22,7 +22,7 @@ import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import {
   AdditiveBlending, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry,
-  DoubleSide, Float32BufferAttribute, IcosahedronGeometry, LineBasicMaterial, MeshBasicMaterial,
+  DoubleSide, Float32BufferAttribute, IcosahedronGeometry, MeshBasicMaterial,
   Object3D, Quaternion, TorusGeometry, Vector3,
 } from "three";
 import { C, glow, lamp, mat } from "../palette";
@@ -46,12 +46,20 @@ const RING_CAP = N; // a cycle visits at most every point once
 
 const POLE_TOP_R = 0.17; // the pole's radius at platform height, where the spokes start
 const PLATFORM_TOP = 0.35; // the drum's top, where the support cage starts
-const RIM_Y = 3.95; // the canopy rim, where the support cage ends
+// The rim sits well above the ring's own tier: measured in real Chrome, a
+// low roof here put the canopy's underside in front of the ring/threads
+// along the follow camera's own sightline (both transparent, both
+// depth-tested against the roof's already-written depth) and hid the
+// story completely no matter the capture angle or moment in the loop.
+// Extra headroom between TIER_Y and the roof is what lets the camera
+// actually see the loop it is supposed to watch.
+const RIM_Y = 5.4; // the canopy rim, where the support cage ends
 const CAGE_H = RIM_Y - PLATFORM_TOP;
+const POLE_H = RIM_Y - PLATFORM_TOP; // the centre pole reaches the same rim the cage does
 const SUPPORT_COUNT = 8; // the cage: real poles a carousel actually stands on
 const SUPPORT_R = 1.93;
 const FOOT_GEO = new CylinderGeometry(1.9, 2.05, 0.35, 10);
-const POLE_GEO = new CylinderGeometry(0.14, POLE_TOP_R, 3.6, 8);
+const POLE_GEO = new CylinderGeometry(0.14, POLE_TOP_R, POLE_H, 8);
 const SUPPORT_GEO = new CylinderGeometry(0.09, 0.09, CAGE_H, 8);
 const RAIL_GEO = new TorusGeometry(RING_SCALE, 0.045, 8, 20);
 const SPOKE_LEN = RING_SCALE - POLE_TOP_R;
@@ -62,15 +70,15 @@ const WINDOW_GEO = new BoxGeometry(0.34, 0.42, 0.1);
 const FINIAL_GEO = new IcosahedronGeometry(0.17, 0);
 const ORB_GEO = new IcosahedronGeometry(0.15, 0); // a bead big enough to read as a point of light, not a speck
 const RING_SEG_GEO = new CylinderGeometry(0.095, 0.095, 1, 6); // the hero cycle: a real cable, not a hairline
+const EDGE_SEG_GEO = new CylinderGeometry(0.055, 0.055, 1, 6); // filtration threads: real cable too, 0.11m diameter so it clears the chunkiness floor
 
-const FOOT_MAT = mat(C.warmWhite, { roughness: 0.82 });
+const FOOT_MAT = mat(C.warmWhite, { roughness: 0.82 }); // near-neutral body; the canopy reuses this exact material so the roof reads as "this place's radiation" only through its rim, not a saturated cone
 const POLE_MAT = mat(C.charcoal, { roughness: 0.4, metalness: 0.15 });
 // A faint guide track, not a second ring: it sits almost on top of the
 // story's own closing circle, so it has to stay out of that circle's way or
 // the animated cycle lighting up reads as nothing happening at all.
 const RAIL_MAT = mat(C.ice, { roughness: 0.3, metalness: 0.05, opacity: 0.3 });
 const SPOKE_MAT = mat(C.charcoal, { roughness: 0.5 });
-const RIM_MAT = mat(C.charcoal, { roughness: 0.45 });
 
 // Scratch reused every frame: never allocate inside useFrame.
 const dummy = new Object3D();
@@ -97,7 +105,7 @@ export default function Aether({ place, near }) {
   const windowRef = useRef();
   const supportRef = useRef();
   const spinRef = useRef();
-  const edgeGeoRef = useRef();
+  const edgeSegRef = useRef();
   const ringSegRef = useRef();
   const triRef = useRef();
   const clock = useRef(0);
@@ -105,24 +113,24 @@ export default function Aether({ place, near }) {
   const prevK0 = useRef(0);
 
   const orbMat = useMemo(() => mat(glowColor, { emissive: glowColor, emissiveIntensity: 0.9, roughness: 0.35 }), [glowColor]);
-  const canopyMat = useMemo(() => mat(glowColor, { roughness: 0.55 }), [glowColor]);
+  const rimMat = useMemo(() => mat(glowColor, { roughness: 0.45 }), [glowColor]);
   const windowMat = useMemo(() => lamp(glowColor), [glowColor]);
   const finialMat = useMemo(() => mat(glowColor, { emissive: glowColor, emissiveIntensity: 1.1, roughness: 0.3 }).clone(), [glowColor]);
-  const edgeMat = useMemo(() => new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, toneMapped: false }), []);
+  // vertexColors: the ice→accent gradient below is set per instance via
+  // setColorAt; without this flag a MeshBasicMaterial ignores instance
+  // colour entirely and every thread draws flat white.
+  const edgeMat = useMemo(() => new MeshBasicMaterial({ transparent: true, opacity: 0.85, toneMapped: false, vertexColors: true }), []);
+  // The hero cycle glows near-white, not the flat accent the necklace and
+  // threads use, so the "a ring lights up" beat visibly switches on instead
+  // of reading as one more string of the same-coloured beads.
+  const ringColorObj = useMemo(() => new Color(glowColor).lerp(new Color("#ffffff"), 0.5), [glowColor]);
   const ringMat = useMemo(() => new MeshBasicMaterial({
-    color: glowColor, transparent: true, opacity: 0, toneMapped: false, blending: AdditiveBlending, depthWrite: false,
-  }), [glowColor]);
+    color: ringColorObj, transparent: true, opacity: 0, toneMapped: false, blending: AdditiveBlending, depthWrite: false,
+  }), [ringColorObj]);
   const triMat = useMemo(() => new MeshBasicMaterial({
-    color: glowColor, transparent: true, opacity: 0, toneMapped: false, blending: AdditiveBlending, depthWrite: false, side: DoubleSide,
-  }), [glowColor]);
+    color: ringColorObj, transparent: true, opacity: 0, toneMapped: false, blending: AdditiveBlending, depthWrite: false, side: DoubleSide,
+  }), [ringColorObj]);
 
-  const edgeGeo = useMemo(() => {
-    const g = new BufferGeometry();
-    g.setAttribute("position", new Float32BufferAttribute(new Float32Array(EDGE_CAP * 6), 3));
-    g.setAttribute("color", new Float32BufferAttribute(new Float32Array(EDGE_CAP * 6), 3));
-    g.setDrawRange(0, 0);
-    return g;
-  }, []);
   const triGeo = useMemo(() => {
     const g = new BufferGeometry();
     g.setAttribute("position", new Float32BufferAttribute(new Float32Array(9), 3));
@@ -233,29 +241,35 @@ export default function Aether({ place, near }) {
 
     // threads: grow with the scale, coloured by how close each is to the
     // current wavefront (the project's own accent, fading to ice as an edge
-    // settles) — the one accent, on the one thing that is the story.
-    const eg = edgeGeoRef.current?.geometry;
-    if (eg) {
-      const pos = eg.attributes.position.array;
-      const col = eg.attributes.color.array;
+    // settles) — the one accent, on the one thing that is the story. Real
+    // cable (instanced cylinders, same pattern as the hero ring below), not
+    // a hairline: WebGL ignores line width, so a LineBasicMaterial thread
+    // never reads at game distance.
+    const esm = edgeSegRef.current;
+    if (esm) {
       const E = topo.E;
       let n = 0;
       for (let e = 0; e < E.length; e++) {
         const edge = E[e];
         if (edge.l > rNow) break; // E is sorted ascending: nothing further qualifies
-        const b = n * 6;
-        pos[b] = ptX[edge.i]; pos[b + 1] = 0; pos[b + 2] = ptZ[edge.i];
-        pos[b + 3] = ptX[edge.j]; pos[b + 4] = 0; pos[b + 5] = ptZ[edge.j];
+        segMid.set((ptX[edge.i] + ptX[edge.j]) / 2, 0, (ptZ[edge.i] + ptZ[edge.j]) / 2);
+        segDir.set(ptX[edge.j] - ptX[edge.i], 0, ptZ[edge.j] - ptZ[edge.i]);
+        const len = segDir.length() || 1e-4;
+        segDir.normalize();
+        segQuat.setFromUnitVectors(UP_AXIS, segDir);
+        dummy.position.copy(segMid);
+        dummy.quaternion.copy(segQuat);
+        dummy.scale.set(1, len, 1);
+        dummy.updateMatrix();
+        esm.setMatrixAt(n, dummy.matrix);
         const frac = 1 - Math.min(1, edge.l / Math.max(rNow, 1e-4));
         edgeColor.copy(iceColor).lerp(glowColorObj, frac);
-        col[b] = col[b + 3] = edgeColor.r;
-        col[b + 1] = col[b + 4] = edgeColor.g;
-        col[b + 2] = col[b + 5] = edgeColor.b;
+        esm.setColorAt(n, edgeColor);
         n++;
       }
-      eg.attributes.position.needsUpdate = true;
-      eg.attributes.color.needsUpdate = true;
-      eg.setDrawRange(0, n * 2);
+      esm.count = n; // draw only the grown-in threads, like a draw-range on a buffer geometry
+      esm.instanceMatrix.needsUpdate = true;
+      if (esm.instanceColor) esm.instanceColor.needsUpdate = true;
     }
     edgeMat.opacity = 0.85 * sceneFade;
 
@@ -309,7 +323,7 @@ export default function Aether({ place, near }) {
   return (
     <group>
       <mesh position={[0, 0.175, 0]} castShadow receiveShadow material={FOOT_MAT} geometry={FOOT_GEO} />
-      <mesh position={[0, 2.15, 0]} castShadow material={POLE_MAT} geometry={POLE_GEO} />
+      <mesh position={[0, PLATFORM_TOP + POLE_H / 2, 0]} castShadow material={POLE_MAT} geometry={POLE_GEO} />
 
       {/* windows: the drum's own light, in the project's colour */}
       <instancedMesh ref={windowRef} args={[WINDOW_GEO, windowMat, WINDOW_COUNT]} frustumCulled={false} />
@@ -319,9 +333,10 @@ export default function Aether({ place, near }) {
           loop's ghostly ring turns inside it */}
       <instancedMesh ref={supportRef} args={[SUPPORT_GEO, POLE_MAT, SUPPORT_COUNT]} castShadow frustumCulled={false} />
 
-      <mesh position={[0, 3.95, 0]} rotation={[Math.PI / 2, 0, 0]} material={RIM_MAT} geometry={RIM_GEO} />
-      <mesh position={[0, 4.6, 0]} castShadow material={canopyMat} geometry={CANOPY_GEO} />
-      <group position={[0, 5.42, 0]}>
+      {/* the trim carries the accent now that the roof itself is neutral */}
+      <mesh position={[0, RIM_Y, 0]} rotation={[Math.PI / 2, 0, 0]} material={rimMat} geometry={RIM_GEO} />
+      <mesh position={[0, RIM_Y + 0.65, 0]} castShadow material={FOOT_MAT} geometry={CANOPY_GEO} />
+      <group position={[0, RIM_Y + 1.47, 0]}>
         <mesh material={finialMat} geometry={FINIAL_GEO} />
         <mesh material={glow(glowColor, 0.28)}>
           <sphereGeometry args={[0.42, 12, 10]} />
@@ -335,7 +350,7 @@ export default function Aether({ place, near }) {
         <mesh rotation={[Math.PI / 2, 0, 0]} material={RAIL_MAT} geometry={RAIL_GEO} />
 
         <instancedMesh ref={orbRef} args={[ORB_GEO, orbMat, N]} frustumCulled={false} />
-        <lineSegments ref={edgeGeoRef} geometry={edgeGeo} material={edgeMat} frustumCulled={false} />
+        <instancedMesh ref={edgeSegRef} args={[EDGE_SEG_GEO, edgeMat, EDGE_CAP]} frustumCulled={false} />
         <instancedMesh ref={ringSegRef} args={[RING_SEG_GEO, ringMat, RING_CAP]} frustumCulled={false} />
         <mesh ref={triRef} geometry={triGeo} material={triMat} frustumCulled={false} />
       </group>

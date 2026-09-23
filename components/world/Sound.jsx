@@ -12,7 +12,7 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { JUMP_IN, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
-import { PLACES } from "../../lib/world/places";
+import { districtAt, PLACES } from "../../lib/world/places";
 import { getUi, live, useUi } from "../../lib/world/store";
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
@@ -50,11 +50,14 @@ function createEngine() {
   const bornAt = performance.now(); // for the JUMP_IN skip check below
 
   // graph nodes that later voices or the per-frame update need to reach
-  let master, sparkleIn, swishFilter, swishGain, seaBaseGain;
+  let master, sparkleIn, swishFilter, swishGain, seaBaseGain, windGain, geigerGain, padGain;
+  let nextClickAt = 0; // Geiger: next Poisson-timed click, in ctx time
+  let calmArmed = true; // meditation chime: re-arms once calm drops below 0.3
+  let nextCalmStrikeAt = 0; // meditation chime: next 7s strike while calm stays high
 
   const counts = {
     thump: 0, pluck: 0, chime: 0, discovery: 0, squeak: 0, gulp: 0, knock: 0,
-    stroke: 0, whoosh: 0, jumpin: 0, zoom: 0, tick: 0,
+    stroke: 0, whoosh: 0, jumpin: 0, zoom: 0, tick: 0, calm: 0,
   };
   const openedOnce = new Set();
   const propHit = new WeakMap();
@@ -71,12 +74,12 @@ function createEngine() {
   let jumpEdgeMs = 0; // performance.now() of that edge, anchors the whoosh's t0
 
   // ---------- primitives ----------
-  function noiseSrc(rate = 1) {
+  function noiseSrc(rate = 1, when = ctx.currentTime) {
     const src = ctx.createBufferSource();
     src.buffer = noiseBuf;
     src.loop = true;
     if (rate !== 1) src.playbackRate.value = rate;
-    src.start(ctx.currentTime, Math.random() * 1.8); // different offsets so loops don't correlate
+    src.start(when, Math.random() * 1.8); // different offsets so loops don't correlate
     return src;
   }
 
@@ -133,6 +136,7 @@ function createEngine() {
     osc.type = type;
     osc.frequency.value = freq;
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(peak, t0 + Math.min(0.008, duration / 4));
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
@@ -144,9 +148,10 @@ function createEngine() {
   }
 
   function noiseBurst(t0, filterType, freq, Q, duration, peak) {
-    const src = noiseSrc();
-    const filt = biquad(filterType, freq, Q);
+    const src = noiseSrc(1, t0); // don't start rendering until t0: a future t0 (see playThump) would
+    const filt = biquad(filterType, freq, Q); // otherwise play at unity gain until the envelope catches up
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(peak, t0 + Math.min(0.006, duration / 4));
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
@@ -202,7 +207,7 @@ function createEngine() {
     // wind
     const windSrc = noiseSrc(0.5);
     const windFilter = biquad("lowpass", 380);
-    const windGain = ctx.createGain();
+    windGain = ctx.createGain();
     windGain.gain.value = 0.035;
     windSrc.connect(windFilter);
     windFilter.connect(windGain);
@@ -235,6 +240,42 @@ function createEngine() {
     seaLfo.connect(seaLfoGain);
     seaLfoGain.connect(seaSwell.gain);
     seaLfo.start();
+
+    // Geiger crackle: every place is radioactive, so this is always running
+    // at a faint floor rate; frame() spikes its rate and fires the clicks.
+    const geigerSrc = noiseSrc();
+    const geigerHi = biquad("highpass", 2500);
+    const geigerLo = biquad("lowpass", 5500); // keeps it soft, not harsh
+    geigerGain = ctx.createGain();
+    geigerGain.gain.value = 0;
+    geigerSrc.connect(geigerHi);
+    geigerHi.connect(geigerLo);
+    geigerLo.connect(geigerGain);
+    geigerGain.connect(master);
+
+    // meditation pad: a warm triad under the chime while the seal sits still
+    const pad1 = ctx.createOscillator();
+    pad1.type = "sine";
+    pad1.frequency.value = 130.81;
+    const pad2 = ctx.createOscillator();
+    pad2.type = "triangle";
+    pad2.frequency.value = 196.0;
+    pad2.detune.value = 4;
+    const pad3 = ctx.createOscillator();
+    pad3.type = "sine";
+    pad3.frequency.value = 261.63;
+    const padFilter = biquad("lowpass", 900, 0.5);
+    padGain = ctx.createGain();
+    padGain.gain.value = 0;
+    pad1.connect(padFilter);
+    pad2.connect(padFilter);
+    pad3.connect(padFilter);
+    padFilter.connect(padGain);
+    padGain.connect(master);
+    sendToSparkle(padGain, 0.4);
+    pad1.start();
+    pad2.start();
+    pad3.start();
   }
 
   // ---------- voices ----------
@@ -247,6 +288,7 @@ function createEngine() {
     osc.frequency.setValueAtTime(110, t0);
     osc.frequency.exponentialRampToValueAtTime(42, t0 + 0.16);
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(0.45 * m, t0 + 0.003);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
@@ -271,6 +313,7 @@ function createEngine() {
     osc.frequency.exponentialRampToValueAtTime(note, t0 + 0.025);
     const lp = biquad("lowpass", 3000);
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(0.16, t0 + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4);
@@ -286,6 +329,7 @@ function createEngine() {
     osc2.type = "sine";
     osc2.frequency.value = note * 2;
     const g2 = ctx.createGain();
+    g2.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g2.gain.setValueAtTime(0.0001, t0);
     g2.gain.linearRampToValueAtTime(0.16 / 3, t0 + 0.004);
     g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4);
@@ -308,6 +352,7 @@ function createEngine() {
     osc.type = "sine";
     osc.frequency.value = freq;
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(peak, t0 + 0.006);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
@@ -319,10 +364,12 @@ function createEngine() {
     disconnectOnEnded(osc, [g, send]);
   }
 
-  function bell(f, delaySec, peak) {
-    playPartial(f, peak, 1.4, delaySec);
-    playPartial(f * 2.76, peak * 0.3, 0.7, delaySec);
-    playPartial(f * 5.4, peak * 0.1, 0.35, delaySec);
+  // decay is the fundamental's ring time in seconds; the two overtones decay
+  // proportionally faster, same ratio as the original fixed 1.4/0.7/0.35.
+  function bell(f, delaySec, peak, decay = 1.4) {
+    playPartial(f, peak, decay, delaySec);
+    playPartial(f * 2.76, peak * 0.3, decay * 0.5, delaySec);
+    playPartial(f * 5.4, peak * 0.1, decay * 0.25, delaySec);
   }
 
   function playChime(placeId, delaySec = 0) {
@@ -360,6 +407,7 @@ function createEngine() {
     lfo.connect(lfoGain);
     lfoGain.connect(osc.frequency);
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(0.09, t0 + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
@@ -387,6 +435,7 @@ function createEngine() {
     osc.frequency.setValueAtTime(f0, t0);
     osc.frequency.linearRampToValueAtTime(f1, t0 + duration);
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(peak, t0 + Math.min(0.01, duration / 4));
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
@@ -428,6 +477,7 @@ function createEngine() {
       lfo.connect(lfoGain);
       lfoGain.connect(osc.frequency);
       const g = ctx.createGain();
+      g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.linearRampToValueAtTime(0.2 * h, t0 + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
@@ -470,6 +520,7 @@ function createEngine() {
     filt.frequency.setValueAtTime(500, t0);
     filt.frequency.linearRampToValueAtTime(2600, t0 + 0.35);
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(0.1, t0 + 0.03);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
@@ -488,41 +539,55 @@ function createEngine() {
   // frame()), not necessarily ctx.currentTime — it can already be in the
   // past by the time this schedules, which is a valid AudioParam time.
   function playJumpInWhoosh(t0) {
+    // t0 is the press time on the audio clock and can already be in the past
+    // (the context's own clock starts moving 330-370ms after construction on
+    // this machine) — peakAt/endAt stay anchored to that true t0 so the peak
+    // and the thump land on the camera's beat, but every AudioParam event is
+    // scheduled no earlier than `start` (now), since a param can't rewind.
     const peakAt = t0 + JUMP_IN.hopAt;
     const endAt = t0 + JUMP_IN.landAt;
-    duckUntil = Math.max(duckUntil, endAt);
 
-    const src = noiseSrc();
-    const filt = biquad("bandpass", 180, 1.0);
-    filt.frequency.setValueAtTime(180, t0);
-    filt.frequency.exponentialRampToValueAtTime(2800, peakAt);
-    filt.frequency.exponentialRampToValueAtTime(1400, endAt);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.linearRampToValueAtTime(0.06, t0 + 0.08); // audible right away
-    g.gain.exponentialRampToValueAtTime(0.3, peakAt);
-    g.gain.exponentialRampToValueAtTime(0.0001, endAt);
-    src.connect(filt);
-    filt.connect(g);
-    g.connect(master);
-    src.stop(endAt + 0.05);
-    disconnectOnEnded(src, [filt, g]);
+    // Too late to be worth a rising whoosh (context unlocked well after the
+    // press), but the landing thump still belongs on the beat if any of it
+    // is still ahead.
+    if (peakAt >= ctx.currentTime + 0.15) {
+      const start = Math.max(t0, ctx.currentTime);
+      duckUntil = Math.max(duckUntil, endAt);
 
-    const osc = ctx.createOscillator(); // sub-riser for weight
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(90, t0);
-    osc.frequency.exponentialRampToValueAtTime(260, peakAt);
-    const og = ctx.createGain();
-    og.gain.setValueAtTime(0.0001, t0);
-    og.gain.exponentialRampToValueAtTime(0.12, peakAt);
-    og.gain.exponentialRampToValueAtTime(0.0001, endAt);
-    osc.connect(og);
-    og.connect(master);
-    osc.start(t0);
-    osc.stop(endAt + 0.05);
-    disconnectOnEnded(osc, [og]);
+      const src = noiseSrc(1, start);
+      const filt = biquad("bandpass", 180, 1.0);
+      filt.frequency.setValueAtTime(180, start);
+      filt.frequency.exponentialRampToValueAtTime(2800, peakAt);
+      filt.frequency.exponentialRampToValueAtTime(1400, endAt);
+      const g = ctx.createGain();
+      g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.linearRampToValueAtTime(0.06, Math.min(start + 0.08, peakAt - 0.05)); // audible right away
+      g.gain.exponentialRampToValueAtTime(0.45, peakAt);
+      g.gain.exponentialRampToValueAtTime(0.0001, endAt);
+      src.connect(filt);
+      filt.connect(g);
+      g.connect(master);
+      src.stop(endAt + 0.05);
+      disconnectOnEnded(src, [filt, g]);
 
-    playThump(0.55, endAt); // softer than a collision, on the same clock
+      const osc = ctx.createOscillator(); // sub-riser for weight
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(90, start);
+      osc.frequency.exponentialRampToValueAtTime(260, peakAt);
+      const og = ctx.createGain();
+      og.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
+      og.gain.setValueAtTime(0.0001, start);
+      og.gain.exponentialRampToValueAtTime(0.16, peakAt);
+      og.gain.exponentialRampToValueAtTime(0.0001, endAt);
+      osc.connect(og);
+      og.connect(master);
+      osc.start(start);
+      osc.stop(endAt + 0.05);
+      disconnectOnEnded(osc, [og]);
+    }
+
+    if (endAt > ctx.currentTime) playThump(0.55, endAt); // softer than a collision, on the same clock
   }
 
   function playJumpIn(t0) {
@@ -547,9 +612,10 @@ function createEngine() {
       filt.frequency.exponentialRampToValueAtTime(400, t0 + duration);
     }
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     const peakAt = t0 + duration * (dir > 0 ? 0.35 : 0.75); // reversed: slow build, fast cutoff
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.linearRampToValueAtTime(0.5, peakAt);
+    g.gain.linearRampToValueAtTime(dir > 0 ? 0.2 : 0.16, peakAt); // well under JUMP_IN's peak
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     src.connect(filt);
     filt.connect(g);
@@ -568,6 +634,7 @@ function createEngine() {
     osc.type = "square";
     osc.frequency.setValueAtTime(1800, t0);
     const g = ctx.createGain();
+    g.gain.value = 0; // backstop: a GainNode defaults to 1 until its first automation event
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(0.05, t0 + 0.003);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.045);
@@ -578,6 +645,31 @@ function createEngine() {
     disconnectOnEnded(osc, [g]);
   }
 
+  // The meditation chime: a bright bell pair the moment calm crosses 0.6
+  // going up (re-armed only once calm drops below 0.3, so it doesn't
+  // re-fire on every small dip), then a single soft strike every 7s for as
+  // long as calm stays at or above 0.6.
+  function updateCalm(now, calm) {
+    if (calm >= 0.6 && calmArmed) {
+      calmArmed = false;
+      if (beginVoice(3.6)) {
+        counts.calm++;
+        bell(523.25, 0, 0.12, 3.5);
+        bell(783.99, 0.35, 0.08, 3.5);
+      }
+      nextCalmStrikeAt = now + 7;
+    } else if (calm < 0.3) {
+      calmArmed = true;
+    }
+    if (calm >= 0.6 && now >= nextCalmStrikeAt) {
+      if (beginVoice(3.6)) {
+        counts.calm++;
+        bell(392.0, 0, 0.06, 3.5);
+      }
+      nextCalmStrikeAt = now + 7;
+    }
+  }
+
   // ---------- per-frame ----------
   function frame() {
     const audible = Boolean(ctx) && ctx.state === "running";
@@ -586,16 +678,44 @@ function createEngine() {
     const seal = live.seal;
     const throttle = seal.throttle ?? 0;
     const skid = seal.skid ?? 0;
+    const calm = seal.calm ?? 0; // 0..1, meditation depth; written by the seal track once it lands
 
     if (audible && now - lastParamT >= 0.05) {
       lastParamT = now;
       const glide = throttle === 0 ? 0.85 : 1;
       const duck = now < duckUntil ? 0.5 : 1;
+      const hush = 1 - 0.5 * calm; // the world quiets while the seal meditates
       swishFilter.frequency.setTargetAtTime((500 + 90 * seal.speed + 900 * skid) * glide, now, 0.06);
-      swishGain.gain.setTargetAtTime((0.14 * smoothstep(0.4, 9, seal.speed) + 0.12 * skid) * duck, now, 0.06);
+      swishGain.gain.setTargetAtTime((0.14 * smoothstep(0.4, 9, seal.speed) + 0.12 * skid) * duck * hush, now, 0.06);
+      windGain.gain.setTargetAtTime(0.035 * hush, now, 0.06);
 
       const dist = Math.hypot(seal.x, seal.z);
-      seaBaseGain.gain.setTargetAtTime(0.02 + 0.06 * smoothstep(26, 38, dist), now, 0.06);
+      seaBaseGain.gain.setTargetAtTime((0.02 + 0.06 * smoothstep(26, 38, dist)) * hush, now, 0.06);
+
+      padGain.gain.setTargetAtTime(0.07 * smoothstep(0.3, 1, calm), now, 0.8);
+    }
+
+    // Geiger crackle: every place is radioactive, hence the floor rate away
+    // from a district; a hot spot (a district's own centre) climbs steeply.
+    // Poisson-timed clicks, capped so a big gap (e.g. a suspended tab) can't
+    // burst more than 3 in one frame.
+    if (audible) {
+      const d = districtAt(seal.x, seal.z);
+      const heat = d ? 1 - Math.hypot(seal.x - d.x, seal.z - d.z) / d.radius : 0;
+      const rate = (d ? 0.8 + 11 * heat * heat : 0.25) * (1 - smoothstep(0.15, 0.6, calm));
+      // rate hits exactly 0 at full calm (smoothstep saturates): guard the
+      // divide so a due-but-silenced click can't wedge nextClickAt at
+      // +Infinity and stop the crackle for good once calm drops again.
+      let geigerClicks = 0;
+      while (rate > 0 && now >= nextClickAt && geigerClicks < 3) {
+        const t = nextClickAt;
+        geigerGain.gain.setValueAtTime(0.04 * (0.6 + 0.4 * Math.random()), t);
+        geigerGain.gain.setTargetAtTime(0, t + 0.0008, 0.0012);
+        nextClickAt += -Math.log(1 - Math.random()) / rate;
+        geigerClicks++;
+      }
+
+      updateCalm(now, calm);
     }
 
     const impact = seal.impact ?? 0;
@@ -625,11 +745,13 @@ function createEngine() {
       if (audible && now > 0) {
         jumpPending = false;
         const ts = ctx.getOutputTimestamp();
-        // Clamped to 0: the mapped time can land slightly negative when the
-        // press happens before the context's clock truly starts advancing
-        // (the running-but-silent gap above), and AudioParam times must be
-        // non-negative.
-        const t0 = Math.max(0, ts.contextTime + (jumpEdgeMs - ts.performanceTime) / 1000);
+        // Left unclamped: this can land negative when the press happens
+        // before the context's clock truly starts advancing (the
+        // running-but-silent gap above, measured at 330-370ms on this
+        // machine). playJumpInWhoosh keeps peakAt/endAt anchored to this
+        // true t0 for the beat and only clamps where it schedules
+        // AudioParam events, which can't be in the past.
+        const t0 = ts.contextTime + (jumpEdgeMs - ts.performanceTime) / 1000;
         playJumpIn(t0);
       } else if (performance.now() - jumpEdgeMs > JUMP_IN.hopAt * 1000) {
         jumpPending = false; // missed the window, drop it

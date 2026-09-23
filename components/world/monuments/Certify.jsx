@@ -1,92 +1,145 @@
 "use client";
 
 // Building for the "certify" figure: separatrix (place id p-separatrix).
-// figure.desc: a phase portrait with two attractors and a saddle; every
-// start flows to one side or the other unless its rounding disc touches the
+// figure.desc: a phase portrait with two attractors and a saddle between
+// them; every start flows to one side, unless its rounding disc touches the
 // separatrix, in which case it is torn toward both sides and nothing is
 // returned. figure.claim: certifies a top-k, an argmin or a threshold was
 // decided by the data, not by where the kernel rounded.
 //
-// The everyday building whose job that is: a checkpoint booth with a boom
-// gate, judged by an oversized balance scale on its roof (a courthouse's
-// scales of justice, doing a weigh station's job). Each cycle the beam tips
-// firmly to one side -- decided, the gate lifts -- or it hangs near level and
-// wobbles, the rounding bubble round each pan swells, the gate stays down
-// and the roof beacon blinks: refused, nothing gets through. Loop, faster
-// and brighter when near.
+// The everyday building whose job that is: a checkpoint pavilion under a
+// hyperbolic-paraboloid roof -- an expo pavilion's roof type (the 1958
+// Philips Pavilion), built to the figure's own shape. The roof IS the
+// story: its ridge (ROOF_APEX along x=0) is the stable manifold, painted as
+// the separatrix; its fall to the eaves is the unstable direction. A hopper
+// drops snowball parcels onto the ridge on a fixed sequence; each one rolls
+// down the saddle exactly like the figure's own flow. Clear of the ridge,
+// it rolls off its side and drops into that side's pool, which rings as it
+// settles and lifts the boom gate. Within the rounding band, it stalls on
+// the separatrix instead, a disc swelling under it, then tears into two
+// half-scale halves that slide toward both eaves at once and fade before
+// they arrive -- nothing certified, the gate stays down, the beacon flashes.
 //
 // Local origin: the snow at the place centre (no plinth); +z faces the
 // camera and the dock. Props: { place, near? } -- near falls back to the ui
 // store since Scene.jsx's lab path does not pass it as a prop.
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { BoxGeometry, ConeGeometry, CylinderGeometry, IcosahedronGeometry } from "three";
+import { useEffect, useMemo, useRef } from "react";
+import { BoxGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, IcosahedronGeometry, Object3D, RingGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useUi } from "../../../lib/world/store";
 import { damp } from "../life/util";
 import { C, glow, lamp, mat } from "../palette";
+import {
+  CYCLE,
+  buildFasciaGeo,
+  buildRibbonGeo,
+  buildRoofGeo,
+  localTimeFor,
+  marblePose,
+  poolSettle,
+  ROOF_HALF_X,
+  ROOF_HALF_Z,
+  roofY,
+  START_X,
+  STALL_DUR,
+} from "./parts/certify-roof";
 
 const DEG = Math.PI / 180;
+const lerp = (a, b, t) => a + (b - a) * t;
 
-// Booth (charcoal roof + post, warm-white walls), centred slightly behind
-// the gate so the lane it guards reads front-to-back.
-const BOOTH_X = 0, BOOTH_Z = -0.35;
-const BOOTH_W = 1.4, BOOTH_D = 1.05, WALL_H = 1.65;
-const ROOF_R = 1.0, ROOF_H = 0.8;
-const ROOF_Y = WALL_H + ROOF_H; // apex
+// The booth stands under the roof, its front (dock-facing) wall carrying
+// the window and door; corners reach hypot(1.7, 1.3) = 2.14 m, inside the
+// 3 m place radius.
+const BOOTH_X = 0, BOOTH_Z = -0.2;
+const BOOTH_W = 3.4, BOOTH_H = 2.2, BOOTH_D = 2.2;
+const BOOTH_FRONT_Z = BOOTH_Z + BOOTH_D / 2;
 
-// The scale rises straight out of the roof apex to its pivot.
-const PIVOT_Y = 5.0;
-const POST_LEN = PIVOT_Y - ROOF_Y;
-const BEAM_LEN = 2.4;
-const PAN_SIDE_X = 1.15;
-const ITEM_Y = -0.66; // cargo cube + bubble centre within a pan group
+const DOOR_X = -1.1, DOOR_W = 0.8, DOOR_H = 1.6;
+const WIN_Y = 1.3, WIN_W = 2.6, WIN_H = 0.7, WIN_FRAME = 0.14;
 
-// The boom gate, beside the booth, arm swinging across the lane toward it.
-const GATE_X = 1.05, GATE_Z = 0.55;
-const GATE_POST_H = 1.3, GATE_POST_R = 0.09;
-const ARM_LEN = 1.7;
-const ARM_UP = 108 * DEG; // lift from horizontal (blocking) toward vertical
+// Feeds the ridge at its +z end, above the story's 4.6 m action line but
+// clear of the label at y 6.5.
+const HOPPER_POS = [BOOTH_X, 4.9, ROOF_HALF_Z];
+const HOPPER_SIZE = [0.6, 0.5, 0.6];
 
-const BEAT = 2.4; // s at rest; near shortens the cycle and sharpens the wobble
-const MAX_TIP = 27 * DEG;
+// The boom gate, off the booth face: its own lane, marked on the snow.
+const GATE_X = -1.9, GATE_Z = 1.7, GATE_PIVOT_Y = 1.0, GATE_POST_H = 1.7;
+const ARM_LEN = 2.4, ARM_BANDS = 6, ARM_BAND_W = ARM_LEN / ARM_BANDS;
+// Capped at 80 deg (short of vertical): 108 deg swung the resting-open arm
+// past straight up, reading as a diagonal stick disconnected from its post.
+const ARM_UP = 80 * DEG;
+const LANE_X = 0.9, LANE_Z0 = 1.2, LANE_Z1 = 2.8;
 
-// --- static geometry, built once and shared -------------------------------
+// The two attractor pools, edge at 2.25 + 0.7 = 2.95 m, inside radius 3.
+const POOL_X = 2.25, POOL_R = 0.7, POOL_H = 0.12;
 
-const wallGeo = new BoxGeometry(BOOTH_W, WALL_H, BOOTH_D).translate(BOOTH_X, WALL_H / 2, BOOTH_Z);
+// A charcoal skirt band around the booth's foot, its own dark base
+// separate from the fascia at the roof line -- so the silhouette holds
+// even when the warm-white walls wash into a pale sky/ground.
+const SKIRT_H = 0.25, SKIRT_PAD = 0.02;
 
-const charcoalStaticGeo = mergeGeometries([
-  new ConeGeometry(ROOF_R, ROOF_H, 4).rotateY(Math.PI / 4).translate(BOOTH_X, ROOF_Y - ROOF_H / 2, BOOTH_Z),
-  new CylinderGeometry(0.13, 0.16, POST_LEN, 8).translate(BOOTH_X, ROOF_Y + POST_LEN / 2, BOOTH_Z),
-  new CylinderGeometry(GATE_POST_R, GATE_POST_R, GATE_POST_H, 8).translate(GATE_X, GATE_POST_H / 2, GATE_Z),
+const MARBLE_COUNT = START_X.length; // 6, the fixed drop sequence
+const TEAR_SLOTS = 2; // shared halves for whichever marble is tearing
+const MOTE_COUNT = 10;
+const MOTE_ANGLE = Array.from({ length: MOTE_COUNT }, (_, i) => (i / MOTE_COUNT) * Math.PI * 2);
+const PULSE_CONVERGE = 0.8, PULSE_SPLIT = 0.5; // s, once a cycle (item 2)
+
+// --- static geometry, built once and merged into three draw calls per
+// material (charcoal / warm white / accent), the way the review asked -----
+
+const boothGeo = new BoxGeometry(BOOTH_W, BOOTH_H, BOOTH_D).translate(BOOTH_X, BOOTH_H / 2, BOOTH_Z);
+const roofGeo = buildRoofGeo();
+boothGeo.deleteAttribute("uv"); // match the hand-built roof geometry's attributes for the merge
+roofGeo.deleteAttribute("uv");
+const warmWhiteStaticGeo = mergeGeometries([boothGeo, roofGeo]);
+
+const doorGeo = new BoxGeometry(DOOR_W, DOOR_H, 0.1).translate(DOOR_X, DOOR_H / 2, BOOTH_FRONT_Z + 0.02);
+const winFrameGeo = new BoxGeometry(WIN_W + WIN_FRAME * 2, WIN_H + WIN_FRAME * 2, 0.08).translate(
+  BOOTH_X, WIN_Y, BOOTH_FRONT_Z + 0.01,
+);
+const hopperGeo = new BoxGeometry(...HOPPER_SIZE).translate(...HOPPER_POS);
+const gatePostGeo = new CylinderGeometry(0.09, 0.11, GATE_POST_H, 8).translate(GATE_X, GATE_POST_H / 2, GATE_Z);
+const skirtGeo = new BoxGeometry(BOOTH_W + SKIRT_PAD * 2, SKIRT_H, BOOTH_D + SKIRT_PAD * 2).translate(
+  BOOTH_X, SKIRT_H / 2, BOOTH_Z,
+);
+for (const g of [doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo]) g.deleteAttribute("uv");
+const charcoalStaticGeo = mergeGeometries([buildFasciaGeo(), doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo]);
+
+const winPaneGeo = new BoxGeometry(WIN_W, WIN_H, 0.05).translate(BOOTH_X, WIN_Y, BOOTH_FRONT_Z + 0.05);
+// Widened well past the 0.06-0.08 m the first review round asked for --
+// that range measurably still didn't clear the fascia's silhouette from the
+// dock-facing spawn camera (verification/sep-fix1-roof-zoomed.png) -- and a
+// larger additive shell around it, so the ridge still reads when the roof
+// is seen edge-on along z (its own faces foreshorten to a line from there).
+const ribbonGeo = buildRibbonGeo(0.5, 0.2);
+const ribbonGlowGeo = buildRibbonGeo(0.72, 0.3);
+// The lane markings and the ground decal are both flat markings under the
+// same booth -- one merged mesh/material (matDecal) instead of two, each
+// piece keeping its own baked Y (lane 0.011, decal 0.02) so the decal still
+// layers over the lane where their footprints overlap.
+const decalGeo = mergeGeometries([
+  new CircleGeometry(2.9, 32).rotateX(-Math.PI / 2).translate(0, 0.02, 0),
+  new BoxGeometry(0.2, 0.02, LANE_Z1 - LANE_Z0).translate(-LANE_X, 0.011, (LANE_Z0 + LANE_Z1) / 2),
+  new BoxGeometry(0.2, 0.02, LANE_Z1 - LANE_Z0).translate(LANE_X, 0.011, (LANE_Z0 + LANE_Z1) / 2),
 ]);
 
-const windowGeo = new CylinderGeometry(0.24, 0.24, 0.06, 12).rotateX(Math.PI / 2);
-const fulcrumGeo = new CylinderGeometry(0.26, 0.26, 0.26, 3).rotateX(-Math.PI / 2); // apex up, under the beam
+// The boom arm: six flush candy-stripe bands, extending +x from the post
+// so it guards its own lane instead of crossing the booth's window.
+const armBand = (i) => new BoxGeometry(ARM_BAND_W - 0.02, 0.14, 0.14).translate(ARM_BAND_W * (i + 0.5), 0, 0);
+const armDarkGeo = mergeGeometries([armBand(0), armBand(2), armBand(4)]);
+const armLightGeo = mergeGeometries([armBand(1), armBand(3), armBand(5)]);
 
-const beamBarGeo = new BoxGeometry(BEAM_LEN, 0.16, 0.2);
-const endCapsGeo = mergeGeometries([
-  new BoxGeometry(0.22, 0.22, 0.22).translate(-PAN_SIDE_X, 0, 0),
-  new BoxGeometry(0.22, 0.22, 0.22).translate(PAN_SIDE_X, 0, 0),
-]);
-const hangerRimGeo = mergeGeometries([
-  new BoxGeometry(0.11, 0.85, 0.11).translate(0, -0.425, 0),
-  new CylinderGeometry(0.45, 0.45, 0.13, 10, 1, true).translate(0, -0.9, 0),
-]);
-const panGeo = new CylinderGeometry(0.43, 0.43, 0.11, 12).translate(0, -0.9, 0);
-const cubeGeo = new BoxGeometry(0.4, 0.4, 0.4);
-const bubbleGeo = new IcosahedronGeometry(1, 1); // scaled 0.35..0.85 as the rounding margin
-
-// The arm reads as a barrier, not a stick: four flush bands, charcoal
-// alternating with warm white, the classic boom-gate candy stripe.
-const ARM_BANDS = 4;
-const ARM_BAND_W = ARM_LEN / ARM_BANDS;
-const armBand = (i) => new BoxGeometry(ARM_BAND_W - 0.02, 0.14, 0.14).translate(-ARM_BAND_W * (i + 0.5), 0, 0);
-const armDarkGeo = mergeGeometries([armBand(0), armBand(2)]);
-const armLightGeo = mergeGeometries([armBand(1), armBand(3)]);
-const armTipGeo = new BoxGeometry(0.18, 0.18, 0.18).translate(-ARM_LEN, 0, 0);
-const beaconGeo = new IcosahedronGeometry(0.1, 1);
+// A small cone, not a ball: the arm's own bands and the marbles are both
+// round, so a matching icosahedron beacon fused into "one more ball" at
+// whichever silhouette it sat closest to.
+const beaconGeo = new ConeGeometry(0.16, 0.34, 8);
+const poolGeo = new CylinderGeometry(POOL_R, POOL_R, POOL_H, 20);
+const ringGeo = new RingGeometry(0.3, 0.46, 24).rotateX(-Math.PI / 2);
+const marbleGeo = new IcosahedronGeometry(0.22, 1);
+const moteGeo = new IcosahedronGeometry(0.12, 0);
+const pulseGeo = new BoxGeometry(0.5, 0.1, 0.3);
 
 export default function Certify({ place, near: nearProp }) {
   const A = place.radiation ?? place.color;
@@ -95,93 +148,204 @@ export default function Certify({ place, near: nearProp }) {
 
   const matCharcoal = useMemo(() => mat(C.charcoal), []);
   const matWarmWhite = useMemo(() => mat(C.warmWhite), []);
-  const matAccent = useMemo(() => mat(A), [A]);
-  const matIce = useMemo(() => mat(C.ice, { roughness: 0.35, emissive: A, emissiveIntensity: 0 }).clone(), [A]);
-  const matBubble = useMemo(() => glow(A, 0.32), [A]);
-  const matWindow = useMemo(() => lamp(A, 0.6).clone(), [A]);
-  const matBeacon = useMemo(() => lamp(A, 2.2), [A]);
+  const matWindow = useMemo(() => lamp(A, 0.9), [A]);
+  const matRibbon = useMemo(() => lamp(A, 1.2), [A]);
+  const matRibbonGlow = useMemo(() => glow(A, 0.3), [A]);
+  // Saturated accent body, not near-white snow: a near-white marble on a
+  // near-white roof has almost no value contrast and reads as invisible.
+  const matMarble = useMemo(() => mat(A, { emissive: A, emissiveIntensity: 1.5 }), [A]);
+  const matMote = useMemo(() => lamp(A, 2), [A]);
+  const matPulse = useMemo(() => lamp(A, 3), [A]);
+  const matDecal = useMemo(() => glow(A, 0.16), [A]);
+  const matRing = useMemo(() => glow(A, 0.5), [A]);
 
-  const beamRef = useRef(null);
-  const leftPanRef = useRef(null);
-  const rightPanRef = useRef(null);
-  const leftBubbleRef = useRef(null);
-  const rightBubbleRef = useRef(null);
+  // The only three materials that mutate per frame; cloned so the mutation
+  // never touches another building sharing the cached A-coloured lamp.
+  const matBeacon = useMemo(() => lamp(A, 1).clone(), [A]);
+  const matPoolL = useMemo(() => lamp(A, 1).clone(), [A]);
+  const matPoolR = useMemo(() => lamp(A, 1).clone(), [A]);
+  useEffect(() => () => {
+    matBeacon.dispose();
+    matPoolL.dispose();
+    matPoolR.dispose();
+  }, [matBeacon, matPoolL, matPoolR]);
+
   const gateRef = useRef(null);
-  const beaconRef = useRef(null);
-  const anim = useRef({ angle: 0, bubble: 0.55, gate: 0, windowGlow: 0.3, ice: 0 });
+  const ringRef = useRef(null);
+  const marbleMesh = useRef(null);
+  const moteMesh = useRef(null);
+  const pulseMesh = useRef(null);
+  const dummy = useMemo(() => new Object3D(), []);
+  const anim = useRef({ phase: 0, gate: 1 });
+  // One mutable pose object per marble (marblePose writes into it instead
+  // of returning a literal), plus one shared settle scratch object -- read
+  // immediately after each call, never held past it -- so the per-frame
+  // loop below allocates nothing.
+  const poses = useMemo(() => Array.from({ length: MARBLE_COUNT }, () => ({})), []);
+  const settleTmp = useMemo(() => ({}), []);
 
   useFrame((state, dt) => {
     const boost = near ? 1.35 : 1;
-    const t = state.clock.elapsedTime * (near ? 1.45 : 1);
-    const certDur = (near ? 3 : 2) * BEAT;
-    const cycle = certDur + BEAT;
-    const tt = t % cycle;
-    const refused = tt >= certDur;
-    const side = Math.floor(t / cycle) % 2 === 0 ? 1 : -1;
     const a = anim.current;
+    // Accumulated, not derived from elapsedTime * rate: `near` can toggle
+    // mid-cycle without the whole story jumping to a different phase.
+    a.phase += dt * (near ? 1.45 : 1);
+    const phase = a.phase;
 
-    const targetAngle = refused ? Math.sin(tt * 6) * 2 * DEG : side * MAX_TIP;
-    const targetBubble = refused ? 0.85 : 0.28;
-    const targetGate = refused ? 0 : 1;
-    const targetIce = refused ? 0.5 : 0.14; // a resting glimmer so the cargo reads against the pan even while settled
-    const targetWindow = refused ? 0.35 : Math.max(0, 1 - tt / 0.4); // a bright flash as it settles, an ember while refused
+    let refusedActive = false;
+    let stallPose = null;
+    let tearPose = null;
+    let poolL = 0.4, poolR = 0.4;
 
-    a.angle += (targetAngle - a.angle) * damp(near ? 7 : 4.5, dt);
-    a.bubble += (targetBubble - a.bubble) * damp(4, dt);
-    a.gate += (targetGate - a.gate) * damp(3.2, dt);
-    a.ice += (targetIce - a.ice) * damp(4, dt);
-    a.windowGlow += (targetWindow - a.windowGlow) * damp(6, dt);
+    for (let i = 0; i < MARBLE_COUNT; i++) {
+      const x0 = START_X[i];
+      const localT = localTimeFor(i, phase);
+      const pose = marblePose(x0, localT, poses[i]);
 
-    if (beamRef.current) beamRef.current.rotation.z = a.angle;
-    if (gateRef.current) gateRef.current.rotation.z = -a.gate * ARM_UP;
-    matIce.emissiveIntensity = a.ice * boost;
-    matWindow.emissiveIntensity = (0.4 + a.windowGlow * 2.4) * boost;
-    if (beaconRef.current) beaconRef.current.visible = refused && Math.sin(t * 11) > 0;
+      if (pose.stage === "roll") {
+        dummy.position.set(pose.x, roofY(pose.x, pose.z) + 0.22, pose.z);
+        dummy.scale.setScalar(1);
+      } else if (pose.stage === "drop") {
+        dummy.position.set(pose.x, pose.y, pose.z);
+        dummy.scale.setScalar(pose.scale);
+      } else if (pose.stage === "stall") {
+        dummy.position.set(pose.x, roofY(pose.x, pose.z) + 0.22, pose.z);
+        dummy.scale.setScalar(1);
+        refusedActive = true;
+        stallPose = pose;
+      } else {
+        dummy.position.set(0, -4, 0); // 'tear' (drawn via the spare slots below) or 'gone'
+        dummy.scale.setScalar(0.0001);
+        if (pose.stage === "tear") { refusedActive = true; tearPose = pose; }
+      }
+      dummy.updateMatrix();
+      if (marbleMesh.current) marbleMesh.current.setMatrixAt(i, dummy.matrix);
 
-    const cosA = Math.cos(a.angle), sinA = Math.sin(a.angle);
-    if (leftPanRef.current) {
-      leftPanRef.current.position.x = -PAN_SIDE_X * cosA;
-      leftPanRef.current.position.y = PIVOT_Y - PAN_SIDE_X * sinA;
+      const settle = poolSettle(x0, localT, settleTmp);
+      if (settle) { if (settle.side < 0) poolL = settle.intensity; else poolR = settle.intensity; }
     }
-    if (rightPanRef.current) {
-      rightPanRef.current.position.x = PAN_SIDE_X * cosA;
-      rightPanRef.current.position.y = PIVOT_Y + PAN_SIDE_X * sinA;
+
+    // The torn halves: two shared instance slots, reused by whichever
+    // marble is tearing (never more than one at once -- the refused starts
+    // are 4.8 s apart and a tear is done in well under 2 s).
+    for (let s = 0; s < TEAR_SLOTS; s++) {
+      if (tearPose) {
+        const target = s === 0 ? -ROOF_HALF_X : ROOF_HALF_X;
+        const tx = lerp(tearPose.x, target, tearPose.k);
+        dummy.position.set(tx, roofY(tx, tearPose.z) + 0.22, tearPose.z);
+        dummy.scale.setScalar(0.5 * Math.max(0, 1 - tearPose.k / 0.8)); // scale hits 0 before k=1, so it fades before it arrives
+      } else {
+        dummy.position.set(0, -4, 0);
+        dummy.scale.setScalar(0.0001);
+      }
+      dummy.updateMatrix();
+      if (marbleMesh.current) marbleMesh.current.setMatrixAt(MARBLE_COUNT + s, dummy.matrix);
     }
-    if (leftBubbleRef.current) leftBubbleRef.current.scale.setScalar(a.bubble);
-    if (rightBubbleRef.current) rightBubbleRef.current.scale.setScalar(a.bubble);
+    if (marbleMesh.current) marbleMesh.current.instanceMatrix.needsUpdate = true;
+
+    matPoolL.emissiveIntensity = poolL * boost;
+    matPoolR.emissiveIntensity = poolR * boost;
+
+    if (ringRef.current) {
+      if (stallPose) {
+        ringRef.current.visible = true;
+        ringRef.current.position.set(stallPose.x, roofY(stallPose.x, stallPose.z) + 0.03, stallPose.z);
+        ringRef.current.scale.setScalar(1 + 0.4 * Math.sin((Math.PI * stallPose.t) / STALL_DUR));
+      } else {
+        ringRef.current.visible = false;
+      }
+    }
+
+    // The gate lifts for through traffic and only drops for an active
+    // refusal -- the payoff, so it reads, not a rarity near the seal.
+    a.gate += ((refusedActive ? 0 : 1) - a.gate) * damp(3, dt);
+    if (gateRef.current) gateRef.current.rotation.z = a.gate * ARM_UP;
+
+    const flash = refusedActive && Math.sin(phase * 6 * Math.PI * 2) > 0;
+    matBeacon.emissiveIntensity = (refusedActive ? (flash ? 3.0 : 0.2) : 0.2) * boost;
+
+    // The separatrix pulse: converges from both ridge ends into the
+    // saddle, then splits and runs to both eaves -- once a cycle.
+    if (pulseMesh.current) {
+      const pp = phase % CYCLE;
+      const setAt = (idx, x, z) => {
+        dummy.position.set(x, roofY(x, z) + 0.07, z);
+        dummy.scale.setScalar(1);
+        dummy.updateMatrix();
+        pulseMesh.current.setMatrixAt(idx, dummy.matrix);
+      };
+      const hideAt = (idx) => {
+        dummy.position.set(0, -4, 0);
+        dummy.scale.setScalar(0.0001);
+        dummy.updateMatrix();
+        pulseMesh.current.setMatrixAt(idx, dummy.matrix);
+      };
+      if (pp < PULSE_CONVERGE) {
+        const k = pp / PULSE_CONVERGE;
+        setAt(0, 0, lerp(ROOF_HALF_Z, 0, k));
+        setAt(1, 0, lerp(-ROOF_HALF_Z, 0, k));
+        hideAt(2); hideAt(3);
+      } else if (pp < PULSE_CONVERGE + PULSE_SPLIT) {
+        const k = (pp - PULSE_CONVERGE) / PULSE_SPLIT;
+        setAt(2, lerp(0, -ROOF_HALF_X, k), 0);
+        setAt(3, lerp(0, ROOF_HALF_X, k), 0);
+        hideAt(0); hideAt(1);
+      } else {
+        hideAt(0); hideAt(1); hideAt(2); hideAt(3);
+      }
+      pulseMesh.current.instanceMatrix.needsUpdate = true;
+    }
+
+    // Radiation motes, rising from the saddle hot spot.
+    if (moteMesh.current) {
+      for (let i = 0; i < MOTE_COUNT; i++) {
+        const t = (phase + i * (3 / MOTE_COUNT)) % 3;
+        const k = t / 3;
+        const r = 0.3 + 0.12 * Math.sin(phase * 0.6 + i);
+        dummy.position.set(Math.cos(MOTE_ANGLE[i]) * r, 3.6 + 1.4 * k, Math.sin(MOTE_ANGLE[i]) * r);
+        dummy.scale.setScalar(0.5 + 0.5 * Math.sin(Math.PI * k));
+        dummy.updateMatrix();
+        moteMesh.current.setMatrixAt(i, dummy.matrix);
+      }
+      moteMesh.current.instanceMatrix.needsUpdate = true;
+    }
   });
 
   return (
     <group>
-      <mesh geometry={charcoalStaticGeo} material={matCharcoal} castShadow receiveShadow />
-      <mesh geometry={wallGeo} material={matWarmWhite} castShadow receiveShadow />
-      <mesh geometry={windowGeo} material={matWindow} position={[BOOTH_X, 1.05, BOOTH_Z + BOOTH_D / 2 + 0.03]} />
+      <mesh geometry={warmWhiteStaticGeo} material={matWarmWhite} castShadow receiveShadow />
+      <mesh geometry={charcoalStaticGeo} material={matCharcoal} receiveShadow />
+      <mesh geometry={winPaneGeo} material={matWindow} />
+      <mesh geometry={ribbonGeo} material={matRibbon} />
+      <mesh geometry={ribbonGlowGeo} material={matRibbonGlow} />
+      <mesh geometry={decalGeo} material={matDecal} receiveShadow={false} />
+      <mesh ref={ringRef} geometry={ringGeo} material={matRing} visible={false} />
 
-      <group ref={gateRef} position={[GATE_X, GATE_POST_H, GATE_Z]}>
+      <group ref={gateRef} position={[GATE_X, GATE_PIVOT_Y, GATE_Z]}>
         <mesh geometry={armDarkGeo} material={matCharcoal} castShadow />
         <mesh geometry={armLightGeo} material={matWarmWhite} castShadow />
-        <mesh geometry={armTipGeo} material={matAccent} castShadow />
       </group>
-      <mesh ref={beaconRef} geometry={beaconGeo} material={matBeacon} position={[GATE_X, GATE_POST_H + 0.24, GATE_Z]} />
+      {/* Off the post's +x side by 0.3 m: the arm's bands only ever
+          translate to x >= 0 in the gate's local frame (see armBand above)
+          and the gate group only rotates about Z, so the arm's swept
+          silhouette never crosses x < GATE_X at any angle -- the beacon
+          can no longer fuse into "one more ball" on its tip (review fix #4). */}
+      <mesh geometry={beaconGeo} material={matBeacon} position={[GATE_X - 0.3, GATE_POST_H + 0.22, GATE_Z]} />
 
-      <mesh geometry={fulcrumGeo} material={matAccent} position={[BOOTH_X, PIVOT_Y - 0.06, BOOTH_Z]} castShadow />
-      <group ref={beamRef} position={[BOOTH_X, PIVOT_Y, BOOTH_Z]}>
-        <mesh geometry={beamBarGeo} material={matCharcoal} castShadow />
-        <mesh geometry={endCapsGeo} material={matAccent} castShadow />
-      </group>
+      <mesh geometry={poolGeo} material={matPoolL} position={[-POOL_X, POOL_H / 2, 0]} receiveShadow />
+      <mesh geometry={poolGeo} material={matPoolR} position={[POOL_X, POOL_H / 2, 0]} receiveShadow />
 
-      <group ref={leftPanRef} position={[-PAN_SIDE_X, PIVOT_Y, BOOTH_Z]}>
-        <mesh geometry={hangerRimGeo} material={matCharcoal} castShadow />
-        <mesh geometry={panGeo} material={matWarmWhite} castShadow receiveShadow />
-        <mesh geometry={cubeGeo} material={matIce} position={[0, ITEM_Y, 0]} castShadow />
-        <mesh ref={leftBubbleRef} geometry={bubbleGeo} material={matBubble} position={[0, ITEM_Y, 0]} />
-      </group>
-      <group ref={rightPanRef} position={[PAN_SIDE_X, PIVOT_Y, BOOTH_Z]}>
-        <mesh geometry={hangerRimGeo} material={matCharcoal} castShadow />
-        <mesh geometry={panGeo} material={matWarmWhite} castShadow receiveShadow />
-        <mesh geometry={cubeGeo} material={matIce} position={[0, ITEM_Y, 0]} castShadow />
-        <mesh ref={rightBubbleRef} geometry={bubbleGeo} material={matBubble} position={[0, ITEM_Y, 0]} />
-      </group>
+      {/* frustumCulled=false on marbleMesh/pulseMesh: three's InstancedMesh
+          only computes its bounding sphere once, lazily, from whatever
+          instance matrices exist the first time culling runs; both meshes
+          park hidden instances at (0,-4,0) most of the time (review fix #1
+          root cause -- confirmed live: mesh/material were correct, only
+          frustumCulled stuck true against a sphere frozen on a parked
+          frame), so a frozen sphere anchored there can cull the whole mesh
+          forever even while its live instances sit up on the roof. */}
+      <instancedMesh ref={marbleMesh} args={[marbleGeo, matMarble, MARBLE_COUNT + TEAR_SLOTS]} frustumCulled={false} />
+      <instancedMesh ref={moteMesh} args={[moteGeo, matMote, MOTE_COUNT]} />
+      <instancedMesh ref={pulseMesh} args={[pulseGeo, matPulse, 4]} frustumCulled={false} />
     </group>
   );
 }

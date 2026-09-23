@@ -3,7 +3,8 @@
 // The drive's signs and schedules: the part a variant cannot see is wrong.
 
 import assert from "node:assert/strict";
-import { PLACE_BY_ID, dockPoint } from "../../../lib/world/places.js";
+import { MOTION } from "../../../lib/world/motion.js";
+import { PLACES, dockPoint } from "../../../lib/world/places.js";
 import { createDrive, stepDrive } from "./drive.js";
 
 const dt = 1 / 60;
@@ -18,7 +19,10 @@ const run = (d, seal, near, seconds, t0 = d.t, each) => {
 // Left turn (heading increasing) at speed leans left: negative roll.
 {
   const d = createDrive();
-  const seal = { x: 0, z: 0, heading: 0, speed: 8, impact: 0 };
+  // Comfortably past walk top speed, whatever it is tuned to (drive's gait
+  // tracks speed / MOTION.maxSpeed): a fixed 8 m/s used to be that, but the
+  // island's own top speed has since moved past it.
+  const seal = { x: 0, z: 0, heading: 0, speed: MOTION.maxSpeed, impact: 0 };
   run(d, seal, null, 0.5, 0, (s) => (s.heading += 2 * dt));
   assert.ok(d.turn > 1.5, `turn ${d.turn}`);
   assert.ok(d.lean < -0.15, `lean ${d.lean}`);
@@ -63,16 +67,18 @@ const run = (d, seal, near, seconds, t0 = d.t, each) => {
 // dock), then turns to the visitor and waves.
 {
   const d = createDrive();
-  const place = PLACE_BY_ID.aether;
+  // Any place: ids belong to lib/world/places.js's own track and move under
+  // us, so this picks one instead of hardcoding an id that can be renamed.
+  const place = PLACES.find((p) => p.section !== "home");
   const dock = dockPoint(place);
   const seal = { x: dock.x, z: dock.z, heading: Math.PI, speed: 0, impact: 0 };
   run(d, seal, null, 0.5);
-  run(d, seal, "aether", 0.1);
+  run(d, seal, place.id, 0.1);
   assert.ok(d.happy > 0.9);
-  run(d, seal, "aether", 1.2);
+  run(d, seal, place.id, 1.2);
   assert.ok(Math.abs(d.bodyYaw) < 0.05 && Math.abs(d.lookYaw) < 0.1 && d.lookPitch > 0.2, "studies the building");
   let waved = false;
-  run(d, seal, "aether", 3, d.t, () => (waved ||= d.wave > 0.9));
+  run(d, seal, place.id, 3, d.t, () => (waved ||= d.wave > 0.9));
   assert.ok(waved && Math.abs(d.bodyYaw) > 1.5, `waves at the visitor ${d.bodyYaw}`);
 }
 

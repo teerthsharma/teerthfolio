@@ -14,10 +14,14 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { live, useUi } from "../../lib/world/store";
 
-const CLOSE_RANGE = 24; // m: inside this, a label earns its name and kind
+const CLOSE_RANGE = 24; // m: inside this, a label earns its logo and name
 
 export default function PlaceLabel({ place, y = 6.5 }) {
   const near = useUi((s) => s.near === place.id);
+  // A sheet already shows this place's repo #PR and headline (or tagline):
+  // the in-world label just fades out rather than repeat it, clipped or
+  // stuck under the nav bar behind the panel.
+  const hide = useUi((s) => s.open != null || s.list);
   const ref = useRef(null);
 
   useFrame(() => {
@@ -33,13 +37,13 @@ export default function PlaceLabel({ place, y = 6.5 }) {
       <div
         ref={ref}
         data-close="true"
+        data-hidden={hide}
         className={`place-label${near ? " is-near" : ""}`}
         style={{ "--accent": place.color }}
       >
         {place.section === "upstream" && place.logo && (
           <img className="place-label-logo" src={place.logo} alt="" width="14" height="14" />
         )}
-        <span className="place-label-kind">{place.kind}</span>
         <span className="place-label-name">{place.name}</span>
       </div>
     </Html>

@@ -28,11 +28,13 @@ export const EYE_R = 0.13;
 // The eye is a lens, flattened along its axis and sunk into the skull, so it
 // bulges only ~1.4 cm: a far eye never pokes past the head's silhouette.
 const EYE_DEPTH = 0.3;
-const EYE_SINK = 0.025;
+const EYE_SINK = 0.04;
 
 // Fore-flippers at rest (rad), Euler order YZX: (twist, back, -down). Splayed
 // out like a starfish, tips on the snow: the old pup's triangle silhouette.
-export const FLIPPER_REST = { back: 0.3, down: 0.3 };
+// back is negative so the tips swing sideways past the cheeks, clearing the
+// head in the 3/4 rest view instead of hiding behind it.
+export const FLIPPER_REST = { back: -0.05, down: 0.3 };
 
 const COL = {
   dorsal: new Color("#86aad6"), // the old pup's blue on crown and saddle: body value against the snow
@@ -219,8 +221,8 @@ const BELLY = -0.02; // the belly is flat and pressed 2 cm into the snow
 // The body's silhouette, nose to tail: [z, half-width, top, bottom] (m).
 // Plump in the middle, tucked under the chin at the front.
 const PROFILE = [
-  [0.6, 0.24, 0.5, 0.16],
-  [0.32, 0.42, 0.68, -0.02],
+  [0.6, 0.34, 0.66, 0.12],
+  [0.32, 0.44, 0.78, -0.02],
   [0.02, 0.47, 0.72, -0.04],
   [-0.3, 0.43, 0.63, -0.04],
   [-0.56, 0.32, 0.48, -0.02],

@@ -9,31 +9,19 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, ConeGeometry, Float32BufferAttribute, LatheGeometry, Matrix4, Object3D, SphereGeometry, Vector2 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { ISLAND_RADIUS, SPAWN } from "../../lib/world/places";
+import { ISLAND_RADIUS } from "../../lib/world/places";
 import { riverAt } from "../../lib/world/river";
 import { live } from "../../lib/world/store";
-import { samplePoints, sampleNearRiver, mulberry32, inNameBox } from "./life/spawn";
+import { inNameBox } from "./life/spawn";
+import { buildFlock } from "./life/penguins-seed";
 import { damp, smoothstep, wrapAngle } from "./life/util";
 import { C } from "./palette";
 
-const SEED = 20260924;
 const SIDES = [-1, 1];
 const WANDER_EDGE = ISLAND_RADIUS - 5; // penguins turn back this far from the rim
 // Reused every penguin, every frame, so the water-avoid steer never allocates.
 const PENGUIN_RIVER_OUT = {};
 const PENGUIN_RIVER_OUT2 = {};
-
-// A and B are the original playground pair, close to spawn. Four more homes
-// come from samplePoints at runtime (below), spread across the island, one
-// of them biased onto a river bank.
-const GROUPS = [
-  { id: "A", near: { x: SPAWN.x + 11, z: SPAWN.z + 2 }, nearRadius: 3, radius: 2.8, roster: ["adult", "adult", "chick"] },
-  { id: "B", near: { x: SPAWN.x, z: SPAWN.z + 21 }, nearRadius: 10, radius: 4, roster: ["adult", "adult", "adult"] },
-  { id: "C", radius: 3.2, roster: ["adult", "adult", "adult", "chick"] },
-  { id: "D", radius: 3.2, roster: ["adult", "adult", "adult", "chick"], riverBank: true },
-  { id: "E", radius: 3.2, roster: ["adult", "adult", "adult", "chick"] },
-  { id: "F", radius: 3.2, roster: ["adult", "adult", "adult", "chick"] },
-];
 
 // ---- geometry, built once -------------------------------------------------
 
@@ -103,7 +91,7 @@ function buildBody() {
 // mesh swings the flipper like an arm.
 function buildFlipper() {
   const g = new SphereGeometry(1, 12, 8);
-  g.scale(0.05, 0.26, 0.12);
+  g.scale(0.07, 0.26, 0.12); // 0.14 m across: 0.05 read as a thread at 35 m
   g.translate(0, -0.26, 0); // pivot (top end) sits at the local origin
   return setColor(g, new Color(C.charcoal));
 }
@@ -118,91 +106,9 @@ const BODY_GEO = buildBody();
 const FLIPPER_GEO = buildFlipper();
 const FOOT_GEO = buildFoot();
 
-// ---- seeded roster, built once ---------------------------------------------
-
-function buildFlock() {
-  // A, B: near-biased to their original playground spots.
-  const centers = [];
-  for (let gi = 0; gi < 2; gi++) {
-    const g = GROUPS[gi];
-    centers.push(
-      samplePoints(1, SEED + gi, {
-        gap: 9,
-        avoid: centers.slice(),
-        near: g.near,
-        nearCount: 1,
-        nearRadius: g.nearRadius,
-        clearance: g.radius + 1, // keeps the whole wander disc, not just the sampled centre, off buildings/dock/spawn/name
-      })[0],
-    );
-  }
-  // C, D, E, F: spread island-wide (one runtime call, so they stay 18 m
-  // apart from each other and from A/B), one of them biased onto a river
-  // bank so it can watch the seal ride past.
-  const wide = samplePoints(4, SEED + 77, { gap: 18, clearance: 5, avoid: centers.slice() });
-  const edge = ISLAND_RADIUS - 8;
-  for (const p of wide) {
-    const r = Math.hypot(p.x, p.z) || 1e-6;
-    if (r > edge) {
-      p.x *= edge / r;
-      p.z *= edge / r;
-    }
-  }
-  const riverGroup = GROUPS.find((g) => g.riverBank);
-  const bank = sampleNearRiver(SEED + 900, { distance: 6, clearance: riverGroup.radius + 1 });
-  if (bank) wide[GROUPS.indexOf(riverGroup) - 2] = bank;
-  centers.push(...wide);
-
-  const flock = [];
-  GROUPS.forEach((g, gi) => {
-    const home = centers[gi];
-    const rand = mulberry32(SEED + 500 + gi);
-    g.roster.forEach((role) => {
-      const r = Math.sqrt(rand()) * g.radius * 0.6;
-      const a = rand() * Math.PI * 2;
-      const chick = role === "chick";
-      flock.push({
-        kind: "penguin",
-        x: home.x + Math.cos(a) * r,
-        z: home.z + Math.sin(a) * r,
-        vx: 0,
-        vz: 0,
-        radius: chick ? 0.26 : 0.38,
-        mass: chick ? 0.3 : 0.6,
-        spin: 0,
-        hit: 0,
-        chick,
-        homeX: home.x,
-        homeZ: home.z,
-        groupRadius: g.radius,
-        rand: mulberry32(Math.floor(rand() * 1e9)),
-        // behaviour state
-        state: "wander",
-        targetX: 0,
-        targetZ: 0,
-        hasTarget: false,
-        pauseUntil: 0,
-        walkHome: false,
-        hopping: false,
-        hopStart: 0,
-        hopIndex: 0,
-        calmSince: -1,
-        flopStart: 0,
-        prevHit: 0,
-        // pose
-        yaw: Math.atan2(-home.x, -home.z),
-        phase: 0,
-        pitch: 0,
-        flipperRaise: 0,
-        flap: 0,
-        hop: 0,
-      });
-    });
-  });
-  return flock;
-}
-
 // ---- component --------------------------------------------------------------
+// Seed layout (GROUPS, buildFlock) lives in ./life/penguins-seed.js: no JSX
+// there, so it doubles as Node-runnable regression coverage (spawn.check.mjs).
 
 const dummy = new Object3D();
 const shoulder = new Object3D();
@@ -275,9 +181,17 @@ export default function Penguins() {
       } else {
         const flee = (distSeal < 5.5 && seal.speed > 1.2) || distSeal < 2.8;
         if (flee) {
-          p.state = "flee";
+          if (p.state !== "flee" && p.state !== "startle") {
+            // Notice beat: a startled hop and a snap to face the seal before
+            // it actually scurries, not an instant flee on the same frame.
+            p.state = "startle";
+            p.startleStart = t;
+            p.flipperRaise = 1.3;
+            p.yaw = Math.atan2(dx, dz);
+            live.squeak = (live.squeak ?? 0) + 1;
+          }
           p.calmSince = -1;
-        } else if (p.state === "flee") {
+        } else if (p.state === "flee" || p.state === "startle") {
           if (distSeal > 8.5) {
             if (p.calmSince < 0) p.calmSince = t;
             else if (t - p.calmSince > 1.2) {
@@ -293,7 +207,15 @@ export default function Penguins() {
           }
         }
 
-        if (p.state === "flee") {
+        if (p.state === "startle") {
+          const el = t - p.startleStart;
+          const u = Math.min(1, el / 0.3);
+          p.hop = Math.sin(Math.PI * u) * 0.25;
+          p.pitch = 0.15;
+          p.flipperRaise = 1.3;
+          if (el >= 0.3) p.state = "flee";
+          // Frozen in place for the beat: no desiredX/Z this frame.
+        } else if (p.state === "flee") {
           const speed = p.chick ? 2.6 : 3.2;
           desiredX = (-dx / distSeal) * speed;
           desiredZ = (-dz / distSeal) * speed;
@@ -389,10 +311,12 @@ export default function Penguins() {
         p.vz += (desiredZ - p.vz) * k;
       }
 
-      // Facing.
+      // Facing. Startle holds its snap-to-seal yaw even while old momentum
+      // (still decaying toward the freeze) would otherwise outvote it.
       const spd = Math.hypot(p.vx, p.vz);
       let face = null;
-      if (spd > 0.15) face = Math.atan2(p.vx, p.vz);
+      if (p.state === "startle") face = null;
+      else if (spd > 0.15) face = Math.atan2(p.vx, p.vz);
       else if (p.state === "wander" && p.pauseUntil > t && distSeal < 10) face = Math.atan2(dx, dz);
       if (face !== null) p.yaw = wrapAngle(p.yaw + wrapAngle(face - p.yaw) * damp(8, dt));
 
@@ -414,7 +338,7 @@ export default function Penguins() {
       const p = flock[i];
       const roll = p.state === "flop" ? 0 : Math.sin(p.phase) * 0.16 * Math.min(1, Math.hypot(p.vx, p.vz) / 0.6);
       const bob = p.state === "flop" ? 0 : Math.abs(Math.sin(p.phase)) * 0.04;
-      const scale = p.chick ? 0.62 : 1;
+      const scale = p.chick ? 0.62 : 1.15; // adults sized up to read at 35 m
 
       dummy.position.set(p.x, bob + p.hop, p.z);
       // Default Euler order 'XYZ' tips pitch/roll about world X, sideways

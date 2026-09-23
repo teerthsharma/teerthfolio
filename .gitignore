@@ -17,3 +17,7 @@ public/uploads/*
 
 # Ralph-loop session state: per-session, per-machine, never shared.
 .claude/ralph-loop.local.md
+
+# scratch files agents leave in the repo root
+/_*.mjs
+/shot-output.txt

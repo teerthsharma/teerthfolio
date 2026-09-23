@@ -9,21 +9,10 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, Float32BufferAttribute, Object3D, Quaternion, SphereGeometry, TorusGeometry, BoxGeometry, ConeGeometry, Vector3 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { PLACE_BY_ID, SPAWN, dockPoint } from "../../lib/world/places";
 import { live } from "../../lib/world/store";
-import { samplePoints, mulberry32 } from "./life/spawn";
+import { buildGroups } from "./life/props-seed";
 import { easeOutBack } from "./life/util";
 import { C } from "./palette";
-
-const SEED = 20260923;
-// The playground just south of spawn, close enough to sit in the 1440x900
-// first frame (6-9.5 m below spawn on screen).
-const NEAR = { x: SPAWN.x, z: SPAWN.z + 7 };
-// The harbour, anchored off the igloo's dock (pr-mujoco-3396 is now Mount
-// MujoRush on the river bank, not a lighthouse harbour). Computed at runtime
-// so it tracks wherever another workflow moves the igloo.
-const HOME_DOCK = dockPoint(PLACE_BY_ID.home);
-const HARBOUR = { x: HOME_DOCK.x + 6, z: HOME_DOCK.z + 2 };
 
 // ---- geometry, built once -------------------------------------------------
 
@@ -152,48 +141,9 @@ const RING_GEO = paintRing(new TorusGeometry(0.4, 0.15, 10, 28).toNonIndexed().r
 const CRATE_GEO = buildCrate();
 const FISH_GEO = buildFish(1.8); // ~1 m long: at 1x it was a 6-px sliver at the follow camera
 
-// ---- seeded layout, built once --------------------------------------------
-
-function buildGroups() {
-  let taken = [];
-  const sample = (count, seedOffset, opts) => {
-    const pts = samplePoints(count, SEED + seedOffset, { avoid: taken, ...opts });
-    taken = taken.concat(pts);
-    return pts;
-  };
-
-  const snowRand = mulberry32(SEED + 101);
-  const snowball = sample(6, 1, { gap: 1.4, near: NEAR, nearCount: 2, nearRadius: 2.5 }).map(({ x, z }) => {
-    const r = 0.45 + snowRand() * 0.15;
-    return { kind: "snowball", x, z, vx: 0, vz: 0, radius: r, mass: (r / 0.5) ** 3, spin: 0, hit: 0, seedX: x, seedZ: z, q: new Quaternion() };
-  });
-  const beachball = sample(2, 2, { gap: 1.4, near: NEAR, nearCount: 1, nearRadius: 2.5 }).map(({ x, z }) => ({
-    kind: "beachball", x, z, vx: 0, vz: 0, radius: 0.45, mass: 0.35, spin: 0, hit: 0, seedX: x, seedZ: z, q: new Quaternion(),
-  }));
-  const ring = sample(2, 3, { gap: 2.4 }).map(({ x, z }) => ({
-    kind: "ring", x, z, vx: 0, vz: 0, radius: 0.55, mass: 0.6, spin: 0, hit: 0, seedX: x, seedZ: z, yaw: 0,
-  }));
-  // Both crates biased back to the harbour, not scattered island-wide.
-  const crate = sample(2, 4, { gap: 1.6, near: HARBOUR, nearCount: 2, nearRadius: 3 }).map(({ x, z }) => ({
-    kind: "crate", x, z, vx: 0, vz: 0, radius: 0.62, mass: 3.5, spin: 0, hit: 0, seedX: x, seedZ: z, yaw: 0,
-  }));
-  // One fish in the playground (first frame), two more at the harbour.
-  const fishPts = [
-    ...sample(1, 5, { gap: 1.4, near: NEAR, nearCount: 1, nearRadius: 2.5 }),
-    ...sample(2, 6, { gap: 1.6, near: HARBOUR, nearCount: 2, nearRadius: 3 }),
-  ];
-  const fish = fishPts.map(({ x, z }, i) => {
-    const rand = mulberry32(SEED + 900 + i);
-    return {
-      kind: "fish", x, z, vx: 0, vz: 0, radius: 0.5, mass: 0.4, spin: 0, hit: 0, seedX: x, seedZ: z, yaw: 0, side: 0,
-      rand, flopAt: 2 + rand() * 3, flopT: -1, eaten: false, eatenAt: 0, respawnAt: undefined, scale: 1,
-    };
-  });
-
-  return { snowball, beachball, ring, crate, fish };
-}
-
 // ---- component -------------------------------------------------------------
+// Seed layout (buildGroups) lives in ./life/props-seed.js: no JSX there, so
+// it doubles as Node-runnable regression coverage (spawn.check.mjs).
 
 const dummy = new Object3D();
 const tmpQ = new Quaternion();

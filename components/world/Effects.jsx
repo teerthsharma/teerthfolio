@@ -21,6 +21,7 @@ import { PLACE_BY_ID } from "../../lib/world/places";
 import { riverAt } from "../../lib/world/river";
 import { getUi, live, useUi } from "../../lib/world/store";
 import { easeOutBack, smoothstep } from "./life/util";
+import Radiation from "./life/Radiation";
 import { mat } from "./palette";
 
 const PUFF_COUNT = 160;
@@ -30,11 +31,19 @@ const RED = "#ff5040";
 const SIDES = [-1, 1];
 const PUFF_SIZE_MUL = 1.6; // white-on-white puffs were unreadable from the ~35 m camera
 const PUFF_LIFE_ADD = 0.2;
+// lib/world/river.js has no RIVER.surfaceY yet (the terrain contract's own
+// number: relief lives under the water, surface about y = -0.35). Splash and
+// foam were spawning at a small positive y — floating well above the actual
+// water once it renders. Swap for RIVER.surfaceY once that lands.
+const WATER_Y = -0.35;
 
 // ---- geometry / material, built once ---------------------------------------
 
 const PUFF_GEO = new IcosahedronGeometry(1, 1);
-const PUFF_MAT = mat("#f4f6ff", { flat: false, roughness: 1, emissive: "#ffffff", emissiveIntensity: 0.25 });
+// emissiveIntensity 0: at 0.25 a white puff over white snow only showed
+// where it crossed the trail. The shaded side of the geometry now reads as
+// a faint lavender-grey against the warm snow instead of vanishing into it.
+const PUFF_MAT = mat("#f4f6ff", { flat: false, roughness: 1, emissive: "#ffffff", emissiveIntensity: 0 });
 
 const SPRAY_GEO = new IcosahedronGeometry(1, 0);
 const SPRAY_MAT = mat("#dff7ff", { roughness: 0.3, emissive: "#bfefff", emissiveIntensity: 0.3 });
@@ -64,7 +73,7 @@ const HEART_GEO = buildHeartGeometry();
 // out to coral.
 const HEART_MAT = mat(RED, { flat: true, emissive: RED, emissiveIntensity: 0.6 });
 
-const CONFETTI_GEO_ARGS = [0.32, 0.03, 0.2];
+const CONFETTI_GEO_ARGS = [0.36, 0.08, 0.24]; // chunky rule: nothing thinner than ~0.12 m at game distance
 const CONFETTI_MAT = mat("#ffffff", { flat: true, roughness: 0.6 });
 const CONFETTI_COLORS = ["#ffffff", "#ffd66b", RED]; // place.color is prepended per burst
 
@@ -80,22 +89,30 @@ function makePuffPool() {
     cursor: 0,
     skidAccum: 0,
     glideAccum: 0,
+    alive: 0,
+    wasAlive: new Uint8Array(PUFF_COUNT), // last frame's alive flag per slot, so a dead one is hidden once, not every frame
   };
 }
 
-function addPuff(pool, x, y, z, vx, vy, vz, size, life) {
+// y is size's own resting half-height, not a caller-picked number: a puff
+// that spawned below that (as every ground puff used to) hit the ground
+// clamp on its very first frame and lost most of its launch speed at birth.
+function addPuff(pool, x, z, vx, vy, vz, size, life) {
   const i = pool.cursor;
   pool.cursor = (i + 1) % PUFF_COUNT;
+  const finalSize = size * PUFF_SIZE_MUL;
   const b = i * 3;
   pool.pos[b] = x;
-  pool.pos[b + 1] = y;
+  pool.pos[b + 1] = finalSize / 2 + 0.02;
   pool.pos[b + 2] = z;
   pool.vel[b] = vx;
   pool.vel[b + 1] = vy;
   pool.vel[b + 2] = vz;
   pool.age[i] = 0;
   pool.life[i] = life + PUFF_LIFE_ADD;
-  pool.size[i] = size * PUFF_SIZE_MUL;
+  pool.size[i] = finalSize;
+  if (!pool.wasAlive[i]) pool.alive++;
+  pool.wasAlive[i] = 1;
 }
 
 // ---- spray pool: river splash droplets + foam wake patches -----------------
@@ -114,6 +131,8 @@ function makeSprayPool() {
     foam: new Uint8Array(SPRAY_COUNT),
     cursor: 0,
     foamAccum: 0,
+    alive: 0,
+    wasAlive: new Uint8Array(SPRAY_COUNT),
   };
 }
 
@@ -132,6 +151,8 @@ function addSpray(pool, x, y, z, vx, vy, vz, size, life, foam, squashY) {
   pool.size[i] = size;
   pool.foam[i] = foam ? 1 : 0;
   pool.squashY[i] = squashY ?? 1;
+  if (!pool.wasAlive[i]) pool.alive++;
+  pool.wasAlive[i] = 1;
 }
 
 // 22 droplets radiating from the seal: the entry/exit splash.
@@ -139,7 +160,7 @@ function splashBurst(pool, x, z) {
   for (let i = 0; i < 22; i++) {
     const a = Math.random() * Math.PI * 2;
     const r = 1.5 + Math.random() * 1;
-    addSpray(pool, x, 0.1, z, Math.cos(a) * r, 3.5 + Math.random() * 1.5, Math.sin(a) * r, 0.12 + Math.random() * 0.08, 0.8, 0);
+    addSpray(pool, x, WATER_Y + 0.1, z, Math.cos(a) * r, 3.5 + Math.random() * 1.5, Math.sin(a) * r, 0.12 + Math.random() * 0.08, 0.8, 0);
   }
 }
 
@@ -152,6 +173,7 @@ function makeConfettiPool() {
     tumble: new Float32Array(CONFETTI_COUNT * 3),
     rot: new Float32Array(CONFETTI_COUNT * 3),
     age: new Float32Array(CONFETTI_COUNT).fill(Infinity),
+    alive: 0, // every burst activates all CONFETTI_COUNT slots at once, on the same age clock, so one counter (no per-slot flags) is enough
   };
 }
 
@@ -250,6 +272,7 @@ export default function Effects() {
       confetti.age[i] = 0;
       confettiRef.current.setColorAt(i, colors[i % colors.length]);
     }
+    confetti.alive = CONFETTI_COUNT;
     confettiRef.current.instanceColor.needsUpdate = true;
   }, [openId, reduced, confetti]);
 
@@ -303,7 +326,6 @@ export default function Effects() {
             addPuff(
               puffs,
               tx,
-              0.08,
               tz,
               -forwardX * 1.2 + leftX * side * 0.8,
               1.6 + (Math.random() - 0.5),
@@ -327,7 +349,6 @@ export default function Effects() {
         addPuff(
           puffs,
           seal.x + leftX * side * 0.5,
-          0.1,
           seal.z + leftZ * side * 0.5,
           leftX * side * 2.2,
           1.8,
@@ -349,7 +370,6 @@ export default function Effects() {
         addPuff(
           puffs,
           seal.x + forwardX * 0.3,
-          0.35,
           seal.z + forwardZ * 0.3,
           (Math.random() - 0.5) * 0.4,
           0.8 + Math.random() * 0.4,
@@ -374,8 +394,8 @@ export default function Effects() {
         const a = (i / count) * Math.PI * 2;
         const rx = Math.cos(a);
         const rz = Math.sin(a);
-        const rs = 1.5 + 2.5 * m;
-        addPuff(puffs, bx, 0.1, bz, rx * rs, 1.2 + 1.5 * m, rz * rs, 0.14 + Math.random() * 0.1, 0.5 + Math.random() * 0.3);
+        const rs = 3 + 3 * m; // reads from 35 m; 1.5 + 2.5m used to vanish at that distance
+        addPuff(puffs, bx, bz, rx * rs, 1.2 + 1.5 * m, rz * rs, 0.14 + Math.random() * 0.1, 0.5 + Math.random() * 0.3);
       }
     }
 
@@ -390,13 +410,16 @@ export default function Effects() {
     }
     if (!st.jumped && st.jumpAt >= 0 && t - st.jumpAt >= JUMP_IN.landAt) {
       st.jumped = true;
-      for (let i = 0; i < 20; i++) {
-        const a = (i / 20) * Math.PI * 2;
-        addPuff(puffs, seal.x, 0.08, seal.z, Math.cos(a) * 3.2, 0.9, Math.sin(a) * 3.2, 0.2, 0.7);
+      // 24 puffs at 5.5 m/s spread to about 1.4 m: clear of the seal and
+      // readable from 35 m, where the old 3.2 m/s ring spread 0.22 m and
+      // stayed hidden under it.
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2;
+        addPuff(puffs, seal.x, seal.z, Math.cos(a) * 5.5, 0.9, Math.sin(a) * 5.5, 0.28, 0.9);
       }
       for (let i = 0; i < 6; i++) {
         const a = Math.random() * Math.PI * 2;
-        addPuff(puffs, seal.x, 0.08, seal.z, Math.cos(a) * 0.3, 2.4, Math.sin(a) * 0.3, 0.16, 0.8);
+        addPuff(puffs, seal.x, seal.z, Math.cos(a) * 0.3, 2.4, Math.sin(a) * 0.3, 0.16, 0.8);
       }
     }
 
@@ -414,7 +437,7 @@ export default function Effects() {
         addSpray(
           spray,
           seal.x - forwardX * 0.9 + leftX * 0.45 * side,
-          0.06,
+          WATER_Y + 0.06,
           seal.z - forwardZ * 0.9 + leftZ * 0.45 * side,
           RIVER_OUT.flowX * 0.7,
           0.2,
@@ -428,8 +451,8 @@ export default function Effects() {
       if (strokeFired) {
         const nx = seal.x + forwardX * 0.95;
         const nz = seal.z + forwardZ * 0.95;
-        addSpray(spray, nx, 0.12, nz, leftX * 1.6, 1.8, leftZ * 1.6, 0.14, 0.6, 0, 1);
-        addSpray(spray, nx, 0.12, nz, -leftX * 1.6, 1.8, -leftZ * 1.6, 0.14, 0.6, 0, 1);
+        addSpray(spray, nx, WATER_Y + 0.12, nz, leftX * 1.6, 1.8, leftZ * 1.6, 0.14, 0.6, 0, 1);
+        addSpray(spray, nx, WATER_Y + 0.12, nz, -leftX * 1.6, 1.8, -leftZ * 1.6, 0.14, 0.6, 0, 1);
       }
     } else {
       spray.foamAccum = 0;
@@ -443,7 +466,7 @@ export default function Effects() {
         const n = Math.max(1, Math.round(10 * puffMul));
         for (let i = 0; i < n; i++) {
           const a = Math.random() * Math.PI * 2;
-          addPuff(puffs, p.x, 0.06, p.z, Math.cos(a) * 1.2, 1 + Math.random() * 0.6, Math.sin(a) * 1.2, 0.1 + Math.random() * 0.06, 0.4 + Math.random() * 0.2);
+          addPuff(puffs, p.x, p.z, Math.cos(a) * 1.2, 1 + Math.random() * 0.6, Math.sin(a) * 1.2, 0.1 + Math.random() * 0.06, 0.4 + Math.random() * 0.2);
         }
       }
     }
@@ -456,7 +479,7 @@ export default function Effects() {
       const nx = seal.x + forwardX * 0.95;
       const nz = seal.z + forwardZ * 0.95;
       for (let i = 0; i < n; i++) {
-        addPuff(puffs, nx, 0.15, nz, (Math.random() - 0.5) * 0.6, 0.9 + Math.random() * 0.5, (Math.random() - 0.5) * 0.6, 0.06 + Math.random() * 0.05, 0.4 + Math.random() * 0.2);
+        addPuff(puffs, nx, nz, (Math.random() - 0.5) * 0.6, 0.9 + Math.random() * 0.5, (Math.random() - 0.5) * 0.6, 0.06 + Math.random() * 0.05, 0.4 + Math.random() * 0.2);
       }
       heart.current.active = true;
       heart.current.start = t;
@@ -465,10 +488,14 @@ export default function Effects() {
     }
 
     // ---- puff integration + draw -----------------------------------------
+    // Gated on puffs.alive: standing still for a while, every slot is
+    // already hidden (written once, on the frame it died) and nothing here
+    // needs to touch the 160 matrices or re-upload the buffer.
 
     const mesh = puffRef.current;
-    if (mesh) {
+    if (mesh && puffs.alive > 0) {
       for (let i = 0; i < PUFF_COUNT; i++) {
+        if (!puffs.wasAlive[i]) continue;
         const age = puffs.age[i] + dt;
         puffs.age[i] = age;
         const life = puffs.life[i];
@@ -477,6 +504,8 @@ export default function Effects() {
           dummy.scale.setScalar(0);
           dummy.updateMatrix();
           mesh.setMatrixAt(i, dummy.matrix);
+          puffs.wasAlive[i] = 0;
+          puffs.alive--;
           continue;
         }
         const b = i * 3;
@@ -485,11 +514,16 @@ export default function Effects() {
         puffs.pos[b + 1] += puffs.vel[b + 1] * dt;
         puffs.pos[b + 2] += puffs.vel[b + 2] * dt;
         const size = puffs.size[i];
-        if (puffs.pos[b + 1] <= size / 2) {
+        // Only clamp while still falling: catching it on the way back UP
+        // (e.g. spawned exactly at rest height) used to kill 60% of its
+        // speed on its very first frame, every frame it stayed near the
+        // ground.
+        if (puffs.pos[b + 1] <= size / 2 && puffs.vel[b + 1] < 0) {
           puffs.pos[b + 1] = size / 2;
-          puffs.vel[b] *= 0.4;
-          puffs.vel[b + 1] *= 0.4;
-          puffs.vel[b + 2] *= 0.4;
+          puffs.vel[b + 1] = 0;
+          const decay = Math.exp(-4 * dt);
+          puffs.vel[b] *= decay;
+          puffs.vel[b + 2] *= decay;
         }
         const u = age / life;
         const scale = Math.max(0, size * (1 - u * u));
@@ -505,8 +539,9 @@ export default function Effects() {
     // ---- spray integration + draw ------------------------------------------
 
     const smesh = sprayRef.current;
-    if (smesh) {
+    if (smesh && spray.alive > 0) {
       for (let i = 0; i < SPRAY_COUNT; i++) {
+        if (!spray.wasAlive[i]) continue;
         const age = spray.age[i] + dt;
         spray.age[i] = age;
         const life = spray.life[i];
@@ -515,6 +550,8 @@ export default function Effects() {
           dummy.scale.setScalar(0);
           dummy.updateMatrix();
           smesh.setMatrixAt(i, dummy.matrix);
+          spray.wasAlive[i] = 0;
+          spray.alive--;
           continue;
         }
         const b = i * 3;
@@ -528,7 +565,7 @@ export default function Effects() {
           spray.pos[b] += spray.vel[b] * dt;
           spray.pos[b + 1] += spray.vel[b + 1] * dt;
           spray.pos[b + 2] += spray.vel[b + 2] * dt;
-          if (spray.pos[b + 1] < 0.02) spray.pos[b + 1] = 0.02;
+          if (spray.pos[b + 1] < WATER_Y + 0.02) spray.pos[b + 1] = WATER_Y + 0.02;
         }
         const u = age / life;
         const size = Math.max(0, spray.size[i] * (1 - u * u));
@@ -544,7 +581,8 @@ export default function Effects() {
     // ---- confetti integration + draw --------------------------------------
 
     const cmesh = confettiRef.current;
-    if (cmesh) {
+    if (cmesh && confetti.alive > 0) {
+      let stillAlive = false;
       for (let i = 0; i < CONFETTI_COUNT; i++) {
         const age = confetti.age[i] + dt;
         confetti.age[i] = age;
@@ -555,6 +593,7 @@ export default function Effects() {
           cmesh.setMatrixAt(i, dummy.matrix);
           continue;
         }
+        stillAlive = true;
         const b = i * 3;
         confetti.vel[b + 1] -= 4 * dt;
         const drag = 1 - Math.min(1, 0.8 * dt);
@@ -573,6 +612,7 @@ export default function Effects() {
         dummy.updateMatrix();
         cmesh.setMatrixAt(i, dummy.matrix);
       }
+      if (!stillAlive) confetti.alive = 0;
       cmesh.instanceMatrix.needsUpdate = true;
     }
 
@@ -656,7 +696,7 @@ export default function Effects() {
 
   return (
     <>
-      <instancedMesh ref={puffRef} args={[PUFF_GEO, PUFF_MAT, PUFF_COUNT]} frustumCulled={false} />
+      <instancedMesh ref={puffRef} args={[PUFF_GEO, PUFF_MAT, PUFF_COUNT]} castShadow frustumCulled={false} />
       <instancedMesh ref={sprayRef} args={[SPRAY_GEO, SPRAY_MAT, SPRAY_COUNT]} frustumCulled={false} />
       <instancedMesh ref={confettiRef} args={[undefined, CONFETTI_MAT, CONFETTI_COUNT]} frustumCulled={false}>
         <boxGeometry args={CONFETTI_GEO_ARGS} />
@@ -664,6 +704,7 @@ export default function Effects() {
       <mesh ref={rippleRef} geometry={RING_GEO} material={rippleMat} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2} visible={false} />
       <mesh ref={ringRef} geometry={RING_GEO} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2} visible={false} />
       <mesh ref={heartRef} geometry={HEART_GEO} material={HEART_MAT} rotation={[-0.866, 0, 0]} visible={false} />
+      <Radiation />
     </>
   );
 }

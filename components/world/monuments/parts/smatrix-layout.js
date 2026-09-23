@@ -55,7 +55,7 @@ const ANGLE0 = -0.35; // fig.js: X0 = 0.68 * [cos(-0.35), sin(-0.35)]
 const R0 = 0.16; // orbit radius at hop 0: tight, by the in-state point
 const RMAX = 0.95; // orbit radius at hop K: the travelled, widened arm
 const BEAD_R0 = 0.15; // hop 0: the identity term, a small bright core
-const BEAD_RMIN = 0.05; // hop K: nearly dust
+const BEAD_RMIN = 0.09; // hop K: nearly dust -- fix 4: 0.05 -> 0.09, so it still reads through the glass at game distance
 
 // SLICES[k]: one bead per hop. x, y and zFrac are normalized (metres for
 // x/y, 0..1 front-to-back for z) so Smatrix.jsx can scale them to the case

@@ -68,17 +68,6 @@ export default function Home() {
               ))}
             </ul>
             <p>{place.body}</p>
-            {place.contributions && (
-              <ul>
-                {place.contributions.map((c) => (
-                  <li key={`${c.repo}#${c.pr}`}>
-                    <a href={c.url ?? `https://github.com/${c.repo}/pull/${c.pr}`}>
-                      {c.repo} #{c.pr}: {c.what} — {c.result}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
             <ul>
               {place.links.map((l) => (
                 <li key={l.url}><a href={l.url}>{l.label}</a></li>

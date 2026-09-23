@@ -1,27 +1,34 @@
 "use client";
 
-// The island's shape, small: every place as a tinted dot and the seal's live
-// position, tap a place to go there. This is a pointer/touch convenience,
-// not the accessible way to reach a place — the "Projects" list already
-// gives every place a focusable, 44px, screen-reader-labelled row, so the
-// map's dots stay decorative (aria-hidden) rather than promising keyboard
-// reach to 22 targets a few pixels wide. Only the show/hide toggle, which a
-// phone needs to get the map out of the way, is itself a real control.
+// The island's shape, small: every district tinted, the river and moat as
+// water, every place as a dot, and the seal's live position and heading.
+// Tap a place to go there — a pointer/touch convenience, not the accessible
+// way to reach one; the "Projects" list already gives every place a
+// focusable, 44px, screen-reader-labelled row, so the map's dots stay
+// decorative (aria-hidden) rather than promising keyboard reach to 22
+// targets a few pixels wide. Only the show/hide toggle, which a phone needs
+// to get the map out of the way, is itself a real control.
 
 import { useEffect, useRef, useState } from "react";
-import { ISLAND_RADIUS, PLACES, PLACE_BY_ID } from "../../../lib/world/places";
+import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID } from "../../../lib/world/places";
+import { WATERS } from "../../../lib/world/river";
 import { live } from "../../../lib/world/store";
 import { IconMap } from "./icons";
 
+// The design size; CSS scales the rendered box up above 720px (the viewBox
+// stays this, so the seal dot and strokes scale with it, not separately).
 const SIZE = 168;
 const CENTER = SIZE / 2;
 const RIM = 72; // px, the island's rim on the map
 const SCALE = RIM / ISLAND_RADIUS;
+const MOVE_EPS = 0.05; // m: skip the DOM write below this — the seal is still
 const project = (x, z) => [CENTER + x * SCALE, CENTER + z * SCALE];
+const waterPoints = (points) => points.map(([x, z]) => project(x, z).join(",")).join(" ");
 
 export default function Minimap({ onSelect }) {
   const [open, setOpen] = useState(true);
   const sealRef = useRef(null);
+  const last = useRef({ x: Infinity, z: Infinity }); // forces the first tick to draw
 
   // Phones start collapsed so the map doesn't sit on top of the near-prompt;
   // desktop keeps it open (and CSS forces it open above 720px regardless).
@@ -33,8 +40,15 @@ export default function Minimap({ onSelect }) {
     if (!open) return;
     let raf;
     const tick = () => {
-      const [x, y] = project(live.seal.x, live.seal.z);
-      sealRef.current?.setAttribute("transform", `translate(${x} ${y})`);
+      const { x, z, heading } = live.seal;
+      if (Math.hypot(x - last.current.x, z - last.current.z) >= MOVE_EPS) {
+        last.current = { x, z };
+        const [px, py] = project(x, z);
+        // The map shares the world's own XZ axes (no flip), so a forward
+        // vector of (sin h, cos h) turns into an SVG rotation of -h.
+        const deg = (-heading * 180) / Math.PI;
+        sealRef.current?.setAttribute("transform", `translate(${px} ${py}) rotate(${deg})`);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -55,6 +69,27 @@ export default function Minimap({ onSelect }) {
       <div className="minimap-panel">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE} aria-hidden="true">
           <circle cx={CENTER} cy={CENTER} r={RIM} className="minimap-island" />
+          {DISTRICTS.map((d) => {
+            const [x, y] = project(d.x, d.z);
+            return (
+              <circle
+                key={d.id}
+                cx={x}
+                cy={y}
+                r={d.radius * SCALE}
+                className="minimap-district"
+                style={{ "--accent": d.radiation ?? d.color }}
+              />
+            );
+          })}
+          {WATERS.map((line, i) => (
+            <polyline
+              key={i}
+              points={waterPoints(line.points)}
+              className="minimap-water"
+              style={{ strokeWidth: (line.width ?? 8) * SCALE }}
+            />
+          ))}
           {PLACES.filter((p) => p.id !== "home").map((place) => {
             const [x, y] = project(place.x, place.z);
             const tint = place.district?.radiation ?? place.district?.color;
@@ -81,7 +116,8 @@ export default function Minimap({ onSelect }) {
           })()}
           <g ref={sealRef} className="minimap-seal">
             <circle r={5} className="minimap-seal-ring" />
-            <circle r={3.5} />
+            <path d="M0 9L-3 3L3 3Z" className="minimap-seal-heading" />
+            <circle r={3.5} className="minimap-seal-dot" />
           </g>
         </svg>
       </div>

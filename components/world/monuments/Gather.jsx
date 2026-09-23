@@ -1,6 +1,7 @@
 "use client";
 
-// Sculpture for the "gather" figure: NVIDIA/NeMo-Relay #481 (place id pr-nemo-relay-481).
+// NVIDIA/NeMo-Relay #481's story (the "gather" figure), grown out of the
+// ice island it floats on in the NVIDIA moat (components/world/land/Moat.jsx).
 //
 // The fix (data/showcase.json, this place's figure.desc): the cache key for a
 // request's learning profile included the first user message, so one
@@ -8,21 +9,20 @@
 // fresh profile per task and no profile ever grew. Keying on the scaffold
 // alone gathers every request into one profile instead.
 //
-// Retelling: packets fall from a relay spout and fork. Left, each one pops a
-// small one-off glass profile (coloured by its message) that holds a single
-// observation and fades - a scatter that never grows. Right, the satellite
-// (the differing message) fades out in flight and every packet joins one
-// growing globe of shells, ringing each time a shell fills, then loops.
-// Faster and brighter when `near`.
+// Retelling, all in ice: a forked ice spire, lit NVIDIA green from inside.
+// Requests fall onto its crown and fork. Left, each one pops a small one-off
+// frozen bubble (coloured by its message) that holds a single observation
+// and melts: a scatter that never grows. Right, the satellite (the differing
+// message) fades out in flight and every packet joins one growing globe of
+// shells, ringing each time the globe fills, then loops. Faster when `near`.
 //
-// Local origin: the top of the plinth; +z faces the camera and the dock.
+// Local origin: the ice island's snow top; +z faces the camera and the dock.
 // Props: { place, near }.
 
-import { Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { Color, IcosahedronGeometry, MeshBasicMaterial, Object3D, Quaternion, SphereGeometry, Vector3 } from "three";
-import { glow, mat } from "../palette";
+import { C, glow, mat } from "../palette";
 
 // the figure's own palette (teerthsharma.github.io fig.js, the "gather" figure):
 // a violet scaffold and four hues for the first-user-message satellite.
@@ -30,17 +30,15 @@ const V5 = "#a66cf0", V7 = "#6b35c4";
 const MSG = ["#d96a06", "#0b93ab", "#2456dc", "#d9376e"];
 const HUES = MSG.length;
 
-// static layout, in plinth-top local space (footprint stays inside 3.4m).
-// BASE grounds the relay on the plinth; it trunks up to FORK, still rising
-// on to SPOUT_TOP (where requests keep arriving from), and forks down and
-// out to the two outcomes.
-const BASE = [0, 0.05, -1];
-const FORK = [0, 2.15, -0.85];
-const SPOUT_TOP = [0, 4.2, -1.3];
-const LEFT_BASE = [-2.0, 1.05, 0.6]; // the scatter of one-off profiles
-const RIGHT_BASE = [1.95, 1.95, 0.55]; // the one growing profile
+// The spire grows from BASE up to FORK and on to its crown (SPOUT_TOP), where
+// the requests arrive; two ice arms fork down and out to the two outcomes.
+const BASE = [0, 0, -0.9];
+const FORK = [0, 2.15, -0.8];
+const SPOUT_TOP = [0, 3.9, -1.1];
+const LEFT_BASE = [-1.9, 1.15, 0.5]; // the scatter of one-off profiles
+const RIGHT_BASE = [1.85, 1.95, 0.45]; // the one growing profile
 
-const SLOTS = 6; // left: independent profile slots, each cycles pop -> hold -> fade
+const SLOTS = 6; // left: independent profile slots, each cycles pop -> hold -> melt
 const SHELL_N = [8, 14, 20]; // right: dots per shell, inner to outer
 const SHELL_R = [0.34, 0.66, 1]; // shell radius as a fraction of GLOBE_R
 const SHELL_START = [0, SHELL_N[0], SHELL_N[0] + SHELL_N[1]];
@@ -64,21 +62,36 @@ function fibonacciSphere(n, seed) {
   return pts;
 }
 
-// a static cylinder between two fixed points, computed once (the layout
-// never moves, so this costs nothing per frame).
-function useBeam(from, to) {
-  return useMemo(() => {
-    const a = new Vector3(...from), b = new Vector3(...to);
-    const length = a.distanceTo(b);
-    const mid = a.clone().lerp(b, 0.5);
-    const quat = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), b.clone().sub(a).normalize());
-    return { mid, quat, length };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+// a static prism between two fixed points (the layout never moves).
+function beam(from, to) {
+  const a = new Vector3(...from), b = new Vector3(...to);
+  return {
+    mid: a.clone().lerp(b, 0.5),
+    quat: new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), b.clone().sub(a).normalize()),
+    length: a.distanceTo(b),
+  };
 }
+const TRUNK = beam(BASE, FORK);
+const SPOUT = beam(FORK, SPOUT_TOP);
+const ARM_L = beam(FORK, LEFT_BASE);
+const ARM_R = beam(FORK, RIGHT_BASE);
+
+const sphereGeo = new SphereGeometry(1, 10, 8);
+const satGeo = new SphereGeometry(1, 8, 6); // shared by satellites and globe dots
+const shellGeo = SHELL_R.map((r) => new IcosahedronGeometry(r * GLOBE_R, 1));
+const crystalGeo = new IcosahedronGeometry(1, 0);
+
+const iceMat = mat(C.ice, { roughness: 0.3 });
+const deepMat = mat(C.deepIce, { roughness: 0.35 });
+const shellMat = new MeshBasicMaterial({ color: V5, wireframe: true, transparent: true, opacity: 0.55, toneMapped: false });
+const glassMat = mat(V5, { roughness: 0.1, metalness: 0, opacity: 0.22 });
+const coreMat = mat(V5, { emissive: V5, emissiveIntensity: 0.7, roughness: 0.35 });
+const satMat = mat("#ffffff", { roughness: 0.4 });
+const orbMat = mat("#ffffff", { roughness: 0.16, metalness: 0.05, opacity: 0.86 });
+const dotMat = mat("#ffffff", { roughness: 0.35, metalness: 0.1 });
 
 export default function Gather({ place, near }) {
-  const coreRef = useRef(); // packet cores: 4 spout + 4 left-flight + 4 right-flight
+  const coreRef = useRef(); // packet cores: 4 falling + 4 left-flight + 4 right-flight
   const satRef = useRef(); // their satellites (the first user message)
   const orbRef = useRef(); // left: 6 one-observation profiles
   const dotRef = useRef(); // right: the one profile's observations, up to DOT_CAP
@@ -88,21 +101,8 @@ export default function Gather({ place, near }) {
   const glowRef = useRef();
 
   const dummy = useMemo(() => new Object3D(), []);
-  const trunkBeam = useBeam(BASE, FORK);
-  const spoutBeam = useBeam(FORK, SPOUT_TOP);
-  const leftBeam = useBeam(FORK, LEFT_BASE);
-  const rightBeam = useBeam(FORK, RIGHT_BASE);
-
-  const sphereGeo = useMemo(() => new SphereGeometry(1, 10, 8), []);
-  const satGeo = useMemo(() => new SphereGeometry(1, 8, 6), []); // shared by satellites and globe dots
-  const shellGeo = useMemo(() => SHELL_R.map((r) => new IcosahedronGeometry(r * GLOBE_R, 1)), []);
-  const shellMat = useMemo(() => new MeshBasicMaterial({ color: V5, wireframe: true, transparent: true, opacity: 0.55, toneMapped: false }), []);
-  const glassMat = useMemo(() => mat(V5, { roughness: 0.1, metalness: 0, opacity: 0.22 }), []);
-
-  const coreMat = useMemo(() => mat(V5, { emissive: V5, emissiveIntensity: 0.7, roughness: 0.35 }), []);
-  const satMat = useMemo(() => mat("#ffffff", { roughness: 0.4 }), []);
-  const orbMat = useMemo(() => mat("#ffffff", { roughness: 0.16, metalness: 0.05, opacity: 0.86 }), []);
-  const dotMat = useMemo(() => mat("#ffffff", { roughness: 0.35, metalness: 0.1 }), []);
+  // the spire: ice lit green from within, the one accent this place owns
+  const spireMat = useMemo(() => mat(place.color, { roughness: 0.3, emissive: place.color, emissiveIntensity: 0.35 }), [place.color]);
   const ringMat = useMemo(() => mat(V7, { emissive: V7, emissiveIntensity: 2, roughness: 0.3, opacity: 0.5 }).clone(), []);
   const glowMat = useMemo(() => glow(V5, 0.25).clone(), []);
 
@@ -111,12 +111,12 @@ export default function Gather({ place, near }) {
   const orbOffset = useMemo(
     () => Array.from({ length: SLOTS }, (_, j) => {
       const a = (j / SLOTS) * Math.PI * 2 + j * 0.9;
-      const r = 0.35 + 0.24 * ((j * 1.618) % 1);
-      return [Math.cos(a) * r, ((j * 0.7) % 1) * 0.7 - 0.15, Math.sin(a) * r * 0.8 - r * 0.3];
+      const r = 0.4 + 0.3 * ((j * 1.618) % 1);
+      return [Math.cos(a) * r, ((j * 0.7) % 1) * 0.8 - 0.1, Math.sin(a) * r * 0.8 - r * 0.3];
     }),
     [],
   );
-  const orbScale = useMemo(() => Array.from({ length: SLOTS }, (_, j) => 0.7 + 0.5 * ((j * 0.618) % 1)), []);
+  const orbScale = useMemo(() => Array.from({ length: SLOTS }, (_, j) => 0.75 + 0.5 * ((j * 0.618) % 1)), []);
   const dotSlot = useMemo(() => {
     const out = [];
     SHELL_N.forEach((n, s) => {
@@ -156,28 +156,30 @@ export default function Gather({ place, near }) {
 
     if (core && sat) {
       for (let i = 0; i < HUES; i++) {
-        // the source: the scaffold falls with its message circling it
+        // the source: the scaffold falls past the crown and down the spire's
+        // face to the fork, its message circling it
         let k = frac(t / FALL_T - i / HUES);
-        let x = SPOUT_TOP[0] + (FORK[0] - SPOUT_TOP[0]) * k + Math.sin(t * 2 + i) * 0.05;
-        let y = SPOUT_TOP[1] + (FORK[1] - SPOUT_TOP[1]) * k;
-        let z = SPOUT_TOP[2] + (FORK[2] - SPOUT_TOP[2]) * k;
-        placeAt(dummy, core, i, x, y, z, 0.13);
-        placeAt(dummy, sat, i, x + Math.cos(t * 4 + i) * 0.24, y, z + Math.sin(t * 4 + i) * 0.24, 0.07);
+        let x = SPOUT_TOP[0] + Math.sin(t * 2 + i) * 0.05;
+        let y = SPOUT_TOP[1] + 1.2 + (FORK[1] - SPOUT_TOP[1] - 1.2) * k;
+        let z = SPOUT_TOP[2] + (FORK[2] - SPOUT_TOP[2]) * k + 0.34;
+        const grow = Math.min(1, k * 5);
+        placeAt(dummy, core, i, x, y, z, 0.17 * grow);
+        placeAt(dummy, sat, i, x + Math.cos(t * 4 + i) * 0.3, y, z + Math.sin(t * 4 + i) * 0.3, 0.1 * grow);
 
         // left: keyed on everything, so it keeps the message's colour
         k = frac(t / FLIGHT_T - i / HUES - 0.5);
         x = FORK[0] + (LEFT_BASE[0] - FORK[0]) * k;
-        y = FORK[1] + (LEFT_BASE[1] - FORK[1]) * k + Math.sin(k * Math.PI) * 0.35;
+        y = FORK[1] + (LEFT_BASE[1] - FORK[1]) * k + Math.sin(k * Math.PI) * 0.45;
         z = FORK[2] + (LEFT_BASE[2] - FORK[2]) * k;
-        placeAt(dummy, core, HUES + i, x, y, z, 0.11);
-        placeAt(dummy, sat, HUES + i, x, y + 0.1, z, 0.06);
+        placeAt(dummy, core, HUES + i, x, y, z, 0.14);
+        placeAt(dummy, sat, HUES + i, x, y + 0.14, z, 0.09);
 
         // right: the satellite fades - the message drops out of the key
         x = FORK[0] + (RIGHT_BASE[0] - FORK[0]) * k;
-        y = FORK[1] + (RIGHT_BASE[1] - FORK[1]) * k + Math.sin(k * Math.PI) * 0.35;
+        y = FORK[1] + (RIGHT_BASE[1] - FORK[1]) * k + Math.sin(k * Math.PI) * 0.45;
         z = FORK[2] + (RIGHT_BASE[2] - FORK[2]) * k;
-        placeAt(dummy, core, 2 * HUES + i, x, y, z, 0.11);
-        placeAt(dummy, sat, 2 * HUES + i, x, y + 0.1, z, 0.06 * (1 - k));
+        placeAt(dummy, core, 2 * HUES + i, x, y, z, 0.14);
+        placeAt(dummy, sat, 2 * HUES + i, x, y + 0.14, z, 0.09 * (1 - k));
       }
       core.instanceMatrix.needsUpdate = true;
       sat.instanceMatrix.needsUpdate = true;
@@ -192,7 +194,7 @@ export default function Gather({ place, near }) {
         else if (k < 0.62) s = 1;
         else if (k < 0.85) s = 1 - (k - 0.62) / 0.23;
         const [ox, oy, oz] = orbOffset[j];
-        placeAt(dummy, orb, j, LEFT_BASE[0] + ox, LEFT_BASE[1] + oy + Math.sin(t * 1.5 + j) * 0.03, LEFT_BASE[2] + oz, s * 0.3 * orbScale[j]);
+        placeAt(dummy, orb, j, LEFT_BASE[0] + ox, LEFT_BASE[1] + oy + Math.sin(t * 1.5 + j) * 0.03, LEFT_BASE[2] + oz, s * 0.34 * orbScale[j]);
       }
       orb.instanceMatrix.needsUpdate = true;
     }
@@ -205,7 +207,7 @@ export default function Gather({ place, near }) {
         const since = landed - d;
         const s = since < 0 ? 0 : since < 1 ? 0.55 + 0.45 * since : 1;
         const slot = dotSlot[d];
-        placeAt(dummy, dot, d, RIGHT_BASE[0] + slot.x, RIGHT_BASE[1] + slot.y, RIGHT_BASE[2] + slot.z, s * 0.12);
+        placeAt(dummy, dot, d, RIGHT_BASE[0] + slot.x, RIGHT_BASE[1] + slot.y, RIGHT_BASE[2] + slot.z, s * 0.13);
       }
       dot.instanceMatrix.needsUpdate = true;
     }
@@ -226,58 +228,33 @@ export default function Gather({ place, near }) {
 
   return (
     <group>
-      {/* the relay: grounded on the plinth, trunking up to the fork, still
-          rising on as the spout the requests fall from */}
-      <mesh position={[BASE[0], BASE[1] - 0.05, BASE[2]]} castShadow receiveShadow material={mat("#43434c", { roughness: 0.6 })}>
-        <cylinderGeometry args={[0.34, 0.4, 0.22, 20]} />
+      {/* the spire: grows from the ice, forks, and rises on to its crown */}
+      <mesh position={[BASE[0], 0.25, BASE[2]]} scale={[0.75, 0.55, 0.7]} castShadow receiveShadow material={deepMat} geometry={crystalGeo} />
+      <mesh position={TRUNK.mid} quaternion={TRUNK.quat} castShadow material={spireMat}>
+        <cylinderGeometry args={[0.22, 0.42, TRUNK.length, 6]} />
       </mesh>
-      <mesh position={trunkBeam.mid} quaternion={trunkBeam.quat} castShadow material={mat(place.color, { roughness: 0.5 })}>
-        <cylinderGeometry args={[0.24, 0.3, trunkBeam.length, 8]} />
+      <mesh position={SPOUT.mid} quaternion={SPOUT.quat} castShadow material={spireMat}>
+        <cylinderGeometry args={[0.12, 0.24, SPOUT.length, 6]} />
       </mesh>
-      <mesh position={spoutBeam.mid} quaternion={spoutBeam.quat} castShadow material={mat(place.color, { roughness: 0.5 })}>
-        <cylinderGeometry args={[0.19, 0.24, spoutBeam.length, 8]} />
+      <mesh position={SPOUT_TOP} scale={[0.26, 0.4, 0.26]} castShadow material={spireMat} geometry={crystalGeo} />
+      <mesh position={FORK} scale={0.36} castShadow material={spireMat} geometry={crystalGeo} />
+      <mesh position={ARM_L.mid} quaternion={ARM_L.quat} castShadow material={iceMat}>
+        <cylinderGeometry args={[0.13, 0.2, ARM_L.length, 6]} />
       </mesh>
-      <mesh position={SPOUT_TOP} castShadow material={mat(place.color, { roughness: 0.5 })}>
-        <sphereGeometry args={[0.32, 10, 8]} />
-      </mesh>
-      <mesh position={FORK} castShadow material={mat(place.color, { roughness: 0.5 })}>
-        <sphereGeometry args={[0.3, 10, 8]} />
-      </mesh>
-      <mesh position={leftBeam.mid} quaternion={leftBeam.quat} castShadow material={mat("#43434c", { roughness: 0.65 })}>
-        <cylinderGeometry args={[0.13, 0.17, leftBeam.length, 6]} />
-      </mesh>
-      <mesh position={rightBeam.mid} quaternion={rightBeam.quat} castShadow material={mat("#43434c", { roughness: 0.65 })}>
-        <cylinderGeometry args={[0.13, 0.17, rightBeam.length, 6]} />
+      <mesh position={ARM_R.mid} quaternion={ARM_R.quat} castShadow material={iceMat}>
+        <cylinderGeometry args={[0.13, 0.2, ARM_R.length, 6]} />
       </mesh>
 
-      {/* left: a scatter of one-off profiles, never grows - a thin ray to
-          each, since every key hashes to its own spot */}
-      <mesh position={[LEFT_BASE[0], (LEFT_BASE[1] - 0.45) / 2, LEFT_BASE[2]]} castShadow receiveShadow material={mat("#43434c", { roughness: 0.65 })}>
-        <cylinderGeometry args={[0.17, 0.24, LEFT_BASE[1] - 0.45, 12]} />
+      {/* left: a scatter of one-off profiles on an ice stalagmite, never grows */}
+      <mesh position={[LEFT_BASE[0], (LEFT_BASE[1] - 0.2) / 2, LEFT_BASE[2]]} castShadow receiveShadow material={iceMat}>
+        <cylinderGeometry args={[0.12, 0.42, LEFT_BASE[1] - 0.2, 6]} />
       </mesh>
-      <mesh position={[LEFT_BASE[0], LEFT_BASE[1] - 0.45, LEFT_BASE[2]]} castShadow receiveShadow material={mat("#43434c", { roughness: 0.7 })}>
-        <cylinderGeometry args={[0.72, 0.8, 0.2, 24]} />
-      </mesh>
-      {orbOffset.map(([ox, oy, oz], j) => (
-        <Line
-          key={j}
-          points={[FORK, [LEFT_BASE[0] + ox, LEFT_BASE[1] + oy, LEFT_BASE[2] + oz]]}
-          color={MSG[j % HUES]}
-          lineWidth={1}
-          transparent
-          opacity={0.35}
-        />
-      ))}
       <instancedMesh ref={orbRef} args={[sphereGeo, orbMat, SLOTS]} />
 
-      {/* right: one profile, a globe of shells that fills and rings - the
-          glass shell stays visible at every fill level, so it always reads
-          as one object even early in the loop */}
-      <mesh position={[RIGHT_BASE[0], (RIGHT_BASE[1] - GLOBE_R - 0.3) / 2, RIGHT_BASE[2]]} castShadow receiveShadow material={mat("#43434c", { roughness: 0.65 })}>
-        <cylinderGeometry args={[0.19, 0.26, RIGHT_BASE[1] - GLOBE_R - 0.3, 12]} />
-      </mesh>
-      <mesh position={[RIGHT_BASE[0], RIGHT_BASE[1] - GLOBE_R - 0.3, RIGHT_BASE[2]]} castShadow receiveShadow material={mat("#43434c", { roughness: 0.7 })}>
-        <cylinderGeometry args={[0.56, 0.64, 0.2, 24]} />
+      {/* right: one profile, a globe of shells that fills and rings, held up
+          by its own ice stalagmite */}
+      <mesh position={[RIGHT_BASE[0], (RIGHT_BASE[1] - GLOBE_R) / 2, RIGHT_BASE[2]]} castShadow receiveShadow material={iceMat}>
+        <cylinderGeometry args={[0.14, 0.44, RIGHT_BASE[1] - GLOBE_R, 6]} />
       </mesh>
       <mesh ref={glowRef} position={RIGHT_BASE} material={glowMat}>
         <sphereGeometry args={[GLOBE_R * 1.6, 12, 10]} />
@@ -290,7 +267,7 @@ export default function Gather({ place, near }) {
       ))}
       <instancedMesh ref={dotRef} args={[satGeo, dotMat, DOT_CAP]} castShadow />
       <mesh ref={ringRef} position={RIGHT_BASE} rotation={[Math.PI / 2, 0, 0]} material={ringMat}>
-        <torusGeometry args={[GLOBE_R + 0.1, 0.045, 8, 24]} />
+        <torusGeometry args={[GLOBE_R + 0.12, 0.07, 8, 24]} />
       </mesh>
 
       {/* the stream: packets and their first-user-message satellite */}

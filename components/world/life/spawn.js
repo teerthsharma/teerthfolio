@@ -3,12 +3,29 @@
 // growing the island past 8 places, so every seed point here has to keep
 // dodging buildings, docks, spawn and the name in the snow on its own.
 
-import { PLACES, ISLAND_RADIUS, SPAWN, dockPoint } from "../../../lib/world/places";
-import { RIVER, riverAt } from "../../../lib/world/river";
-import { LAND_COLLIDERS } from "../../../lib/world/land";
+import { CatmullRomCurve3, Vector3 } from "three";
+import { PLACES, ISLAND_RADIUS, SPAWN, dockPoint } from "../../../lib/world/places.js";
+import { RIVER, riverAt, waterGap } from "../../../lib/world/river.js";
+import { LAND_COLLIDERS, PATHS } from "../../../lib/world/land.js";
 
 // Reused every call so forbidden() never allocates.
 const FORBIDDEN_RIVER_OUT = {};
+
+// Every sample point along every path (lib/world/land.js PATHS), the same
+// curve components/world/island/build.js's own pathSamples() draws for the
+// ground mesh — duplicated (not imported) so this file, and spawn.check.mjs,
+// stay runnable under plain `node`: build.js's relative imports have no .js
+// extension, which only a bundler (not Node's ESM loader) resolves. Computed
+// once, not per candidate point.
+function pathSamples() {
+  const out = [];
+  for (const wp of PATHS) {
+    const curve = new CatmullRomCurve3(wp.map(([x, z]) => new Vector3(x, 0, z)));
+    for (const p of curve.getPoints(63)) out.push({ x: p.x, z: p.z });
+  }
+  return out;
+}
+const PATH_PTS = pathSamples();
 
 // Small seeded PRNG (mulberry32) so hot reload and StrictMode's double mount
 // always land on the same layout.
@@ -51,11 +68,19 @@ function forbiddenOnLand(x, z, clearance = 0) {
   return false;
 }
 
-// forbiddenOnLand() plus the river/moat banks (within 2 + clearance m).
-function forbidden(x, z, clearance = 0) {
+// forbiddenOnLand() plus the river/moat banks (within 2 + clearance m) and
+// the packed-snow paths (within 1.7 + clearance m: 1.1 m half-width + 0.6 m
+// clear). Exported so spawn.check.mjs and a land builder placing something
+// of its own (e.g. the trefoil signs) can reuse the exact same rule.
+export function forbidden(x, z, clearance = 0) {
   if (forbiddenOnLand(x, z, clearance)) return true;
-  const river = riverAt(x, z, FORBIDDEN_RIVER_OUT);
-  return river.depth > -(2 + clearance) / river.half;
+  // riverAt() clamps depth to 0 outside the water, so it can never tell dry
+  // land from the water's edge; waterGap() gives the true signed distance.
+  if (waterGap(x, z) < 2 + clearance) return true;
+  for (const p of PATH_PTS) {
+    if (Math.hypot(x - p.x, z - p.z) < 1.7 + clearance) return true;
+  }
+  return false;
 }
 
 // One dry point within `distance` m of a RIVER bank (outside the water),
@@ -79,10 +104,15 @@ export function sampleNearRiver(seed, { distance = 6, clearance = 0, tries = 200
     const pz = dx / len;
     const side = rand() < 0.5 ? 1 : -1;
     const half = riverAt(cx, cz, FORBIDDEN_RIVER_OUT).half;
-    const off = half + 0.5 + rand() * Math.max(0.5, distance - 0.5);
+    // The gap from the bank (off - half) never falls under `clearance`: a
+    // caller passing a whole group's radius as clearance (so its jittered
+    // members stay dry too, not just its sampled centre) used to get it
+    // ignored here, landing individual penguins in the river.
+    const minGap = Math.max(0.5, clearance);
+    const off = half + minGap + rand() * Math.max(0.5, distance - minGap);
     const x = cx + px * side * off;
     const z = cz + pz * side * off;
-    if (riverAt(x, z, FORBIDDEN_RIVER_OUT).inside) continue;
+    if (waterGap(x, z) < minGap) continue;
     if (Math.hypot(x, z) > ISLAND_RADIUS - 3) continue;
     if (forbiddenOnLand(x, z, clearance)) continue;
     return { x, z };
@@ -101,19 +131,29 @@ export function samplePoints(count, seed, { gap = 2.5, avoid = [], near = null, 
   const edge = ISLAND_RADIUS - 3;
   for (let i = 0; i < count; i++) {
     const biased = near && i < nearCount;
-    let x = 0;
-    let z = 0;
-    let ok = false;
-    for (let tries = 0; tries < 500 && !ok; tries++) {
-      const spread = Math.min(nearRadius * (1 + tries / 150), edge);
-      const r = biased ? Math.sqrt(rand()) * spread : Math.sqrt(rand()) * edge;
-      const a = rand() * Math.PI * 2;
-      x = (biased ? near.x : 0) + Math.cos(a) * r;
-      z = (biased ? near.z : 0) + Math.sin(a) * r;
-      ok = Math.hypot(x, z) <= edge && !forbidden(x, z, clearance) && taken.every((t) => Math.hypot(x - t.x, z - t.z) >= gap);
+    let found = null;
+    // 500 tries at the asked-for gap, then up to 3 more rounds with the gap
+    // relaxed by 0.8x each time: a crowded corner gives up personal space
+    // before it gives up and leaves the point out entirely.
+    for (let attempt = 0; attempt < 4 && !found; attempt++) {
+      const roundGap = gap * 0.8 ** attempt;
+      for (let tries = 0; tries < 500 && !found; tries++) {
+        const spread = Math.min(nearRadius * (1 + tries / 150), edge);
+        const r = biased ? Math.sqrt(rand()) * spread : Math.sqrt(rand()) * edge;
+        const a = rand() * Math.PI * 2;
+        const x = (biased ? near.x : 0) + Math.cos(a) * r;
+        const z = (biased ? near.z : 0) + Math.sin(a) * r;
+        if (Math.hypot(x, z) <= edge && !forbidden(x, z, clearance) && taken.every((t) => Math.hypot(x - t.x, z - t.z) >= roundGap)) {
+          found = { x, z };
+        }
+      }
     }
-    points.push({ x, z });
-    taken.push({ x, z });
+    if (found) {
+      points.push(found);
+      taken.push(found);
+    } else {
+      console.warn(`samplePoints: no valid spot for point ${i} of ${count} (seed ${seed}); leaving it out`);
+    }
   }
   return points;
 }

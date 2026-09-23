@@ -11,10 +11,13 @@
 // to pick a tidy, deterministic grouping as long as the counts land exactly
 // on the figure's own numbers.
 //
-// Role per entity, each frame: "ok" (still its own point, correct), "coral"
-// (collapsed into a shared point with at least one other entity — provably
-// wrong, per the figure's own certificate: in a class of s, at least s - 1
-// are wrong), "amber" (wrong alone, a point the certificate cannot see).
+// Role per entity, each frame, per the figure's own certificate rule: "in a
+// class of s entities sharing an answer, at least s - 1 are wrong, so
+// exactly n - m threads go coral" (m = number of distinct answers). So for
+// every class of entities that share a landing point: the member that is
+// actually correct there stays "ok" (green) if one exists; otherwise the
+// class's first member is the one wrong answer the certificate cannot see
+// ("amber"); every other member of the class is certified wrong ("coral").
 
 const TAU = Math.PI * 2;
 export const NE = 20;
@@ -35,20 +38,42 @@ function centroid(idxs, r) {
   return [x / idxs.length, z / idxs.length];
 }
 
+// Assigns one shared landing point to a class of entities, per the
+// certificate rule above: idxs[0] is the class's "first" member, used only
+// when correctIdx is not one of the class's own members.
+function assignClass(stage, idxs, point, correctIdx) {
+  idxs.forEach((i) => {
+    const role = i === correctIdx ? "ok" : correctIdx == null && i === idxs[0] ? "amber" : "coral";
+    stage[i] = { p: point, role };
+  });
+}
+
 // "no prefix": accuracy 0.550 (11/20 correct), 15 distinct answers, largest
-// shared class 4. 11 correct + three collapsed groups (4, 2, 2 -> 3 distinct
-// wrong points) + one lone wrong (1 distinct) = 15 distinct, largest 4.
-const GROUPS_NOPREFIX = [[2, 3, 4, 5], [9, 10], [14, 15]];
-const LONE_NOPREFIX = [16];
-const CORRECT_NOPREFIX = new Set([0, 1, 6, 7, 8, 11, 12, 13, 17, 18, 19]);
+// shared class 4. [2,3,4,5] share 3's own point (3 stays correct, the other
+// three are certified wrong); [9,10] share 9's own point (9 stays correct,
+// 10 certified wrong); [14,15] share an off-key point neither of them owns
+// (14 is the one wrong answer the certificate can't see, 15 is certified
+// wrong); the loners [7],[12],[17] each sit alone at their own off-key
+// point (wrong, and alone, so the certificate can't see any of them).
+const GROUPS_NOPREFIX = [
+  { idxs: [2, 3, 4, 5], correctIdx: 3 },
+  { idxs: [9, 10], correctIdx: 9 },
+  { idxs: [14, 15] },
+];
+const LONE_NOPREFIX = [7, 12, 17];
 
 // "random token ids": accuracy 0.100 (2/20 correct), 3 distinct answers,
-// largest shared class 18. 2 correct + everyone else on one shared point.
+// largest shared class 18. 2 correct (4, 15) + everyone else piles onto one
+// shared point that is nobody's own answer.
 const CORRECT_RANDOM = new Set([4, 15]);
 
 // The number of entities sharing the pile point, per stage — used to scale
 // how brightly the pile glows.
 export const PILE_LOAD = [0, 0, 18, 20];
+
+// Distinct answers per stage, from the figure's own table — coral count per
+// stage must equal NE - this (the certificate proves exactly n - m wrong).
+const DISTINCT = [20, 15, 3, 1];
 
 // Builds the four stages once for a given ring radius and pile point. Each
 // stage is an array of 20 { p: [x, z], role }.
@@ -57,18 +82,28 @@ export function buildStages(ringR, pile) {
   for (let i = 0; i < NE; i++) prose.push({ p: homePoint(i, ringR), role: "ok" });
 
   const noPrefix = new Array(NE);
-  CORRECT_NOPREFIX.forEach((i) => { noPrefix[i] = { p: homePoint(i, ringR), role: "ok" }; });
-  GROUPS_NOPREFIX.forEach((g) => {
-    const p = centroid(g, ringR);
-    g.forEach((i) => { noPrefix[i] = { p, role: "coral" }; });
+  for (let i = 0; i < NE; i++) noPrefix[i] = { p: homePoint(i, ringR), role: "ok" };
+  GROUPS_NOPREFIX.forEach(({ idxs, correctIdx }) => {
+    const point = correctIdx != null ? homePoint(correctIdx, ringR) : centroid(idxs, ringR * 0.72);
+    assignClass(noPrefix, idxs, point, correctIdx);
   });
-  LONE_NOPREFIX.forEach((i) => { noPrefix[i] = { p: homePoint(i, ringR * 0.72), role: "amber" }; });
+  LONE_NOPREFIX.forEach((i) => assignClass(noPrefix, [i], homePoint(i, ringR * 0.72)));
 
-  const random = [];
-  for (let i = 0; i < NE; i++) random.push(CORRECT_RANDOM.has(i) ? { p: homePoint(i, ringR), role: "ok" } : { p: pile, role: "coral" });
+  const random = new Array(NE);
+  const pileIdxs = [];
+  for (let i = 0; i < NE; i++) {
+    if (CORRECT_RANDOM.has(i)) random[i] = { p: homePoint(i, ringR), role: "ok" };
+    else pileIdxs.push(i);
+  }
+  assignClass(random, pileIdxs, pile);
 
-  const collapse = [];
-  for (let i = 0; i < NE; i++) collapse.push({ p: pile, role: "coral" });
+  const collapse = new Array(NE);
+  assignClass(collapse, Array.from({ length: NE }, (_, i) => i), pile);
 
-  return [prose, noPrefix, random, collapse];
+  const stages = [prose, noPrefix, random, collapse];
+  stages.forEach((stage, s) => {
+    const coral = stage.filter((e) => e.role === "coral").length;
+    console.assert(coral === NE - DISTINCT[s], `caustic-layout stage ${s}: expected ${NE - DISTINCT[s]} coral, got ${coral}`);
+  });
+  return stages;
 }

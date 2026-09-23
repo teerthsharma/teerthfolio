@@ -1,191 +1,239 @@
 "use client";
 
-// Sculpture for the "prune" figure: google/highway #3244 (place id pr-highway-3244).
-// Tells the same story as that figure on teerthsharma.github.io, in 3D.
-// Local origin: the top of the plinth; +z faces the camera and the dock.
-// Props: { place, near }.
+// Highway Pass's story: google/highway #3244 (place id pr-highway-3244),
+// played in the mouth of the pass (components/world/land/GoogleRange.jsx
+// puts it there). Props: { place, origin: [x, z] world of the local origin }.
+// Local origin on the snow at the middle of the pass mouth; +z faces the
+// camera and the dock.
 //
-// The story (see figure.desc and teerthsharma.github.io/fig.js's prune()):
-// building a perfect hash, the old check compared every pair of keys to find
-// duplicate slots -- a whole dome of arcs, one per pair. But a key can only
-// ever land inside its own slice ("window"); two keys whose windows never
-// overlap can never collide, so most of that dome was wasted work. The new
-// check only looks at the low arcs between overlapping windows: 894,081,141
-// comparisons fall to 13,643,737, 65.5x fewer, and both checks still find the
-// same duplicates.
+// The anomaly (the pass's radiation, place.radiation): its boulders float.
+// Sixteen of them hang in a row across the pass mouth, bobbing, each held up
+// by a glowing crystal keel, their shadows on the snow below; four big ones
+// drift higher up the pass.
 //
-// Physically: a rail of 18 keys, each an arc's foot; a dome of thin coral
-// arcs (every pair) rises off the rail, holds, then sinks and fades away; a
-// smaller set of thicker mint arcs -- the ones whose windows overlap, the
-// same low arcs the coral dome already contained -- stays and brightens as
-// the "new" sweep runs; two of those flash amber where a duplicate is found,
-// once in each sweep. Then it loops. Every arc's geometry is baked once at
-// module load (mergeGeometries) into three static draw calls; only a few
-// material scalars and a handful of instance matrices move per frame.
+// The story (figure.desc): the floating boulders are the keys. The old
+// check sweeps the row and compares each key with every key before it: fan
+// after fan of coral arcs fires until the whole dome of every pair is lit.
+// Then the light drains from the top down and stops where the windows stop
+// overlapping, leaving only the low mint arcs; the new check sweeps again
+// and fires only those. Two amber duplicate pairs flash in both sweeps.
+// Every arc is baked once into merged geometry sorted in firing order, so a
+// sweep or the drain is just a draw range: no per-arc work per frame.
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { BoxGeometry, CatmullRomCurve3, Object3D, SphereGeometry, TubeGeometry, Vector3 } from "three";
+import { useLayoutEffect, useMemo, useRef } from "react";
+import { CatmullRomCurve3, Color, IcosahedronGeometry, MeshBasicMaterial, Object3D, OctahedronGeometry, SphereGeometry, TubeGeometry, Vector3 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useUi } from "../../../lib/world/store";
-import { C, glow, mat } from "../palette";
-import { archHeight, DOME_PAIRS, DUP_PAIRS, KEPT_PAIRS, KEPT_X_MAX, KEPT_X_MIN, KEY_COUNT, KEY_X } from "./parts/prune-layout";
+import { heightAt } from "../../../lib/world/terrain";
+import { glow, mat } from "../palette";
+import { DOME_PAIRS, DUP_PAIRS, KEPT_PAIRS, KEPT_TOP, KEY_COUNT, KEY_R, KEY_X, KEY_Y, MAX_HEIGHT, PRUNED_PAIRS, firedBy } from "./parts/prune-layout";
 
-const TABLE_Y = 0.05; // rail height above the plinth top
-const BOW = 0.4; // how far an arc bulges toward +z at its peak, as a fraction of its height
-const DOME_RADIUS = 0.07; // the pairs the old check wastes: coral, and the ones that fade
-const KEPT_RADIUS = 0.086; // the pairs whose windows overlap: mint, and the ones that stay
-const DUP_RADIUS = 0.1; // the duplicate flash, a step in front of its kept arc
+const MINT = "#2fd79c";
+const MINT_LIT = "#6ff7c4";
+const AMBER = "#ffbf3c";
+const ROCK = "#55565f";
 
-// One arc: a semi-ellipse from key i to key j, rising to `height` and
-// bulging `bow` toward the camera at its crown -- the same curve the 2D
-// figure draws, given real depth. `zOffset` nudges a whole arc toward the
-// camera so a highlight (the duplicate flash) can stand clear in front of
-// the arc it belongs to, instead of fighting it for the same surface.
-function arcCurve(xi, xj, height, bow, zOffset = 0) {
-  const cx = (xi + xj) / 2;
-  const rx = (xj - xi) / 2;
+// ---- the arcs -----------------------------------------------------------------
+
+const SEG = 14; // tube segments along an arc
+const SIDES = 5;
+const PER = SEG * SIDES * 6; // index count of one arc
+const BOW = 0.28; // an arc's crown leans toward the camera by this much of its height
+
+function arcTube(p, radius, dz = 0) {
+  const x0 = KEY_X[p.i];
+  const x1 = KEY_X[p.j];
+  const cx = (x0 + x1) / 2;
+  const rx = (x1 - x0) / 2;
   const pts = [];
-  for (let s = 0; s <= 8; s++) {
-    const a = Math.PI * (1 - s / 8);
-    pts.push(new Vector3(cx + rx * Math.cos(a), TABLE_Y + height * Math.sin(a), zOffset + bow * Math.sin(a)));
+  for (let s = 0; s <= 10; s++) {
+    const a = Math.PI * (1 - s / 10);
+    const up = Math.sin(a);
+    pts.push(new Vector3(cx + rx * Math.cos(a), KEY_Y + p.h * up, dz + BOW * p.h * up));
   }
-  return new CatmullRomCurve3(pts);
+  return new TubeGeometry(new CatmullRomCurve3(pts), SEG, radius, SIDES, false);
 }
-function arcTube(pair, radius, zOffset = 0) {
-  const h = archHeight(pair.d);
-  return new TubeGeometry(arcCurve(KEY_X[pair.i], KEY_X[pair.j], h, h * BOW, zOffset), 12, radius, 6, false);
-}
+const merged = (pairs, radius, dz) => mergeGeometries(pairs.map((p) => arcTube(p, radius, dz)));
 
-// Baked once, three non-overlapping arc sets so nothing has to fight another
-// mesh for the same surface: the pairs the old check wastes (coral, and the
-// ones that drain away), the pairs whose windows overlap (mint, and the ones
-// that stay), and two of those picked out a step closer to the camera (the
-// duplicate both checks find) -- plus the translucent window each key sits
-// in, and the rail they stand on.
-const DOME_GEO = mergeGeometries(DOME_PAIRS.filter((p) => !p.kept).map((p) => arcTube(p, DOME_RADIUS)));
-const KEPT_GEO = mergeGeometries(KEPT_PAIRS.map((p) => arcTube(p, KEPT_RADIUS)));
-const DUP_GEO = mergeGeometries(DUP_PAIRS.map((p) => arcTube(p, DUP_RADIUS, 0.06)));
-const WINDOW_GEO = mergeGeometries(
-  KEY_X.map((x) => {
-    const g = new BoxGeometry(0.12, 0.5, 0.07);
-    g.translate(x, TABLE_Y + 0.28, 0);
-    return g;
-  }),
-);
-const RAIL_GEO = new BoxGeometry(KEY_X[KEY_COUNT - 1] - KEY_X[0] + 0.3, 0.12, 0.16);
-RAIL_GEO.translate(0, TABLE_Y - 0.06, 0);
-const BEAD_GEO = new SphereGeometry(0.1, 10, 8);
+const FIRE_GEO = merged(DOME_PAIRS, 0.085); // every pair, in the old sweep's order
+const DRAIN_GEO = merged(PRUNED_PAIRS, 0.085); // the pairs that never overlap, lowest first
+const KEPT_GEO = merged(KEPT_PAIRS, 0.105); // the pairs that do: they stay
+const KEPT_LIT_GEO = merged(KEPT_PAIRS, 0.135); // the same, lit by the new sweep
+const DUP_GEOS = DUP_PAIRS.map((p) => arcTube(p, 0.16, 0.06));
+const DUP_J = DUP_PAIRS.map((p) => p.j);
 
-const clamp01 = (x) => Math.max(0, Math.min(1, x));
-const smoothstep = (a, b, x) => {
-  const t = clamp01((x - a) / (b - a));
-  return t * t * (3 - 2 * t);
+// ---- the boulders ----------------------------------------------------------------
+
+// The keys, then the big ones drifting higher up the pass: local x, z, size,
+// float (m above the ground under it).
+const BIG = [
+  [-3.4, -5.5, 1.05, 2.4],
+  [3.8, -7.8, 1.35, 3.0],
+  [-0.9, -11.5, 1.7, 3.6],
+  [2.4, -15.5, 1.25, 4.4],
+];
+const ROCKS = [...KEY_X.map((x, i) => [x, 0, KEY_R[i], KEY_Y, true]), ...BIG.map(([x, z, r, f]) => [x, z, r, f, false])];
+const ROCK_GEO = new IcosahedronGeometry(1, 0);
+const KEEL_GEO = new OctahedronGeometry(1, 0);
+const SPARK_GEO = new SphereGeometry(1, 12, 8);
+const rand = (i, k) => {
+  const s = Math.sin(i * 91.7 + k * 17.3) * 43758.5453;
+  return s - Math.floor(s);
 };
-const flash = (p, center, width) => Math.pow(clamp01(1 - Math.abs(p - center) / width), 2);
 
-const CYCLE_FAR = 8; // seconds per loop, far from the plinth
-const CYCLE_NEAR = 5; // faster once the seal is close
-const EASE = 4; // shared rate for the near/far blend: k = 1 - exp(-EASE*dt)
-const KEPT_BASE = 0.3; // the kept arcs' quiet, always-visible opacity
+// ---- the loop ------------------------------------------------------------------------
+
+const CYCLE_FAR = 11; // s
+const CYCLE_NEAR = 7.5;
+const S1 = [0.02, 0.3]; // the old sweep
+const DRAIN = [0.4, 0.56];
+const S2 = [0.6, 0.8]; // the new sweep
+const OUT = [0.93, 0.99]; // the kept arcs go out, right to left, and it loops
+
+const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const span = (p, [a, b]) => clamp01((p - a) / (b - a));
+const X0 = KEY_X[0] - 0.6;
+const X1 = KEY_X[KEY_COUNT - 1] + 0.6;
+// the last key a sweep at x has reached
+function reached(x) {
+  let k = -1;
+  while (k < KEY_COUNT - 1 && KEY_X[k + 1] <= x) k++;
+  return k;
+}
 
 const dummy = new Object3D();
+const tint = new Color();
+const white = new Color("#ffffff");
 
-export default function Prune({ place }) {
+export default function Prune({ place, origin = [place.x, place.z] }) {
   const near = useUi((s) => s.near === place.id);
   const nearRef = useRef(near);
   nearRef.current = near;
 
-  const domeMat = useMemo(() => mat(place.color, { roughness: 0.4, emissive: place.color, emissiveIntensity: 0.15, opacity: 0.999 }).clone(), [place.color]);
-  const keptMat = useMemo(() => mat(C.shallows, { roughness: 0.35, emissive: C.shallows, emissiveIntensity: 0.25, opacity: 0.999 }).clone(), []);
-  const dupMat = useMemo(() => mat(C.lamp, { roughness: 0.3, emissive: C.lampGlow, emissiveIntensity: 1.6, opacity: 0.999 }).clone(), []);
-  const windowMat = useMemo(() => mat(C.ice, { roughness: 0.25, opacity: 0.22 }), []);
-  const railMat = useMemo(() => mat(C.charcoal), []);
-  const beadMat = useMemo(() => mat(C.warmWhite, { roughness: 0.4, emissive: C.lampGlow, emissiveIntensity: 0.8 }).clone(), []);
-  const markerMat = useMemo(() => mat(C.warmWhite, { roughness: 0.3, emissive: place.color, emissiveIntensity: 2.2 }).clone(), [place.color]);
-  const markerGlowMat = useMemo(() => glow(place.color, 0.35), [place.color]);
+  const coral = place.radiation ?? place.color;
+  const fireMat = mat(coral, { flat: false, roughness: 0.45, emissive: coral, emissiveIntensity: 0.55 });
+  const keptMat = mat(MINT, { flat: false, roughness: 0.45, emissive: MINT, emissiveIntensity: 0.35 });
+  const keptLitMat = mat(MINT_LIT, { flat: false, roughness: 0.4, emissive: MINT_LIT, emissiveIntensity: 0.9 });
+  const dupMat = mat(AMBER, { flat: false, roughness: 0.4, emissive: AMBER, emissiveIntensity: 1.3 });
+  const rockMat = mat(ROCK, { roughness: 0.85 });
+  const keelMat = useMemo(() => new MeshBasicMaterial({ color: "#ffffff", toneMapped: false }), []);
+  const sparkMat = useMemo(() => new MeshBasicMaterial({ color: "#fff6ea", toneMapped: false }), []);
+  const haloMat = useMemo(() => glow(coral, 0.4).clone(), [coral]);
 
-  const domeRef = useRef(null);
-  const beadsRef = useRef(null);
-  const markerRef = useRef(null);
-  const markerGlowRef = useRef(null);
-  const nearK = useRef(0);
+  // where each boulder rests: its float height over the ground under it
+  const rest = useMemo(() => ROCKS.map(([x, z, , f, key]) => (key ? f : heightAt(origin[0] + x, origin[1] + z) + f)), [origin]);
+
+  const fire = useRef(null);
+  const drain = useRef(null);
+  const kept = useRef(null);
+  const keptLit = useRef(null);
+  const dups = useRef([]);
+  const rocks = useRef(null);
+  const keels = useRef(null);
+  const spark = useRef(null);
+  const halo = useRef(null);
   const phase = useRef(0);
+  const nearK = useRef(0);
+
+  useLayoutEffect(() => {
+    const k = keels.current;
+    if (!k) return;
+    for (let i = 0; i < ROCKS.length; i++) k.setColorAt(i, tint.set(coral));
+    k.instanceColor.needsUpdate = true;
+  }, [coral]);
 
   useFrame((state, dt) => {
-    const k = 1 - Math.exp(-EASE * dt);
-    nearK.current += ((nearRef.current ? 1 : 0) - nearK.current) * k;
+    nearK.current += ((nearRef.current ? 1 : 0) - nearK.current) * (1 - Math.exp(-4 * dt));
     const cycle = CYCLE_FAR - (CYCLE_FAR - CYCLE_NEAR) * nearK.current;
-    phase.current = (phase.current + dt / cycle) % 1;
+    phase.current = (phase.current + Math.min(dt, 0.1) / cycle) % 1;
     const p = phase.current;
     const t = state.clock.elapsedTime;
 
-    // the old check: the whole dome rises, holds, then drains away
-    const domeRise = smoothstep(0, 0.2, p) - smoothstep(0.3, 0.46, p);
-    // the new check: the pruned arcs sit quiet, then brighten for their sweep
-    const keptRise = KEPT_BASE + (1 - KEPT_BASE) * (smoothstep(0.46, 0.54, p) - smoothstep(0.74, 0.92, p));
-    const activity = Math.max(domeRise, (keptRise - KEPT_BASE) / (1 - KEPT_BASE));
-    const boost = 0.4 * nearK.current;
+    // the sweeps: where the light is along the row, and which key it has reached
+    const u1 = span(p, S1);
+    const u2 = span(p, S2);
+    const sweeping = (p >= S1[0] && p < S1[1]) || (p >= S2[0] && p < S2[1]);
+    const sx = X0 + (X1 - X0) * (p < S2[0] ? u1 : u2);
+    const k1 = p < S1[1] ? reached(sx) : KEY_COUNT - 1;
 
-    domeMat.opacity = domeRise;
-    domeMat.emissiveIntensity = 0.15 + 0.35 * domeRise + boost;
-    if (domeRef.current) {
-      const sink = 1 - domeRise;
-      domeRef.current.position.y = -0.16 * sink;
-      domeRef.current.scale.y = 1 - 0.1 * sink;
+    // the old check: every pair fires, fan by fan, then drains from the top
+    const inFire = p < DRAIN[0];
+    fire.current.visible = inFire;
+    fire.current.geometry.setDrawRange(0, PER * firedBy(DOME_PAIRS, k1));
+    const cut = MAX_HEIGHT - (MAX_HEIGHT - KEPT_TOP) * span(p, DRAIN);
+    let n = 0;
+    while (n < PRUNED_PAIRS.length && PRUNED_PAIRS[n].h < cut) n++;
+    drain.current.visible = !inFire && p < DRAIN[1];
+    drain.current.geometry.setDrawRange(0, PER * n);
+
+    // the new check: the kept arcs stay, and its sweep fires only those
+    const out = reached(X1 - (X1 - X0) * span(p, OUT));
+    kept.current.visible = !inFire;
+    kept.current.geometry.setDrawRange(0, PER * firedBy(KEPT_PAIRS, p < OUT[0] ? KEY_COUNT : out));
+    const k2 = p < S2[0] ? -1 : p < S2[1] ? reached(sx) : p < OUT[0] ? KEY_COUNT : out;
+    keptLit.current.geometry.setDrawRange(0, PER * firedBy(KEPT_PAIRS, k2));
+
+    // the duplicates: amber, in both sweeps, as the light reaches them
+    for (let d = 0; d < DUP_J.length; d++) {
+      const m = dups.current[d];
+      if (!m) continue;
+      const j = DUP_J[d];
+      const at = (KEY_X[j] - X0) / (X1 - X0);
+      const hit = (u) => u > at && u < at + 0.16;
+      m.visible = (p >= S1[0] && p < DRAIN[0] && hit(u1)) || (p >= S2[0] && p < OUT[0] && hit(u2));
     }
 
-    keptMat.opacity = keptRise;
-    keptMat.emissiveIntensity = 0.2 + 0.9 * (keptRise - KEPT_BASE) / (1 - KEPT_BASE) + boost;
-
-    const dupFlash = Math.max(flash(p, 0.27, 0.035), flash(p, 0.6, 0.035));
-    dupMat.opacity = 0.15 + 0.85 * dupFlash;
-    dupMat.emissiveIntensity = 1.2 + 2.2 * dupFlash + boost * 2;
-
-    beadMat.emissiveIntensity = 0.6 + 0.7 * activity + boost;
-
-    // the sweep light: once across the whole rail for the old check, once
-    // across only the pruned span for the new check
-    const oldT = p < 0.22 ? clamp01(p / 0.2) : null;
-    const newT = p >= 0.46 && p < 0.68 ? clamp01((p - 0.46) / 0.2) : null;
-    const marker = markerRef.current;
-    const markerGlow = markerGlowRef.current;
-    if (marker && markerGlow) {
-      const on = oldT != null || newT != null;
-      const x = oldT != null ? KEY_X[0] + (KEY_X[KEY_COUNT - 1] - KEY_X[0]) * oldT : newT != null ? KEPT_X_MIN + (KEPT_X_MAX - KEPT_X_MIN) * newT : 0;
-      marker.position.set(x, TABLE_Y + 0.06, 0.1);
-      markerGlow.position.copy(marker.position);
-      markerMat.emissive.set(oldT != null ? place.color : C.shallows);
-      const s = on ? 1 : 0;
-      marker.scale.setScalar(s);
-      markerGlow.scale.setScalar(s * 3.2);
+    // the spark that carries each sweep
+    spark.current.visible = sweeping;
+    halo.current.visible = sweeping;
+    if (sweeping) {
+      spark.current.position.set(sx, KEY_Y + 0.05, 0.25);
+      halo.current.position.copy(spark.current.position);
+      const pulse = 1 + 0.12 * Math.sin(t * 22);
+      spark.current.scale.setScalar(0.26 * pulse);
+      halo.current.scale.setScalar(0.8 * pulse);
+      haloMat.color.set(p < S2[0] ? coral : MINT_LIT);
     }
 
-    // beads settle on the rail with a slow, gentle bob -- alive, not busy
-    const beads = beadsRef.current;
-    if (beads) {
-      for (let i = 0; i < KEY_COUNT; i++) {
-        dummy.position.set(KEY_X[i], TABLE_Y + 0.02 + Math.sin(t * 0.9 + i * 1.7) * 0.015, 0);
-        dummy.rotation.set(0, 0, 0);
-        dummy.updateMatrix();
-        beads.setMatrixAt(i, dummy.matrix);
+    // the boulders: bobbing on their keels, a keel flaring as the spark passes
+    const bob = 1 + 0.6 * nearK.current;
+    for (let i = 0; i < ROCKS.length; i++) {
+      const [x, z, r, , key] = ROCKS[i];
+      const y = rest[i] + (key ? 0.07 : 0.22) * bob * Math.sin(t * (key ? 1.1 : 0.55) + i * 1.9);
+      dummy.position.set(x, y, z);
+      dummy.rotation.set(rand(i, 1) * 3, rand(i, 2) * 6 + (key ? 0 : t * 0.06), rand(i, 3) * 3);
+      dummy.scale.set(r, r * 0.84, r * 0.94);
+      dummy.updateMatrix();
+      rocks.current.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(x, y - r * 0.78, z);
+      dummy.rotation.set(0, rand(i, 4) * 3, 0);
+      dummy.scale.set(r * 0.34, r * 0.72, r * 0.34);
+      dummy.updateMatrix();
+      keels.current.setMatrixAt(i, dummy.matrix);
+      if (key) {
+        const flare = sweeping ? clamp01(1 - Math.abs(sx - x) / 0.9) : 0;
+        keels.current.setColorAt(i, tint.set(coral).lerp(white, flare * 0.85));
       }
-      beads.instanceMatrix.needsUpdate = true;
     }
+    rocks.current.instanceMatrix.needsUpdate = true;
+    keels.current.instanceMatrix.needsUpdate = true;
+    keels.current.instanceColor.needsUpdate = true;
   });
 
   return (
     <group>
-      <mesh geometry={RAIL_GEO} material={railMat} castShadow receiveShadow />
-      <mesh geometry={WINDOW_GEO} material={windowMat} />
-      <instancedMesh ref={beadsRef} args={[BEAD_GEO, beadMat, KEY_COUNT]} castShadow />
-
-      <mesh ref={domeRef} geometry={DOME_GEO} material={domeMat} />
-      <mesh geometry={KEPT_GEO} material={keptMat} />
-      <mesh geometry={DUP_GEO} material={dupMat} />
-
-      <mesh ref={markerRef} geometry={BEAD_GEO} material={markerMat} scale={0} />
-      <mesh ref={markerGlowRef} geometry={BEAD_GEO} material={markerGlowMat} scale={0} />
+      <instancedMesh ref={rocks} args={[ROCK_GEO, rockMat, ROCKS.length]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={keels} args={[KEEL_GEO, keelMat, ROCKS.length]} frustumCulled={false} />
+      <mesh ref={fire} geometry={FIRE_GEO} material={fireMat} />
+      <mesh ref={drain} geometry={DRAIN_GEO} material={fireMat} visible={false} />
+      <mesh ref={kept} geometry={KEPT_GEO} material={keptMat} visible={false} />
+      <mesh ref={keptLit} geometry={KEPT_LIT_GEO} material={keptLitMat} />
+      {DUP_GEOS.map((g, d) => (
+        <mesh key={d} ref={(m) => (dups.current[d] = m)} geometry={g} material={dupMat} visible={false} />
+      ))}
+      <mesh ref={spark} geometry={SPARK_GEO} material={sparkMat} visible={false} />
+      <mesh ref={halo} geometry={SPARK_GEO} material={haloMat} visible={false} />
     </group>
   );
 }

@@ -55,6 +55,19 @@ export function IconCheck(props) {
   );
 }
 
+// The radiation trefoil — every area is radioactive; the HUD shows this
+// once, quietly, next to a lab district's tagline. Never explained in words.
+export function IconTrefoil(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M14.6 10.5L20.66 7A10 10 0 0 1 20.66 17L14.6 13.5A3 3 0 0 0 14.6 10.5Z" />
+      <path d="M14.6 10.5L20.66 7A10 10 0 0 1 20.66 17L14.6 13.5A3 3 0 0 0 14.6 10.5Z" transform="rotate(120 12 12)" />
+      <path d="M14.6 10.5L20.66 7A10 10 0 0 1 20.66 17L14.6 13.5A3 3 0 0 0 14.6 10.5Z" transform="rotate(240 12 12)" />
+    </svg>
+  );
+}
+
 // A folded map, for the minimap's collapse toggle on phones.
 export function IconMap(props) {
   return (
