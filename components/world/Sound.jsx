@@ -1,7 +1,7 @@
 "use client";
 
-// Synthesized sound, WebAudio only, no audio files, no dependency (howler
-// sits in package.json unused). Mounted inside the Canvas by Scene.jsx.
+// Synthesized sound, WebAudio only, no audio files. Mounted inside the
+// Canvas by Scene.jsx.
 //
 // Everything is lazy: the AudioContext and the whole node graph are built on
 // the first pointerdown/keydown/touchend, never before. From then on the
@@ -59,7 +59,6 @@ function createEngine() {
   const openedOnce = new Set();
   const propHit = new WeakMap();
   const propKnockT = new WeakMap();
-  const pendingTimers = new Set(); // setTimeout ids for the JUMP_IN landing thump
   let prevImpact = 0;
   let prevNear = null;
   let prevOpen = null;
@@ -68,6 +67,8 @@ function createEngine() {
   let prevStroke = 0;
   let prevWhoosh = false;
   let prevStarted = false;
+  let jumpPending = false; // set on the started edge, resolved once the ctx is audible
+  let jumpEdgeMs = 0; // performance.now() of that edge, anchors the whoosh's t0
 
   // ---------- primitives ----------
   function noiseSrc(rate = 1) {
@@ -237,10 +238,9 @@ function createEngine() {
   }
 
   // ---------- voices ----------
-  function playThump(m) {
+  function playThump(m, t0 = ctx.currentTime) {
     if (!beginVoice(0.3)) return;
     counts.thump++;
-    const t0 = ctx.currentTime;
 
     const osc = ctx.createOscillator();
     osc.type = "sine";
@@ -325,24 +325,24 @@ function createEngine() {
     playPartial(f * 5.4, peak * 0.1, 0.35, delaySec);
   }
 
-  function playChime(placeId) {
+  function playChime(placeId, delaySec = 0) {
     const f = NOTE[placeId];
-    if (!f || !beginVoice(1.6)) return;
+    if (!f || !beginVoice(1.6 + delaySec)) return;
     counts.chime++;
-    duckUntil = ctx.currentTime + 0.35;
-    bell(f, 0, 0.18);
-    bell(f * 1.5, 0.11, 0.18);
+    duckUntil = ctx.currentTime + delaySec + 0.35;
+    bell(f, delaySec, 0.18);
+    bell(f * 1.5, delaySec + 0.11, 0.18);
   }
 
-  function playDiscovery(placeId) {
+  function playDiscovery(placeId, delaySec = 0) {
     const f = NOTE[placeId];
-    if (!f || !beginVoice(1.7)) return;
+    if (!f || !beginVoice(1.7 + delaySec)) return;
     counts.discovery++;
-    duckUntil = ctx.currentTime + 0.35;
-    bell(f, 0, 0.14);
-    bell(f * 1.26, 0.075, 0.14);
-    bell(f * 1.5, 0.15, 0.14);
-    bell(f * 2, 0.225, 0.14);
+    duckUntil = ctx.currentTime + delaySec + 0.35;
+    bell(f, delaySec, 0.14);
+    bell(f * 1.26, delaySec + 0.075, 0.14);
+    bell(f * 1.5, delaySec + 0.15, 0.14);
+    bell(f * 2, delaySec + 0.225, 0.14);
   }
 
   function fireSqueakChirp(delaySec, b) {
@@ -483,9 +483,11 @@ function createEngine() {
   // The big rising whoosh + landing thump for JUMP_IN, timed off the shared
   // clock in lib/world/moments.js so it lands on the same beat as the
   // camera swoop and the seal's hop: swells to a peak at hopAt, the thump
-  // (a softer version of the collision thump) fires at landAt.
-  function playJumpInWhoosh() {
-    const t0 = ctx.currentTime;
+  // (a softer version of the collision thump) fires at landAt. t0 is the
+  // audio-clock time of the button press (see the jumpPending anchor in
+  // frame()), not necessarily ctx.currentTime — it can already be in the
+  // past by the time this schedules, which is a valid AudioParam time.
+  function playJumpInWhoosh(t0) {
     const peakAt = t0 + JUMP_IN.hopAt;
     const endAt = t0 + JUMP_IN.landAt;
     duckUntil = Math.max(duckUntil, endAt);
@@ -497,7 +499,8 @@ function createEngine() {
     filt.frequency.exponentialRampToValueAtTime(1400, endAt);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(0.26, peakAt);
+    g.gain.linearRampToValueAtTime(0.06, t0 + 0.08); // audible right away
+    g.gain.exponentialRampToValueAtTime(0.3, peakAt);
     g.gain.exponentialRampToValueAtTime(0.0001, endAt);
     src.connect(filt);
     filt.connect(g);
@@ -506,30 +509,26 @@ function createEngine() {
     disconnectOnEnded(src, [filt, g]);
 
     const osc = ctx.createOscillator(); // sub-riser for weight
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(55, t0);
-    osc.frequency.exponentialRampToValueAtTime(180, peakAt);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(90, t0);
+    osc.frequency.exponentialRampToValueAtTime(260, peakAt);
     const og = ctx.createGain();
     og.gain.setValueAtTime(0.0001, t0);
-    og.gain.exponentialRampToValueAtTime(0.16, peakAt);
+    og.gain.exponentialRampToValueAtTime(0.12, peakAt);
     og.gain.exponentialRampToValueAtTime(0.0001, endAt);
     osc.connect(og);
     og.connect(master);
     osc.start(t0);
     osc.stop(endAt + 0.05);
     disconnectOnEnded(osc, [og]);
+
+    playThump(0.55, endAt); // softer than a collision, on the same clock
   }
 
-  function playJumpIn() {
+  function playJumpIn(t0) {
     if (!beginVoice(JUMP_IN.duration)) return;
     counts.jumpin++;
-    playJumpInWhoosh();
-    const landDelayMs = (JUMP_IN.landAt - JUMP_IN.whooshAt) * 1000;
-    const id = setTimeout(() => {
-      pendingTimers.delete(id);
-      if (ctx && ctx.state === "running") playThump(0.55); // softer than a collision
-    }, landDelayMs);
-    pendingTimers.add(id);
+    playJumpInWhoosh(t0);
   }
 
   // ZOOM_IN/ZOOM_OUT: a soft whoosh when a panel opens, and the same sound
@@ -539,7 +538,7 @@ function createEngine() {
     counts.zoom++;
     const t0 = ctx.currentTime;
     const src = noiseSrc();
-    const filt = biquad("bandpass", dir > 0 ? 400 : 2200, 1.1);
+    const filt = biquad("bandpass", dir > 0 ? 400 : 2200, 0.6);
     if (dir > 0) {
       filt.frequency.setValueAtTime(400, t0);
       filt.frequency.exponentialRampToValueAtTime(2200, t0 + duration);
@@ -550,7 +549,7 @@ function createEngine() {
     const g = ctx.createGain();
     const peakAt = t0 + duration * (dir > 0 ? 0.35 : 0.75); // reversed: slow build, fast cutoff
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.linearRampToValueAtTime(0.09, peakAt);
+    g.gain.linearRampToValueAtTime(0.5, peakAt);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     src.connect(filt);
     filt.connect(g);
@@ -561,11 +560,10 @@ function createEngine() {
 
   // A crisp tick for HUD buttons, fired from a capture-phase click listener
   // in the component below (Sound.jsx owns no HUD markup to hang this off).
-  function playTick() {
+  function playTick(t0 = ctx.currentTime) {
     if (!ctx || ctx.state !== "running") return;
     if (!beginVoice(0.06)) return;
     counts.tick++;
-    const t0 = ctx.currentTime;
     const osc = ctx.createOscillator();
     osc.type = "square";
     osc.frequency.setValueAtTime(1800, t0);
@@ -607,11 +605,36 @@ function createEngine() {
     // JUMP_IN plays only when started turns true from a real button press,
     // never from ?play/?spawn= snapping straight to the follow camera
     // within SKIP_WINDOW of this engine's own construction (moments.js).
+    // The edge is recorded unconditionally (not gated on `audible`) so a
+    // press that lands before the context is running still gets its whoosh
+    // once frame() catches up, instead of the edge being lost for good.
     if (ui.started && !prevStarted) {
       const elapsed = (performance.now() - bornAt) / 1000;
-      if (audible && elapsed > SKIP_WINDOW) playJumpIn();
+      if (elapsed > SKIP_WINDOW) {
+        jumpEdgeMs = performance.now();
+        jumpPending = true;
+      }
     }
     prevStarted = ui.started;
+
+    // Resolve a pending JUMP_IN once the context is actually rendering
+    // audio: ctx.state flips to "running" up to ~300ms before currentTime
+    // moves, so anchor the whoosh's t0 to the real press time via the
+    // output timestamp instead of ctx.currentTime at resolve time.
+    if (jumpPending) {
+      if (audible && now > 0) {
+        jumpPending = false;
+        const ts = ctx.getOutputTimestamp();
+        // Clamped to 0: the mapped time can land slightly negative when the
+        // press happens before the context's clock truly starts advancing
+        // (the running-but-silent gap above), and AudioParam times must be
+        // non-negative.
+        const t0 = Math.max(0, ts.contextTime + (jumpEdgeMs - ts.performanceTime) / 1000);
+        playJumpIn(t0);
+      } else if (performance.now() - jumpEdgeMs > JUMP_IN.hopAt * 1000) {
+        jumpPending = false; // missed the window, drop it
+      }
+    }
 
     if (audible && ui.near && ui.near !== prevNear) playPluck(ui.near);
     prevNear = ui.near;
@@ -621,8 +644,9 @@ function createEngine() {
         const firstTime = !openedOnce.has(ui.open);
         if (firstTime) openedOnce.add(ui.open);
         if (audible) {
-          if (firstTime) playDiscovery(ui.open);
-          else playChime(ui.open);
+          const bellDelay = ZOOM_IN.duration * 0.4; // whoosh leads, bell lands on arrival
+          if (firstTime) playDiscovery(ui.open, bellDelay);
+          else playChime(ui.open, bellDelay);
           playZoomWhoosh(1, ZOOM_IN.duration);
         }
       } else if (audible) {
@@ -676,7 +700,9 @@ function createEngine() {
       }, 160);
     } else {
       clearTimeout(suspendTimer);
-      if (ctx.state === "suspended" && !document.hidden) ctx.resume();
+      if (ctx.state === "suspended" && !document.hidden) {
+        ctx.resume().then(() => playTick(ctx.currentTime + 0.16));
+      }
       master.gain.linearRampToValueAtTime(0.32, now + 0.15);
     }
   }
@@ -698,8 +724,6 @@ function createEngine() {
 
   function dispose() {
     clearTimeout(suspendTimer);
-    for (const id of pendingTimers) clearTimeout(id);
-    pendingTimers.clear();
     ctx?.close();
     ctx = null;
     unlocked = false;

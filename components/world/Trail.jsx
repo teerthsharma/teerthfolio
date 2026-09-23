@@ -17,13 +17,16 @@ const OFFSETS = [-0.62, -0.48, -0.34, 0, 0.34, 0.48, 0.62];
 const RIDGE_FADE_ROWS = 20; // slots nearest the write head, faded regardless of age
 
 const WHITE = new Color("#ffffff");
-const GROOVE = new Color("#8d9cc4");
-// Per lateral-offset vertex: base colour and base alpha (mirrored).
+const GROOVE = new Color("#9aa6d6");
+const STALE_AGE = 8.2; // s: once every row is older than this, skip the alpha rewrite + upload
+// Per lateral-offset vertex: base colour and base alpha (mirrored). Raised
+// from the original 0.45/0.3/0.22 — both the groove and the ridge were
+// nearly invisible against the warm snow at game distance.
 const BASE = OFFSETS.map((o, j) => {
   if (j === 0 || j === 6) return { color: WHITE, alpha: 0 }; // outer ridge edge
-  if (j === 1 || j === 5) return { color: WHITE, alpha: 0.45 }; // ridge
-  if (j === 2 || j === 4) return { color: GROOVE, alpha: 0.3 }; // groove wall
-  return { color: GROOVE, alpha: 0.22 }; // centre
+  if (j === 1 || j === 5) return { color: WHITE, alpha: 0.6 }; // ridge
+  if (j === 2 || j === 4) return { color: GROOVE, alpha: 0.45 }; // groove wall
+  return { color: GROOVE, alpha: 0.38 }; // centre
 });
 
 // Fixed quads between every pair of consecutive ring slots (closing the
@@ -51,16 +54,17 @@ function buildIndex() {
 }
 const INDEX = buildIndex();
 
-// Writes one row's positions + colour (RGB) at `slot`. `prev` (or null for a
-// fresh segment) gives the lateral axis; `heading` is the fallback axis when
-// there is no previous point to take it from.
-function writeRow(bufs, slot, x, z, prev, heading, speed) {
+// Writes one row's positions + colour (RGB) at `slot`. `prevX`/`prevZ` give
+// the lateral axis; pass NaN for a fresh segment (no previous point), and
+// `heading` is the fallback axis then. Plain numbers, not a { x, z } object,
+// so this allocates nothing at ~35 calls/s.
+function writeRow(bufs, slot, x, z, prevX, prevZ, heading, speed) {
   const { positions, colors } = bufs;
   let axisX;
   let axisZ;
-  if (prev) {
-    const dx = x - prev.x;
-    const dz = z - prev.z;
+  if (!Number.isNaN(prevX)) {
+    const dx = x - prevX;
+    const dz = z - prevZ;
     const len = Math.hypot(dx, dz) || 1e-6;
     axisX = -dz / len;
     axisZ = dx / len;
@@ -106,44 +110,81 @@ export default function Trail() {
     g.setAttribute("color", new BufferAttribute(colors, 4).setUsage(DynamicDrawUsage));
     g.setIndex(new Uint16BufferAttribute(INDEX, 1));
     const rowTime = new Float32Array(ROWS).fill(-1e9);
-    return { geometry: g, positions, colors, rowTime, head: 0, lastX: null, lastZ: null };
+    return {
+      geometry: g,
+      positions,
+      colors,
+      rowTime,
+      head: 0,
+      lastX: null,
+      lastZ: null,
+      inWater: false,
+      lastWriteT: -Infinity,
+    };
   }, []);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     const seal = live.seal;
+    const water = seal.water ?? 0;
 
     if (bufs.lastX === null) {
       bufs.lastX = seal.x;
       bufs.lastZ = seal.z;
     }
-    const jumpDist = Math.hypot(seal.x - bufs.lastX, seal.z - bufs.lastZ);
 
     let wrote = false;
-    if (jumpDist > 3) {
-      // Teleport: write alpha-0 rows at BOTH ends of the gap, so the quad
-      // that bridges them is invisible at both edges, not just the old one.
-      writeRow(bufs, bufs.head, bufs.lastX, bufs.lastZ, null, seal.heading, 0);
-      bufs.rowTime[bufs.head] = -1e9;
-      bufs.head = (bufs.head + 1) % ROWS;
-      writeRow(bufs, bufs.head, seal.x, seal.z, null, seal.heading, 0);
-      bufs.rowTime[bufs.head] = -1e9;
-      bufs.head = (bufs.head + 1) % ROWS;
-      bufs.lastX = seal.x;
-      bufs.lastZ = seal.z;
-      wrote = true;
-    } else if (jumpDist >= 0.3 && seal.speed > 0.6) {
-      writeRow(bufs, bufs.head, seal.x, seal.z, { x: bufs.lastX, z: bufs.lastZ }, seal.heading, seal.speed);
-      bufs.rowTime[bufs.head] = t;
-      bufs.head = (bufs.head + 1) % ROWS;
-      bufs.lastX = seal.x;
-      bufs.lastZ = seal.z;
-      wrote = true;
+    if (water > 0) {
+      // Swimming: lay one alpha-0 break row at the bank (once, on entry) and
+      // nothing more, so the groove never crosses the river.
+      if (!bufs.inWater) {
+        bufs.inWater = true;
+        writeRow(bufs, bufs.head, bufs.lastX, bufs.lastZ, NaN, NaN, seal.heading, 0);
+        bufs.rowTime[bufs.head] = -1e9;
+        bufs.head = (bufs.head + 1) % ROWS;
+        wrote = true;
+      }
+    } else if (bufs.inWater) {
+      // Just climbed out: start a fresh row (prevX = NaN) instead of
+      // dragging a segment back to wherever the seal dove in.
+      bufs.inWater = false;
+      bufs.lastX = null;
+    } else {
+      const jumpDist = Math.hypot(seal.x - bufs.lastX, seal.z - bufs.lastZ);
+      if (jumpDist > 3) {
+        // Teleport: write alpha-0 rows at BOTH ends of the gap, so the quad
+        // that bridges them is invisible at both edges, not just the old one.
+        writeRow(bufs, bufs.head, bufs.lastX, bufs.lastZ, NaN, NaN, seal.heading, 0);
+        bufs.rowTime[bufs.head] = -1e9;
+        bufs.head = (bufs.head + 1) % ROWS;
+        writeRow(bufs, bufs.head, seal.x, seal.z, NaN, NaN, seal.heading, 0);
+        bufs.rowTime[bufs.head] = -1e9;
+        bufs.head = (bufs.head + 1) % ROWS;
+        bufs.lastX = seal.x;
+        bufs.lastZ = seal.z;
+        wrote = true;
+      } else if (jumpDist >= 0.3 && seal.speed > 0.6) {
+        writeRow(bufs, bufs.head, seal.x, seal.z, bufs.lastX, bufs.lastZ, seal.heading, seal.speed);
+        bufs.rowTime[bufs.head] = t;
+        bufs.head = (bufs.head + 1) % ROWS;
+        bufs.lastX = seal.x;
+        bufs.lastZ = seal.z;
+        wrote = true;
+      }
     }
-    if (wrote) bufs.geometry.attributes.position.needsUpdate = true;
+    if (wrote) {
+      bufs.geometry.attributes.position.needsUpdate = true;
+      bufs.lastWriteT = t;
+    }
 
     // Alpha only, every frame: fade by age, and taper the slots the write
-    // head is about to reach so the ring seam never pops.
+    // head is about to reach so the ring seam never pops. The ring holds
+    // under ROWS/~35 ≈ 7.3 s of history, less than STALE_AGE: once the most
+    // recent row is older than that, every row's alpha already faded to 0
+    // through this same loop on an earlier frame — skip the 7,168-float
+    // rewrite and its GPU upload until the next row is written.
+    if (t - bufs.lastWriteT > STALE_AGE) return;
+
     const { colors, rowTime, head } = bufs;
     for (let s = 0; s < ROWS; s++) {
       const age = t - rowTime[s];

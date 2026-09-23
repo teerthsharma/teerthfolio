@@ -5,7 +5,7 @@
 // arrays; nothing here allocates once the component has mounted.
 
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Color,
   DoubleSide,
@@ -16,13 +16,16 @@ import {
   RingGeometry,
   Shape,
 } from "three";
+import { JUMP_IN, SKIP_WINDOW } from "../../lib/world/moments";
 import { PLACE_BY_ID } from "../../lib/world/places";
-import { live, useUi } from "../../lib/world/store";
+import { riverAt } from "../../lib/world/river";
+import { getUi, live, useUi } from "../../lib/world/store";
 import { easeOutBack, smoothstep } from "./life/util";
 import { mat } from "./palette";
 
-const PUFF_COUNT = 120;
+const PUFF_COUNT = 160;
 const CONFETTI_COUNT = 48;
+const SPRAY_COUNT = 80;
 const RED = "#ff5040";
 const SIDES = [-1, 1];
 const PUFF_SIZE_MUL = 1.6; // white-on-white puffs were unreadable from the ~35 m camera
@@ -30,8 +33,13 @@ const PUFF_LIFE_ADD = 0.2;
 
 // ---- geometry / material, built once ---------------------------------------
 
-const PUFF_GEO = new IcosahedronGeometry(1, 0);
-const PUFF_MAT = mat("#ffffff", { flat: true, roughness: 1, emissive: "#dfe8ff", emissiveIntensity: 0.4 });
+const PUFF_GEO = new IcosahedronGeometry(1, 1);
+const PUFF_MAT = mat("#f4f6ff", { flat: false, roughness: 1, emissive: "#ffffff", emissiveIntensity: 0.25 });
+
+const SPRAY_GEO = new IcosahedronGeometry(1, 0);
+const SPRAY_MAT = mat("#dff7ff", { roughness: 0.3, emissive: "#bfefff", emissiveIntensity: 0.3 });
+// Reused every frame so riverAt() never allocates.
+const RIVER_OUT = {};
 
 const RING_GEO = new RingGeometry(0.42, 0.6, 48);
 
@@ -90,6 +98,51 @@ function addPuff(pool, x, y, z, vx, vy, vz, size, life) {
   pool.size[i] = size * PUFF_SIZE_MUL;
 }
 
+// ---- spray pool: river splash droplets + foam wake patches -----------------
+// `foam[i]` picks the integration: 0 = droplet (gravity, falls to the water),
+// 1 = foam (no gravity, drifts at its spawn velocity, squashed flat by
+// squashY so it reads as a patch on the surface, not a bead of water).
+
+function makeSprayPool() {
+  return {
+    pos: new Float32Array(SPRAY_COUNT * 3),
+    vel: new Float32Array(SPRAY_COUNT * 3),
+    age: new Float32Array(SPRAY_COUNT).fill(Infinity),
+    life: new Float32Array(SPRAY_COUNT),
+    size: new Float32Array(SPRAY_COUNT),
+    squashY: new Float32Array(SPRAY_COUNT).fill(1),
+    foam: new Uint8Array(SPRAY_COUNT),
+    cursor: 0,
+    foamAccum: 0,
+  };
+}
+
+function addSpray(pool, x, y, z, vx, vy, vz, size, life, foam, squashY) {
+  const i = pool.cursor;
+  pool.cursor = (i + 1) % SPRAY_COUNT;
+  const b = i * 3;
+  pool.pos[b] = x;
+  pool.pos[b + 1] = y;
+  pool.pos[b + 2] = z;
+  pool.vel[b] = vx;
+  pool.vel[b + 1] = vy;
+  pool.vel[b + 2] = vz;
+  pool.age[i] = 0;
+  pool.life[i] = life;
+  pool.size[i] = size;
+  pool.foam[i] = foam ? 1 : 0;
+  pool.squashY[i] = squashY ?? 1;
+}
+
+// 22 droplets radiating from the seal: the entry/exit splash.
+function splashBurst(pool, x, z) {
+  for (let i = 0; i < 22; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 1.5 + Math.random() * 1;
+    addSpray(pool, x, 0.1, z, Math.cos(a) * r, 3.5 + Math.random() * 1.5, Math.sin(a) * r, 0.12 + Math.random() * 0.08, 0.8, 0);
+  }
+}
+
 // ---- confetti pool -------------------------------------------------------------
 
 function makeConfettiPool() {
@@ -116,13 +169,21 @@ export default function Effects() {
   const puffMul = reduced ? 0.5 : 1;
 
   const puffRef = useRef();
+  const sprayRef = useRef();
   const confettiRef = useRef();
   const ringRef = useRef();
   const rippleRef = useRef();
   const heartRef = useRef();
 
   const puffs = useMemo(makePuffPool, []);
+  const spray = useMemo(makeSprayPool, []);
   const confetti = useMemo(makeConfettiPool, []);
+
+  // JUMP_IN landing puff: only when the intro was up as this component
+  // mounted, so ?play and ?spawn= (started already true) never puff — same
+  // arming pattern as seal/variants/D.jsx's hop.
+  const started = useUi((s) => s.started);
+  const [jumpArmed] = useState(() => !getUi().started);
   const ringMat = useMemo(
     () => new MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6, side: DoubleSide, toneMapped: false }),
     [],
@@ -144,10 +205,19 @@ export default function Effects() {
     clearedAt: -Infinity,
     poppedAt: -Infinity,
     ringColor: null,
+    jumpPending: false,
+    jumpAt: -1,
+    jumped: true,
+    water: 0,
+    foamSide: 1,
   });
   const ring = useRef({ x: 0, z: 0 });
   const heart = useRef({ active: false, start: 0, x: 0, z: 0 });
   const discovered = useRef(new Set());
+
+  useEffect(() => {
+    if (started && jumpArmed) prev.current.jumpPending = true;
+  }, [started, jumpArmed]);
 
   // Discovery confetti: watch which building is open.
   const openId = useUi((s) => s.open);
@@ -309,6 +379,62 @@ export default function Effects() {
       }
     }
 
+    // JUMP_IN landing puff: fires once, JUMP_IN.landAt after the "Start
+    // sliding" press (skipped entirely on ?play / ?spawn=, see jumpArmed).
+    if (st.jumpPending) {
+      st.jumpPending = false;
+      if (t > SKIP_WINDOW) {
+        st.jumpAt = t;
+        st.jumped = false;
+      }
+    }
+    if (!st.jumped && st.jumpAt >= 0 && t - st.jumpAt >= JUMP_IN.landAt) {
+      st.jumped = true;
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * Math.PI * 2;
+        addPuff(puffs, seal.x, 0.08, seal.z, Math.cos(a) * 3.2, 0.9, Math.sin(a) * 3.2, 0.2, 0.7);
+      }
+      for (let i = 0; i < 6; i++) {
+        const a = Math.random() * Math.PI * 2;
+        addPuff(puffs, seal.x, 0.08, seal.z, Math.cos(a) * 0.3, 2.4, Math.sin(a) * 0.3, 0.16, 0.8);
+      }
+    }
+
+    // River splash (entry/exit) + foaming wake + bow wave while swimming.
+    const water = seal.water ?? 0;
+    if ((water > 0.05) !== (st.water > 0.05)) splashBurst(spray, seal.x, seal.z);
+    st.water = water;
+
+    if (water > 0.05 && seal.speed > 1.5) {
+      riverAt(seal.x, seal.z, RIVER_OUT);
+      spray.foamAccum += 16 * puffMul * dt;
+      while (spray.foamAccum >= 1) {
+        spray.foamAccum -= 1;
+        const side = (st.foamSide = -st.foamSide);
+        addSpray(
+          spray,
+          seal.x - forwardX * 0.9 + leftX * 0.45 * side,
+          0.06,
+          seal.z - forwardZ * 0.9 + leftZ * 0.45 * side,
+          RIVER_OUT.flowX * 0.7,
+          0.2,
+          RIVER_OUT.flowZ * 0.7,
+          0.16 + Math.random() * 0.06,
+          1.4,
+          1,
+          0.35,
+        );
+      }
+      if (strokeFired) {
+        const nx = seal.x + forwardX * 0.95;
+        const nz = seal.z + forwardZ * 0.95;
+        addSpray(spray, nx, 0.12, nz, leftX * 1.6, 1.8, leftZ * 1.6, 0.14, 0.6, 0, 1);
+        addSpray(spray, nx, 0.12, nz, -leftX * 1.6, 1.8, -leftZ * 1.6, 0.14, 0.6, 0, 1);
+      }
+    } else {
+      spray.foamAccum = 0;
+    }
+
     // Prop / penguin shoves.
     for (const p of live.props) {
       const rise = p.hit - (p._effHit ?? 0);
@@ -374,6 +500,45 @@ export default function Effects() {
         mesh.setMatrixAt(i, dummy.matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // ---- spray integration + draw ------------------------------------------
+
+    const smesh = sprayRef.current;
+    if (smesh) {
+      for (let i = 0; i < SPRAY_COUNT; i++) {
+        const age = spray.age[i] + dt;
+        spray.age[i] = age;
+        const life = spray.life[i];
+        if (age >= life) {
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.setScalar(0);
+          dummy.updateMatrix();
+          smesh.setMatrixAt(i, dummy.matrix);
+          continue;
+        }
+        const b = i * 3;
+        if (spray.foam[i]) {
+          // Foam drifts on the surface: no gravity, its spawn velocity is
+          // the flow itself.
+          spray.pos[b] += spray.vel[b] * dt;
+          spray.pos[b + 2] += spray.vel[b + 2] * dt;
+        } else {
+          spray.vel[b + 1] -= 9 * dt;
+          spray.pos[b] += spray.vel[b] * dt;
+          spray.pos[b + 1] += spray.vel[b + 1] * dt;
+          spray.pos[b + 2] += spray.vel[b + 2] * dt;
+          if (spray.pos[b + 1] < 0.02) spray.pos[b + 1] = 0.02;
+        }
+        const u = age / life;
+        const size = Math.max(0, spray.size[i] * (1 - u * u));
+        dummy.position.set(spray.pos[b], spray.pos[b + 1], spray.pos[b + 2]);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(size, size * spray.squashY[i], size);
+        dummy.updateMatrix();
+        smesh.setMatrixAt(i, dummy.matrix);
+      }
+      smesh.instanceMatrix.needsUpdate = true;
     }
 
     // ---- confetti integration + draw --------------------------------------
@@ -492,6 +657,7 @@ export default function Effects() {
   return (
     <>
       <instancedMesh ref={puffRef} args={[PUFF_GEO, PUFF_MAT, PUFF_COUNT]} frustumCulled={false} />
+      <instancedMesh ref={sprayRef} args={[SPRAY_GEO, SPRAY_MAT, SPRAY_COUNT]} frustumCulled={false} />
       <instancedMesh ref={confettiRef} args={[undefined, CONFETTI_MAT, CONFETTI_COUNT]} frustumCulled={false}>
         <boxGeometry args={CONFETTI_GEO_ARGS} />
       </instancedMesh>

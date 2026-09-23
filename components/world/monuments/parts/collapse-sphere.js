@@ -80,6 +80,27 @@ function territoryOf(v) {
   return best;
 }
 
+// Every vertex once, tinted by its own territory: the literal "points" the
+// figure's story is about (memory, files, the scheduler live as points on
+// the sphere). A building retelling it needs the joints as real jewels, not
+// just the struts between them.
+function buildPointList(V, colorsRgb, radius) {
+  const n = V.length;
+  const positions = new Float32Array(n * 3);
+  const colors = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const p = V[i];
+    positions[i * 3] = p[0] * radius;
+    positions[i * 3 + 1] = p[1] * radius;
+    positions[i * 3 + 2] = p[2] * radius;
+    const c = colorsRgb[territoryOf(p)];
+    colors[i * 3] = c[0];
+    colors[i * 3 + 1] = c[1];
+    colors[i * 3 + 2] = c[2];
+  }
+  return { positions, colors, count: n };
+}
+
 // Every triangle edge once, each end tinted by its own territory, as a flat
 // vertex-coloured line list for a single LineSegments draw call.
 function buildEdges(V, F, colorsRgb, radius) {
@@ -143,6 +164,7 @@ export function buildCollapse({ outerDetail, innerDetail, outerR, innerR, foldCo
   return {
     outer: buildEdges(outer.V, outer.F, colorsRgb, outerR),
     inner: buildEdges(inner.V, inner.F, colorsRgb, innerR),
+    points: buildPointList(outer.V, colorsRgb, outerR),
     folds: pickFolds(outer.V, outer.F, foldCount, outerR),
     travel: travelPair(outer.V, outerR * 0.985),
   };

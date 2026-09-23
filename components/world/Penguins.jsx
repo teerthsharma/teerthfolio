@@ -1,6 +1,6 @@
 "use client";
 
-// Six penguins in two groups. Physics (collision vs the seal, props,
+// Penguins in six groups, island-wide. Physics (collision vs the seal, props,
 // buildings, other penguins, the rim) is entirely lib/world/motion.js; this
 // file only decides where each one WANTS to go (useFrame priority -2, before
 // Controller steps physics) and draws the pose that results.
@@ -9,18 +9,30 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, ConeGeometry, Float32BufferAttribute, LatheGeometry, Matrix4, Object3D, SphereGeometry, Vector2 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { SPAWN } from "../../lib/world/places";
+import { ISLAND_RADIUS, SPAWN } from "../../lib/world/places";
+import { riverAt } from "../../lib/world/river";
 import { live } from "../../lib/world/store";
-import { samplePoints, mulberry32, inNameBox } from "./life/spawn";
+import { samplePoints, sampleNearRiver, mulberry32, inNameBox } from "./life/spawn";
 import { damp, smoothstep, wrapAngle } from "./life/util";
 import { C } from "./palette";
 
 const SEED = 20260924;
 const SIDES = [-1, 1];
+const WANDER_EDGE = ISLAND_RADIUS - 5; // penguins turn back this far from the rim
+// Reused every penguin, every frame, so the water-avoid steer never allocates.
+const PENGUIN_RIVER_OUT = {};
+const PENGUIN_RIVER_OUT2 = {};
 
+// A and B are the original playground pair, close to spawn. Four more homes
+// come from samplePoints at runtime (below), spread across the island, one
+// of them biased onto a river bank.
 const GROUPS = [
   { id: "A", near: { x: SPAWN.x + 11, z: SPAWN.z + 2 }, nearRadius: 3, radius: 2.8, roster: ["adult", "adult", "chick"] },
   { id: "B", near: { x: SPAWN.x, z: SPAWN.z + 21 }, nearRadius: 10, radius: 4, roster: ["adult", "adult", "adult"] },
+  { id: "C", radius: 3.2, roster: ["adult", "adult", "adult", "chick"] },
+  { id: "D", radius: 3.2, roster: ["adult", "adult", "adult", "chick"], riverBank: true },
+  { id: "E", radius: 3.2, roster: ["adult", "adult", "adult", "chick"] },
+  { id: "F", radius: 3.2, roster: ["adult", "adult", "adult", "chick"] },
 ];
 
 // ---- geometry, built once -------------------------------------------------
@@ -45,6 +57,7 @@ function buildBody() {
 
   const dark = new Color(C.charcoal);
   const white = new Color("#fbf8f2");
+  const patch = new Color("#ffb23e");
   {
     const pos = body.attributes.position;
     const nrm = body.attributes.normal;
@@ -52,11 +65,14 @@ function buildBody() {
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
       const nz = nrm.getZ(i);
+      const nx = nrm.getX(i);
       // A wider belly, plus a white face patch above it wherever the normal
       // still faces forward: a fleeing penguin (which always faces away from
-      // the seal) reads as black from the fixed 3/4 camera otherwise.
+      // the seal) reads as black from the fixed 3/4 camera otherwise. An
+      // emperor-style gold side patch does the same job from behind, where
+      // neither the belly nor the face patch is ever visible.
       const belly = y < 0.74 ? smoothstep(0.0, 0.3, nz) : y < 0.84 && nz > 0.4 ? 1 : 0;
-      const c = dark.clone().lerp(white, belly);
+      const c = y > 0.74 && y < 0.84 && Math.abs(nx) > 0.6 ? patch : dark.clone().lerp(white, belly);
       arr[i * 3] = c.r;
       arr[i * 3 + 1] = c.g;
       arr[i * 3 + 2] = c.b;
@@ -105,10 +121,12 @@ const FOOT_GEO = buildFoot();
 // ---- seeded roster, built once ---------------------------------------------
 
 function buildFlock() {
+  // A, B: near-biased to their original playground spots.
   const centers = [];
-  for (const g of GROUPS) {
+  for (let gi = 0; gi < 2; gi++) {
+    const g = GROUPS[gi];
     centers.push(
-      samplePoints(1, SEED + centers.length, {
+      samplePoints(1, SEED + gi, {
         gap: 9,
         avoid: centers.slice(),
         near: g.near,
@@ -118,6 +136,22 @@ function buildFlock() {
       })[0],
     );
   }
+  // C, D, E, F: spread island-wide (one runtime call, so they stay 18 m
+  // apart from each other and from A/B), one of them biased onto a river
+  // bank so it can watch the seal ride past.
+  const wide = samplePoints(4, SEED + 77, { gap: 18, clearance: 5, avoid: centers.slice() });
+  const edge = ISLAND_RADIUS - 8;
+  for (const p of wide) {
+    const r = Math.hypot(p.x, p.z) || 1e-6;
+    if (r > edge) {
+      p.x *= edge / r;
+      p.z *= edge / r;
+    }
+  }
+  const riverGroup = GROUPS.find((g) => g.riverBank);
+  const bank = sampleNearRiver(SEED + 900, { distance: 6, clearance: riverGroup.radius + 1 });
+  if (bank) wide[GROUPS.indexOf(riverGroup) - 2] = bank;
+  centers.push(...wide);
 
   const flock = [];
   GROUPS.forEach((g, gi) => {
@@ -317,6 +351,21 @@ export default function Penguins() {
           }
         }
 
+        // Water avoid: a penguin about to step into the river gets pushed
+        // back to the bank, found the way motion.js's centring drift finds
+        // it (probe 0.5 m either side of the flow for which way is inland).
+        riverAt(p.x + p.vx * 0.6, p.z + p.vz * 0.6, PENGUIN_RIVER_OUT);
+        if (PENGUIN_RIVER_OUT.inside) {
+          const flow = Math.hypot(PENGUIN_RIVER_OUT.flowX, PENGUIN_RIVER_OUT.flowZ);
+          if (flow > 1e-3) {
+            const px = -PENGUIN_RIVER_OUT.flowZ / flow;
+            const pz = PENGUIN_RIVER_OUT.flowX / flow;
+            const toCenter = riverAt(p.x + px * 0.5, p.z + pz * 0.5, PENGUIN_RIVER_OUT2).depth > PENGUIN_RIVER_OUT.depth ? 1 : -1;
+            desiredX += -px * toCenter * 3;
+            desiredZ += -pz * toCenter * 3;
+          }
+        }
+
         // Separation from the rest of the flock.
         for (const q of flock) {
           if (q === p) continue;
@@ -330,9 +379,9 @@ export default function Penguins() {
         }
         // Stay inside the island.
         const r = Math.hypot(p.x, p.z);
-        if (r > 34) {
-          desiredX += (-p.x / r) * (r - 34);
-          desiredZ += (-p.z / r) * (r - 34);
+        if (r > WANDER_EDGE) {
+          desiredX += (-p.x / r) * (r - WANDER_EDGE);
+          desiredZ += (-p.z / r) * (r - WANDER_EDGE);
         }
 
         const k = damp(5, dt);

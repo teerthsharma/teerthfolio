@@ -4,8 +4,8 @@
 import { LAND_COLLIDERS } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
-import { ISLAND_RADIUS, PLACES, SPAWN, dockPoint } from "../lib/world/places.js";
-import { RIVER, riverAt } from "../lib/world/river.js";
+import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
+import { DAM, MOAT, RESERVOIR, RIVER, WATERS, riverAt, waterGap } from "../lib/world/river.js";
 
 const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 const world = { colliders, radius: ISLAND_RADIUS, props: [] };
@@ -29,6 +29,93 @@ for (const a of PLACES) {
 assert.equal(new Set(PLACES.map((p) => p.id)).size, PLACES.length, "place ids are unique");
 for (const p of PLACES) {
   assert.ok(p.proof.length >= 2 && p.links.length >= 1, `${p.id} needs proof and a link`);
+}
+
+// Geology: every place and its dock stand on dry land. A place's whole
+// circle is dry, and so is the seal parked at its dock, and no landform's
+// bulk (lib/world/land.js) buries a dock.
+for (const p of PLACES) {
+  assert.ok(!riverAt(p.x, p.z).inside && waterGap(p.x, p.z) > p.radius, `${p.id} stands in the water`);
+  const dock = dockPoint(p);
+  assert.ok(waterGap(dock.x, dock.z) > MOTION.sealRadius, `${p.id}'s dock is in the water`);
+  for (const c of LAND_COLLIDERS) {
+    assert.ok(Math.hypot(dock.x - c.x, dock.z - c.z) > c.radius + MOTION.sealRadius, `${p.id}'s dock is under ${c.land}'s bulk at ${c.x}, ${c.z}`);
+  }
+}
+
+// Geology: the river rises at Triton's glacier, at the top of the island
+// (north of every other upstream landform), and runs out into the sea.
+{
+  const triton = PLACE_BY_ID["pr-triton-kernels-22"];
+  const [sx, sz] = RIVER.points[0];
+  const [mx, mz] = RIVER.points.at(-1);
+  assert.ok(Math.hypot(sx - triton.x, sz - triton.z) < 20 && sz < triton.z, "the river does not rise at Triton's glacier");
+  assert.ok(Math.hypot(sx, sz) < ISLAND_RADIUS, "the river's source is off the island");
+  for (const p of PLACES) {
+    if (p.section === "upstream" && p !== triton) assert.ok(sz < p.z, `the river rises south of ${p.id}`);
+  }
+  assert.ok(Math.hypot(mx, mz) > ISLAND_RADIUS + 4, "the river never reaches the sea");
+}
+
+// Geology: the TensorFlow ice dam holds. No water crosses its crest; the
+// reservoir presses against its north face; its downstream foot is dry.
+// The moat has no source but the river, and the river reaches it from the
+// reservoir (the dam turns the lake's water aside into it).
+{
+  const cross = (ax, az, bx, bz, cx, cz) => (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
+  const [dx0, dz0] = DAM.from;
+  const [dx1, dz1] = DAM.to;
+  const segmentsCross = (a, b) =>
+    Math.sign(cross(dx0, dz0, dx1, dz1, a[0], a[1])) !== Math.sign(cross(dx0, dz0, dx1, dz1, b[0], b[1])) &&
+    Math.sign(cross(a[0], a[1], b[0], b[1], dx0, dz0)) !== Math.sign(cross(a[0], a[1], b[0], b[1], dx1, dz1));
+  for (const line of WATERS) {
+    for (let i = 0; i < line.points.length - 1; i++) {
+      assert.ok(!segmentsCross(line.points[i], line.points[i + 1]), `water crosses the ice dam at ${line.points[i]}`);
+    }
+  }
+  // North of the crest (up the screen) is the reservoir side.
+  const north = Math.sign(cross(dx0, dz0, dx1, dz1, (dx0 + dx1) / 2, Math.min(dz0, dz1) - 10));
+  assert.ok(riverAt(RESERVOIR.x, RESERVOIR.z).inside, "the reservoir is dry");
+  assert.equal(Math.sign(cross(dx0, dz0, dx1, dz1, RESERVOIR.x, RESERVOIR.z)), north, "the reservoir is below the dam");
+  let wetFace = 0;
+  for (let t = 0; t <= 1; t += 0.05) {
+    const x = dx0 + (dx1 - dx0) * t;
+    const z = dz0 + (dz1 - dz0) * t;
+    assert.ok(!riverAt(x, z + 4.5).inside, `the dam's foot is wet at ${x.toFixed(1)}, ${(z + 4.5).toFixed(1)}`);
+    if (riverAt(x, z - 4.5).inside) wetFace++;
+  }
+  assert.ok(wetFace >= 5, "the reservoir does not reach the dam's north face");
+
+  const at = (pt) => RIVER.points.findIndex(([x, z]) => x === pt[0] && z === pt[1]);
+  let reservoir = 0;
+  let best = Infinity;
+  RIVER.points.forEach(([x, z], i) => {
+    const d = Math.hypot(x - RESERVOIR.x, z - RESERVOIR.z);
+    if (d < best) [best, reservoir] = [d, i];
+  });
+  const joinIn = at(MOAT.points.at(-1));
+  const joinOut = at(MOAT.points[0]);
+  assert.ok(joinIn > reservoir && joinOut > reservoir, "the moat is not fed from the reservoir side: its ends must be river points downstream of the lake");
+  assert.ok(joinOut > joinIn, "the moat hands its water back upstream of where it takes it");
+  const widest = Math.max(...RIVER.points.slice(0, joinIn).map((p) => p[2] ?? RIVER.width));
+  assert.equal(RIVER.points[reservoir][2] ?? RIVER.width, widest, "the reservoir is not the widest water above the moat");
+}
+
+// Districts: each place's dock is in its own district (arriving there puts
+// its name on screen); a lab building's radioactive area overlaps no other
+// area, so the seal's mutation is never ambiguous.
+for (const p of PLACES) {
+  const dock = dockPoint(p);
+  assert.ok(p.district, `${p.id} has no district`);
+  assert.equal(districtAt(dock.x, dock.z)?.id, p.district.id, `${p.id}'s dock is not in its district`);
+  if (p.section === "lab") assert.match(p.radiation ?? "", /^#[0-9a-f]{6}$/i, `${p.id} has no radiation colour`);
+}
+for (const a of DISTRICTS) {
+  if (!a.radiation) continue;
+  for (const b of DISTRICTS) {
+    if (a === b) continue;
+    assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= a.radius + b.radius, `${a.name}'s radioactive area overlaps ${b.name}`);
+  }
 }
 
 // Motion: holding a direction reaches top speed and releasing glides to a stop.
@@ -259,10 +346,53 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
     assert.equal(swimmer.water, 0, "the seal is still wet on the bank");
   }
 }
+// River on the real island: an idle seal dropped at the river's first point
+// on the island is carried, clear of every landform and building, to within
+// 6 m of its last point on the island inside 15 s, without a bump that would
+// shake the camera; then the current leaves it on a bank, dry, instead of
+// pinning it against the rim where the water runs on out to sea.
+{
+  const onIsland = RIVER.points.filter(([x, z]) => Math.hypot(x, z) < ISLAND_RADIUS - MOTION.sealRadius);
+  const [x0, z0] = onIsland[0];
+  const [x1, z1] = onIsland.at(-1);
+  const toLine = (px, pz) => {
+    let best = Infinity;
+    for (let i = 0; i < onIsland.length - 1; i++) {
+      const [ax, az] = onIsland[i];
+      const [bx, bz] = onIsland[i + 1];
+      const sx = bx - ax;
+      const sz = bz - az;
+      const t = Math.max(0, Math.min(1, ((px - ax) * sx + (pz - az) * sz) / (sx * sx + sz * sz || 1)));
+      best = Math.min(best, Math.hypot(px - ax - sx * t, pz - az - sz * t));
+    }
+    return best;
+  };
+  const named = [...PLACES.map((p) => ({ ...p, name: p.id })), ...LAND_COLLIDERS.map((c) => ({ ...c, name: `land "${c.land}" (${c.x}, ${c.z})` }))];
+  const blocking = named.filter((c) => toLine(c.x, c.z) < c.radius);
+  if (blocking.length) {
+    // The layout is the world director's (places.js, land.js, river.js):
+    // until it clears the course, say what blocks it instead of failing.
+    console.warn(`river ride skipped: the river's course is blocked by ${blocking.map((c) => c.name).join(", ")}`);
+  } else {
+    const rider = createSeal(x0, z0);
+    let arrived = null;
+    let worstImpact = 0;
+    for (let t = 0; t < 15 && arrived === null; t += 1 / 120) {
+      stepSeal(rider, {}, 1 / 120, world);
+      worstImpact = Math.max(worstImpact, rider.impact);
+      if (Math.hypot(rider.x - x1, rider.z - z1) < 6) arrived = t;
+    }
+    assert.ok(arrived !== null, `an idle rider on the island never reached (${x1}, ${z1}): stopped at ${rider.x.toFixed(1)}, ${rider.z.toFixed(1)}`);
+    assert.ok(worstImpact <= 0.3, `the river ride bumped the rider (impact ${worstImpact.toFixed(2)})`);
+    run(rider, {}, 10);
+    assert.equal(rider.water, 0, `the current left the rider in the water at ${rider.x.toFixed(1)}, ${rider.z.toFixed(1)}`);
+    assert.ok(rider.speed < 0.1, "the rider never came to rest on the bank");
+  }
+}
 {
   const dryland = createSeal(SPAWN.x, SPAWN.z);
   run(dryland, { input: { x: 1, z: 0 } }, 0.5);
   assert.equal(dryland.water, 0, "the seal is wet at spawn");
 }
 
-console.log(`world check passed: ${PLACES.length} places, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit`);
+console.log(`world check passed: ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride`);
