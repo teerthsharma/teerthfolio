@@ -12,7 +12,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
-import { JUMP_IN, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
+import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { MOTION } from "../../lib/world/motion";
 import { PLACE_BY_ID } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
@@ -43,6 +43,13 @@ const TRAUMA_IMPACT_MIN = 0.3;
 const TRAUMA_GAIN = 1.4;
 const LANDING_TRAUMA = 0.55; // the camera's share of the seal's landing thump
 const SHAKE_AMPLITUDE = 0.25; // m
+const ARRIVAL_SWING = 0.6; // rad the view swings round a place on its showcase
+const ARRIVAL_PUSH = 0.35; // share of the distance it eases in by
+const ARRIVAL_LEAN = 0.8; // share of the way the focus leans onto the place: the place is the star
+const RAD_CREEP = 0.06; // share the view creeps in while radiation floods it
+const RAD_KICK = 0.05; // share it kicks back out at the mutation
+const RAD_TRAUMA = 0.45; // the mutation's shake
+const UP = new Vector3(0, 1, 0);
 
 // The overview before Start: high over the island centre, swaying slowly.
 const OVERVIEW_CENTRE = new Vector3(0, 0, -10);
@@ -97,6 +104,8 @@ export default function CameraRig() {
   const userZoom = useRef(live.zoom);
 
   const trauma = useRef(0);
+  const orbit = useRef(new Vector3());
+  const radKicked = useRef(-100);
   const prevImpact = useRef(live.seal.impact);
 
   // The open building's panel: looked up by class each time `open` changes
@@ -160,7 +169,18 @@ export default function CameraRig() {
     const modeRate = 3 / (modeZoomTarget < modeZoom.current ? ZOOM_IN.duration : ZOOM_OUT.duration);
     modeZoom.current += (modeZoomTarget - modeZoom.current) * damp(modeRate, dt);
 
-    const dNow = pull * zoom.current * userZoom.current * speedZoom.current * modeZoom.current;
+    // THE ARRIVAL (moments.js): 0 -> 1 -> 0 over the moment; the view leans
+    // toward the place, swings round it and eases in, then settles back.
+    const arrival = live.arrival;
+    const cutK = !reduced.current && arrival.id && PLACE_BY_ID[arrival.id] ? Math.sin(Math.PI * clamp((t - arrival.start) / ARRIVAL.duration, 0, 1)) : 0;
+    // THE RADIATION beat (moments.js): the view creeps in while the area's
+    // radiation floods it, then kicks back out at the mutation.
+    const radSince = t - live.rad.start;
+    const creep = live.rad.id && radSince >= 0 && radSince < RADIATION.mutateAt ? radSince / RADIATION.mutateAt : 0;
+    const kick = radSince >= RADIATION.mutateAt && radSince < RADIATION.mutateAt + 0.45 ? Math.sin((Math.PI * (radSince - RADIATION.mutateAt)) / 0.45) : 0;
+    const radZoom = reduced.current ? 1 : 1 - RAD_CREEP * creep + RAD_KICK * kick;
+
+    const dNow = pull * zoom.current * userZoom.current * speedZoom.current * modeZoom.current * (1 - ARRIVAL_PUSH * cutK) * radZoom;
     const dTarget = pull * zoom.current * live.zoom * speedZoomTarget * modeZoomTarget;
 
     lead.current.set(seal.vx * LEAD_TIME, 0, seal.vz * LEAD_TIME * (seal.vz > 0 ? LEAD_Z : 1));
@@ -230,6 +250,12 @@ export default function CameraRig() {
       wanted.current.set(seal.x + leadSmooth.current.x, 0, seal.z + leadSmooth.current.z);
     }
 
+    if (cutK > 0) {
+      const place = PLACE_BY_ID[arrival.id];
+      wanted.current.x += (place.x - wanted.current.x) * ARRIVAL_LEAN * cutK;
+      wanted.current.z += (place.z - wanted.current.z) * ARRIVAL_LEAN * cutK;
+    }
+
     if (cut) focus.current.copy(wanted.current);
     else focus.current.lerp(wanted.current, damp(FOCUS_DAMP, dt));
 
@@ -248,6 +274,10 @@ export default function CameraRig() {
         trauma.current = Math.min(1, trauma.current + rise * TRAUMA_GAIN);
       }
       if (!s.landed && since >= JUMP_IN.landAt) trauma.current = Math.max(trauma.current, LANDING_TRAUMA);
+      if (live.rad.id && radSince >= RADIATION.mutateAt && radKicked.current !== live.rad.start) {
+        radKicked.current = live.rad.start;
+        trauma.current = Math.max(trauma.current, RAD_TRAUMA);
+      }
     }
     if (!s.landed && since >= JUMP_IN.landAt) s.landed = true;
     if (trauma.current > 0) {
@@ -257,7 +287,8 @@ export default function CameraRig() {
       shake.current.set(0, 0, 0);
     }
 
-    followPos.current.copy(OFFSET).multiplyScalar(dNow).add(focus.current).add(shake.current);
+    orbit.current.copy(OFFSET).applyAxisAngle(UP, ARRIVAL_SWING * cutK);
+    followPos.current.copy(orbit.current).multiplyScalar(dNow).add(focus.current).add(shake.current);
     followLook.current.set(focus.current.x, 0.6, focus.current.z).add(shake.current);
 
     if (!ui.started) {

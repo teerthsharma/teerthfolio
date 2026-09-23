@@ -571,6 +571,7 @@ export default function Hud() {
   const list = useUi((s) => s.list);
   const sound = useUi((s) => s.sound);
   const failed = useUi((s) => s.failed);
+  const cutscene = useUi((s) => s.cutscene);
 
   const [learned, setLearned] = useState(false);
   useEffect(() => {
@@ -606,6 +607,7 @@ export default function Hud() {
   return (
     <div className="hud" onKeyDown={onHudKeyDown}>
       <Curtain ready={ready} />
+      <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
       <TopBar started={started} list={list} sound={sound} learned={learned} failed={failed} />
       <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />

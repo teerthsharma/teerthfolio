@@ -8,7 +8,9 @@
 //          catch light. It takes over part of the hemisphere light (see
 //          LIGHT.env in palette.js), so matte colours stay calibrated.
 //   Post   ambient occlusion so things sit on the snow, a bloom that only
-//          sees emissive lamps, then the Neutral tone map the palette was
+//          sees emissive lamps, the radiation on the viewer's eyes
+//          (look/RadiationPov.js: crossing into an area floods and warps the
+//          view, then clears), then the Neutral tone map the palette was
 //          solved for, applied once at the very end.
 //   Tier   2 = AO + bloom, 1 = bloom, 0 = no post (native tone mapping).
 //          PerformanceMonitor steps down when a device cannot hold ~50 fps:
@@ -22,6 +24,7 @@ import { SelectiveBloomEffect, ToneMappingMode } from "postprocessing";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BackSide } from "three";
 import { useUi } from "../../lib/world/store";
+import { RadiationPovEffect, stepRadiationPov } from "./look/RadiationPov";
 import { C, LIGHT } from "./palette";
 
 const pinned = () => {
@@ -97,12 +100,22 @@ const opaqueOnly = (ao) => {
   ao.configuration.transparencyAware = false;
 };
 
+function useRadiationPov() {
+  const pov = useMemo(() => new RadiationPovEffect(), []);
+  useEffect(() => () => pov.dispose(), [pov]);
+  const reduced = useMemo(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
+  useFrame((state) => stepRadiationPov(pov, state.clock.elapsedTime, state.size.width / state.size.height, reduced));
+  return pov;
+}
+
 function Post({ tier }) {
   const bloom = useLampBloom();
+  const pov = useRadiationPov();
   return (
     <EffectComposer multisampling={4}>
       {tier >= 2 ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
       <primitive object={bloom} dispose={null} />
+      <primitive object={pov} dispose={null} />
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
     </EffectComposer>
   );

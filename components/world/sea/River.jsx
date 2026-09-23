@@ -16,7 +16,7 @@ import { mat } from "../palette";
 import { buildLoopRibbon, buildWaterSurface, streakSpawn, surfaceY } from "./build";
 
 const STREAKS = 130;
-const DRIFT = 0.8; // streaks travel at this share of the current (they read as the surface, not the fastest thread)
+const DRIFT = 2.3; // streaks travel a touch faster than a rider (motion.js MOTION.ride 2.1): at 0.8 the riding seal overtook the water 2.5 times over and the river read as slow
 
 function waterMaterial(time) {
   const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.16, metalness: 0 });

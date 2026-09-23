@@ -124,6 +124,33 @@ a {
     visibility 0s var(--t-out);
 }
 
+/* The first arrival at a place (lib/world/moments.js ARRIVAL): cinema bars
+   slide over the view while the seal looks round, then slide away. */
+.hud-letterbox::before,
+.hud-letterbox::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #15131c;
+  transform: scaleY(0);
+  transition: transform 450ms var(--ease-out);
+  pointer-events: none;
+}
+.hud-letterbox::before {
+  top: 0;
+  transform-origin: top;
+}
+.hud-letterbox::after {
+  bottom: 0;
+  transform-origin: bottom;
+}
+.hud-letterbox[data-on="true"]::before,
+.hud-letterbox[data-on="true"]::after {
+  transform: scaleY(1);
+}
+
 .hud-curtain {
   position: absolute;
   inset: 0;

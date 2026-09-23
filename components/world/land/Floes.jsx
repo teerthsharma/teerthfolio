@@ -16,14 +16,16 @@
 //   - Plain floes are stranded along the outflow's banks, afloat and
 //     unremarkable: what floes normally do, for the anomaly to read against.
 
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { CylinderGeometry, IcosahedronGeometry, Matrix4, Object3D, Quaternion, Vector3 } from "three";
+import { CircleGeometry, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, Matrix4, MeshBasicMaterial, Object3D, Quaternion, RingGeometry, Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../lib/world/places";
-import { useUi } from "../../../lib/world/store";
+import { WHIRLPOOL } from "../../../lib/world/river";
+import { live, useUi } from "../../../lib/world/store";
 import { WATER_Y } from "../../../lib/world/terrain";
 import { C, mat } from "../palette";
 import { FLOE, FLOES, N, PIN, PIN_R, PIN_TOP, STRANDED, THREADS } from "./parts/floes-layout";
+import { EYE_R, INNER_CHIPS, MIST, MIST_N, OUTER_CHIPS } from "./parts/floes-vortex";
 
 const NEAR_ID = "pr-pyrefly-4180";
 const RADIATION = PLACE_BY_ID[NEAR_ID].radiation;
@@ -103,11 +105,10 @@ function Funnel({ near }) {
   // Ice base, a rim glow in the district's own radiation colour, loud enough
   // to read against pale snow and ice from a distance -- one static material
   // shared by every instance, never a per-frame colour loop.
-  const iceMat = useMemo(() => mat(C.ice, { roughness: 0.4, emissive: "#ff00ff", emissiveIntensity: 5 }).clone(), []);
+  const iceMat = useMemo(() => mat(C.ice, { roughness: 0.4, emissive: RADIATION, emissiveIntensity: 0.65 }).clone(), []);
 
   useEffect(() => {
     const lobes = lobesRef.current, ridges = ridgesRef.current, threads = threadsRef.current;
-    console.log("funnel bake", N, lobes?.count, ridges?.count, threads?.count);
     if (!lobes || !ridges || !threads) return;
     for (let i = 0; i < N; i++) {
       const f = FLOES[i];
@@ -136,21 +137,18 @@ function Funnel({ near }) {
     lobes.instanceMatrix.needsUpdate = true;
     ridges.instanceMatrix.needsUpdate = true;
     threads.instanceMatrix.needsUpdate = true;
-    if (typeof window !== "undefined") window.__floesDebug = { lobes, ridges, threads, group: groupRef.current, iceMat };
   }, []);
-
-  const three = useThree();
-  useEffect(() => {
-    if (typeof window !== "undefined") window.__floesThree = three;
-  }, [three]);
 
   // The last floe commits onto the pin's centre (floes-layout's COMMIT sits
   // on the y axis), so turning this whole group around y leaves that point
-  // fixed: the coil spins slowly on its pin, like a mobile hung to dry.
+  // fixed: the coil spins slowly on its pin, like a mobile hung to dry. A
+  // catch in progress (live.seal.whirled, the whirlpool below) winds it
+  // faster and brighter too -- the same water, one system.
   useFrame((_, dt) => {
     nearK.current += ((near ? 1 : 0) - nearK.current) * (1 - Math.exp(-EASE_RATE * dt));
-    if (groupRef.current) groupRef.current.rotation.y += (0.05 + 0.1 * nearK.current) * dt;
-    iceMat.emissiveIntensity = 0.65 + 0.35 * nearK.current;
+    const whirl = live.seal.whirled > 0 ? Math.min(1, live.seal.whirled / WHIRLPOOL.hold) : 0;
+    if (groupRef.current) groupRef.current.rotation.y += (0.05 + 0.1 * nearK.current + 0.18 * whirl) * dt;
+    iceMat.emissiveIntensity = 0.65 + 0.35 * nearK.current + 0.35 * whirl;
   });
 
   return (
@@ -159,6 +157,248 @@ function Funnel({ near }) {
       <instancedMesh ref={ridgesRef} args={[STICK_GEO, iceMat, N]} castShadow frustumCulled={false} />
       <instancedMesh ref={threadsRef} args={[STICK_GEO, iceMat, N]} frustumCulled={false} />
     </group>
+  );
+}
+
+// ---- the whirlpool: a spiral of foam spinning on the water, exactly
+// WHIRLPOOL.radius wide (WHIRLPOOL.x/z, the channel's centre line -- close
+// to the pin but not on it), under the funnel -- the water doing what
+// lib/world/motion.js's stepSeal already does: catch a swimmer, carry it
+// round, throw it back. Two rings (rim, eye) baked once (parts/floes-vortex)
+// and turned at their own speed: cheap, and a real whirlpool's differential
+// (faster near the eye) for free.
+const EYE_GEO = new CircleGeometry(EYE_R, 20).rotateX(-Math.PI / 2);
+const cRim = new Color(C.foam);
+const cEye = new Color(C.shallows);
+const cTmp = new Color();
+
+function bakeChips(mesh, chips) {
+  if (!mesh) return;
+  for (let i = 0; i < chips.length; i++) {
+    const c = chips[i];
+    dummy.position.set(c.x, c.y, c.z);
+    dummy.rotation.set(0, c.angle, 0);
+    dummy.scale.set(c.len, 0.16, c.w);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+    cTmp.copy(cRim).lerp(cEye, c.u);
+    mesh.setColorAt(i, cTmp);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+}
+
+function Vortex() {
+  const outerRef = useRef(null);
+  const innerRef = useRef(null);
+  const outerGroup = useRef(null);
+  const innerGroup = useRef(null);
+  const mistRef = useRef(null);
+  const boost = useRef(0);
+
+  const foamMat = useMemo(() => mat(C.foam, { roughness: 0.35, emissive: RADIATION, emissiveIntensity: 0.14 }).clone(), []);
+  const eyeMat = useMemo(() => mat("#0b2f3d", { roughness: 0.7, emissive: RADIATION, emissiveIntensity: 0.06 }).clone(), []);
+  const mistMat = useMemo(() => mat("#eaf6ff", { flat: false, roughness: 1, emissive: RADIATION, emissiveIntensity: 0.18 }), []);
+
+  useEffect(() => {
+    bakeChips(outerRef.current, OUTER_CHIPS);
+    bakeChips(innerRef.current, INNER_CHIPS);
+  }, []);
+
+  useFrame((state, dt) => {
+    const seal = live.seal;
+    const raw = seal.whirled > 0 ? Math.min(1, seal.whirled / WHIRLPOOL.hold) : 0;
+    boost.current += (raw - boost.current) * (1 - Math.exp(-5 * dt));
+    const b = boost.current;
+    if (outerGroup.current) outerGroup.current.rotation.y += (0.3 + 1.1 * b) * dt;
+    if (innerGroup.current) innerGroup.current.rotation.y -= (0.55 + 1.9 * b) * dt; // the eddy inside spins the other way: reads as wound tight, not just faster
+    foamMat.emissiveIntensity = 0.14 + 0.9 * b;
+    eyeMat.emissiveIntensity = 0.06 + 0.5 * b;
+
+    const mesh = mistRef.current;
+    if (mesh) {
+      const t = state.clock.elapsedTime;
+      for (let i = 0; i < MIST_N; i++) {
+        const m = MIST[i];
+        const u = (t * 0.18 + m.offset) % 1;
+        dummy.position.set(Math.cos(m.angle) * m.radius, u * (0.3 + 0.9 * m.apex), Math.sin(m.angle) * m.radius);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.setScalar(0.16 * Math.sin(Math.PI * u) * (0.7 + 0.3 * b));
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+  });
+
+  return (
+    <>
+      <group position={[WHIRLPOOL.x, WATER_Y, WHIRLPOOL.z]}>
+        <group ref={outerGroup}>
+          <instancedMesh ref={outerRef} args={[LOBE_GEO, foamMat, OUTER_CHIPS.length]} frustumCulled={false} />
+        </group>
+        <group ref={innerGroup}>
+          <instancedMesh ref={innerRef} args={[LOBE_GEO, foamMat, INNER_CHIPS.length]} frustumCulled={false} />
+        </group>
+        <mesh geometry={EYE_GEO} material={eyeMat} position={[0, -0.24, 0]} />
+      </group>
+      {/* the mist hangs off the pin itself (PIN.x/z), not the whirlpool's own
+          centre a few metres out on the channel line -- "spray round the pin" */}
+      <group position={[PIN.x, PIN_TOP + 0.15, PIN.z]}>
+        <instancedMesh ref={mistRef} args={[LOBE_GEO, mistMat, MIST_N]} frustumCulled={false} />
+      </group>
+    </>
+  );
+}
+
+// ---- the throw: a splash at the catch, a ring of foam racing out with the
+// seal's flight, a snow puff at the landing -- the moment live.seal.flight
+// leaves 0 and the moment it returns. One small pool, reused every throw;
+// nothing here allocates inside the frame loop.
+const SPLASH_N = 28;
+const sprayMat = mat("#eaf7ff", { roughness: 0.3, emissive: "#bfe8ff", emissiveIntensity: 0.25 });
+const ringGeo = new RingGeometry(0.5, 0.85, 40);
+
+function makeSplashPool() {
+  return {
+    pos: new Float32Array(SPLASH_N * 3),
+    vel: new Float32Array(SPLASH_N * 3),
+    age: new Float32Array(SPLASH_N).fill(Infinity),
+    life: new Float32Array(SPLASH_N),
+    size: new Float32Array(SPLASH_N),
+    kind: new Uint8Array(SPLASH_N), // 0 spray droplet (gravity, stops at the water), 1 landing puff (drifts, fades)
+    cursor: 0,
+    alive: 0,
+    wasAlive: new Uint8Array(SPLASH_N),
+  };
+}
+
+function addSplash(pool, x, y, z, vx, vy, vz, size, life, kind) {
+  const i = pool.cursor;
+  pool.cursor = (i + 1) % SPLASH_N;
+  const b = i * 3;
+  pool.pos[b] = x;
+  pool.pos[b + 1] = y;
+  pool.pos[b + 2] = z;
+  pool.vel[b] = vx;
+  pool.vel[b + 1] = vy;
+  pool.vel[b + 2] = vz;
+  pool.age[i] = 0;
+  pool.life[i] = life;
+  pool.size[i] = size;
+  pool.kind[i] = kind;
+  if (!pool.wasAlive[i]) pool.alive++;
+  pool.wasAlive[i] = 1;
+}
+
+// A spray column climbing plus droplets fanning outward: the catch's own
+// edge, the instant live.seal.flight leaves 0.
+function throwBurst(pool, x, z) {
+  for (let i = 0; i < 9; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.random() * 0.6;
+    addSplash(pool, x + Math.cos(a) * r, WATER_Y + 0.1, z + Math.sin(a) * r, Math.cos(a) * 1.2, 5 + Math.random() * 2.5, Math.sin(a) * 1.2, 0.16 + Math.random() * 0.1, 0.7 + Math.random() * 0.2, 0);
+  }
+  for (let i = 0; i < 16; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 2.5 + Math.random() * 2;
+    addSplash(pool, x, WATER_Y + 0.1, z, Math.cos(a) * r, 2.5 + Math.random() * 2, Math.sin(a) * r, 0.14 + Math.random() * 0.08, 0.6 + Math.random() * 0.3, 0);
+  }
+}
+
+// A small snow puff where the seal lands.
+function landingPuff(pool, x, z) {
+  for (let i = 0; i < 10; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 0.8 + Math.random() * 1.4;
+    addSplash(pool, x, 0.1, z, Math.cos(a) * r, 1.4 + Math.random() * 0.8, Math.sin(a) * r, 0.14 + Math.random() * 0.08, 0.45 + Math.random() * 0.2, 1);
+  }
+}
+
+function Splash() {
+  const meshRef = useRef(null);
+  const ringRef = useRef(null);
+  const pool = useMemo(makeSplashPool, []);
+  const burst = useRef({ x: 0, z: 0 });
+  const prevFlight = useRef(0);
+  const ringMat = useMemo(
+    () => new MeshBasicMaterial({ color: C.foam, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6, side: DoubleSide, toneMapped: false }),
+    [],
+  );
+
+  useFrame((_, dt) => {
+    const seal = live.seal;
+    const flight = seal.flight;
+    if (flight > 0 && prevFlight.current <= 0) {
+      burst.current.x = seal.x;
+      burst.current.z = seal.z;
+      throwBurst(pool, seal.x, seal.z);
+    }
+    if (flight === 0 && prevFlight.current > 0) landingPuff(pool, seal.x, seal.z);
+    prevFlight.current = flight;
+
+    const ring = ringRef.current;
+    if (ring) {
+      if (flight > 0) {
+        const u = 1 - flight / WHIRLPOOL.flight;
+        ring.visible = true;
+        ring.position.set(burst.current.x, WATER_Y + 0.03, burst.current.z);
+        ring.scale.setScalar(0.4 + u * WHIRLPOOL.radius * 2.1);
+        ringMat.opacity = 0.8 * (1 - u);
+      } else {
+        ring.visible = false;
+      }
+    }
+
+    const mesh = meshRef.current;
+    if (mesh && pool.alive > 0) {
+      for (let i = 0; i < SPLASH_N; i++) {
+        if (!pool.wasAlive[i]) continue;
+        const age = pool.age[i] + dt;
+        pool.age[i] = age;
+        const life = pool.life[i];
+        if (age >= life) {
+          dummy.position.set(0, -1000, 0);
+          dummy.scale.setScalar(0);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(i, dummy.matrix);
+          pool.wasAlive[i] = 0;
+          pool.alive--;
+          continue;
+        }
+        const b = i * 3;
+        if (pool.kind[i] === 0) {
+          pool.vel[b + 1] -= 9 * dt;
+          pool.pos[b] += pool.vel[b] * dt;
+          pool.pos[b + 1] += pool.vel[b + 1] * dt;
+          pool.pos[b + 2] += pool.vel[b + 2] * dt;
+          if (pool.pos[b + 1] < WATER_Y + 0.02) {
+            pool.pos[b + 1] = WATER_Y + 0.02;
+            pool.vel[b + 1] = 0;
+          }
+        } else {
+          pool.vel[b + 1] -= 2.4 * dt;
+          pool.pos[b] += pool.vel[b] * dt;
+          pool.pos[b + 1] += pool.vel[b + 1] * dt;
+          pool.pos[b + 2] += pool.vel[b + 2] * dt;
+        }
+        const u = age / life;
+        const size = Math.max(0, pool.size[i] * (1 - u * u));
+        dummy.position.set(pool.pos[b], pool.pos[b + 1], pool.pos[b + 2]);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.setScalar(size);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+  });
+
+  return (
+    <>
+      <instancedMesh ref={meshRef} args={[LOBE_GEO, sprayMat, SPLASH_N]} frustumCulled={false} />
+      <mesh ref={ringRef} geometry={ringGeo} material={ringMat} rotation={[-Math.PI / 2, 0, 0]} visible={false} />
+    </>
   );
 }
 
@@ -171,6 +411,8 @@ export default function Floes() {
         <Funnel near={near} />
       </group>
       <Stranded />
+      <Vortex />
+      <Splash />
     </group>
   );
 }

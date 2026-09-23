@@ -30,7 +30,8 @@ import { forbidden, mulberry32 } from "./spawn";
 import { C } from "../palette";
 
 const MOTES_PER_DISTRICT = 8;
-const MOTE_COUNT = DISTRICTS.length * MOTES_PER_DISTRICT; // 20 * 8 = 160
+const HOT_DISTRICTS = DISTRICTS.filter((d) => d.radiation); // the igloo is neutral
+const MOTE_COUNT = HOT_DISTRICTS.length * MOTES_PER_DISTRICT; // 19 * 8 = 152
 // Every lab district plus the three set pieces the brief names.
 const SIGN_DISTRICT_IDS = [...DISTRICTS.filter((d) => d.id.startsWith("p-")).map((d) => d.id), "triton", "mujorush", "moat"];
 
@@ -39,7 +40,7 @@ const SIGN_DISTRICT_IDS = [...DISTRICTS.filter((d) => d.id.startsWith("p-")).map
 function buildMotes() {
   const rand = mulberry32(20260926);
   const motes = [];
-  for (const d of DISTRICTS) {
+  for (const d of HOT_DISTRICTS) {
     for (let k = 0; k < MOTES_PER_DISTRICT; k++) {
       const angle = rand() * Math.PI * 2;
       const baseR = d.radius * (0.3 + rand() * 0.5);

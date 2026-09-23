@@ -22,8 +22,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, RingGeometry } from "three";
-import { JUMP_IN, SKIP_WINDOW } from "../../../../lib/world/moments";
-import { districtAt } from "../../../../lib/world/places";
+import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW } from "../../../../lib/world/moments";
+import { PLACE_BY_ID, districtAt } from "../../../../lib/world/places";
 import { getUi, live, useUi } from "../../../../lib/world/store";
 import { glow } from "../../palette";
 import Outfit, { HEAD_RADIUS } from "../Outfit";
@@ -36,6 +36,7 @@ const smooth = (a, b, x) => {
   return t * t * (3 - 2 * t);
 };
 const damp = (rate, dt) => 1 - Math.exp(-rate * dt);
+const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const rel = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const HOP_HEIGHT = 0.9; // m
 // The outfit is made for a 0.45 m skull; this one is rounder.
@@ -44,6 +45,11 @@ const OUTFIT_SCALE = (SKULL[0] + SKULL[1] + SKULL[2]) / 3 / HEAD_RADIUS;
 // gold, so it still reads against open snow instead of a pale ring fading
 // into it.
 const HALO_DEFAULT = "#ffd66b";
+// The halo floats above the crown, tipped a little toward the face: from the
+// follow camera's 42-degree view a ring behind the head framed the face like
+// a lifebuoy (the owner: "seal halo not working perfectly").
+const HALO_AT = [0, 0.66, -0.06];
+const HALO_TILT = [-Math.PI / 2 + 0.3, 0, 0];
 
 function materials() {
   return {
@@ -81,17 +87,16 @@ function poseFlipper(o, side, d, x) {
 export default function SealD({ pose, near, drive, headRef }) {
   const parts = useMemo(buildSealD, []);
   const mats = useMemo(materials, []);
-  // The meditation halo: a ring plus a softer, wider glow ring behind it,
-  // both bigger than the skull (0.52 m) so it reads as a halo and not a
-  // ring-toss ring, each its own cloned glow material so colour and fade
+  // The meditation halo: a ring plus a softer, wider glow ring, floating
+  // above the crown (HALO_AT), each its own cloned glow material so colour and fade
   // can be mutated per frame without touching palette.js's shared cache.
   // glow()'s additive blend reads only against something dark; the halo
   // sits over bright snow as often as not, so the crisp ring is switched to
   // a normal alpha blend (a soft tinted ring, visible on any backdrop), both
   // sides in case the seal is seen from behind it; the wide glow ring stays
   // additive, for the bloom. Unlit: cheap, no extra shadow-casting light.
-  const haloGeo = useMemo(() => new RingGeometry(0.58, 0.68, 48), []);
-  const haloSoftGeo = useMemo(() => new RingGeometry(0.52, 0.78, 48), []);
+  const haloGeo = useMemo(() => new RingGeometry(0.24, 0.32, 40), []);
+  const haloSoftGeo = useMemo(() => new RingGeometry(0.18, 0.42, 40), []);
   const haloMat = useMemo(() => {
     const m = glow(HALO_DEFAULT, 0.85).clone();
     m.blending = NormalBlending;
@@ -150,6 +155,19 @@ export default function SealD({ pose, near, drive, headRef }) {
     const t = d.t;
     const dt = Math.min(delta, 0.1);
     const water = clamp(pose.current.water || 0, 0, 1);
+    const now = state.clock.elapsedTime;
+
+    // THE ARRIVAL (moments.js): the first time at a place the pup looks
+    // round, left, then right, then settles on the place, and smiles.
+    const arrival = live.arrival;
+    const arrivalPlace = arrival.id ? PLACE_BY_ID[arrival.id] : null;
+    const au = arrivalPlace ? (now - arrival.start) / ARRIVAL.duration : -1;
+    if (au >= 0 && au < 1) {
+      const p = pose.current;
+      const toPlace = clamp(wrap(Math.atan2(arrivalPlace.x - p.x, arrivalPlace.z - p.z) - p.heading), -1.2, 1.2);
+      d.lookYaw = au < 0.28 ? -0.9 * smooth(0, 0.28, au) : au < 0.6 ? -0.9 + 1.8 * smooth(0.28, 0.6, au) : 0.9 + (toPlace - 0.9) * smooth(0.6, 0.85, au);
+      if (au > 0.82) d.happy = 1;
+    }
 
     // The hop: crouch, leave the snow at hopAt, land at landAt with a squash.
     if (f.hopPending) {
@@ -257,11 +275,21 @@ export default function SealD({ pose, near, drive, headRef }) {
     // (a spring kick too) the instant a mote lands on it
     // (live.seal.absorbAt/absorbColor, Radiation.jsx) or the area changes,
     // so arriving somewhere pops and smiles instead of announcing itself.
-    const hereDistrict = districtAt(pose.current.x, pose.current.z);
+    const underfoot = districtAt(pose.current.x, pose.current.z);
+    const hereDistrict = underfoot?.radiation ? underfoot : null; // the igloo is neutral
     const hereId = hereDistrict ? hereDistrict.id : null;
-    if (hereId !== f.districtId) {
+    // Arriving, the coat flashes and the pup squishes on the mutation beat
+    // (moments.js RADIATION), with the halo, not the moment it crosses in.
+    const rad = live.rad;
+    const radSince = now - rad.start;
+    const beat = !rad.id || radSince >= RADIATION.mutateAt;
+    const haloFlash = rad.id && radSince >= RADIATION.mutateAt && radSince < RADIATION.mutateAt + 1.1 ? Math.sin((Math.PI * (radSince - RADIATION.mutateAt)) / 1.1) : 0;
+    if (hereId !== f.districtId && beat) {
       f.districtId = hereId;
-      if (hereDistrict) mats.coat.emissive.set(hereDistrict.radiation ?? hereDistrict.color);
+      if (hereDistrict) {
+        mats.coat.emissive.set(hereDistrict.radiation ?? hereDistrict.color);
+        f.absorbFlash = 1;
+      }
       f.squishV += 7;
       f.districtFlash = 1;
     } else {
@@ -315,18 +343,26 @@ export default function SealD({ pose, near, drive, headRef }) {
         haloSoftMat.color.set(col);
       }
     }
+    // The mutation flashes the halo in the area's colour, meditating or not.
+    if (haloFlash > 0.01 && f.haloColor !== rad.color) {
+      f.haloColor = rad.color;
+      haloMat.color.set(rad.color);
+      haloSoftMat.color.set(rad.color);
+    }
     const g = halo.current;
     const soft = haloSoft.current;
-    g.visible = sit > 0.01;
+    g.visible = Math.max(sit, haloFlash) > 0.01;
     soft.visible = g.visible;
     if (g.visible) {
-      g.rotation.z += dt * 0.2;
-      const scale = 0.6 + 0.4 * sit;
+      g.rotation.z += dt * (0.6 + 3 * haloFlash);
+      g.position.y = HALO_AT[1] + 0.04 * Math.sin(now * 2.2) + 0.1 * haloFlash;
+      soft.position.y = g.position.y;
+      const scale = 0.6 + 0.4 * sit + 0.55 * haloFlash;
       g.scale.setScalar(scale);
       soft.rotation.z = g.rotation.z;
       soft.scale.setScalar(scale);
-      haloMat.opacity = (onDistrict ? 0.6 : 0.85) * sit;
-      haloSoftMat.opacity = 0.35 * sit;
+      haloMat.opacity = Math.max((onDistrict ? 0.6 : 0.85) * sit, 0.95 * haloFlash);
+      haloSoftMat.opacity = Math.max(0.35 * sit, 0.65 * haloFlash);
     }
   });
 
@@ -362,8 +398,8 @@ export default function SealD({ pose, near, drive, headRef }) {
               <group scale={OUTFIT_SCALE}>
                 <Outfit placeId={near} />
               </group>
-              <mesh ref={halo} geometry={haloGeo} material={haloMat} position={[0, 0.12, -0.42]} rotation={[-0.35, 0, 0]} visible={false} />
-              <mesh ref={haloSoft} geometry={haloSoftGeo} material={haloSoftMat} position={[0, 0.12, -0.42]} rotation={[-0.35, 0, 0]} visible={false} />
+              <mesh ref={halo} geometry={haloGeo} material={haloMat} position={HALO_AT} rotation={HALO_TILT} visible={false} />
+              <mesh ref={haloSoft} geometry={haloSoftGeo} material={haloSoftMat} position={HALO_AT} rotation={HALO_TILT} visible={false} />
             </group>
           </group>
         </group>

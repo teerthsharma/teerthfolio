@@ -9,7 +9,8 @@
 // life (A/B/C/D never unmount it), so a module-level cache is fine: each
 // area's look is built once and reused every time the seal returns.
 //
-// Six named places wear "friendlier gear"; the other fourteen areas share
+// Five named places wear "friendlier gear" (the igloo, neutral, wears none);
+// the other fourteen areas share
 // five anime-homage looks by an explicit table (LOOK_BY_ID), so two areas
 // with the same look are always at least 62 m apart (lib/world/looks.js). Every
 // look keeps the pup's big eyes visible, and is at most 3 meshes plus the
@@ -23,7 +24,8 @@ import { useFrame } from "@react-three/fiber";
 import { useRef, useState } from "react";
 import { BackSide, BoxGeometry, ConeGeometry, CylinderGeometry, NormalBlending, SphereGeometry, TorusGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { districtAt } from "../../../lib/world/places";
+import { RADIATION } from "../../../lib/world/moments";
+import { DISTRICTS } from "../../../lib/world/places";
 import { LOOK_BY_ID } from "../../../lib/world/looks";
 import { live } from "../../../lib/world/store";
 import { C, glow, lamp, mat } from "../palette";
@@ -49,9 +51,6 @@ function dome(r, flat, y) {
   g.scale(1, flat, 1);
   g.translate(0, y, -0.03);
   return g;
-}
-function pom(y = R * 1.05) {
-  return new SphereGeometry(0.09, 10, 8).translate(0, y, -0.05);
 }
 // Goggles pushed up on the brow, lenses tipped to the sky: the eyes stay
 // bare. Returns the frame (rims + strap) and the lenses as separate meshes.
@@ -153,7 +152,6 @@ const EXPLICIT = {
     return [[c.crown, mat(radiation, { roughness: 0.5 })], [c.panel, mat(C.snow, { roughness: 0.8 })]];
   },
   dam: (radiation) => [[mergeGeometries([dome(0.54, 0.62, 0.16), band(0.5, 0.06, 0.2)]), mat(radiation, { roughness: 0.4 })]], // a hard hat
-  home: (radiation) => [[mergeGeometries([dome(0.54, 0.7, 0.14), pom(0.6)]), mat(radiation, { roughness: 0.4 })]], // a knit beanie
 };
 
 const POOL = {
@@ -177,6 +175,7 @@ const POOL = {
 };
 
 
+const DISTRICT_BY_ID = Object.fromEntries(DISTRICTS.map((d) => [d.id, d]));
 const aura = new SphereGeometry(R * 1.32, 12, 8);
 const cache = new Map();
 function lookFor(district) {
@@ -203,9 +202,13 @@ export default function Outfit() {
   const [look, setLook] = useState(null);
 
   useFrame((state, dt) => {
-    const s = live.seal;
-    const district = districtAt(s.x, s.z);
-    const id = district?.id ?? null;
+    // Crossing in, the look waits for the mutation beat (moments.js
+    // RADIATION: the view floods, then the halo, then this); leaving drops
+    // it at once.
+    const rad = live.rad;
+    const beat = !rad.id || state.clock.elapsedTime - rad.start >= RADIATION.mutateAt;
+    const id = beat ? rad.id : spring.current.id;
+    const district = id ? DISTRICT_BY_ID[id] : null;
     const sp = spring.current;
     if (id !== sp.id) {
       if (id) {

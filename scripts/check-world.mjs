@@ -7,7 +7,7 @@ import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
-import { DAM, MOAT, RESERVOIR, RIVER, WATERS, riverAt, waterGap } from "../lib/world/river.js";
+import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
 
 const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
@@ -133,14 +133,17 @@ for (const a of DISTRICTS) {
     const c = new Color(hex); // three converts sRGB hex to linear, which is what luminance weighs
     return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
   };
+  const home = DISTRICTS.find((d) => d.id === "home");
+  assert.ok(home && home.radiation === null && home.hot.length === 0, "the igloo is not the neutral zone");
   for (const d of DISTRICTS) {
+    if (d === home) continue;
     assert.match(d.radiation ?? "", /^#[0-9a-f]{6}$/i, `${d.name} is not radioactive`);
     new Color(d.radiation).getHSL(hsl, SRGBColorSpace);
     assert.ok(hsl.s >= 0.5 && luminance(d.radiation) <= 0.6, `${d.name}'s radiation ${d.radiation} does not read on the snow`);
     assert.ok(d.hot?.length > 0, `${d.name} has no hot spot`);
     for (const [x, z] of d.hot) assert.ok(Math.hypot(x, z) < ISLAND_RADIUS, `${d.name}'s hot spot ${x}, ${z} is off the island`);
     for (const e of DISTRICTS) {
-      if (e === d || Math.hypot(d.x - e.x, d.z - e.z) - d.radius - e.radius >= 25) continue;
+      if (e === d || !e.radiation || Math.hypot(d.x - e.x, d.z - e.z) - d.radius - e.radius >= 25) continue;
       const gap = Math.abs(hueOf(d.radiation) - hueOf(e.radiation));
       assert.ok(Math.min(gap, 360 - gap) >= 20, `${d.name} and its neighbour ${e.name} glow in the same hue`);
     }
@@ -285,8 +288,10 @@ assert.equal(th.throttle, 1, "throttle not set while held");
 run(th, {}, 0.1);
 assert.equal(th.throttle, 0, "throttle still set 0.1s after release");
 
-// Glide: released from top speed, the seal travels 4-6.5 m before it settles.
-// The weight of the ice becomes a tested number, not a feeling.
+// Glide: released from top speed, the seal travels 2-4 m before it settles.
+// The weight of the ice becomes a tested number, not a feeling (it was 4-6.5
+// m until the owner called the seal "a ping pong ball" and asked for a lazier
+// one that stops soon after you let go).
 const glider = createSeal(SPAWN.x, SPAWN.z);
 run(glider, { input: { x: 1, z: 0 } }, 3);
 let glideDist = 0;
@@ -298,7 +303,7 @@ while (glider.speed >= 0.1 && steps < 10000) {
   glideDist += Math.hypot(glider.x - px, glider.z - pz);
   steps++;
 }
-assert.ok(glideDist > 4 && glideDist < 6.5, `glide distance out of range: ${glideDist}`);
+assert.ok(glideDist > 2 && glideDist < 4, `glide distance out of range: ${glideDist}`);
 
 // Skid: reversing the stick at top speed spikes the skid read, which then
 // settles once the seal has been gliding straight for a couple of seconds.
@@ -548,6 +553,35 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   assert.equal(dryland.water, 0, "the seal is wet at spawn");
 }
 
+// The whirlpool: an idle seal riding the river on the real island (the
+// world the game passes, whirlpool and all) is caught under pyrefly's funnel,
+// carried round without leaving the water, thrown, and comes to rest on dry,
+// flat ground on the island, clear of every place and landform, without a
+// bump from the carry itself.
+{
+  const whirlWorld = { ...world, whirlpool: WHIRLPOOL };
+  const onIsland = RIVER.points.filter(([x, z]) => Math.hypot(x, z) < ISLAND_RADIUS - MOTION.sealRadius);
+  const rider = createSeal(onIsland[0][0], onIsland[0][1]);
+  let caught = null;
+  let thrown = null;
+  let dryWhileCaught = 0;
+  for (let t = 0; t < 25; t += 1 / 120) {
+    stepSeal(rider, {}, 1 / 120, whirlWorld);
+    if (caught === null && rider.whirled > 0) caught = t;
+    if (rider.whirled > 0 && !riverAt(rider.x, rider.z).inside) dryWhileCaught++;
+    if (thrown === null && rider.flight > 0) thrown = t;
+    if (thrown !== null && rider.flight === 0 && rider.speed < 0.05) break;
+  }
+  assert.ok(caught !== null, "an island river ride never reached the whirlpool");
+  assert.equal(dryWhileCaught, 0, "the whirlpool carried the seal out of the water before the throw");
+  assert.ok(thrown !== null && thrown - caught >= WHIRLPOOL.hold - 0.05, "the whirlpool threw the seal before it had carried it round");
+  const at = `the whirlpool's throw left the seal at ${rider.x.toFixed(1)}, ${rider.z.toFixed(1)}`;
+  assert.ok(rider.flight === 0 && rider.speed < 0.05, `${at}, still moving`);
+  assert.ok(rider.water === 0 && !riverAt(rider.x, rider.z).inside && waterGap(rider.x, rider.z) > 1, `${at}, in the water`);
+  assert.ok(Math.abs(heightAt(rider.x, rider.z)) <= 0.3 && Math.hypot(rider.x, rider.z) < ISLAND_RADIUS, `${at}, off the island's flat ground`);
+  for (const c of colliders) assert.ok(Math.hypot(rider.x - c.x, rider.z - c.z) >= c.radius, `${at}, inside a collider at ${c.x}, ${c.z}`);
+}
+
 // The highway: every sample of its asphalt (legs, ring, car park) is on the
 // island, dry, flat (the terrain contract) and clear of every place and
 // landform except the roundabout's own island; its place sits in the ring,
@@ -596,8 +630,8 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
 // Mutation looks: every district without named gear has a look, and two
 // areas wearing the same look are at least 62 m apart.
 {
-  const GEAR = new Set(["home", "triton", "mujorush", "dam", "moat", "highway"]);
-  for (const d of DISTRICTS) if (!GEAR.has(d.id)) assert.ok(LOOK_BY_ID[d.id], `${d.id} has no mutation look`);
+  const GEAR = new Set(["triton", "mujorush", "dam", "moat", "highway"]);
+  for (const d of DISTRICTS) if (d.radiation && !GEAR.has(d.id)) assert.ok(LOOK_BY_ID[d.id], `${d.id} has no mutation look`);
   const ids = Object.keys(LOOK_BY_ID);
   for (const a of ids) {
     const da = DISTRICTS.find((d) => d.id === a);
@@ -611,4 +645,4 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   }
 }
 
-console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the highway, mutation looks`);
+console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the highway, mutation looks`);
