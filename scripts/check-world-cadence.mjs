@@ -1,3 +1,4 @@
+import { polarGroundHeight } from "../lib/polar-ground.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
@@ -29,8 +30,32 @@ for (const [quality, budget] of Object.entries(WORLD_DRESSING_BUDGET)) {
     `${quality} total must match its three pooled bands`,
   );
 }
-assert.ok(WORLD_DRESSING_BUDGET.low.total <= 36, "low tier must stay at or below 36 objects");
-assert.ok(WORLD_DRESSING_BUDGET.high.total <= 84, "high tier must stay at or below 84 objects");
+// Ceilings are per band, because the bands are different things. Mid and far are
+// monuments and stay rare; near is ground cover on one instanced draw and is
+// budgeted by coverage. A single combined ceiling let the ground be starved to
+// keep the monument count honest.
+// Low's ceiling was set when low was a fallback for weak hardware. The measured
+// quality ladder now settles there on any machine that cannot hold 60fps at
+// high, so it is the field most visitors stand in, and starving it is starving
+// the shipped world. Still one instanced draw; the ceiling only has to keep the
+// ladder ordered.
+assert.ok(WORLD_DRESSING_BUDGET.low.total <= 380, "low tier must stay at or below 380 objects");
+assert.ok(
+  WORLD_DRESSING_BUDGET.low.near <= WORLD_DRESSING_BUDGET.medium.near &&
+    WORLD_DRESSING_BUDGET.medium.near <= WORLD_DRESSING_BUDGET.high.near,
+  "ground cover must not invert the quality ladder",
+);
+assert.ok(WORLD_DRESSING_BUDGET.high.total <= 700, "high tier must stay at or below 700 objects");
+for (const [quality, budget] of Object.entries(WORLD_DRESSING_BUDGET)) {
+  assert.ok(
+    budget.mid <= 24 && budget.far <= 10,
+    `${quality} monument bands must stay rare (mid ${budget.mid}, far ${budget.far})`,
+  );
+  assert.ok(
+    budget.near >= 150,
+    `${quality} ground cover must stay a field rather than a route kerb (near ${budget.near})`,
+  );
+}
 assert.ok(
   WORLD_DRESSING_BUDGET.high.far <= 10,
   "far pool must not repeat platter silhouettes across the whole horizon",
@@ -127,7 +152,10 @@ for (const [band, placements] of Object.entries(layout.bands)) {
 assert.ok(
   layout.bands.far.every(
     (placement) =>
-      placement.position[1] + geometryMetrics.far.minY * placement.scale[1] <= -0.06 &&
+      placement.position[1] -
+        polarGroundHeight(placement.position[0], placement.position[2]) +
+        geometryMetrics.far.minY * placement.scale[1] <=
+        -0.06 &&
       placement.rotation[0] === 0 &&
       placement.rotation[2] === 0 &&
       (geometryMetrics.far.height * placement.scale[1]) /
@@ -142,7 +170,10 @@ assert.ok(
 assert.ok(
   layout.bands.mid.every(
     (placement) =>
-      placement.position[1] + geometryMetrics.mid.minY * placement.scale[1] <= 0 &&
+      placement.position[1] -
+        polarGroundHeight(placement.position[0], placement.position[2]) +
+        geometryMetrics.mid.minY * placement.scale[1] <=
+        0 &&
       placement.rotation[0] === 0 &&
       placement.rotation[2] === 0,
   ),

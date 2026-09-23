@@ -46,8 +46,11 @@ const radar = read("components/LiveRadar.jsx");
 const world = read("components/IglooWorld.jsx");
 const hud = read("components/IglooHud.jsx");
 
-assert.match(gate, /Start the adventure into Seal's Topological Land/i);
-assert.match(gate, /Scroll left if boring/i);
+assert.match(gate, /Enter the world/i);
+// The gate must name the wheel as a route to the work. Before the axis
+// controller consumed wheel events over the world this line read "Scroll left
+// if boring", which was both self-deprecating and a gesture that did nothing.
+assert.match(gate, /Or scroll straight to the work/i);
 assert.doesNotMatch(gate, />\s*(Get started|Learn more|Explore more)\s*</i);
 assert.match(`${world}\n${hud}`, /Enter the topology archive/);
 assert.match(`${world}\n${hud}`, /Stay in the polar world/);

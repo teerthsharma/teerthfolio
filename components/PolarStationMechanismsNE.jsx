@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { followRevealScale } from "../lib/station-reveal-follow";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
@@ -17,6 +18,10 @@ import {
   sampleQpuManifoldHeight,
   sampleQpuManifoldPoint,
 } from "../lib/polar-station-mechanisms";
+import {
+  STATION_DIRECTIONAL_RELIEF_GLSL,
+  STATION_RELIEF_SOFFIT_OCCLUSION,
+} from "../lib/polar-art-direction";
 
 export const NORTHEAST_MECHANISM_RENDER_PROFILE =
   "four authored northeast monuments; three bounded architectural instance pools each; shared wrapped-light program; zero textures";
@@ -38,17 +43,100 @@ const TWO_PI = Math.PI * 2;
 // - the rotor beacon, the caged seed, the signal pulses, the heating elements.
 // Painted per-vertex into the merged frame geometry, so a station shows four
 // distinct material zones inside its single existing draw call.
+// HUE PASS. The value ladder below was correct and is untouched; what it never
+// constrained was chroma, and that is what collapsed the camp. Measured on the
+// shipped palette, all four cladding families sat at 164.0, 164.2, 164.3 and
+// 164.0 luma at saturation 0.20-0.25 — one value, four greys, four hue-neutral
+// tints of the same blue. Under a blue key rig that renders as one building
+// drawn four times, which is exactly what the docked captures showed.
+//
+// Every hex below was re-solved at its OWN previous luma (164 base / 172 alt,
+// held to the first decimal) with only hue and saturation changed, so the LAW 3
+// ladder in check-polar-station-mechanisms-ne passes on the same numbers it
+// passed on before and the widened panel band above is still doing its job.
+//
+// Saturation lands at 0.34 base / 0.28 alt, up from 0.20-0.25, and NOT higher.
+// A first pass took these to 0.46-0.50 and that was a real mistake, caught by
+// check-polar-color-continuity: cladding is the FIELD, not the key. That gate
+// classifies a pixel as a saturated accent at sat >= 0.35 and as a low-sat
+// snow/sky anchor at sat <= 0.28, and it caps accent coverage at 22% of frame
+// while requiring 35% anchor. At 0.48 the ice bridge's cladding — the largest
+// surface on the station — crossed the accent threshold on its own, pushing
+// accent coverage to 41% and dropping the anchor field to 29.5%. Both are the
+// same error seen twice: the saturated key had eaten the desaturated field it
+// is supposed to sit on.
+//
+// So the whole ladder now sits deliberately just under the accent threshold.
+// The identity hit stays where it belongs — the signature mechanism pools, which
+// are small and stay hot. This costs little, because the measured gain here was
+// never saturation magnitude: at frame scale the sat deltas were +0.007..+0.024
+// against a +/-0.005 run-to-run noise floor, while the thing that actually made
+// four buildings read as four places was the hue spread below.
+//
+// The four families are pushed apart on the wheel instead of sharing one:
+//
+//   s2      195deg cyan    cryogenic clean room
+//   aether  228deg indigo  abyss hall, so the gold burner is the only warm thing
+//   field    36deg ochre   thermal forge; its personality forbids ice, and a
+//                          blue-grey forge was the plainest identity error here
+//   qpu     152deg jade    already the closest to its identity, just saturated
+//
+// Three of the four land 8-10deg from the centre of their own accent window in
+// check-polar-color-continuity, which the shipped greys could not do at all
+// because they carried no chroma to be measured.
+//
+// The reactor is the exception and is deliberately the least-moved of the four.
+// It was drafted at 172deg petrol on hue-spread grounds and that was wrong twice
+// over: it landed 85deg outside its authored 257+-40 accent window, and petrol
+// is not what this station is. Its personality is "abyss-blue and living-gold",
+// and indigo is the setting that makes gold read — petrol fights it. So the
+// cladding moved to the contract rather than the contract to the cladding.
+// Hue 228 also has the least saturation headroom of the four before the blue
+// channel clips at 255 under an already-blue key rig, which is the documented
+// way these materials collapse into one electric wash. At the 0.34 the field
+// rule settles on, its blue sits at 224 and the question does not arise.
 const STATION_PALETTE = Object.freeze({
-  aetherCladding: "#77839E",
-  aetherCladdingAlt: "#8591AC",
+  aetherCladding: "#94A3E0",
+  aetherCladdingAlt: "#9FABDD",
   drift: "#B3C2D2",
-  fieldCladding: "#59667A",
-  fieldCladdingAlt: "#65718A",
-  qpuCladding: "#6E9190",
-  qpuCladdingAlt: "#7CA1A0",
-  s2Cladding: "#7D8CA6",
-  s2CladdingAlt: "#8C9BB4",
-  steel: "#2A3140",
+  // Only the field family moved, and only to the top of the band it is allowed.
+  //
+  // Measured at a pinned tier, every building reads 37 to 83 luma darker than
+  // the snow it stands on, and three explanations were tested. The light rig is
+  // not it: ambient +71% moved the eight measurements by 0.1 to 5 luma. The
+  // station personality palettes are not it either: the reactor's
+  // world.colors.base went from #274F73 to #6E93B5 and the rendered building
+  // moved 0.1 luma. It is these cladding colours.
+  //
+  // LAW 3 in check-polar-station-mechanisms-ne keeps structure, panel and
+  // hardware as three separated value zones, and it used to cap the panel zone
+  // at 145 luma. Measured at tier medium, that put every one of the eight
+  // buildings between 38 and 83 luma under the snow behind it, with the whole
+  // cladding family already pressed against the ceiling at 130-140.
+  //
+  // The band was widened rather than the ladder abandoned: the panel zone now
+  // reaches 172 and the hardware zone starts at 215 instead of 191, so the >=51
+  // separation that makes the three zones legible is preserved while the whole
+  // building moves up against the snow. Each colour below was lifted by scaling
+  // its channels together, so every station keeps the hue that identifies it and
+  // only its value changes.
+  fieldCladding: "#BBA17B",
+  fieldCladdingAlt: "#BFAA8A",
+  qpuCladding: "#76B397",
+  qpuCladdingAlt: "#85B9A1",
+  s2Cladding: "#7DADBD",
+  s2CladdingAlt: "#8BB4C1",
+  // Still graphite, still under the contract's 64-luma structure ceiling, but
+  // no longer at the bottom of it. #2A3140 measures 48.6, and at tier low —
+  // which is the tier the measured quality ladder puts most visitors on — the
+  // reactor's structure zone and roller door crushed into one black hole with
+  // no readable edge between them. This is 60.5: +12 luma of shadow detail
+  // recovered, 3.5 of headroom left under the ceiling, and the >=51 separation
+  // from every cladding family (now 103.5) is far wider than the contract asks.
+  // An earlier attempt at #3E4759 measured 70.4 and failed the ceiling; this is
+  // deliberately short of that, and the ceiling is what stops the frame from
+  // stopping reading as frame against the panel.
+  steel: "#363D4B",
   trim: "#E8705E",
   window: "#F2B96B",
 });
@@ -1737,7 +1825,6 @@ function patchAwardSurface(
         "#include <common>",
         `#include <common>
 varying vec3 vAwardWorldPosition;
-varying vec3 vAwardLocalPosition;
 uniform float uAwardActivity;
 uniform float uAwardEffectMode;
 uniform float uAwardTime;`,
@@ -1745,7 +1832,6 @@ uniform float uAwardTime;`,
       .replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
-vAwardLocalPosition = position;
 float awardAetherMask = step(1.5, uAwardEffectMode) * (1.0 - step(2.5, uAwardEffectMode));
 float awardFieldMask = step(2.5, uAwardEffectMode) * (1.0 - step(3.5, uAwardEffectMode));
 float awardQpuMask = step(3.5, uAwardEffectMode);
@@ -1800,7 +1886,6 @@ transformed.z = position.z + clamp(
         "#include <common>",
         `#include <common>
 varying vec3 vAwardWorldPosition;
-varying vec3 vAwardLocalPosition;
 uniform vec3 uAwardRimColor;
 uniform vec3 uAwardPhaseColor;
 uniform float uAwardRimStrength;
@@ -1846,8 +1931,21 @@ float awardStationField(vec3 p) {
 float awardMacro = awardLowPass(vAwardWorldPosition * 0.72);
 float awardFacing = clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0);
 float awardFresnel = pow(1.0 - awardFacing, 3.0);
-float awardWrappedDiffuse = clamp(normal.y * 0.5 + 0.5, 0.0, 1.0);
+${STATION_DIRECTIONAL_RELIEF_GLSL}
+// Was clamp(normal.y * 0.5 + 0.5) — view space, so the sky wrap followed the
+// camera instead of the sky. World-space now; see STATION_DIRECTIONAL_RELIEF_GLSL.
+float awardWrappedDiffuse = clamp(stationReliefWorldNormal.y * 0.5 + 0.5, 0.0, 1.0);
 float awardStationSignal = awardStationField(vAwardWorldPosition);
+// No base contact-darkening term here, deliberately, though grounding the
+// buildings was asked for. Measured on the docked captures over the station
+// region, the bottom of every one of these buildings is already the darkest
+// thing in frame: at tier low the reactor reads p5 0.008 and the field chamber
+// p5 0.013, i.e. the base is at or under 1% luma and has no detail left in it.
+// They do not float for want of a dark base — they crush into one. A contact
+// term would have deepened exactly the percentile that is already collapsed and
+// bought the muddiness the still-frame rule forbids. The lift on STATION_PALETTE
+// steel goes the other way for the same reason, and real cast contact shadow is
+// a ground-plane job rather than a station-shader one.
 // Sky-dome wrap fill. Antarctic light is overwhelmingly bounced off snow and
 // cloud, so a station lit only by the key light collapses into a black
 // silhouette whenever the camera lands on its shaded side. This gain is what
@@ -1855,6 +1953,21 @@ float awardStationSignal = awardStationField(vAwardWorldPosition);
 reflectedLight.indirectDiffuse +=
   diffuseColor.rgb * uAwardAmbientGain * (1.0 + awardWrappedDiffuse * 1.7);
 reflectedLight.indirectDiffuse *= 1.0 + awardMacro * uAwardMacroStrength;
+// Deck lip and soffit. The wrap above is a gradient over the whole hemisphere
+// and by itself only tints; these two confine a lift to genuine upward faces
+// and an occlusion to genuine downward ones, so a catwalk deck, a stack cap, a
+// roof section and the plant they hang off stop sharing one value. The lift is
+// scaled by this family's own ambient gain (0.30-0.42 on the frame bodies,
+// 0.006-0.012 on the hardware pools) so breakup never lands on a small bright
+// lamp, where it reads as dirt rather than as surface.
+reflectedLight.indirectDiffuse += diffuseColor.rgb * uAwardAmbientGain * stationDeckLight * 0.62;
+// Half the first captured value. At 0.42 the corner between the reactor's long
+// wall and its end wall arrived as intended, but the same fill landed on the
+// cryo lab's two fan rotors — near-white metal, where a lift proportional to
+// albedo clips — and washed the shading off blades that had been reading as
+// curved. Halved, the wall corner survives and the rotors keep their form.
+reflectedLight.indirectDiffuse += diffuseColor.rgb * uAwardAmbientGain * stationWallTurn * 0.24;
+reflectedLight.indirectDiffuse *= 1.0 - stationSoffitShade * ${STATION_RELIEF_SOFFIT_OCCLUSION};
 reflectedLight.indirectDiffuse += uAwardPhaseColor * awardStationSignal * uAwardEffectStrength;
 reflectedLight.indirectSpecular += uAwardRimColor * awardFresnel * uAwardRimStrength;
 // Shared ember windows: the painted amber vertices of the boot-camp palette
@@ -1879,7 +1992,23 @@ function makeArchitecturalSurface({
   effectStrength = 0,
   emissive,
   emissiveIntensity,
-  macroStrength = 0.022,
+  // The three-octave `awardLowPass` is computed for every fragment of every
+  // station whatever this is set to, then scaled by it. At 0.022 the result was
+  // +-2% on indirect diffuse — paid for in full and thrown away, which is why
+  // the cladding read as flat vinyl in every docked capture. 0.075 is +-7%,
+  // which is visible as panel-scale value breakup and costs literally nothing
+  // extra: same instruction count, one different multiplier.
+  //
+  // Deliberately restrained rather than maximal. The house rule for a still is
+  // that muddiness is cured by reducing overlay contrast, not by adding another
+  // layer, so this is set to the point where the surface stops reading as one
+  // flat value and stopped there. It samples world position at 0.72 scale, so
+  // it is building-scale variation, not grain.
+  //
+  // Only the four frame bodies take this default; every signature/hardware pool
+  // passes its own 0.006-0.012, because breakup on a small bright lamp reads as
+  // dirt rather than as surface.
+  macroStrength = 0.075,
   metalness,
   opacity = 0.96,
   phaseColor,
@@ -2123,7 +2252,7 @@ function createRenderResources(quality, detailed) {
     // cobalt identity is allowed to be a light source.
     s2Signal: makeArchitecturalSurface({
       ambientGain: 0.24,
-      color: "#C6D2FA",
+      color: "#CFDCFF",
       effectMode: 1,
       effectStrength: 0.16,
       emissive: "#5573E0",
@@ -2641,12 +2770,22 @@ function applyQpuInstances(state, pools, scratch, traffic, reducedMotion) {
   commitPool(pools.signals);
 }
 
-function applyStationRootReveal(root, stationId, alpha, familyAlpha, isPromise, isDocked) {
+function applyStationRootReveal(
+  root,
+  stationId,
+  alpha,
+  familyAlpha,
+  isPromise,
+  isDocked,
+  delta = 0,
+  reducedMotion = false,
+) {
   if (!root) return;
   root.visible = alpha > 0.005 && familyAlpha > 0.005;
   if (!root.visible) return;
   const heroScale = NE_MONUMENT_CONTRACTS[stationId]?.heroScale ?? 1;
-  const revealScale = isPromise ? 0.88 : isDocked ? heroScale : 1;
+  const targetScale = isPromise ? 0.88 : isDocked ? heroScale : 1;
+  const revealScale = followRevealScale(root, targetScale, delta, reducedMotion);
   root.scale.setScalar(revealScale);
   const lowestLocalY = STATION_LOWEST_LOCAL_Y[stationId];
   if (lowestLocalY !== undefined) {
@@ -2770,6 +2909,8 @@ export default function PolarStationMechanismsNE({
         familyAlpha,
         promiseId === id,
         exclusiveStationId === id || pose?.dockedId === id,
+        delta,
+        reducedMotion,
       );
     }
     resolveNortheastMechanismInputs(pose, inputsRef.current);

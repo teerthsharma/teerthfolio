@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { followRevealScale } from "../lib/station-reveal-follow";
 import {
   ASSEMBLY_WORKSHOP_GEOMETRY,
   SW_ASSEMBLY_RELIC_CAPACITY,
@@ -14,6 +15,15 @@ import {
   resolveSouthwestMechanismInputs,
   resolveSouthwestStationReveal,
 } from "../lib/polar-station-mechanisms-sw";
+import {
+  MAST_TELEMETRY,
+  MAST_TELEMETRY_CYCLE_SECONDS,
+  MERKLE_ARCHIVE_WALL,
+} from "../lib/crypto-structures";
+import {
+  STATION_DIRECTIONAL_RELIEF_GLSL,
+  STATION_RELIEF_SOFFIT_OCCLUSION,
+} from "../lib/polar-art-direction";
 
 export const SOUTHWEST_MECHANISM_RENDER_PROFILE =
   "three source-backed camp facilities; beveled and lathed high-poly illusion; eight instance pools plus one connected trace; three shared programs; zero textures";
@@ -27,12 +37,39 @@ const POLAR_GROUND_Y = -0.22;
  * returns a limited fraction of albedo to a wall that faces the dock. Instance
  * colour is a multiplier, so the authored camp hues are scaled into the
  * response band and the 3-zone value ladder survives intact.
- * Measured against the NEUTRALISED rig (see RIG_NEUTRALITY in
- * PolarBiomeWorld): that change lifted cladding response ~1.5-1.75x, so this
- * came 6 -> 3.5. At 6 the cladding overshot to luma ~183 and read salmon.
- * Re-measure with a docked screenshot if the world lighting rig changes again.
+ * Measured against the NEUTRALISED rig (see RIG_NEUTRALITY in PolarBiomeWorld).
+ *
+ * 4.2 -> 3.0, and every per-zone multiplier below deleted with it. Those two
+ * changes are one fix, and the reason is measurable rather than aesthetic.
+ *
+ * Sampling a 340x380 window on the body of all eight docked stations, the four
+ * NE stations that read as buildings bottom out at luma p5 0.045-0.066 and sit
+ * at p50 0.38-0.47. All three southwest stations bottomed out at p5 0.126-0.140
+ * and sat at p50 0.504-0.548: no true darks anywhere and a body a third of a
+ * stop too bright. That is the entire difference between the two families —
+ * NOT saturation, which measured HIGHER on the working four (0.407-0.454) than
+ * on the failing three (0.310-0.388).
+ *
+ * The cause was the per-zone multipliers, which had inverted the ladder they
+ * were meant to enforce. Expressed as authored luma x net factor they were:
+ *   structureShadow 0.126 x 10.92 = 1.38     ice core   0.842 x 1.68 = 1.42
+ *   structureSteel  0.190 x  9.24 = 1.76     drift snow 0.895 x 1.76 = 1.58
+ * Graphite steel was rendering BRIGHTER than the snow it stands in, and the
+ * darkest structural member in the camp was the same value as an ice core.
+ * Nothing could read as recessed because nothing was dark.
+ *
+ * SW_BASE_LANGUAGE already encodes the correct ladder (structure 0.13-0.19,
+ * cladding 0.42-0.46, hardware 0.80, snow 0.90). Solving each zone's target
+ * against the NE family's measured band gives a per-zone factor of 3.26 / 3.03 /
+ * 2.79 / 2.85 — i.e. one flat number. So the body families now take the authored
+ * hex unscaled and this single gain places the whole ladder, which is what the
+ * comment above always claimed was happening.
+ *
+ * Identity and light colours (trim, worklight, accent seams, arc) are NOT body
+ * zones and keep their previous rendered brightness: their multipliers were
+ * rescaled by 4.2/3.0 = 1.4 so only the ladder moved.
  */
-const SW_LIGHT_RESPONSE_GAIN = 3.5;
+const SW_LIGHT_RESPONSE_GAIN = 3;
 /**
  * The camp's dusk rig is strongly blue (ambient #8FA2CC, hemisphere #B6C8EC,
  * blue fill), so a neutral albedo renders with its blue channel clipped — which
@@ -61,7 +98,15 @@ function balanceForDusk(color) {
 const TOPOLOGY_BAR_COUNT = SW_MECHANISM_PROFILES["topology-archive-wall"].barCount;
 const TOPOLOGY_RACK_TIERS = 4;
 const TOPOLOGY_RACK_COLUMNS = TOPOLOGY_BAR_COUNT / TOPOLOGY_RACK_TIERS;
-const TOPOLOGY_FOUNDATION_COUNT = 38;
+const TOPOLOGY_SHED_COUNT = 38;
+// THE MERKLE WALL. One block per node of the SHA-256 Merkle tree over this
+// station's archived corpus, laid on the dock-facing gable end: course row IS
+// tree level, so the bottom course is the corpus itself, every course above it
+// is one round of hashing, and the single capstone is the archive's address.
+// Twelve more instances in a pool that already exists costs no draw call and no
+// program, which is the only reason a whole second facade is affordable here.
+const TOPOLOGY_MERKLE_COUNT = MERKLE_ARCHIVE_WALL.nodeCount;
+const TOPOLOGY_FOUNDATION_COUNT = TOPOLOGY_SHED_COUNT + TOPOLOGY_MERKLE_COUNT;
 const TOPOLOGY_SURFACE_COUNT = TOPOLOGY_BAR_COUNT + TOPOLOGY_FOUNDATION_COUNT;
 const TOPOLOGY_FOUNDATION_START = TOPOLOGY_BAR_COUNT;
 const TOPOLOGY_RACK_Z = 0.18;
@@ -81,7 +126,66 @@ const TOPOLOGY_RIG_HEAD_INDEX = TOPOLOGY_FOUNDATION_START + 34;
 const TOPOLOGY_WINDOW_END_INDEX = TOPOLOGY_FOUNDATION_START + 35;
 const TOPOLOGY_WINDOW_BACK_INDEX = TOPOLOGY_FOUNDATION_START + 36;
 const TOPOLOGY_DECK_NOSING_INDEX = TOPOLOGY_FOUNDATION_START + 37;
-const UPSTREAM_STRUCTURE_COUNT = 28;
+const TOPOLOGY_MERKLE_START = TOPOLOGY_FOUNDATION_START + TOPOLOGY_SHED_COUNT;
+/**
+ * Where the Merkle wall is laid, and why there.
+ *
+ * The gable end at local +X is the one large planar surface this building shows
+ * the dock: the long back wall faces away, and the bay front is an opening with
+ * a rack standing in it. Blocks sit PROUD of the existing end-wall slab rather
+ * than replacing it, so the cold store stays sealed and the silhouette is
+ * untouched — the courses are relief on a wall, not the wall itself.
+ *
+ * Course spans converge linearly from the full wall width to one capstone
+ * width, which is what makes twelve blocks read as a tree rather than a grid.
+ */
+const TOPOLOGY_MERKLE_FACE_X = 1.49;
+const TOPOLOGY_MERKLE_CENTER_Z = 0.22;
+const TOPOLOGY_MERKLE_COURSE_BASE_Y = 0.155;
+const TOPOLOGY_MERKLE_COURSE_STEP_Y = 0.22;
+// The bottom course spans 0.86 of the wall's 1.08 depth, not the full width: at
+// 1.00 the outermost leaf blocks broke the building's leading corner and read
+// as crates hung off the end rather than as courses laid into it.
+const TOPOLOGY_MERKLE_SPAN_BASE = 0.86;
+const TOPOLOGY_MERKLE_SPAN_CAP = 0.28;
+const TOPOLOGY_MERKLE_JOINT = 0.025;
+/**
+ * The laid wall, solved once at module load. Every number below is either the
+ * authored course geometry or a byte of the node's own SHA-256 digest:
+ * byte 0 is the block's value inside the cladding band, byte 1 how far it
+ * stands proud, byte 2 its course height. Nothing here reads the clock.
+ */
+const TOPOLOGY_MERKLE_BLOCKS = Object.freeze(
+  MERKLE_ARCHIVE_WALL.nodes.map((node) => {
+    const rows = Math.max(1, MERKLE_ARCHIVE_WALL.levels - 1);
+    const span =
+      TOPOLOGY_MERKLE_SPAN_BASE +
+      (TOPOLOGY_MERKLE_SPAN_CAP - TOPOLOGY_MERKLE_SPAN_BASE) * (node.courseRow / rows);
+    const pitch = span / node.courseWidth;
+    return Object.freeze({
+      depth: 0.04 + node.depth * 0.04,
+      height: 0.14 + node.rise * 0.05,
+      width: pitch - TOPOLOGY_MERKLE_JOINT,
+      y: TOPOLOGY_MERKLE_COURSE_BASE_Y + node.courseRow * TOPOLOGY_MERKLE_COURSE_STEP_Y,
+      z:
+        TOPOLOGY_MERKLE_CENTER_Z +
+        (node.courseSlot + 0.5 - node.courseWidth / 2) * pitch,
+    });
+  }),
+);
+const UPSTREAM_MAST_BAND_COUNT = 6;
+// Slots 0-27 are the harbour, the tower's legs and belts, the crown and the
+// stays; 28 up is the diagonal web. Widening a pooled instanced mesh costs no
+// draw call and no program, which is why the bracing could be afforded at all.
+const UPSTREAM_BRACE_START = 28;
+// KEYSTREAM TELEMETRY. Eight climbing lamps whose blink pattern is a real
+// 32-bit maximal-length LFSR keystream seeded by SHA-256 of the upstream
+// repositories this mast relays (lib/crypto-structures.js). They are lamps
+// bolted to the legs, not structure: nothing about the tower's members, taper,
+// web, whip or beacon crown moves for them.
+const UPSTREAM_TELEMETRY_START = UPSTREAM_BRACE_START + UPSTREAM_MAST_BAND_COUNT * 4;
+const UPSTREAM_TELEMETRY_COUNT = MAST_TELEMETRY.lampCount;
+const UPSTREAM_STRUCTURE_COUNT = UPSTREAM_TELEMETRY_START + UPSTREAM_TELEMETRY_COUNT;
 const UPSTREAM_RING_COUNT = SW_MECHANISM_PROFILES["upstream-radio-mast"].ringCount;
 // The pulse pool carries the three signal rings plus one dedicated tip-beacon
 // halo so the blinking aviation beacon costs zero extra draw calls.
@@ -90,14 +194,16 @@ const UPSTREAM_TIP_BEACON_RING_INDEX = UPSTREAM_RING_COUNT;
 const UPSTREAM_TIP_BEACON_MEMBER_INDEX = 19;
 const UPSTREAM_DISH_ELEVATION = 0.3;
 const UPSTREAM_DISH_FACE_ON = true;
-// Compact broadcast profile: at the 1.9 docked hero scale the blinking tip
-// beacon must stay inside the docked camera crop, so the whole crown lives
-// below local y 1.9.
-const UPSTREAM_DISH_MOUNT_Y = 1.3;
-const UPSTREAM_DISH_MOUNT_REACH = 0.5;
-const UPSTREAM_TIP_BEACON_Y = 1.84;
-const UPSTREAM_MAST_BAND_COUNT = 6;
-const UPSTREAM_MAST_BAND_HEIGHT = 0.27;
+// The dish hangs at working height on the mast's side pivot, not on its head.
+// At the old 1.3 it sat at 0.92 of the mast and its bowl was the top of the
+// outline, so the tower terminated in a disc; a mast has to terminate in a
+// point. 0.98 puts it just under half height, which is also the only height a
+// dish on a real mast can be serviced at.
+const UPSTREAM_DISH_MOUNT_Y = 0.98;
+const UPSTREAM_DISH_MOUNT_REACH = 0.54;
+const UPSTREAM_DISH_SCALE = 0.64;
+const UPSTREAM_TIP_BEACON_Y = 2.58;
+const UPSTREAM_TIP_SPIRE_TOP_Y = 2.5;
 const UPSTREAM_RADAR_RING_FACING = Math.PI / 2;
 /**
  * MACHINE SHOP (assembly-tool-locker).
@@ -214,6 +320,179 @@ const STATION_LOWEST_LOCAL_Y = Object.freeze(
   Object.fromEntries(SW_MECHANISM_IDS.map((id) => [id, localGroundY(id)])),
 );
 
+/**
+ * BRACED LATTICE MAST.
+ *
+ * The mast used to be six solid boxes of decreasing width stacked on a plinth,
+ * painted alternately coral and ivory. That is a child's stacking ring toy, and
+ * no repaint fixes it, because the failure is that the volume is CLOSED: a real
+ * broadcast mast is read as a mast entirely by seeing sky through an open truss.
+ * The banding is not the problem — aviation obstruction marking is genuinely
+ * alternating — the problem was banding a solid.
+ *
+ * Opening it was necessary and not sufficient. Thresholded to a black shape on
+ * white — which is the only view in which "stack of boxes" and "braced tower"
+ * are different objects — the open version still failed to name itself, for
+ * three measurable reasons:
+ *
+ * 1. IT WAS NOT TALL. Silhouette aspect was 1.22:1, as wide as it was high. The
+ *    camera already reserves 4.7 world units of height for this station
+ *    (MECHANISM_VERTICAL_ENVELOPES) and SW_MECHANISM_SCALE_CONTRACTS asks for
+ *    4.5 seal heights of mast; the geometry was delivering 2.30. It was framed
+ *    like a tower and built like a hut, so half the docked frame was empty sky
+ *    and the building read small and far away. Height goes to the envelope it
+ *    was always framed against.
+ * 2. IT HAD NO DIAGONALS. Belts and legs alone are a LADDER: in outline, the
+ *    horizontals read as rungs. What identifies a lattice mast at any distance
+ *    is the zigzag web between the legs, and there were zero web members. Six
+ *    bays x four faces of alternating diagonal bracing is added below.
+ * 3. THE DISH WAS THE CROWN. A 0.72 bowl mounted at 0.92 of the mast's height
+ *    eclipsed the top of the tower, so the outline terminated in a disc — the
+ *    blob primitive the object gate names explicitly. The dish drops to working
+ *    height on its side pivot, which is also where a real dish is serviced
+ *    from, and the crown becomes what a mast's crown is: taper, crossarms,
+ *    whip, beacon.
+ *
+ * Cost: all of it lands in the ONE pooled instanced draw the mast already
+ * issues, so the 9/4/0 draw budget is untouched at every tier. The bracing is
+ * 24 more instances of the existing chamfered member — 24 x 24 verts of extra
+ * geometry and no extra fill, since the members are thin and mostly against
+ * sky. A lattice is the cheap direction to spend on in a fill-bound world.
+ */
+const UPSTREAM_GROUND_Y = localGroundY("upstream-radio-mast");
+const UPSTREAM_MAST_BASE_Y = UPSTREAM_GROUND_Y + 0.12;
+const UPSTREAM_MAST_TOP_Y = 2.06;
+const UPSTREAM_MAST_HEIGHT = UPSTREAM_MAST_TOP_Y - UPSTREAM_MAST_BASE_Y;
+const UPSTREAM_LEG_SPREAD_BASE = 0.2;
+const UPSTREAM_LEG_SPREAD_TOP = 0.075;
+const UPSTREAM_LEG_GAUGE = 0.05;
+const UPSTREAM_BELT_GAUGE = 0.034;
+const UPSTREAM_BRACE_GAUGE = 0.028;
+/**
+ * Real guys are thin, taut and anchored at both ends. The old ones were 0.028
+ * square and placed by hand at eyeballed angles, so they read as brown sticks
+ * stabbing through the tower and touching nothing. These are solved instead.
+ */
+const UPSTREAM_GUY_GAUGE = 0.013;
+const UPSTREAM_GUY_TOP_Y = 1.44;
+const UPSTREAM_FOOTINGS = Object.freeze([
+  Object.freeze([-0.6, 0.44]),
+  Object.freeze([0.6, 0.44]),
+  Object.freeze([0, -0.58]),
+]);
+
+function upstreamSpreadAt(t) {
+  return (
+    UPSTREAM_LEG_SPREAD_BASE +
+    (UPSTREAM_LEG_SPREAD_TOP - UPSTREAM_LEG_SPREAD_BASE) * t
+  );
+}
+
+/**
+ * Aim a Y-up member from one point to another, solved once at module load
+ * rather than per frame. With THREE's default XYZ Euler and rotation
+ * (0, yaw, roll) the local +Y axis maps to
+ *   (-cos(yaw)sin(roll), cos(roll), sin(yaw)sin(roll))
+ * so for a unit direction (dx, dy, dz) the exact solution is
+ *   roll = acos(dy),  yaw = atan2(dz, -dx)
+ * and the member length is the true end-to-end distance, which is what makes
+ * both ends actually land on something. Both the guy stays and the lattice
+ * bracing are this same problem, so they share the one solver.
+ */
+function solveMember(from, to) {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const dz = to[2] - from[2];
+  const length = Math.hypot(dx, dy, dz);
+  return Object.freeze({
+    length,
+    position: Object.freeze([
+      (from[0] + to[0]) / 2,
+      (from[1] + to[1]) / 2,
+      (from[2] + to[2]) / 2,
+    ]),
+    roll: Math.acos(dy / length),
+    yaw: Math.atan2(dz, -dx),
+  });
+}
+
+const UPSTREAM_GUY_STAYS = Object.freeze(
+  UPSTREAM_FOOTINGS.map(([footX, footZ]) =>
+    solveMember([0, UPSTREAM_GUY_TOP_Y, 0], [footX, UPSTREAM_GROUND_Y + 0.2, footZ]),
+  ),
+);
+
+/**
+ * The web. One diagonal per bay per face, flipping direction every bay so the
+ * four faces carry a continuous zigzag rather than a set of parallel slashes —
+ * that alternation is what the eye reads as "braced" instead of "leaning".
+ *
+ * Corner order matches the leg loop below (0:-x-z, 1:+x-z, 2:+x+z, 3:-x+z), so
+ * face f spans corners f and (f+1)%4 and the four faces close the tower.
+ */
+const UPSTREAM_BRACE_FACES = 4;
+const UPSTREAM_CORNER_SIGNS = Object.freeze([
+  Object.freeze([-1, -1]),
+  Object.freeze([1, -1]),
+  Object.freeze([1, 1]),
+  Object.freeze([-1, 1]),
+]);
+
+function upstreamCorner(cornerIndex, t) {
+  const spread = upstreamSpreadAt(t);
+  const [signX, signZ] = UPSTREAM_CORNER_SIGNS[cornerIndex];
+  return [
+    signX * spread,
+    UPSTREAM_MAST_BASE_Y + UPSTREAM_MAST_HEIGHT * t,
+    signZ * spread,
+  ];
+}
+
+const UPSTREAM_BRACES = Object.freeze(
+  Array.from({ length: UPSTREAM_MAST_BAND_COUNT * UPSTREAM_BRACE_FACES }, (_, slot) => {
+    const bay = Math.floor(slot / UPSTREAM_BRACE_FACES);
+    const face = slot % UPSTREAM_BRACE_FACES;
+    const lower = bay / UPSTREAM_MAST_BAND_COUNT;
+    const upper = (bay + 1) / UPSTREAM_MAST_BAND_COUNT;
+    const rising = (bay + face) % 2 === 0;
+    const left = face;
+    const right = (face + 1) % UPSTREAM_BRACE_FACES;
+    return rising
+      ? solveMember(upstreamCorner(left, lower), upstreamCorner(right, upper))
+      : solveMember(upstreamCorner(right, lower), upstreamCorner(left, upper));
+  }),
+);
+
+/**
+ * Telemetry lamp mounts: alternating corners of the dock-facing truss face,
+ * climbing the tower, pushed just clear of the leg they are bolted to. Solved
+ * at module load off the same corner solver the web uses, so a lamp cannot
+ * drift off the structure when the taper changes.
+ */
+const UPSTREAM_TELEMETRY_MOUNTS = Object.freeze(
+  Array.from({ length: UPSTREAM_TELEMETRY_COUNT }, (_, lamp) => {
+    const [x, y, z] = upstreamCorner(
+      lamp % 2,
+      (lamp + 0.6) / UPSTREAM_TELEMETRY_COUNT,
+    );
+    return Object.freeze([x * 1.2, y, z * 1.2]);
+  }),
+);
+
+/**
+ * One lamp's lit level for a given telemetry clock. Phase, duty and intensity
+ * are keystream bytes fixed at module load, so this is a divide, a modulo and a
+ * compare — the pattern is cryptographic, the per-frame arithmetic is not.
+ *
+ * `telemetryTime` does not advance under reduced motion, so the pattern then
+ * holds at its seed state instead of freezing every lamp dark.
+ */
+function upstreamTelemetryLevel(lamp, telemetryTime) {
+  const cycle =
+    (telemetryTime / MAST_TELEMETRY_CYCLE_SECONDS + MAST_TELEMETRY.phase[lamp]) % 1;
+  return cycle < MAST_TELEMETRY.duty[lamp] ? MAST_TELEMETRY.intensity[lamp] : 0;
+}
+
 function createDynamicLineGeometry(maximumSegments) {
   const geometry = new THREE.BufferGeometry();
   const position = new THREE.BufferAttribute(
@@ -256,6 +535,15 @@ function createBeveledExtrusion(shape, quality, bevelSize) {
  * (the root cause of the old monochrome dark-red tower). Bake soft
  * normal-based face shading so band paint reads as lit steel, not decals.
  */
+/**
+ * Range was 0.96-1.48, against the 0.90-1.14 its panel counterpart uses on the
+ * other two camp buildings. Both bakes feed the same per-instance colours and
+ * the same shared gain, so the mast was silently running ~1.3x hotter than the
+ * cold store and machine shop on every member it draws — which is why its pale
+ * aviation bands clipped to snow-white and its dish, the largest bright surface
+ * in the camp, blew out into a flat paper ellipse no matter what colour it was
+ * given. Matched to the panel band so one gain means one thing camp-wide.
+ */
 function bakeFaceShadingAttribute(geometry) {
   const normals = geometry.getAttribute("normal");
   const shades = new Float32Array(normals.count * 3);
@@ -263,7 +551,7 @@ function bakeFaceShadingAttribute(geometry) {
     const normalY = normals.getY(index);
     const normalZ = normals.getZ(index);
     const shade =
-      0.96 + Math.abs(normalZ) * 0.22 + Math.max(0, normalY) * 0.3;
+      0.9 + Math.abs(normalZ) * 0.1 + Math.max(0, normalY) * 0.18;
     shades[index * 3] = shade;
     shades[index * 3 + 1] = shade;
     shades[index * 3 + 2] = shade;
@@ -445,6 +733,30 @@ function createRenderResources(quality) {
       transparent: true,
       vertexColors: true,
     });
+    // DIRECTIONAL RELIEF. The vertex bakes below can only be an approximation:
+    // they are computed in the part's LOCAL space, and the camp instances every
+    // part at a rotation (crossarms at PI/2, mast legs leaned inward), so a
+    // local-Y term is not world up for every draw and a local-space soffit would
+    // have darkened the wrong faces. The world-space pass belongs in the shader,
+    // where it is correct for every instance of every pool at once. Same block,
+    // same constants as the northeast family: one soffit means one thing.
+    material.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <lights_fragment_end>",
+        `#include <lights_fragment_end>
+${STATION_DIRECTIONAL_RELIEF_GLSL}
+// The camp bodies carry no ambient-gain uniform — they are read by the scene's
+// key/fill/hemisphere rig — so the deck lift is taken off the surface's own
+// albedo. Held well under the northeast lift because these three are white-base
+// materials tinted per instance, and a proportional lift on white clips.
+reflectedLight.indirectDiffuse += diffuseColor.rgb * stationDeckLight * 0.085;
+reflectedLight.indirectDiffuse += diffuseColor.rgb * stationWallTurn * 0.035;
+reflectedLight.indirectDiffuse *= 1.0 - stationSoffitShade * ${STATION_RELIEF_SOFFIT_OCCLUSION};`,
+      );
+    };
+    // One key for every camp body keeps the family at its budgeted three
+    // programs: these materials already differed only by uniform values.
+    material.customProgramCacheKey = () => "polar-sw-camp-surface-v1";
     material.userData.stationBaseOpacity = opacity;
     return material;
   };
@@ -495,28 +807,35 @@ function createRenderResources(quality) {
     // instance color (mint packets, warm white-coral beacon) instead of one
     // shared teal wash.
     upstreamSignal: makeGlow("#FFFFFF", 0.9),
-    // Warm white hardware read for the lathe dish, distinct from the banded
-    // mast steel: low warm-ivory emissive floor keeps it legible at dusk.
+    // LAW 3 applies to the mast too, and this is where it was being broken
+    // hardest: at 0.52 the dish emitted half its own light, so the lathe bowl's
+    // curvature never shaded and a genuinely dished reflector rendered as a flat
+    // white ellipse — the "paper dish" read. At 0.06 the camp key models the
+    // bowl and the concave face darkens away from the light, which is the only
+    // thing that makes a parabolic reflector look like one.
     upstreamDish: makeSurface({
       color: "#FFFFFF",
       emissive: upstreamPalette.trim,
-      emissiveIntensity: 0.52,
-      metalness: 0.08,
+      emissiveIntensity: 0.06,
+      metalness: 0.18,
       opacity: 1,
-      roughness: 0.5,
+      roughness: 0.42,
     }),
     // Banded broadcast steel: hue lives in the per-instance aviation band
-    // colors, so the shared emissive is only a dim warm-ivory dusk floor —
-    // never the old full-strength coral wash that turned the tower monochrome.
-    // Low metalness on purpose: with no environment map, metallic response
-    // swallows diffuse and re-creates the monochrome silhouette.
+    // colors, so the shared emissive is only a dim warm-ivory dusk floor.
+    // 0.36 -> 0.05 brings the mast inside the same LAW 3 band the cold store
+    // and machine shop have always been held to. At 0.36 a warm emissive sat on
+    // top of near-black graphite and turned every structural member, guy stay
+    // and antenna pole mid-brown, and it flattened the whole tower by drowning
+    // the key light's gradient — which is most of why it read as a toy.
+    // Roughness up 0.36 -> 0.55: painted structural steel, not enamel.
     upstreamSurface: makeSurface({
       color: "#FFFFFF",
       emissive: upstreamPalette.trim,
-      emissiveIntensity: 0.36,
-      metalness: 0.14,
+      emissiveIntensity: 0.05,
+      metalness: 0.22,
       opacity: 1,
-      roughness: 0.36,
+      roughness: 0.55,
     }),
   };
   materials.topologyTrace.userData.stationBaseOpacity = 0.96;
@@ -533,11 +852,21 @@ function createRenderResources(quality) {
   };
 }
 
-function applyStationRootReveal(root, stationId, alpha, familyAlpha, isPromise, dockedHeroScale = 1) {
+function applyStationRootReveal(
+  root,
+  stationId,
+  alpha,
+  familyAlpha,
+  isPromise,
+  dockedHeroScale = 1,
+  delta = 0,
+  reducedMotion = false,
+) {
   if (!root) return;
   root.visible = alpha > 0.005 && familyAlpha > 0.005;
   if (!root.visible) return;
-  const revealScale = isPromise ? 0.88 : dockedHeroScale;
+  const targetScale = isPromise ? 0.88 : dockedHeroScale;
+  const revealScale = followRevealScale(root, targetScale, delta, reducedMotion);
   root.scale.setScalar(revealScale);
   // Scale about the ground-contact plane, not the root origin: lift the root
   // so the footing plane stays pinned at POLAR_GROUND_Y for whatever scale
@@ -629,65 +958,201 @@ function upstreamColors() {
   if (upstreamColorAuthority) return upstreamColorAuthority;
   const profile = SW_MECHANISM_PROFILES["upstream-radio-mast"];
   const palette = profile.palette;
+  const upstreamPalette = palette;
   const white = new THREE.Color("#FFFFFF");
-  const coral = new THREE.Color(profile.accent).multiplyScalar(1.08);
-  const ivory = new THREE.Color(palette.trim).lerp(white, 0.62).multiplyScalar(1.12);
-  const graphite = new THREE.Color(palette.bearing)
-    .lerp(new THREE.Color(palette.trim), 0.24);
-  const brass = new THREE.Color(palette.trim).multiplyScalar(0.88);
-  const mint = new THREE.Color(palette.packet).multiplyScalar(1.15);
+  const gain = SW_LIGHT_RESPONSE_GAIN;
+  // THIS STATION WAS THE OUTLIER OF THE OUTLIERS, in two ways that compounded.
+  //
+  // 1. It was the only southwest station that never applied the shared light
+  //    response gain, so it could not use the camp's authored value ladder at
+  //    all and instead carried raw near-full-albedo palette hexes: coral at
+  //    0.71 red and an ivory clipped to white. A stack of those two alternating
+  //    is a candy stripe by construction, whatever the hues are.
+  // 2. Its body material ran emissiveIntensity 0.36 and its dish 0.52, against
+  //    the <= 0.06 LAW 3 band the cold store and machine shop are held to and
+  //    the check script now enforces here too. A body that emits a third of its
+  //    own light barely responds to the key, so it had almost no gradient
+  //    across any face — the single clearest tell between a prop and a toy —
+  //    and the warm emissive floor over a near-black graphite is what turned
+  //    every structural member, guy and pole mid-BROWN rather than steel.
+  //
+  // Both are now fixed the same way the other two stations already worked:
+  // authored SW_BASE_LANGUAGE hexes, unscaled, times the shared gain, lit by
+  // the camp rig. Coral survives where a real aviation-marked mast wears it —
+  // alternating obstruction bands and the tip beacon — but as paint on a
+  // graphite lattice rather than as half of the building's mass.
+  // The mast is the one camp building whose STRUCTURE is its body rather than
+  // its frame: legs, belts, poles and stays are most of its pixels, where the
+  // cold store and machine shop spend the same graphite on thin members against
+  // a large clad wall. At the camp's bare structural value that made the whole
+  // tower a black silhouette with no form in it. Galvanised lattice is honestly
+  // lighter than painted structural steel, so the legs take the camp graphite
+  // pulled a quarter of the way to hardware — same kit, correct finish.
+  const graphite = balanceForDusk(
+    new THREE.Color(SW_BASE_LANGUAGE.structureSteel)
+      .lerp(new THREE.Color(SW_BASE_LANGUAGE.hardware), 0.24),
+  ).multiplyScalar(gain);
+  const graphiteDeep = balanceForDusk(
+    new THREE.Color(SW_BASE_LANGUAGE.structureSteel),
+  ).multiplyScalar(gain);
+  // The harbour deck is the largest single surface the mast has and it sits in
+  // snow. At bare structure value it rendered as a black rectangle punched out
+  // of the drift — the heaviest shape in the frame, and pure void. It is also
+  // the one HORIZONTAL surface here, so it takes the key almost head-on and
+  // returns far more than the vertical walls the gain was calibrated against:
+  // at 0.42 toward snow it came back brighter than the drift around it. 0.16
+  // lands it just under the snow, which is where a swept steel deck belongs.
+  const deck = balanceForDusk(
+    new THREE.Color(SW_BASE_LANGUAGE.structureSteel)
+      .lerp(new THREE.Color(SW_BASE_LANGUAGE.snow), 0.16),
+  ).multiplyScalar(gain);
+  const hardware = balanceForDusk(
+    new THREE.Color(SW_BASE_LANGUAGE.hardware),
+  ).multiplyScalar(gain);
+  // The pale aviation band is PAINT, not hardware, and that distinction is what
+  // took three passes to get right. The shared gain is calibrated so the
+  // cladding zone lands mid on a vertical wall; the hardware zone is nearly
+  // twice cladding's luma, so anything large and key-facing given hardware
+  // value clips straight to white. On the facilities that is harmless because
+  // their hardware surfaces are small ice cores and bench tops. On the mast the
+  // pale bands and the dish are among the biggest surfaces in the frame, so at
+  // hardware value they read as snow stuck to the tower and as paper. Weathered
+  // aviation white at polar dusk is a light grey — that is what this is.
+  const ivory = balanceForDusk(
+    new THREE.Color(SW_BASE_LANGUAGE.hardware)
+      .lerp(new THREE.Color(SW_BASE_LANGUAGE.structureSteel), 0.3),
+  ).multiplyScalar(gain);
+  // Identity coral, deliberately NOT dusk-balanced (warm identity keeps its own
+  // hue) and held at 0.62 so a band reads as enamel over steel and still sits
+  // below the ivory band it alternates with.
+  const coral = new THREE.Color(SW_BASE_LANGUAGE.safetyTrim)
+    .multiplyScalar(0.62 * gain);
+  // One weathered band so the paint stack reads as maintained rather than
+  // printed. upstreamPalette.surface is this station's own lighter coral.
+  const coralWorn = new THREE.Color(upstreamPalette.surface)
+    .multiplyScalar(0.5 * gain);
+  const brass = new THREE.Color(SW_BASE_LANGUAGE.emberWindow)
+    .lerp(new THREE.Color(SW_BASE_LANGUAGE.hardware), 0.45)
+    .multiplyScalar(0.72 * gain);
+  // Guy stays are thin galvanised cable: structure steel pulled toward hardware
+  // so they catch the rim light along their length instead of reading as poles.
+  const wire = balanceForDusk(
+    new THREE.Color(SW_BASE_LANGUAGE.structureSteel)
+      .lerp(new THREE.Color(SW_BASE_LANGUAGE.hardware), 0.35),
+  ).multiplyScalar(gain);
+  // Mint stays on the two waveguide lamps only, at indicator scale and
+  // indicator strength — never again as a pair of saturated green blocks.
+  const mintLamp = new THREE.Color(palette.packet).multiplyScalar(0.4 * gain);
+  // Keystream telemetry lamps. Dark is a cold unlit lens rather than a hole, and
+  // full-on stays under the tip beacon: the beacon is the brightest lamp on the
+  // tower and the telemetry run must not compete with it.
+  const telemetryOff = new THREE.Color(palette.packet).multiplyScalar(0.12 * gain);
+  const telemetryOn = new THREE.Color(palette.packet)
+    .lerp(white, 0.3)
+    .multiplyScalar(0.4 * gain);
+  const beaconLampOn = new THREE.Color(SW_BASE_LANGUAGE.emberWindow)
+    .lerp(white, 0.25)
+    .multiplyScalar(gain);
+  const beaconLampOff = new THREE.Color(SW_BASE_LANGUAGE.safetyTrim)
+    .multiplyScalar(0.35 * gain);
+  // A reflector is a metal bowl, not a sheet of paper. The old face was pure
+  // white lerped toward the warm trim and sat on a 0.52 emissive, so the lathe
+  // bowl's curvature could not shade and it rendered as a flat ellipse. Plain
+  // camp hardware value lets the key light find the dish across its own width.
+  const dishFace = balanceForDusk(
+    new THREE.Color(SW_BASE_LANGUAGE.hardware)
+      .lerp(new THREE.Color(SW_BASE_LANGUAGE.structureSteel), 0.42),
+  ).multiplyScalar(gain);
+  // Glow-pool colours stay UNGAINED: the ring/beacon halo pool is an unlit
+  // MeshBasicMaterial with toneMapped false, so the gain (a lighting-response
+  // compensation for lit surfaces) has no meaning there and would only clip.
+  // Pulled toward white so the rings read as emitted signal rather than as
+  // lime-green paint hanging in the air beside the tower.
+  const mintSignal = new THREE.Color(palette.packet).lerp(white, 0.32);
   upstreamColorAuthority = {
-    beaconHot: ivory.clone().multiplyScalar(1.5),
-    beaconOff: coral.clone().multiplyScalar(0.42),
+    beaconHaloHot: new THREE.Color(SW_BASE_LANGUAGE.emberWindow).lerp(white, 0.4),
+    beaconHaloOff: new THREE.Color(SW_BASE_LANGUAGE.safetyTrim).multiplyScalar(0.3),
+    beaconLampOff,
+    beaconLampOn,
     brass,
     coral,
-    dishFace: white.clone().lerp(new THREE.Color(palette.trim), 0.22),
+    coralWorn,
+    deck,
+    dishFace,
     graphite,
+    graphiteDeep,
+    hardware,
     ivory,
-    mint,
+    mintLamp,
+    mintSignal,
+    haloScratch: new THREE.Color(),
     scratch: new THREE.Color(),
-    wire: graphite.clone().lerp(ivory, 0.45),
+    telemetryOff,
+    telemetryOn,
+    telemetryScratch: new THREE.Color(),
+    wire,
   };
   return upstreamColorAuthority;
 }
 
-/** Static band assignment for the 28 mast members; the tip beacon housing
- * (index 19) is re-lit every frame from state.beaconIntensity. */
+/**
+ * Static band assignment for the mast members; the tip beacon housing
+ * (index 19) is re-lit every frame from state.beaconIntensity.
+ *
+ *   0      harbour plinth            10-13  four tapered corner legs
+ *   1-3    three snow footings       14-15  antenna standoff crossarms
+ *   4-9    six aviation belt bands   16-17  dish reach strut + feed horn
+ *   18     tip whip                  20-22  antenna farm masts + crossbar
+ *   19     tip beacon housing        23-24  mint waveguide lamps
+ *   28-51  diagonal lattice web      25-27  three guy stays
+ *   52+    keystream telemetry lamps
+ *
+ * The web is deliberately NOT painted. Aviation obstruction marking goes on the
+ * belts, which is where a real mast wears it; banding the diagonals as well
+ * would put coral on most of the tower's members and take the station straight
+ * back to being a candy stripe.
+ */
 function upstreamMemberColor(colors, index) {
-  if (index <= 3) return colors.graphite; // plinth + three footings
+  if (index >= UPSTREAM_TELEMETRY_START) return colors.telemetryOff; // keystream lamps
+  if (index >= UPSTREAM_BRACE_START) return colors.graphiteDeep; // lattice web
+  if (index === 0) return colors.deck; // harbour plinth
+  if (index <= 3) return colors.graphite; // three snow footings
   if (index <= 3 + UPSTREAM_MAST_BAND_COUNT) {
-    return (index - 4) % 2 === 0 ? colors.coral : colors.ivory; // aviation bands
+    // Aviation obstruction marking: alternating coral and pale bands, with the
+    // third band weathered so the stack is paint rather than a printed decal.
+    if (index === 6) return colors.coralWorn;
+    return (index - 4) % 2 === 0 ? colors.coral : colors.ivory;
   }
-  if (index <= 13) return colors.graphite; // lattice diagonals
-  if (index <= 15) return colors.graphite; // crossarms
-  if (index <= 17) return colors.brass; // dish pivot strut + counterweight
-  if (index === 18) return colors.ivory; // tip spire
-  if (index === UPSTREAM_TIP_BEACON_MEMBER_INDEX) return colors.beaconHot;
+  if (index <= 13) return colors.graphite; // four tapered corner legs
+  if (index <= 15) return colors.graphite; // antenna standoff crossarms
+  if (index === 16) return colors.brass; // dish reach strut
+  if (index === 17) return colors.hardware; // feed horn at the dish focus
+  if (index === 18) return colors.hardware; // tip spire
+  if (index === UPSTREAM_TIP_BEACON_MEMBER_INDEX) return colors.beaconLampOn;
   if (index <= 22) return colors.graphite; // antenna farm masts + crossbar
-  if (index <= 24) return colors.mint; // mint waveguide beacons
+  if (index <= 24) return colors.mintLamp; // mint waveguide lamps
   return colors.wire; // guy-line stays
 }
 
 function applySouthwestIdentityColors(pools) {
-  const upstreamPalette = SW_MECHANISM_PROFILES["upstream-radio-mast"].palette;
   const signalColors = upstreamColors();
-  // The middle coral band weathers toward the lighter signature coral so the
-  // paint stack reads as real layered enamel rather than one flat decal.
-  const wornCoralBand = new THREE.Color(upstreamPalette.surface)
-    .lerp(signalColors.ivory, 0.18);
   for (let index = 0; index < UPSTREAM_STRUCTURE_COUNT; index += 1) {
     setInstanceColor(
       pools.upstreamStructures,
       index,
-      index === 6 ? wornCoralBand : upstreamMemberColor(signalColors, index),
+      upstreamMemberColor(signalColors, index),
     );
   }
   setInstanceColor(pools.upstreamDish, 0, signalColors.dishFace);
   for (let ring = 0; ring < UPSTREAM_RING_COUNT; ring += 1) {
-    setInstanceColor(pools.upstreamPulses, ring, signalColors.mint);
+    setInstanceColor(pools.upstreamPulses, ring, signalColors.mintSignal);
   }
-  setInstanceColor(pools.upstreamPulses, UPSTREAM_TIP_BEACON_RING_INDEX, signalColors.beaconHot);
-  setInstanceColor(pools.upstreamPacket, 0, signalColors.mint);
+  setInstanceColor(
+    pools.upstreamPulses,
+    UPSTREAM_TIP_BEACON_RING_INDEX,
+    signalColors.beaconHaloHot,
+  );
+  setInstanceColor(pools.upstreamPacket, 0, signalColors.mintSignal);
 
   const archiveColors = topologyColors();
   for (let index = 0; index < TOPOLOGY_SURFACE_COUNT; index += 1) {
@@ -730,38 +1195,81 @@ function applyUpstreamInstances(state, pools, scratch) {
   const dishY = UPSTREAM_DISH_MOUNT_Y + beamY * 0.06;
   const dishZ = mountZ + beamZ * 0.06;
 
-  // Graphite base frame: harbor plinth plus three snow footings.
-  setInstance(pools.structures, 0, scratch, 0, groundY + 0.09, 0, 0, 0, 0, 1.72, 0.18, 1.46);
-  setInstance(pools.structures, 1, scratch, -0.72, groundY + 0.12, 0.5, 0, 0, 0, 0.5, 0.24, 0.5);
-  setInstance(pools.structures, 2, scratch, 0.72, groundY + 0.12, 0.5, 0, 0, 0, 0.5, 0.24, 0.5);
-  setInstance(pools.structures, 3, scratch, 0, groundY + 0.12, -0.7, 0, 0, 0, 0.54, 0.24, 0.54);
-  // Tapering mast with alternating coral/ivory aviation paint bands (4-9).
+  // Harbor plinth, sunk to a low deck so the mast sits IN the drift rather than
+  // on a slab, plus three snow footings the guy stays actually terminate on.
+  // 1.62 x 1.38 made the deck the widest thing in the outline and the tower an
+  // ornament standing on it; a mast's footprint is small by definition, so the
+  // deck is now narrower than the guy spread it carries.
+  setInstance(pools.structures, 0, scratch, 0, groundY + 0.05, 0, 0, 0, 0, 1.02, 0.09, 0.88);
+  for (let footing = 0; footing < UPSTREAM_FOOTINGS.length; footing += 1) {
+    const [footX, footZ] = UPSTREAM_FOOTINGS[footing];
+    setInstance(
+      pools.structures,
+      1 + footing,
+      scratch,
+      footX,
+      groundY + 0.12,
+      footZ,
+      0,
+      0,
+      0,
+      0.24,
+      0.22,
+      0.24,
+    );
+  }
+  // Six aviation obstruction bands (4-9) as thin belt plates on an OPEN truss.
+  const bandStep = UPSTREAM_MAST_HEIGHT / UPSTREAM_MAST_BAND_COUNT;
   for (let band = 0; band < UPSTREAM_MAST_BAND_COUNT; band += 1) {
-    const width = 0.5 - band * 0.052;
+    const width =
+      2 * upstreamSpreadAt((band + 0.5) / UPSTREAM_MAST_BAND_COUNT) +
+      UPSTREAM_LEG_GAUGE;
     setInstance(
       pools.structures,
       4 + band,
       scratch,
       0,
-      groundY + 0.18 + UPSTREAM_MAST_BAND_HEIGHT * (band + 0.5),
+      UPSTREAM_MAST_BASE_Y + bandStep * (band + 0.5),
       0,
       0,
       0,
       0,
       width,
-      UPSTREAM_MAST_BAND_HEIGHT,
+      UPSTREAM_BELT_GAUGE,
       width,
     );
   }
-  // Graphite lattice diagonals bracing the lower and mid mast (10-13).
-  setInstance(pools.structures, 10, scratch, -0.27, 0.22, 0, 0, 0, -0.56, 0.05, 0.62, 0.05);
-  setInstance(pools.structures, 11, scratch, 0.27, 0.22, 0, 0, 0, 0.56, 0.05, 0.62, 0.05);
-  setInstance(pools.structures, 12, scratch, -0.18, 0.86, 0, 0, 0, 0.52, 0.045, 0.56, 0.045);
-  setInstance(pools.structures, 13, scratch, 0.18, 0.86, 0, 0, 0, -0.52, 0.045, 0.56, 0.045);
-  // Horizontal crossarms — antenna standoffs (14-15).
-  setInstance(pools.structures, 14, scratch, 0, 0.98, 0, 0, 0, Math.PI / 2, 0.1, 0.92, 0.1);
-  setInstance(pools.structures, 15, scratch, 0, 1.24, 0, 0, 0, Math.PI / 2, 0.08, 0.72, 0.08);
-  // Brass dish pivot: reach strut toward the bearing plus a counterweight (16-17).
+  // Four corner legs (10-13), leaned inward so the truss tapers to the crown.
+  const legLean = Math.atan2(
+    UPSTREAM_LEG_SPREAD_BASE - UPSTREAM_LEG_SPREAD_TOP,
+    UPSTREAM_MAST_HEIGHT,
+  );
+  const legOffset = (UPSTREAM_LEG_SPREAD_BASE + UPSTREAM_LEG_SPREAD_TOP) / 2;
+  for (let leg = 0; leg < 4; leg += 1) {
+    const signX = leg === 0 || leg === 3 ? -1 : 1;
+    const signZ = leg < 2 ? -1 : 1;
+    setInstance(
+      pools.structures,
+      10 + leg,
+      scratch,
+      signX * legOffset,
+      (UPSTREAM_MAST_BASE_Y + UPSTREAM_MAST_TOP_Y) / 2,
+      signZ * legOffset,
+      -signZ * legLean,
+      0,
+      signX * legLean,
+      UPSTREAM_LEG_GAUGE,
+      UPSTREAM_MAST_HEIGHT / Math.cos(legLean),
+      UPSTREAM_LEG_GAUGE,
+    );
+  }
+  // Horizontal crossarms — antenna standoffs (14-15). Moved from 0.92/1.19 up
+  // into the crown and narrowed from 0.86/0.62: near mid-height and nearly as
+  // wide as the tower's own base they read as a second, competing structure,
+  // and the profile a mast is recognised by puts its crossarms high and short.
+  setInstance(pools.structures, 14, scratch, 0, 1.72, 0, 0, 0, Math.PI / 2, 0.05, 0.58, 0.05);
+  setInstance(pools.structures, 15, scratch, 0, 1.97, 0, 0, 0, Math.PI / 2, 0.042, 0.38, 0.042);
+  // Brass dish reach strut (16) and the feed horn at the reflector focus (17).
   setInstance(
     pools.structures,
     16,
@@ -772,27 +1280,48 @@ function applyUpstreamInstances(state, pools, scratch) {
     0,
     localBearing,
     0,
-    0.11,
-    0.11,
+    0.072,
+    0.072,
     UPSTREAM_DISH_MOUNT_REACH + 0.14,
   );
+  // This slot used to be a counterweight tucked BEHIND the dish, where nothing
+  // could see it. Spent instead on the one part that makes a bowl read as a
+  // reflector rather than a disc: a feed horn standing off the concave face at
+  // the focus, so the dish has something to be pointed at.
+  const feedReach = 0.33;
   setInstance(
     pools.structures,
     17,
     scratch,
-    -mountX * 0.34,
-    UPSTREAM_DISH_MOUNT_Y,
-    -mountZ * 0.34,
-    0,
+    dishX + beamX * feedReach,
+    dishY + beamY * feedReach,
+    dishZ + beamZ * feedReach,
+    dishElevation,
     localBearing,
     0,
-    0.16,
-    0.22,
-    0.16,
+    0.062,
+    0.062,
+    0.19,
   );
-  // Ivory tip spire and the blinking beacon housing (18-19).
-  setInstance(pools.structures, 18, scratch, 0, 1.6, 0, 0, 0, 0, 0.07, 0.42, 0.07);
-  const beaconMemberScale = 0.1 + state.beaconIntensity * 0.03;
+  // Tip whip and the blinking beacon housing (18-19). The whip runs from the
+  // top belt to just under the beacon, so the outline tapers legs -> crossarms
+  // -> whip -> lamp and ends on a point.
+  const whipBase = UPSTREAM_MAST_TOP_Y - 0.06;
+  setInstance(
+    pools.structures,
+    18,
+    scratch,
+    0,
+    (whipBase + UPSTREAM_TIP_SPIRE_TOP_Y) / 2,
+    0,
+    0,
+    0,
+    0,
+    0.036,
+    UPSTREAM_TIP_SPIRE_TOP_Y - whipBase,
+    0.036,
+  );
+  const beaconMemberScale = 0.07 + state.beaconIntensity * 0.022;
   setInstance(
     pools.structures,
     UPSTREAM_TIP_BEACON_MEMBER_INDEX,
@@ -804,21 +1333,90 @@ function applyUpstreamInstances(state, pools, scratch) {
     0,
     0,
     beaconMemberScale,
-    0.12,
+    0.09,
     beaconMemberScale,
   );
-  // Polar antenna farm keeps the harbor skyline when the dish is edge-on (20-24).
-  setInstance(pools.structures, 20, scratch, -1.04, 0.7, -0.42, 0, 0, 0, 0.1, 1.4, 0.1);
-  setInstance(pools.structures, 21, scratch, -1.04, 1.36, -0.42, 0, 0, Math.PI / 2, 0.1, 0.5, 0.1);
-  setInstance(pools.structures, 22, scratch, 1.02, 0.56, -0.24, 0, 0, 0, 0.1, 1.12, 0.1);
-  setInstance(pools.structures, 23, scratch, -1.04, 1.5, -0.42, 0, localBearing, 0, 0.2, 0.2, 0.2);
-  setInstance(pools.structures, 24, scratch, 1.02, 1.16, -0.24, 0, localBearing, 0, 0.2, 0.2, 0.2);
-  // Guy-line stays: three slender members from the upper mast to the footings.
+  // Polar antenna farm keeps the harbor skyline when the dish is edge-on
+  // (20-22). Both whips now stand on the SAME side of the tower. Split one to
+  // each side they bracketed the mast symmetrically, and a lone vertical bar
+  // out at +0.64 with nothing near it read in silhouette as a separate object
+  // planted beside the station — a sword, not an antenna farm. Clustered, and
+  // kept under the tower's shoulder, they read as a farm the mast owns.
+  setInstance(pools.structures, 20, scratch, -0.5, 0.32, -0.3, 0, 0, 0, 0.046, 0.96, 0.046);
+  setInstance(pools.structures, 21, scratch, -0.5, 0.72, -0.3, 0, 0, Math.PI / 2, 0.038, 0.26, 0.038);
+  setInstance(pools.structures, 22, scratch, -0.38, 0.26, -0.44, 0, 0, 0, 0.04, 0.84, 0.04);
+  // Mint waveguide beacons (23-24), at indicator scale. These were 0.2-cube
+  // saturated green blocks sitting on brown poles with no relationship to
+  // anything; at 0.05 on the pole heads they are lamps, which is what a
+  // waveguide beacon is.
+  setInstance(pools.structures, 23, scratch, -0.5, 0.82, -0.3, 0, localBearing, 0, 0.05, 0.05, 0.05);
+  setInstance(pools.structures, 24, scratch, -0.38, 0.7, -0.44, 0, localBearing, 0, 0.044, 0.044, 0.044);
+  // Guy-line stays (25-27): thin, taut, and terminating on the three footings.
   // (The shared lineSegments pool lives inside the topology station root and
   // hides with it, so the mast carries its own stay hints instead.)
-  setInstance(pools.structures, 25, scratch, 0, 0.62, -0.35, -0.41, 0, 0, 0.028, 1.85, 0.028);
-  setInstance(pools.structures, 26, scratch, -0.36, 0.62, 0.25, 0.29, 0, 0.42, 0.028, 1.85, 0.028);
-  setInstance(pools.structures, 27, scratch, 0.36, 0.62, 0.25, 0.29, 0, -0.42, 0.028, 1.85, 0.028);
+  for (let stay = 0; stay < UPSTREAM_GUY_STAYS.length; stay += 1) {
+    const guy = UPSTREAM_GUY_STAYS[stay];
+    setInstance(
+      pools.structures,
+      25 + stay,
+      scratch,
+      guy.position[0],
+      guy.position[1],
+      guy.position[2],
+      0,
+      guy.yaw,
+      guy.roll,
+      UPSTREAM_GUY_GAUGE,
+      guy.length,
+      UPSTREAM_GUY_GAUGE,
+    );
+  }
+  // The diagonal web (28+). This is the member that makes the outline a mast
+  // rather than a ladder, and it is the only one of the mast's parts whose
+  // whole job is the silhouette.
+  for (let brace = 0; brace < UPSTREAM_BRACES.length; brace += 1) {
+    const member = UPSTREAM_BRACES[brace];
+    setInstance(
+      pools.structures,
+      UPSTREAM_BRACE_START + brace,
+      scratch,
+      member.position[0],
+      member.position[1],
+      member.position[2],
+      0,
+      member.yaw,
+      member.roll,
+      UPSTREAM_BRACE_GAUGE,
+      member.length,
+      UPSTREAM_BRACE_GAUGE,
+    );
+  }
+  // Keystream telemetry (52+). Each lamp holds its own phase, duty and lit level
+  // straight out of the LFSR stream, so the run reads as an aperiodic relay
+  // pattern climbing the tower rather than as a chase light.
+  for (let lamp = 0; lamp < UPSTREAM_TELEMETRY_COUNT; lamp += 1) {
+    const mount = UPSTREAM_TELEMETRY_MOUNTS[lamp];
+    const level = upstreamTelemetryLevel(lamp, state.telemetryTime);
+    const gauge = 0.03 + level * 0.012;
+    setInstance(
+      pools.structures,
+      UPSTREAM_TELEMETRY_START + lamp,
+      scratch,
+      mount[0],
+      mount[1],
+      mount[2],
+      0,
+      0,
+      0,
+      gauge,
+      gauge,
+      gauge,
+    );
+    colors.telemetryScratch
+      .copy(colors.telemetryOff)
+      .lerp(colors.telemetryOn, level);
+    setInstanceColor(pools.structures, UPSTREAM_TELEMETRY_START + lamp, colors.telemetryScratch);
+  }
 
   setInstance(
     pools.dish,
@@ -833,9 +1431,13 @@ function applyUpstreamInstances(state, pools, scratch) {
     dishElevation,
     Math.PI + (UPSTREAM_DISH_FACE_ON ? localBearing * 0.2 : localBearing),
     0,
-    0.94,
-    0.94,
-    0.94,
+    // 0.94 -> 0.72 -> 0.64. Against a mast whose leg spread halved, the old
+    // bowl was wider than the tower was deep and read as a moon parked behind
+    // it; against a mast that is now twice as tall it can afford to be plain
+    // hardware hanging off one face.
+    UPSTREAM_DISH_SCALE,
+    UPSTREAM_DISH_SCALE,
+    UPSTREAM_DISH_SCALE,
   );
 
   // Receive ritual: while docked-receiving, the three rings become mint
@@ -847,7 +1449,10 @@ function applyUpstreamInstances(state, pools, scratch) {
     const phase = state.pulsePhases[index];
     if (receiving) {
       const y = UPSTREAM_TIP_BEACON_Y + (packetBaseY - UPSTREAM_TIP_BEACON_Y) * phase;
-      const scale = 0.46 + phase * 0.5;
+      // Halved. At 0.46-0.96 the descending packet rings were wider than the
+      // mast they descend, so they read as green discs parked in front of the
+      // tower rather than as signal travelling down it.
+      const scale = 0.23 + phase * 0.25;
       setInstance(
         pools.pulses,
         index,
@@ -883,8 +1488,13 @@ function applyUpstreamInstances(state, pools, scratch) {
   }
   // Tip beacon halo: blinks warm white-coral on the deterministic duty cycle,
   // and rings outward a little on each packet landing.
+  //
+  // 0.2+0.32 -> 0.09+0.15. Seen nearly edge-on this torus is a flat lens, and
+  // at half a unit across on top of a 0.036 whip it was a saucer sitting on a
+  // stick — the mast's outline ended in a mushroom cap. A beacon is a lamp:
+  // it should be the brightest thing on the tower and one of the smallest.
   const beaconScale =
-    0.2 + state.beaconIntensity * 0.32 + (receiving ? receiveNod * 0.14 : 0);
+    0.09 + state.beaconIntensity * 0.15 + (receiving ? receiveNod * 0.07 : 0);
   setInstance(
     pools.pulses,
     UPSTREAM_TIP_BEACON_RING_INDEX,
@@ -899,8 +1509,17 @@ function applyUpstreamInstances(state, pools, scratch) {
     beaconScale,
     beaconScale,
   );
-  colors.scratch.copy(colors.beaconOff).lerp(colors.beaconHot, state.beaconIntensity);
-  setInstanceColor(pools.pulses, UPSTREAM_TIP_BEACON_RING_INDEX, colors.scratch);
+  // Two lerps, not one: the halo rides an unlit basic material and the housing
+  // rides the lit standard material, so they need different brightness bands.
+  // Feeding one colour to both is what made the beacon either blow out on the
+  // halo or stay dead on the housing.
+  colors.haloScratch
+    .copy(colors.beaconHaloOff)
+    .lerp(colors.beaconHaloHot, state.beaconIntensity);
+  setInstanceColor(pools.pulses, UPSTREAM_TIP_BEACON_RING_INDEX, colors.haloScratch);
+  colors.scratch
+    .copy(colors.beaconLampOff)
+    .lerp(colors.beaconLampOn, state.beaconIntensity);
   setInstanceColor(pools.structures, UPSTREAM_TIP_BEACON_MEMBER_INDEX, colors.scratch);
   commitInstanceColors(pools.pulses);
   commitInstanceColors(pools.structures);
@@ -991,47 +1610,52 @@ function topologyColors() {
   if (topologyColorAuthority) return topologyColorAuthority;
   const archivePalette = SW_MECHANISM_PROFILES["topology-archive-wall"].palette;
   const white = new THREE.Color("#FFFFFF");
-  // Zone multipliers ride on top of the shared gain so the ladder lands on the
-  // measured targets: structure ~0.15, cladding ~0.42, hardware ~0.75.
-  const steel = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.structureSteel).multiplyScalar(2.2),
-  );
-  const steelDeep = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.structureShadow).multiplyScalar(2.6),
-  );
+  // Body zones take the authored SW_BASE_LANGUAGE hex unscaled; the shared gain
+  // places the whole ladder at once. See SW_LIGHT_RESPONSE_GAIN for why the old
+  // per-zone multipliers (2.2 / 2.6 / 1.15 / 1.3 / 0.4) had to go: they inverted
+  // the very ladder they were named after, rendering graphite steel brighter
+  // than snow.
+  const steel = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.structureSteel));
+  const steelDeep = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.structureShadow));
   const seam = new THREE.Color(SW_BASE_LANGUAGE.seamShadow);
+  // Identity lerps survive — hue diversity across the eight stations was won
+  // honestly and repainting is not what was wrong here. They are eased 0.34/0.26
+  // -> 0.28/0.22 only because the mauve target (#C9A3BF, luma 0.68) sits well
+  // above the cladding it tints (0.42), so every point of lerp also spends value
+  // the ladder now needs back.
   const cladding = balanceForDusk(
     new THREE.Color(SW_BASE_LANGUAGE.cladding)
-      .lerp(new THREE.Color(archivePalette.layer), 0.14)
-      .multiplyScalar(1.15),
+      .lerp(new THREE.Color(archivePalette.layer), 0.28),
   );
   const claddingAlt = balanceForDusk(
     new THREE.Color(SW_BASE_LANGUAGE.claddingAlt)
-      .lerp(new THREE.Color(archivePalette.layer), 0.1)
-      .multiplyScalar(1.3),
+      .lerp(new THREE.Color(archivePalette.layer), 0.22),
   );
   const roof = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.cladding).lerp(seam, 0.24).multiplyScalar(1.35),
+    new THREE.Color(SW_BASE_LANGUAGE.cladding)
+      .lerp(seam, 0.24)
+      .lerp(new THREE.Color(archivePalette.layer), 0.14),
   );
   const iceCore = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.hardware).lerp(white, 0.2).multiplyScalar(0.4),
+    new THREE.Color(SW_BASE_LANGUAGE.hardware).lerp(white, 0.2),
   );
   const iceCoreAlt = balanceForDusk(
     new THREE.Color(SW_BASE_LANGUAGE.hardware)
-      .lerp(new THREE.Color(archivePalette.layer), 0.3)
-      .multiplyScalar(0.44),
+      .lerp(new THREE.Color(archivePalette.layer), 0.3),
   );
-  const drift = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.snow).multiplyScalar(0.42));
+  const drift = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.snow));
   // Safety trim is a thin hazard line, never a body colour: keep it well under
   // the clipping band so it cannot become the brightest thing in the frame.
-  const trim = new THREE.Color(SW_BASE_LANGUAGE.safetyTrim).multiplyScalar(0.42);
-  const worklight = new THREE.Color(SW_BASE_LANGUAGE.emberWindow).multiplyScalar(0.7);
+  // Identity/light multipliers below are rescaled by 4.2/3.0 so the gain change
+  // moved the body ladder and left these exactly where they rendered before.
+  const trim = new THREE.Color(SW_BASE_LANGUAGE.safetyTrim).multiplyScalar(0.59);
+  const worklight = new THREE.Color(SW_BASE_LANGUAGE.emberWindow).multiplyScalar(0.98);
   const provenance = new THREE.Color(archivePalette.trace);
   // Held below the clipping band on purpose: the logger head must stay hot
   // magenta under the frame multiplier instead of blowing out to white.
   const rigHead = new THREE.Color(archivePalette.surface)
     .lerp(provenance, 0.3)
-    .multiplyScalar(0.26);
+    .multiplyScalar(0.36);
 
   const base = [];
   // Racked cores: alternate two ice values per tier so a rack of twenty tubes
@@ -1061,6 +1685,44 @@ function topologyColors() {
   base.push(rigHead); // rig scanner head
   base.push(worklight, worklight); // warm clerestory windows over the bay
   base.push(trim); // one thin coral nosing along the deck edge
+
+  // THE MERKLE COURSES. Byte 0 of each node's digest picks the block's value,
+  // and value is ALL it picks: the two authored cladding hexes are scaled, never
+  // re-hued and never re-saturated, so a wall with twelve more objects in it
+  // cannot become a louder wall. This station carries the tightest colour-anchor
+  // margin in the world and a hash is exactly the kind of input that would blow
+  // it if it were allowed to reach hue.
+  for (const node of MERKLE_ARCHIVE_WALL.nodes) {
+    if (node.isRoot) {
+      // The root is the address of the whole archive, so it is the one block
+      // that takes the station's accent. 0.26 was the first try and it was a
+      // VALUE mistake, the same one this repo keeps re-learning: the accent hex
+      // is darker than the cladding it sits in, so a small multiplier did not
+      // make a restrained accent, it made a hole in the wall. 0.86 puts the
+      // capstone just ABOVE the cladding — read as a lit stone — while the
+      // logging rig, which is the signature mechanism, still peaks 2.4x above it
+      // when docked. Same 0.3 pull toward the cyan trace the rig head takes, so
+      // one accent block cannot drag the station's aggregate saturation.
+      base.push(new THREE.Color(archivePalette.surface).lerp(provenance, 0.3).multiplyScalar(0.86));
+      continue;
+    }
+    // The band is 1.00-1.22 of the wall's own cladding, never below 1.0, so a
+    // block cannot be darker than the flat wall it stands on.
+    //
+    // ATTRIBUTION, because this cost three passes: the gable's measured average
+    // saturation rose 0.336 -> 0.398 across this change and it was NOT the
+    // masonry. Ablating the twelve blocks on ONE build (same server, same
+    // frame, courses scaled to nothing) put the gable at 0.3964 against 0.3979
+    // with them, and the whole frame at 0.2957 against 0.2960 — the Merkle wall
+    // costs +0.0003 of frame saturation and slightly IMPROVES the snow anchor
+    // (0.3993 -> 0.4002 at low). The 0.06 belonged to a sibling agent's work
+    // that landed in the same rebuild. Two albedo passes were spent chasing it
+    // before the ablation was run, which is the cheap experiment that should
+    // have come first: a before/after across a rebuild is not a controlled
+    // comparison in a tree three agents are writing.
+    const stone = node.tint < 0.5 ? cladding : claddingAlt;
+    base.push(stone.clone().multiplyScalar(1 + node.tint * 0.22));
+  }
 
   topologyColorAuthority = {
     base: base.map((color) => color.clone().multiplyScalar(SW_LIGHT_RESPONSE_GAIN)),
@@ -1205,6 +1867,25 @@ function applyTopologyInstances(state, surfaces, scratch) {
   setInstance(surfaces, TOPOLOGY_WINDOW_BACK_INDEX, scratch, -0.82, 0.86, TOPOLOGY_BAY_Z - 0.06, 0, 0, 0, 0.44, 0.09, 0.04);
   setInstance(surfaces, TOPOLOGY_WINDOW_END_INDEX, scratch, 0.82, 0.86, TOPOLOGY_BAY_Z - 0.06, 0, 0, 0, 0.44, 0.09, 0.04);
   setInstance(surfaces, TOPOLOGY_DECK_NOSING_INDEX, scratch, 0, 0.03, TOPOLOGY_BAY_Z + 0.02, 0, 0, 0, 2.9, 0.05, 0.06);
+  // The Merkle courses, laid proud of the gable end. Fixed geometry: the tree
+  // was hashed at module load and masonry does not animate.
+  for (let node = 0; node < TOPOLOGY_MERKLE_COUNT; node += 1) {
+    const block = TOPOLOGY_MERKLE_BLOCKS[node];
+    setInstance(
+      surfaces,
+      TOPOLOGY_MERKLE_START + node,
+      scratch,
+      TOPOLOGY_MERKLE_FACE_X + block.depth * 0.5,
+      block.y,
+      block.z,
+      0,
+      0,
+      0,
+      block.depth,
+      block.height,
+      block.width,
+    );
+  }
 
   const rigHeat = state.scanIntensity * (0.55 + state.ignition * 0.45);
   for (let index = start; index < TOPOLOGY_SURFACE_COUNT; index += 1) {
@@ -1333,43 +2014,69 @@ function assemblyColors() {
   if (assemblyColorAuthority) return assemblyColorAuthority;
   const toolingPalette = SW_MECHANISM_PROFILES["assembly-tool-locker"].palette;
   const white = new THREE.Color("#FFFFFF");
-  const steel = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.structureSteel).multiplyScalar(2.2),
-  );
-  const steelDeep = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.structureShadow).multiplyScalar(2.6),
-  );
+  const steel = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.structureSteel));
+  const steelDeep = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.structureShadow));
+  // The shop took SW_BASE_LANGUAGE.cladding raw — no identity lerp at all,
+  // where the cold store at least lerped 0.14 toward its own hue. That shared
+  // grey-mauve is why the docked capture reads as a white box in a purple-lit
+  // basalt station: measured over the station region it came back sat 0.296 on
+  // the widest value spread of all eight (0.738), i.e. its structure was fine
+  // and its colour was absent. This station passes the greyscale gate, so the
+  // cheap fix is the correct one — repaint only, no geometry or value work.
+  //
+  // The lerp target is toolingPalette.highlight (#A78BFA, luma 153), NOT the
+  // identity violet toolingPalette.steel (#6D4BE8, luma 94).
+  //
+  // That distinction is the whole trick, and the cold store next door is what
+  // proved it. Tinting toward a hue DARKER than the zone it tints buys chroma
+  // out of the value ladder; tinting toward a BRIGHTER one raises both at once.
+  // The cold store gained saturation and spread together because its target
+  // (#C9A3BF, luma 173) sits above its base cladding (luma 108). A first draft
+  // here aimed at #6D4BE8, which sits below 108, and so pushed all three body
+  // zones down about 4% while adding colour. Same station, same intent, and the
+  // only difference that matters is which side of the base value the target is.
+  //
+  // Both are authored identity colours for this station, so this is not a new
+  // literal — it is the light end of its own violet rather than the dark end.
+  // Graded 0.42 / 0.34 / 0.22 across the three body zones so the wall courses
+  // still differ from each other and do not flatten into one violet wash.
   const cladding = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.cladding).multiplyScalar(1.5),
+    new THREE.Color(SW_BASE_LANGUAGE.cladding)
+      .lerp(new THREE.Color(toolingPalette.highlight), 0.2),
   );
   const claddingAlt = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.claddingAlt).multiplyScalar(1.7),
+    new THREE.Color(SW_BASE_LANGUAGE.claddingAlt)
+      .lerp(new THREE.Color(toolingPalette.highlight), 0.15),
   );
+  // Roof tint held to 0.10 while the walls take 0.42/0.34. The roof is this
+  // station's p95 anchor — it is the brightest surface on the widest value
+  // ladder of the eight — and tinting it at the same rate as the walls cost
+  // 0.021 of p95 at medium and 0.030 of spread at low, measured against a
+  // +-0.006 run-to-run floor. That is the value rule's exact failure case:
+  // saturation bought out of the highlights. The walls are the large area and
+  // carry the identity perfectly well on their own, so the roof keeps its job.
   const roof = balanceForDusk(
     new THREE.Color(SW_BASE_LANGUAGE.cladding)
       .lerp(new THREE.Color(SW_BASE_LANGUAGE.seamShadow), 0.24)
-      .multiplyScalar(1.6),
+      .lerp(new THREE.Color(toolingPalette.highlight), 0.1),
   );
-  const trim = new THREE.Color(SW_BASE_LANGUAGE.safetyTrim).multiplyScalar(0.42);
-  const drift = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.snow).multiplyScalar(0.95));
-  const hardware = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.hardware).multiplyScalar(0.78),
-  );
+  const trim = new THREE.Color(SW_BASE_LANGUAGE.safetyTrim).multiplyScalar(0.59);
+  const drift = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.snow));
+  const hardware = balanceForDusk(new THREE.Color(SW_BASE_LANGUAGE.hardware));
   const worklight = new THREE.Color(SW_BASE_LANGUAGE.emberWindow)
     .lerp(new THREE.Color(toolingPalette.highlight), 0.12)
-    .multiplyScalar(0.7);
+    .multiplyScalar(0.98);
   // The identity violet lives only here: accent seams and indicator lights.
-  const accentSeam = new THREE.Color(toolingPalette.steel).multiplyScalar(0.8);
+  const accentSeam = new THREE.Color(toolingPalette.steel).multiplyScalar(1.12);
   const brass = new THREE.Color(SW_BASE_LANGUAGE.emberWindow)
     .lerp(new THREE.Color(SW_BASE_LANGUAGE.hardware), 0.4)
-    .multiplyScalar(0.62);
+    .multiplyScalar(0.87);
   const relicSteel = balanceForDusk(
     new THREE.Color(SW_BASE_LANGUAGE.hardware)
-      .lerp(new THREE.Color(SW_BASE_LANGUAGE.structureSteel), 0.3)
-      .multiplyScalar(0.8),
+      .lerp(new THREE.Color(SW_BASE_LANGUAGE.structureSteel), 0.3),
   );
   const stock = balanceForDusk(
-    new THREE.Color(SW_BASE_LANGUAGE.hardware).lerp(white, 0.1).multiplyScalar(0.66),
+    new THREE.Color(SW_BASE_LANGUAGE.hardware).lerp(white, 0.1),
   );
 
   const base = new Array(ASSEMBLY_STRUCTURE_COUNT).fill(steel);
@@ -1806,6 +2513,8 @@ export default function PolarStationMechanismsSW({
         familyAlpha,
         promiseId === id,
         dockedHeroScale,
+        delta,
+        reducedMotion,
       );
     }
     const topologyPayload = topologyEvidenceRef?.current;

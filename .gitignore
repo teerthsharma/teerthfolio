@@ -3,6 +3,8 @@ dist/
 .next/
 artifacts/
 .agents/
+.codex/
+.superpowers/
 skills-lock.json
 .env
 .env.local
@@ -12,3 +14,6 @@ verification/
 public/uploads/*
 !public/uploads/.gitkeep
 .vercel
+
+# Ralph-loop session state: per-session, per-machine, never shared.
+.claude/ralph-loop.local.md

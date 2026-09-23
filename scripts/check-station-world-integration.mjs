@@ -92,13 +92,35 @@ assert.deepEqual(
     POLAR_DOME_DOCK_LOCAL_XZ[1] + doorwayAxis[1] * 0.24,
   );
   const doorwayPassage = createTraversalState(start);
-  for (let frame = 0; frame < 22; frame += 1) {
+  // Drive until the seal is inside or a wall-clock budget runs out, rather than
+  // for a fixed frame count. A count encodes the acceleration the character
+  // happened to have when the test was written: this was 22 frames, which
+  // covered the approach at 18 m/s^2 and fell short the moment the seal was
+  // given a slower spool-up. What the contract is about is that the doorway can
+  // be walked through at all, not how quickly.
+  const doorwayFrameBudget = 90;
+  let doorwayFrames = 0;
+  const insideFootprint = () => {
+    const x = doorwayPassage.x - observatoryWorld.center.x;
+    const z = doorwayPassage.z - observatoryWorld.center.z;
+    return (
+      (x / POLAR_DOME_TRAVERSAL_COLLIDER.radiusX) ** 2 +
+        (z / POLAR_DOME_TRAVERSAL_COLLIDER.radiusZ) ** 2 <
+      1
+    );
+  };
+  while (doorwayFrames < doorwayFrameBudget && !insideFootprint()) {
     advanceTraversalFrame(doorwayPassage, {
       colliders: [observatoryCollider],
       dt: 1 / 60,
       input: { x: -doorwayAxis[0], z: -doorwayAxis[1] },
     });
+    doorwayFrames += 1;
   }
+  assert.ok(
+    doorwayFrames < doorwayFrameBudget,
+    `seal must reach the dome footprint within ${doorwayFrameBudget} frames of continuous input`,
+  );
   const localX = doorwayPassage.x - observatoryWorld.center.x;
   const localZ = doorwayPassage.z - observatoryWorld.center.z;
   const ellipse =
@@ -270,7 +292,12 @@ for (const file of canonicalConsumers) {
 }
 
 const sceneSource = readFileSync(path.resolve("components/IglooScene.jsx"), "utf8");
-const artifactSource = readFileSync(path.resolve("components/IglooArtifacts.jsx"), "utf8");
+// The artifact records themselves live in lib/igloo-artifacts.js so that
+// importing the station list does not pull three.js into the first-load
+// bundle; the R3F components that render them stay in the .jsx.
+const artifactSource =
+  readFileSync(path.resolve("lib/igloo-artifacts.js"), "utf8") +
+  readFileSync(path.resolve("components/IglooArtifacts.jsx"), "utf8");
 const worldSource = readFileSync(path.resolve("components/IglooWorld.jsx"), "utf8");
 assert.match(
   sceneSource,

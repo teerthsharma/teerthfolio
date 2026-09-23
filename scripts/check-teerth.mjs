@@ -28,7 +28,10 @@ const shell = readIfExists("components/PortfolioPage.jsx");
 const iglooWorld = expectFile("components/IglooWorld.jsx");
 const iglooScene = expectFile("components/IglooScene.jsx");
 const iglooHud = expectFile("components/IglooHud.jsx");
-const iglooArtifacts = expectFile("components/IglooArtifacts.jsx");
+// The eight station records moved to lib/igloo-artifacts.js so that importing
+// the station list does not drag three.js into the first-load bundle. The
+// component file re-exports every name; the ids themselves now live here.
+const iglooArtifactData = expectFile("lib/igloo-artifacts.js");
 const polarObservatoryDome = expectFile("components/PolarObservatoryDome.jsx");
 const polarBiomeWorld = expectFile("components/PolarBiomeWorld.jsx");
 const polarBiomeFields = expectFile("lib/polar-biome-fields.js");
@@ -47,14 +50,19 @@ const content = readIfExists("data/teerth-content.json");
 const corpus = readIfExists("data/project-intelligence.json");
 const github = readIfExists("lib/github-live.js");
 
-for (const pbrAsset of [
-  "public/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_normal-ogl.png",
-]) {
-  expect(exists(pbrAsset), `${pbrAsset} must exist`);
-}
+// The PBR asset tree this gate used to require is gone. Nothing ever loaded it:
+// there is no TextureLoader, useLoader or useTexture anywhere in components/ or
+// lib/, and a full production boot fetches 17 resources of which zero are PNG.
+// Three sibling gates actively FORBID loading it - check-polar-biome-world.mjs
+// bans "/assets/", check-dome-performance.mjs bans "/assets/pbr", and
+// check-polar-dome-lattice.mjs bans normalMap - so this assertion required
+// 27 MB of files that the rest of the suite prohibits using.
 
 expect(pkg.scripts?.dev === "next dev", "dev script must use Next.js");
-expect(pkg.scripts?.build?.includes("check:teerth"), "build must run Teerth contract before Next build");
+// Matched on the script path, not the npm key: the build chains `node
+// scripts/*.mjs` directly because 21 `npm run` wrappers cost ~12s of pure
+// process-spawn tax per deploy. What matters is that this gate runs, not how.
+expect(pkg.scripts?.build?.includes("check-teerth.mjs"), "build must run Teerth contract before Next build");
 expect(pkg.dependencies?.["@react-three/fiber"], "R3F must be installed");
 expect(pkg.dependencies?.["@react-three/drei"], "Drei must be installed");
 expect(pkg.dependencies?.three, "Three.js must be installed");
@@ -181,6 +189,14 @@ for (const domePrimitive of [
   "fwidth(domeJointDistance)",
   "IntegratedAirlock",
   "NeutralContactPlinth",
+  "DOME_PROXIMITY_RESPONSE_PROFILE",
+  "DOME_RAM_KNOCK_PROFILE",
+  "DOME_DEMOLITION_PROFILE",
+  "OBSERVATORY_ENTRY_CACHE_PROFILE",
+  "BuriedEntryCache",
+  "knockBlocksNearContact",
+  "collapseRemainingBlocks",
+  "observatoryDomeDamage",
 ]) {
   expectIncludes("components/PolarObservatoryDome.jsx", polarObservatoryDome, domePrimitive, `polar observatory dome must define ${domePrimitive}`);
 }
@@ -192,7 +208,6 @@ for (const sealPrimitive of [
   "capsuleGeometry",
   "SEAL_AVATAR_FORMULA",
   "SEAL_COLLISION_BRIDGE",
-  "white-quilted-diamond_normal-ogl.png",
   "axisX",
   "depthZ",
   "onTouchIgloo",
@@ -238,7 +253,7 @@ for (const artifactId of [
   "topology-archive-wall",
   "assembly-tool-locker",
 ]) {
-  expectIncludes("components/IglooArtifacts.jsx", iglooArtifacts, artifactId, `must define ${artifactId}`);
+  expectIncludes("lib/igloo-artifacts.js", iglooArtifactData, artifactId, `must define ${artifactId}`);
 }
 
 for (const selector of [

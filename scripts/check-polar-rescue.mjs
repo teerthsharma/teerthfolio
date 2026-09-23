@@ -103,9 +103,15 @@ assert.deepEqual(WORLD_STREAM_TIMINGS, {
 });
 
 assert.deepEqual(POST_PROCESS_BUDGET, {
-  low: { scale: 0.82, fisheye: 0, chroma: 0, ink: 0.08, scanline: 0, pixel: 1, quantize: 0.12, gradeBase: 0.04, gradeCurve: 0.9, shadowSeparation: 0.24 },
-  medium: { scale: 0.94, fisheye: 0.001, chroma: 0.12, ink: 0.05, scanline: 0, pixel: 1.3, quantize: 0.04, gradeBase: 0.56, gradeCurve: 0.4, shadowSeparation: 0 },
-  high: { scale: 1, fisheye: 0.0015, chroma: 0.15, ink: 0.06, scanline: 0, pixel: 1.4, quantize: 0.05, gradeBase: 0.6, gradeCurve: 0.4, shadowSeparation: 0 },
+  // Low's ink and quantize now match medium's. They were authored heavier on the
+  // premise that low was a fallback tier nobody with a real machine would see;
+  // the measured quality ladder steps down to low on anything that cannot hold
+  // 60fps at high, so it is what most visitors get. Its render scale, paper
+  // grade and shadow toe are unchanged — those compensate for 0.82, and they
+  // were not what made the world read as a cel-shaded diagram.
+  low: { scale: 0.82, sharpen: 0.6, fisheye: 0, chroma: 0, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.33, gradeCurve: 0.61, shadowSeparation: 0.24 },
+  medium: { scale: 0.94, sharpen: 0.7, fisheye: 0.001, chroma: 0.04, ink: 0.05, scanline: 0, pixel: 1, quantize: 0.04, gradeBase: 0.56, gradeCurve: 0.4, shadowSeparation: 0 },
+  high: { scale: 1, sharpen: 0, fisheye: 0.0015, chroma: 0.05, ink: 0.06, scanline: 0, pixel: 1, quantize: 0.05, gradeBase: 0.6, gradeCurve: 0.4, shadowSeparation: 0 },
 });
 
 assert.ok(Object.isFrozen(POLAR_PALETTE), "POLAR_PALETTE must be frozen");
@@ -147,6 +153,54 @@ assert.equal(
   "a seal departing a nearby station must not turn back into docking",
 );
 assert.equal(deriveSealGuideState({ moving: false, rendererMode: "webgl" }), "idle");
+
+// The measured downgrade is a rescue path, and its sampling window has to be
+// bounded in wall-clock as well as frames. A window counted only in frames runs
+// for 90/fps seconds, so it stretches exactly as the machine it is rescuing gets
+// worse — 1.5s at 60fps but 10s at 9fps. Measured under 20x CPU throttling,
+// removing the wall-clock bound moved the final tier from 22.0s after the stall
+// to 37.1s.
+expectIncludes("components/IglooWorld.jsx", [
+  "sampleWindowMs",
+  "minSampleFrames",
+  "now - started >= AUTO_QUALITY_POLICY.sampleWindowMs",
+]);
+
+// A step down is permanent, so a reading only just over the ceiling has to be
+// confirmed by a second window before it costs the visitor a tier. Measured with
+// a matched counterfactual: a passing 8x stall across the sample window takes
+// medium to low without this, and does not with it.
+expectIncludes("components/IglooWorld.jsx", [
+  "confirmBandMs",
+  "confirmDelayMs",
+  "median <= ceiling + AUTO_QUALITY_POLICY.confirmBandMs",
+]);
+
+// And the ladder keeps watching rather than deciding once, because the machine a
+// visitor arrives with is not the machine they keep. A healthy window re-arms
+// instead of concluding; without this the only rescue from a laptop dropping to
+// battery is a reload.
+expectIncludes("components/IglooWorld.jsx", [
+  "recheckMs",
+  "arm(AUTO_QUALITY_POLICY.recheckMs)",
+]);
+
+// A tier can be restored upward, but only once per session and only when the
+// predicted cost of the tier above clears its own ceiling. The cap is what
+// bounds the worst case to a single up-and-down cycle: forced to fire by
+// pretending high costs what medium costs, the ladder went medium -> high at 49s,
+// high -> medium at 60s, and then stayed put for the remaining 90 seconds.
+expectIncludes("components/IglooWorld.jsx", [
+  "tierCostRatio",
+  "maxRestores",
+  "restoresRef.current < AUTO_QUALITY_POLICY.maxRestores",
+  "auto-quality-restore",
+  // The prediction prefers this machine's own history over the constant, and the
+  // low tier keeps sampling so a machine that fell there can climb back. Without
+  // the second, the restore is unreachable from the tier that most needs it.
+  "seenUp * (median / seenHere)",
+  'quality === "low" && restoresRef.current >= AUTO_QUALITY_POLICY.maxRestores',
+]);
 
 expectIncludes("components/IglooWorld.jsx", [
   "deriveSealGuideState",
@@ -280,9 +334,10 @@ for (const relativePath of [
 
 const packageJson = JSON.parse(readSource("package.json"));
 assert.equal(packageJson.scripts["check:polar-rescue"], "node scripts/check-polar-rescue.mjs");
+// Script paths, not npm keys - the build chains node calls directly.
 assert.match(
   packageJson.scripts.build,
-  /check:teerth[\s\S]*check:render-budget[\s\S]*check:polar-rescue[\s\S]*next build/,
+  /check-teerth\.mjs[\s\S]*check-render-budget\.mjs[\s\S]*check-polar-rescue\.mjs[\s\S]*next build/,
   "build must run the polar rescue gate before next build",
 );
 

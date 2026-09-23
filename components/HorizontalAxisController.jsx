@@ -2,8 +2,12 @@
 
 import { useEffect } from "react";
 
-const FORWARD_KEYS = new Set(["d", "w", "arrowright", "arrowdown", "pagedown"]);
-const BACK_KEYS = new Set(["a", "s", "arrowleft", "arrowup", "pageup"]);
+// WASD and the arrows belong to the seal while the world owns the viewport, so
+// those keys stay guarded. Page keys are page navigation at every scroll offset.
+const FORWARD_KEYS = new Set(["d", "w", "arrowright", "arrowdown"]);
+const BACK_KEYS = new Set(["a", "s", "arrowleft", "arrowup"]);
+const PAGE_FORWARD_KEYS = new Set(["pagedown", " "]);
+const PAGE_BACK_KEYS = new Set(["pageup"]);
 
 function isEditableTarget(target) {
   return target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']");
@@ -33,11 +37,16 @@ function canScrollVertically(target, deltaY) {
 
 export default function HorizontalAxisController() {
   useEffect(() => {
+    // The wheel is never a world control - the seal is piloted with WASD and by
+    // clicking beacons - so the axis consumes every wheel event. The previous
+    // `#world` bail-out meant the world, which fills the viewport at rest, ate
+    // the one gesture a visitor actually makes and the site read as frozen.
+    // Easing lives in CSS `scroll-behavior`, not here: a JS lerp toward its own
+    // target fights every other scroll source (anchor jumps from the nav chips,
+    // scrollbar drags, focus scrolls) and loses.
     const onWheel = (event) => {
       if (event.defaultPrevented || event.ctrlKey) return;
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest("#world")) return;
-      if (canScrollVertically(target, event.deltaY)) return;
+      if (canScrollVertically(event.target, event.deltaY)) return;
 
       const delta = horizontalDelta(event);
       if (!delta) return;
@@ -47,10 +56,13 @@ export default function HorizontalAxisController() {
 
     const onKeyDown = (event) => {
       if (event.defaultPrevented || isEditableTarget(event.target)) return;
-      if (isWorldVisible()) return;
 
-      const key = event.key.toLowerCase();
-      const direction = FORWARD_KEYS.has(key) ? 1 : BACK_KEYS.has(key) ? -1 : 0;
+      let direction = PAGE_FORWARD_KEYS.has(event.key.toLowerCase()) ? 1
+        : PAGE_BACK_KEYS.has(event.key.toLowerCase()) ? -1 : 0;
+      if (!direction && !isWorldVisible()) {
+        const key = event.key.toLowerCase();
+        direction = FORWARD_KEYS.has(key) ? 1 : BACK_KEYS.has(key) ? -1 : 0;
+      }
       if (!direction) return;
 
       event.preventDefault();

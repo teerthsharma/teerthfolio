@@ -431,9 +431,12 @@ assert.doesNotMatch(
   /!dockedStationId \? \(\s*<TopologyConstellation/,
   "docking must not unmount the aurora sky shell",
 );
+// The inline travel/docked test was refactored into shouldRenderObservatoryDome
+// (lib/polar-art-direction). Pin the helper and its two inputs instead of the
+// old expression: the dome must still mount by destination or home distance.
 assert.match(
   sceneSource,
-  /!dockedStationId \|\| dockedStationId === "observatory-plaque"/,
+  /shouldRenderObservatoryDome\(\{\s*destinationStationId:[\s\S]{0,120}distanceFromHome:/,
   "Observatory must retain its dedicated travel/docked dome handling",
 );
 assert.match(

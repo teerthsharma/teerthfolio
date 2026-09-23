@@ -533,10 +533,11 @@ assert.equal(
   packageJson.scripts["check:station-mechanism-layer"],
   "node scripts/check-polar-station-mechanism-layer.mjs",
 );
+// Script paths, not npm keys - the build chains node calls directly.
 for (const command of [
-  "npm run check:station-mechanisms-ne",
-  "npm run check:station-mechanisms-sw",
-  "npm run check:station-mechanism-layer",
+  "check-polar-station-mechanisms-ne.mjs",
+  "check-polar-station-mechanisms-sw.mjs",
+  "check-polar-station-mechanism-layer.mjs",
 ]) {
   assert.ok(packageJson.scripts.build.includes(command), `build gate is missing ${command}`);
 }

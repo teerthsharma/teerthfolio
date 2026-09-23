@@ -1,7 +1,7 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -29,7 +29,7 @@ export const DOME_TILE_COLUMNS_BY_ROW =
   POLAR_DOME_LATTICE_COUNTS.medium.ringColumns;
 export const DOME_LATTICE_COUNTS_BY_QUALITY = POLAR_DOME_LATTICE_COUNTS;
 export const DOME_COLLISION_MODE =
-  "intact by default; contact drives a heavy bounded root recoil and tiny optical signal, never shell collapse or course deformation";
+  "intact by default; contact drives a heavy bounded root recoil and tiny optical signal, never course deformation; a real seal ram above the knock threshold detaches the bricks nearest the contact point and repeated rams demolish the shell into a rubble field that auto-rebuilds";
 export const DOME_WEIGHTED_CONTACT_PROFILE = Object.freeze({
   angularLimitRadians: 0.012,
   dampingRatio: POLAR_DOME_INTERACTION_PROFILE.dampingRatio,
@@ -60,6 +60,10 @@ export const DOME_FLOAT_PROFILE = Object.freeze({
     margin: 0.55,
     order: "normalizedBrickHeight bottom-up; base course lands first, crown last",
     scaleFrom: 0.62,
+    // Outward overshoot in dome-local metres at the peak of a brick's arrival,
+    // zero at both ends of the window. Anticipation and follow-through, not a
+    // second animation: the same uBrickReveal register drives it.
+    settleOvershoot: 0.09,
     slideInLocal: 0.55,
     window: 0.45,
   }),
@@ -89,10 +93,67 @@ export const DOME_TILE_FALL_PROFILE = Object.freeze({
   detachThreshold: 0.68,
   damping: 1.8,
   gravity: -4.6,
+  groundFriction: 6.5,
   settleBounce: 0.18,
-  settleFloorY: 0.16,
+  // Local-Y rest height for a knocked-loose block: half a course thickness above the
+  // plinth, so detached bricks come to rest ON the snow instead of hovering.
+  settleFloorY: 0.085,
   settleVelocity: 0.08,
   response: "damped gravity detachment with a soft settle while docked",
+});
+// The dome's own reaction is a continuous function of seal distance, never the
+// authored dock point: one ramp drives the seam/rim emissive breath, the lattice rib
+// glow, the airlock threshold light, and whether pointer lift is live. The station
+// docking contract (data-docked-station, station schema, traversal) is untouched.
+export const DOME_PROXIMITY_RESPONSE_PROFILE = Object.freeze({
+  contactRadius: 3.2,
+  falloff: "1 - smoothstep(nearRadius, farRadius, contactDistance); continuous, no dock-point binary",
+  // The scene unmounts the dome past OBSERVATORY_DOME_DEPARTURE_DISTANCE (7.2), so the
+  // ramp spans exactly the band where the dome is on screen: 0 at the edge of its own
+  // world, 1 where the traversal collider parks the seal against the shell.
+  farRadius: 7.4,
+  hoverEnableRamp: 0.12,
+  nearRadius: 3.4,
+  thresholdLightGain: 0.55,
+});
+// Seal ram -> brick knock-off. The ram signal is the traversal collision impulse
+// (impactSequence / lastImpactStrength) already bridged into impactPulse; the dome
+// projects the seal's world position onto its own ellipsoid to find the contact
+// point and detaches the bricks nearest it using DOME_TILE_FALL_PROFILE gravity.
+// Tumble is deterministic: every angle, spin, and lateral kick is hashed from the
+// brick index. No Math.random, no audio, no new draw calls.
+export const DOME_RAM_KNOCK_PROFILE = Object.freeze({
+  contactHeightLocal: 0.42,
+  damageReachGain: 1.5,
+  hash: "deterministic sin/fract hash of the brick index; never Math.random",
+  knockRadiusLocal: 1.15,
+  lateralMetresPerSecond: 0.9,
+  maxBricksPerRam: 18,
+  minStrength: 0.26,
+  tumbleSpinRadiansPerSecond: 2.4,
+});
+// Damage is a live fraction of detached shell bricks. Past the collapse fraction the
+// remaining shell gives way, the inner weather shell hides, and the buried entry
+// cache underneath is exposed. After a cooldown the shell re-lays itself through the
+// existing bottom-up uBrickReveal materialize choreography - one animation system.
+export const DOME_DEMOLITION_PROFILE = Object.freeze({
+  collapseFraction: 0.38,
+  damageModel: "detachedShellBricks / totalShellBricks; runtime only, resets on reload",
+  rebuildCooldownSeconds: 5.5,
+  rebuildSeconds: 1.9,
+  reducedMotion: "detached bricks vanish and reappear at zero scale; no tumble, no gravity",
+  reveals: "the buried entry cache: mined public-corpus crates, the warm hearth, and the plaque core",
+});
+export const OBSERVATORY_ENTRY_CACHE_PROFILE = Object.freeze({
+  drawBudget: "one merged vertex-colored draw that takes the hidden inner weather shell's slot",
+  meaning:
+    "the home dome is built on top of its own evidence: knock the shell down and the mined public corpus, the warm hearth, and the plaque core are what is underneath",
+  // The suspension gaps are wide enough to see through, and what was behind them was a
+  // continuous white shell — so the igloo read as a solid ball with plates stuck on it.
+  // Medium and high now drop that shell entirely and stand the cache up permanently:
+  // the building is hollow, and what it was built around is what shows between the
+  // floating bricks. Low keeps the shell because there the shell IS the dome.
+  visibility: "always on medium/high; on low only while the shell is demolished",
 });
 export const OBSERVATORY_MACRO_SCALE_PROFILE = Object.freeze({
   domeHeightInSealHeights: 3.8,
@@ -125,10 +186,19 @@ export const DOME_CONTINUOUS_DRAW_CALL_PROFILE = Object.freeze({
   plinthCalls: 2,
   shellBlockInstanceCalls: 1,
   airlockBlockInstanceCalls: 1,
+  // The buried entry cache is only drawn while the shell is demolished, and the inner
+  // weather shell it reveals is hidden for exactly that window: the swap is draw-neutral.
+  entryCacheCalls: 1,
+  entryCacheReplaces: "continuousShellCalls",
   lowVisibleCalls: 6,
   lowShadowMapCalls: 2,
   fullVisibleCalls: 8,
-  fullShadowMapCalls: 0,
+  // One instanced shadow draw for the course blocks. It was zero, which meant
+  // the hero building cast nothing at the tier that renders it best: the dark
+  // patch under the dome was contact shading, not a shadow, and the courses
+  // could not shade each other. One instanced submission of ~77 rounded boxes
+  // buys both, and the shell keeps its own casting off so this stays one draw.
+  fullShadowMapCalls: 1,
   maxFullFrameCalls: 8,
 });
 export const DOME_INSTANCED_CONSTRUCTION_PROFILE = Object.freeze({
@@ -159,17 +229,146 @@ export const DOME_AWARD_ICE_PROFILE = Object.freeze({
 const OBSERVATORY_PERSONALITY = STATION_PERSONALITY_PROFILES["observatory-plaque"];
 // Glacial ice-glass override: the observatory personality surface family (#CBDCD2 /
 // #A9C9C4) reads sage-olive once multiplied under the warm dusk key, so the hero dome
-// authors its own desaturated pale glacial white-blue family instead of inheriting
-// station upholstery. The world grade amplifies saturation downstream, so the face
-// band stays near-monochrome (#D9E6F5 / #C4D6EC / #B7C9E2) to land as serious frosted
-// glass rather than toy primary blue.
+// authors its own pale ice family instead of inheriting station upholstery.
+//
+// This band used to be near-monochrome cool (#D9E6F5 / #C4D6EC / #B7C9E2), and the
+// reason given was a measured saturation regression: mean saturation across the dome
+// region walked 0.32 -> 0.44 when the body value came down. That measurement is still
+// correct, but it does not say "no hue" — it says the ADDITIVE chroma terms kept their
+// absolute size while the base shrank, so their share of each face grew. The fix for
+// that is to move the additives with the base, which the emissive block below now
+// does; freezing the whole dome grey was treating the symptom.
+//
+// The band stays COOL, and that is the correction to the obvious-looking reading of
+// "make it jolly". A warm ivory face family was tried and measured well — lit-face
+// saturation went 0.170 -> 0.320, past its 0.308 baseline — and the building stopped
+// being ice. It read as terracotta: a clay hut, a gingerbread house. The tell was in
+// the shadow, which came back mean RGB 72.2/67.8/70.8, R greater than B. An object
+// that is warm in its light AND warm in its shadow has no temperature contrast
+// anywhere, and that is precisely the description of clay.
+//
+// So the body is snow and snow is cool; the SUN is what is warm. The jolly lives in
+// DOME_KEY_LIGHT_COLOR and DOME_FILL_LIGHT_COLOR below, and in the temperature split
+// that mixes between them per fragment. That split only reads because these tones
+// are on the far side of neutral from the key — warm light on a cool body is the
+// whole mechanism, and warming the body cancels it.
+//
+// The repo already carries a comment warning that "the whole igloo reads as a
+// pumpkin" when amber floods the masonry. That was written about interior amber
+// leaking through the course gaps. It happened again here by a completely different
+// route, from the body palette itself, so the failure is more general than the
+// comment that guards it: this building goes to terracotta whenever warmth lands on
+// the ALBEDO rather than on the light.
 export const DOME_CRYSTAL_PALETTE = Object.freeze({
-  contactBlueGrey: "#4B5665",
-  frostIvory: "#D9E6F5",
-  iceBlue: "#B7C9E2",
-  seamBlueGrey: "#6C7D91",
-  subsurfaceCyan: "#AFD6D0",
+  contactBlueGrey: "#4A5468",
+  frostIvory: "#DCE8F7",
+  iceBlue: "#B7C8E2",
+  seamBlueGrey: "#6E7C99",
+  subsurfaceCyan: "#A5E2CE",
   windCap: "#F0F5FA",
+});
+// The dome's own two-point rig is where the jolly is cheapest, and it is the one
+// place hue is not rationed. Albedo hue is capped at 0.2 HSV saturation because a
+// saturated body colour is what made this building read as a toy block set, and
+// every additive chroma term has to justify itself against a measured blue-drift
+// regression. Light has neither problem: these two point lights already exist, their
+// count is a shader define that cannot change, and their colour multiplies every lit
+// fragment on the building for free. So the shell stays near-white paint and the
+// warmth arrives as light — which is also the physically honest arrangement, since
+// snow is white and it is the sun that is gold.
+// Warm key against cool fill is the split sunlit snow actually makes: gold where the
+// sun lands, sky-blue in the shadow it casts. The previous rig was near-white on
+// both sides, so every face turned away from the key fell to the same neutral grey
+// and the building had one temperature everywhere.
+// The fill came down from #9DBBF5, and the reason is the same compounding this
+// file already documents in the opposite direction. This constant is used three
+// times: as the fill light, as uBrickShadowTint at the cool end of the temperature
+// split, and in the transmission term. In LINEAR working space #9DBBF5 is
+// (0.336, 0.494, 0.913) — a 2.7:1 blue-over-red bias, far stronger than its sRGB
+// hex suggests — and the split normalises it to a 1.9:1 multiplier on ALBEDO,
+// which then meets a biome fill at another 1.5:1. The lowest two courses measured
+// rgb 43,65,130 at 0.67 saturation: cobalt paint against snow at 0.15 and sky at
+// 0.25, on a building whose shadow is supposed to be ice. #B6CCF0 keeps the
+// direction and drops the bias to 1.6:1. Measured after: 0.57 on those courses,
+// with the shadow probe still at R-B -57 against the -25 floor named below.
+export const DOME_KEY_LIGHT_COLOR = "#FFE2B4";
+export const DOME_FILL_LIGHT_COLOR = "#B6CCF0";
+/**
+ * ONE OBJECT, NOT A MATERIALS TEST GRID.
+ *
+ * Every constant above governs what the dome REFLECTS. This one governs what it
+ * RETURNS, and it exists because the two had drifted apart. Eleven panel centres
+ * sampled across the lit face at 1440x900 medium (13x13 boxes, seams avoided)
+ * came back luma 78.5 to 219.1 — a 140.6 spread — at HSV saturations from 0.029
+ * to 0.654. Warm tan (rgb ~251,216,157), dead grey, cream white and cobalt
+ * (rgb ~52,79,149) all touching, on ONE building. No amount of further seam or
+ * bevel work reaches that: the previous pass already collapsed the max neighbour
+ * step within a course from 196.5 to 78.6, and five contiguous lit panels already
+ * span 7 luma. What is left is the GLOBAL range, crown to base.
+ *
+ * The two loudest numbers are not made here and cannot be answered here in kind.
+ *
+ * The 0.654 is the scene's ambient and fill: removing the dome's own point lights
+ * makes those faces BLUER (3.14:1 -> 3.36:1 blue-over-red) and a plain-Lambert
+ * control with no authored shader at all returns the same region at 3.3:1. And it
+ * is then AMPLIFIED downstream. RetroCinematicPostProcess applies a vibrance BAND
+ * — smoothstep(0.30, 0.48, saturation) faded out again above 0.66 — which is
+ * documented there as returning every pixel at or below 0.30 saturation
+ * bit-identical. Nine of the eleven panels sampled above sit inside that band, so
+ * the grade was lifting the dome's chroma hardest exactly where it was already
+ * worst. That published 0.30 edge is what this profile's ceiling targets: below
+ * it, the dome is outside the band and the grade is a no-op on its chroma.
+ *
+ * The same file applies a teal split tone, color * vec3(0.712, 1.02, 1.651),
+ * masked by 1 - smoothstep(0.18, 0.46, gradedLuma) and documented as manufacturing
+ * 0.166 of pure blue saturation on a neutral shadow pixel. The base course sat at
+ * graded luma 0.306, roughly 0.58 of the way into that mask. So the dome's dark
+ * end was being painted cobalt by a term this component does not own and cannot
+ * reach — except by not being that dark. Lifting the base out of the mask is
+ * therefore the same move as closing the luma spread, and it is why the value
+ * term below is weighted to lift the bottom rather than to crush the top.
+ *
+ * That direction is load-bearing and was measured the wrong way round first. A
+ * value compression about a low fixed pivot took the whole shell DOWN (panels
+ * 219 -> 102, 184 -> 74), which pushed it FURTHER into the shadow mask: measured
+ * saturation at two panel centres went 0.063 -> 0.562 and 0.029 -> 0.636, the
+ * dome came back muddy khaki over cobalt, and the luma spread number improved to
+ * 67 while the picture got worse. A metric that rewards darkening the subject
+ * into a shadow-tint mask is measuring the wrong thing.
+ *
+ * Both terms apply to the final linear radiance after <opaque_fragment> and
+ * before tone mapping, so every value decision earlier in the stage — the
+ * clipping squeeze, the crown ladder, the seam recess, the directional bevel —
+ * is computed exactly as authored and only its RANGE is conditioned.
+ *
+ *   chromaCeiling  A saturation ceiling, pulled toward the fragment's own
+ *     luminance. Luminance-preserving by construction (a mix between vec3(L) and
+ *     a colour of luminance L has luminance L), so it cannot touch the value
+ *     ladder, and it is a CEILING: below it the pull is identically 1.0, so the
+ *     temperature split's direction survives everywhere and only its extreme is
+ *     capped. This is deliberately not the shape the file's "READ THIS BEFORE
+ *     TOUCHING ANY COOL TERM" warning forbids — it is not a cool term scaled by
+ *     light, it is a symmetric cap that bites the saturated blue base and the
+ *     saturated tan crown alike, and at zero light it still returns the cool the
+ *     split put there, just bounded.
+ *   lightPivot / lightContrast  A contrast reduction on the LIGHT, not on the
+ *     pixel: the radiance is divided by the fragment's own albedo first, so what
+ *     is compressed is effective irradiance about a pivot in physical units where
+ *     1.0 is a fully lit surface. Two things follow. The authored albedo ladder —
+ *     seam recess, seam core, bevel, crown, per-instance frost — divides out and
+ *     multiplies back untouched, so this cannot flatten the masonry the way a
+ *     compression on the composited pixel does (measured on that version: a joint
+ *     at shader-linear 0.03 lifting to 63/255 from 30/255 while the face it
+ *     separates only came down 219 -> 196, taking joint contrast from 7.3:1 to
+ *     3.1:1). And the pivot needs no calibration against an unknown post chain,
+ *     which the fixed-pixel-value pivot did and got wrong by two orders.
+ */
+export const DOME_MATERIAL_UNITY_PROFILE = Object.freeze({
+  chromaCeiling: 0.22,
+  lightContrast: 0.46,
+  lightPivot: 1.28,
+  measures: "eleven panel centres, 13x13 boxes, lit face, 1440x900 medium",
+  scope: "final linear radiance, after every authored value decision",
 });
 export const DOME_CRYSTAL_MATERIAL_CONTRACT =
   "bright anime-soft crystalline ice; recessed blue-grey frost seams; hairline seam recesses; scene-lit body with near-zero base emissive; bounded contact-weight optics";
@@ -183,11 +382,64 @@ export const OBSERVATORY_HOME_LIGHT_PROFILE = Object.freeze({
   distance: 2.4,
   intensity: Object.freeze({ high: 2.1, medium: 1.55, low: 0.9 }),
 });
+/**
+ * Interior light, not a blue cave and not a jack-o'-lantern. Everything the
+ * viewer sees THROUGH the block gaps and the doorway is the continuous inner
+ * shell, so that shell is the only thing standing in for the light inside.
+ *
+ * Two earlier attempts and why each failed. Slate blue (#3D5680) with a 0.5
+ * subsurface-cyan emissive turned every gap into a cold blue lamp and made the
+ * dome read as blue all the way through. Replacing it with a dark warm body and
+ * a 0.72 sunrise-gold glow fixed that while the courses were thin tiles whose
+ * seams were hairlines — but the masonry now stands off the shell as real
+ * blocks with real gaps, and at that gap width the amber floods out and the
+ * whole igloo reads as a pumpkin.
+ *
+ * The reference separates inside from outside by VALUE, not hue: a near-white
+ * interior an order of magnitude brighter than the lit ice, so the gaps read as
+ * slits of light rather than as coloured paint. That also survives any gap
+ * width, which the hue split did not. Emissive, not another point light: the
+ * scene's point-light count is a shader define and must stay invariant for the
+ * whole session.
+ */
+export const OBSERVATORY_INTERIOR_HEARTH_PROFILE = Object.freeze({
+  hearthColor: "#EDF4FF",
+  // Tuned for the state the visitor is actually in. The shell sits directly
+  // behind the courses rather than deep inside the room, so an emissive strong
+  // enough to look right through a demolished wall haloes every seated block
+  // and turns the intact igloo into a lantern with tiles glued on. This level
+  // leaves the resting joints reading as dark cut lines and still carries the
+  // interior when the blocks come off.
+  hearthIntensity: Object.freeze({ high: 0.62, medium: 0.52 }),
+  read: "white-hot interior light read through the block gaps and the doorway",
+  // The shell has two jobs and they pull opposite ways: it is the room behind
+  // the doorway, and it is also the sliver that shows in every course joint. A
+  // near-black body served the first and made the second a void, so the courses
+  // stopped reading as one wall and became plates stuck on a ball. This is
+  // shadowed ice: dark enough to sit behind the masonry, light enough that a
+  // joint reads as a cut in snow rather than a hole through it.
+  shellColor: "#7E8C9C",
+});
 export const OBSERVATORY_HOME_DRESSING_PROFILE = Object.freeze({
   surface: "wind-carved sastrugi radiating from a grounded frost shelf",
   accents: "three cyan expedition stakes with sunrise-gold survey bands",
   drawBudget: "one merged vertex-colored draw",
 });
+
+// Ablation only. Point lights are a per-fragment cost on every lit surface in
+// the scene, and their count is a shader define, so three intensity-zero
+// placeholders are not free — they are three more light evaluations per pixel.
+const DOME_POINT_LIGHTS_ABLATED =
+  typeof window !== "undefined" && window.location?.search.includes("qa-no-point-lights");
+
+// Ablation only, and it exists because the disc it removes is the one thing in this
+// component with a fill cost worth a number. Everything else changed here — light
+// positions, intensities, shader constants — is free: same instruction count, same
+// light count, same draw count. The contact disc is not, because it went from fully
+// depth-rejected (buried in the plinth cap, shading nothing) to a visible
+// alpha-blended pass.
+const DOME_CONTACT_OCCLUSION_ABLATED =
+  typeof window !== "undefined" && window.location?.search.includes("qa-no-contact-ao");
 
 const HALF_PI = Math.PI * 0.5;
 const DOME_CENTER_Y = POLAR_DOME_LATTICE_GEOMETRY.center[1];
@@ -270,8 +522,18 @@ function createAnimeIceMaterial(quality, surface = "shell") {
     color: "#DEE7F1",
     // Low tier draws this shader shell as the whole dome, so its emissive is pulled
     // down to a floor lift only: the low dome is lit by the scene rig too.
-    emissive: quality === "low" ? "#C9D6E6" : DOME_XZ_COLOR_ZONES.teal,
-    emissiveIntensity: quality === "low" ? 0.34 : 0.018,
+    //
+    // The tint on that lift is why low was not simply a cheaper version of the
+    // authored look. Measured over the dome region, low read mean saturation 0.316
+    // against medium's 0.237 with deeper darks (p5 0.089 against 0.164) — a bluer,
+    // harder-contrast building on the tier that most machines actually land on,
+    // because a 0.34-strength cool blue-grey self-glow was being applied across the
+    // entire low shell and nowhere else. The lift itself is still needed (low has
+    // no masonry depth to catch the rig), so it stays; what changes is that it is
+    // now the same warm ivory the face band above uses, so the tiers disagree about
+    // detail rather than about colour.
+    emissive: quality === "low" ? DOME_CRYSTAL_PALETTE.frostIvory : DOME_XZ_COLOR_ZONES.teal,
+    emissiveIntensity: quality === "low" ? 0.26 : 0.018,
     metalness: 0,
     roughness: quality === "low" ? 0.62 : 0.7,
     side: THREE.FrontSide,
@@ -279,7 +541,7 @@ function createAnimeIceMaterial(quality, surface = "shell") {
 
   material.userData.domeUniforms = uniforms;
   material.customProgramCacheKey = () =>
-    `continuous-anime-igloo-${surface}-${isFull ? "full" : "low"}-v7-glacial`;
+    `continuous-anime-igloo-${surface}-${isFull ? "full" : "low"}-v8-jolly`;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     material.userData.shader = shader;
@@ -417,8 +679,24 @@ function useAnimeIceMaterial(quality, surface = "shell") {
   return material;
 }
 
+// The radial taper, hoisted because the fragment stage has to undo it exactly. The
+// seam, the wind cap and the bevel bands all measure a block in its own CELL frame,
+// where the face runs -0.5..0.5, and the tapered vertex positions are not that frame.
+const DOME_BLOCK_TAPER = Object.freeze({ height: 0.073, lean: 0.018, width: 0.093 });
+
 function createCurvedBlockGeometry(quality) {
-  const geometry = new RoundedBoxGeometry(1, 1, 1, quality === "high" ? 3 : 2, quality === "high" ? 0.032 : 0.026);
+  // The bevel is authored on the unit box and then stretched by the per-cell
+  // scale, so it lands anisotropically. It also eats the flat face from both
+  // sides: at 0.085 a block's face shrank to 83% of its cell and the shoulders
+  // curved away from its neighbours, which widened every joint into a lit slot.
+  // 0.052 keeps the softened weathered edge that separates cut snow from a
+  // machined tile without opening the courses up.
+  // Segments carry the curved face. At 3 the flat face is a 4x4 grid, which is
+  // too coarse to hold a bulge: the old 0.012 attempt shaded as a dark diagonal
+  // X across the triangulation and read as a plastic toy brick, and that was
+  // read as a reason not to curve the face at all rather than as a reason to
+  // give it vertices.
+  const geometry = new RoundedBoxGeometry(1, 1, 1, quality === "high" ? 5 : 3, quality === "high" ? 0.055 : 0.046);
   const position = geometry.getAttribute("position");
   for (let index = 0; index < position.count; index += 1) {
     let x = position.getX(index);
@@ -426,13 +704,23 @@ function createCurvedBlockGeometry(quality) {
     let z = position.getZ(index);
     const faceX = Math.max(0, 1 - x * x * 3.6);
     const faceY = Math.max(0, 1 - y * y * 3.6);
-    // Near-flat face. The old 0.012 centre bulge turned every block into a pillowed
-    // gem: once the shell is lit rather than self-glowing, that dome shades as a dark
-    // diagonal X across the face triangulation and reads as a plastic toy brick.
-    if (z > 0.28) z += faceX * faceY * 0.0015;
-    const wedge = 1 + z * 0.055;
-    x *= wedge * (1 - (y + 0.5) * 0.018);
-    y *= 1 + z * 0.026;
+    // A block cut from a dome is a slab off a spherical shell: its outer face is
+    // a patch of that sphere, not a plane. The sagitta is real geometry, not
+    // styling — a 0.85-wide block on a 2.10 radius stands 0.043 proud at its
+    // centre, which against a 0.205 block depth is 0.21 of the unit box. That is
+    // what separates a laid dome from a faceted ball, and a near-flat 0.0015 was
+    // giving every course a hard chord edge against its neighbours.
+    if (z > 0.28) z += faceX * faceY * 0.2;
+    // Radial taper, sized from the shell the block is cut out of rather than
+    // eyeballed. A wall block spans radius R - t/2 to R + t/2, so its inner face
+    // is narrower than its outer by that ratio: 2.10 and a 0.205 depth give
+    // 0.907 across the width, and 2.80 gives 0.929 up the height. Expressed as a
+    // taper across the unit box that is 0.093 and 0.073. At the previous 0.055
+    // and 0.026 the sides were nearly parallel, so neighbours splayed apart at
+    // the outer face — the joint opened exactly where it is most visible.
+    const wedge = 1 + z * DOME_BLOCK_TAPER.width;
+    x *= wedge * (1 - (y + 0.5) * DOME_BLOCK_TAPER.lean);
+    y *= 1 + z * DOME_BLOCK_TAPER.height;
     position.setXYZ(index, x, y, z);
   }
   position.needsUpdate = true;
@@ -454,6 +742,16 @@ function createCurvedBlockGeometry(quality) {
   return geometry;
 }
 
+// Ablation only. Paired measurement puts the observatory at 7.19ms of a ~20ms
+// frame, which is the largest single item in it, and the two candidates —
+// fragment complexity on 56 instanced blocks, or the overdraw of stacking them
+// — are not separable from the outside. This swaps the authored ice for the
+// cheapest lit material three has, keeping every draw, every instance and every
+// triangle, so the difference is the shader and nothing else.
+function createPlainIceMaterial() {
+  return new THREE.MeshLambertMaterial({ color: "#D6DEE9", vertexColors: true });
+}
+
 function createInstancedIceMaterial(quality) {
   const uniforms = {
     uBrickAccent: { value: new THREE.Color(DOME_XZ_COLOR_ZONES.teal) },
@@ -463,6 +761,15 @@ function createInstancedIceMaterial(quality) {
     uBrickFrostIvory: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.frostIvory) },
     uBrickImpact: { value: 0 },
     uBrickIceBlue: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.iceBlue) },
+    // The shading split and the light rig are the same two colours on purpose: what
+    // the fragment shader calls "shadow" is the region the cool fill owns and the
+    // warm key misses, so authoring them separately would let the painted split and
+    // the lit split drift apart and cancel. These are light temperatures, not
+    // albedo, so they are not bound by the 0.2 face-family saturation cap — that cap
+    // exists to stop a saturated body colour reading as toy plastic, and a tint that
+    // only ever multiplies a near-white shell is not that.
+    uBrickKeyTint: { value: new THREE.Color(DOME_KEY_LIGHT_COLOR) },
+    uBrickShadowTint: { value: new THREE.Color(DOME_FILL_LIGHT_COLOR) },
     uBrickProximity: { value: 0 },
     uBrickReveal: { value: 1 },
     uBrickSeamBlueGrey: { value: new THREE.Color(DOME_CRYSTAL_PALETTE.seamBlueGrey) },
@@ -483,26 +790,83 @@ function createInstancedIceMaterial(quality) {
       value: DOME_FLOAT_PROFILE.wake.sigmaLocal * OBSERVATORY_MACRO_SCALE_PROFILE.worldScale,
     },
   };
-  const material = new THREE.MeshPhysicalMaterial({
-    clearcoat: quality === "high" ? 0.34 : 0.26,
-    // Tighter coat lobe: glass-frost specular, never a wide plastic sheen.
-    clearcoatRoughness: 0.36,
-    // Cool near-neutral base: multiplying the warm personality key (#FFD9A3) against the
-    // sage instance colors was the exact product that produced the olive brick read.
-    color: "#E1E9F2",
+  // MeshStandardMaterial, not MeshPhysicalMaterial. Measured: the dome is 6.7ms
+  // of a 30.9ms frame at 1440x900, and the physical lobes are why — clearcoat,
+  // sheen and specular each add a BRDF evaluation per fragment, on 56 instanced
+  // blocks with heavy overdraw. Cut snow is a rough scattering dielectric, which
+  // is exactly the standard model; the traces that were left were paying three
+  // extra lobes for a contribution no screenshot could separate.
+  const material = new THREE.MeshStandardMaterial({
+    // Neutral, and a value step down out of the clipping ceiling. Two separate
+    // measurements drove this. 17.41% of the dome's pixels were pinned at pure
+    // 255,255,255 against 0.00% in the reference, so the body had to come down
+    // from #E1E9F2's luma 230. Doing that in the same cool hue then pushed mean
+    // saturation across the dome from 0.321 to 0.428, because the ice tint was
+    // being carried TWICE — once here and once by the per-instance colours from
+    // colorForDomeBlock — and two cool colours multiplied compound. This is the
+    // same class of error as the warm-key-times-sage product that produced the
+    // old olive brick read. The tint now lives only on the instances.
+    // #DCDDDF was still one step too bright to survive this rig. The local key is a
+    // 34-intensity point light about four units off the crown, so irradiance there is
+    // ~2.1 before albedo; at 0.86 albedo the upward faces resolved past 1.0 and came
+    // back as flat 255 rectangles with no form in them at all. That flat white face
+    // against the near-black block side is the whole "plates stuck on a ball" read —
+    // it is a value-range problem, not a missing-effect problem, and no amount of
+    // extra shading recovers a channel that is already clipped.
+    // Albedo is the right lever rather than light intensity: the mascot docks under
+    // these same two lights and was measured 34 luma low once already, so dimming
+    // them to fix the dome would darken the character again. There is no GI here, so
+    // the dome's albedo reaches nothing but the dome.
+    // Two attempts to move it failed for opposite reasons and both are still
+    // instructive. #C4C2C6 bought clipping headroom by dropping the body and took the
+    // whole shell to a muddy mid-grey — this building is sunlit snow and belongs
+    // high-key, and the clipping is a narrow problem at the top of the range that is
+    // fixed at the top of the range, by the signed compression in the fragment stage.
+    // #DCD8D2 then tried to put the warmth here, and warm albedo under a warm key is
+    // what turned the igloo to terracotta. Neutral is still correct: the body is snow,
+    // the temperature belongs to the light.
+    //
+    // #DCDDDF -> #F0F1F3, and this is where the exposure the light rig gave up comes
+    // back. Moving the key out to 2.2x its radius flattened the terminator and cost
+    // 12% of the building: whole-dome luma 0.462 -> 0.407, the warm crown 0.599 ->
+    // 0.448, and the crown read khaki rather than sunlit. The clipping objection above
+    // no longer holds against the rig that replaced it — measured over the dome region
+    // on the current build, pixels pinned at 255 are 0.00% at #DCDDDF, at #F0F1F3 and
+    // at #F4F4F5 alike, so the ceiling that argument was defending is not there any
+    // more.
+    //
+    // Albedo rather than any light, and the reason is that albedo is the only lever
+    // here that is a pure multiplier. It scales crown, faces, seams and shadow side by
+    // one ratio, so the value LADDER is arithmetically unchanged and the two-materials
+    // read cannot come back through it; what grows is the absolute range, and that has
+    // to stay under the numbers the split cost. Measured on the settled frame at high:
+    // whole-dome luma 0.425 -> 0.465 (pre-split 0.462), p95 0.680 -> 0.814 against the
+    // 0.862 that was clipping, 10-90 spread 0.523 -> 0.632 against the 0.702 that read
+    // as two materials. It also reaches nothing but the dome: there is no GI here, so
+    // unlike raising the rig it cannot darken or blow out the docked mascot.
+    // Note sRGB, not linear: this is a 6.4% step in hex and a ~16% step in the linear
+    // value the shader multiplies, which is why the crown moves further than the hex
+    // suggests.
+    color: "#F0F1F3",
     // Body emissive is effectively off. The shell must be LIT by the scene rig so the
     // seam/face/crown value ladder survives; glow stays in the airlock, the seam
     // recesses, and the interior spill, never on the brick faces.
     emissive: DOME_CRYSTAL_PALETTE.subsurfaceCyan,
     emissiveIntensity: quality === "high" ? 0.012 : 0.01,
-    ior: 1.31,
+    // The scene probe carries what the coat used to: a rough dielectric under an
+    // irradiance probe still catches a broad sky reflection, for one lobe rather
+    // than four.
+    // Raising this to 1.62/1.45 as a shadow lift was tried and reverted. It does
+    // lift the shadow side, but the probe is close to neutral, so what it adds is
+    // grey — and it adds it hardest exactly where there is least direct light to
+    // compete with it. Measured on the shadow faces, chroma fell to 0.092 against a
+    // 0.294 baseline while luma barely moved: it washed the cool out of the shadow
+    // and left dusty stone. The shadow's lift and the shadow's colour are now both
+    // the temperature split below, which carries hue by construction.
+    envMapIntensity: quality === "high" ? 1.15 : 1,
     metalness: 0,
-    roughness: quality === "high" ? 0.34 : 0.42,
-    sheen: quality === "high" ? 0.06 : 0.04,
-    sheenColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
-    sheenRoughness: 0.62,
-    specularColor: new THREE.Color(DOME_CRYSTAL_PALETTE.windCap),
-    specularIntensity: quality === "high" ? 0.58 : 0.5,
+    roughness: quality === "high" ? 0.64 : 0.7,
+    side: THREE.FrontSide,
     vertexColors: true,
   });
   material.userData.brickUniforms = uniforms;
@@ -514,7 +878,7 @@ function createInstancedIceMaterial(quality) {
     lastPoint: new THREE.Vector3(),
     lastStampMs: 0,
   };
-  material.customProgramCacheKey = () => `instanced-curved-ice-blocks-${quality}-glacial-v14-wake`;
+  material.customProgramCacheKey = () => `instanced-curved-ice-blocks-${quality}-jolly-v18-unity`;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     material.userData.shader = shader;
@@ -603,11 +967,38 @@ for (int splat = 0; splat < ${DOME_FLOAT_PROFILE.wake.splatCount}; splat += 1) {
 brickWake = min(brickWake, 0.16) * uBrickFloatMotion * brickReveal;
 transformed.z += brickWake / brickFloatAxisScale;
 transformed.z += (brickReveal - 1.0) * ${DOME_FLOAT_PROFILE.materialize.slideInLocal.toFixed(2)};
+// Follow-through. The slide above is a smoothstep, which eases to a stop: the brick
+// decelerates into its seat and stops dead, which reads as an object being animated
+// rather than an object with mass. This carries it a little past the seat around a
+// third of the way through its arrival and lets it settle back, so the course lands
+// instead of arriving. It is zero at both ends by construction, so the seated pose
+// and the reduced-motion pin (uBrickReveal = 1) are bit-for-bit unchanged.
+transformed.z += sin(brickReveal * 3.14159265) * (1.0 - brickReveal)
+  * ${DOME_FLOAT_PROFILE.materialize.settleOvershoot.toFixed(2)} / brickFloatAxisScale;
 vBrickBevel = instanceBevel;
 vBrickFacet = instanceFacet;
 vBrickFrost = instanceFrost;
 vBrickHover = instanceHover;
-vBrickLocalPosition = transformed;
+// The block's own cell frame, not its displaced pose. Every consumer of this varying
+// — the seam field, the wind cap, the two bevel bands — asks "where am I on this
+// block's face", and the transformed position cannot answer that: the geometry pass
+// tapers x and
+// y by the radial wedge, so the outer face's half-extent is 0.532 rather than 0.5,
+// and the suspension float then adds a large local z on top of it.
+//
+// Measured before this, on the settled medium frame: brickEdgeDistance ran -0.023 at
+// the outer face's joint against a 0.022-0.036 seam width, so the recess saturated at
+// FULL strength across the outer ~10% of every face instead of peaking on a hairline.
+// That is the 12px navy border painted around each block in the capture, and with the
+// courses floating apart it is the single loudest thing on the building: the frame and
+// the panel it frames measured luma 71.9 against 199.6, which is a 2.78:1 step inside
+// one block, against 1.49:1 for the same two regions under a plain Lambert control.
+// The taper is invertible in closed form — y first, because x was scaled by the
+// untapered y — so this costs two divides and restores the seam the file authored.
+float brickCellY = position.y / (1.0 + position.z * ${DOME_BLOCK_TAPER.height});
+float brickCellX = position.x
+  / ((1.0 + position.z * ${DOME_BLOCK_TAPER.width}) * (1.0 - (brickCellY + 0.5) * ${DOME_BLOCK_TAPER.lean}));
+vBrickLocalPosition = vec3(brickCellX, brickCellY, position.z);
 #ifdef USE_INSTANCING
   vBrickWorldPosition = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
   vBrickWorldNormal = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
@@ -629,7 +1020,9 @@ uniform vec3 uBrickAccent;
 uniform vec3 uBrickContactBlueGrey;
 uniform vec3 uBrickFrostIvory;
 uniform vec3 uBrickIceBlue;
+uniform vec3 uBrickKeyTint;
 uniform vec3 uBrickSeamBlueGrey;
+uniform vec3 uBrickShadowTint;
 uniform vec3 uBrickSubsurfaceCyan;
 uniform vec3 uBrickWindCap;
 uniform float uBrickImpact;
@@ -650,7 +1043,12 @@ varying vec3 vBrickWorldPosition;`,
 float brickCrystalDx = dFdx(brickCrystalHeight);
 float brickCrystalDy = dFdy(brickCrystalHeight);
 vec3 brickFrostGradient = vec3(-brickCrystalDx, brickCrystalDy, 0.0);
-normal = normalize(normal + brickFrostGradient * ${quality === "high" ? "0.16" : "0.11"});`,
+// Halved. At 0.34 the micro-normal was strong enough to be the loudest thing on a
+// block face, and because the frost octave under it is strongly anisotropic it
+// landed as a diagonal corduroy weave — visible as texture rather than as surface
+// in a still frame. A cut-snow face is matte and nearly featureless at this
+// distance; the block reads by its edges and its turn, not by its grain.
+normal = normalize(normal + brickFrostGradient * ${quality === "high" ? "0.16" : "0.10"});`,
       )
       .replace(
         "#include <map_fragment>",
@@ -659,13 +1057,50 @@ vec2 brickFrostFrame = vec2(
   dot(vBrickWorldPosition, normalize(vBrickTangentAxis)),
   dot(vBrickWorldPosition, normalize(vBrickCourseAxis))
 );
+// 15 x 9.5, not 27 x 6.5. A 4:1 anisotropy ratio is a woodgrain, not wind-packed
+// snow: every face carried the same directional streak and the eye read it as a
+// printed material. Closer to 3:2 keeps the wind direction legible without the
+// stripe becoming the surface's dominant feature in a still.
 float brickAnisotropicFrost = polarXZNoise(
-  brickFrostFrame * vec2(27.0, 6.5) + vec2(vBrickFacet * 17.0, vBrickFrost * 9.0)
+  brickFrostFrame * vec2(15.0, 9.5) + vec2(vBrickFacet * 17.0, vBrickFrost * 9.0)
 );
 float brickCrossFacet = polarXZNoise(
   brickFrostFrame.yx * vec2(8.0, 19.0) - vec2(vBrickFacet * 7.0, vBrickFrost * 13.0)
 );
-float brickCrystalHeight = mix(brickAnisotropicFrost, brickCrossFacet, 0.24);
+// A third, much finer octave. Packed snow is granular at a scale well below the
+// wind grain the first two carry: measured against the reference, this surface
+// held 7.60% normalised high-frequency energy against its 9.68%, which is the
+// difference between a smooth shell and one cut from drift.
+// 42, not 96. Measured at the docked framing the dome spans ~580px for 6.6
+// world units, so a 96-cycle octave puts one noise cell inside a single pixel:
+// what it adds there is aliasing, not grain, and the Laplacian energy it scored
+// was counting its own shimmer. 42 leaves a cell about two pixels wide at the
+// hero distance, which is the finest thing this camera can actually resolve.
+vec2 brickGrainFrame = brickFrostFrame * vec2(42.0, 38.0);
+float brickSnowGrain = polarXZNoise(
+  brickGrainFrame + vec2(vBrickFrost * 31.0, vBrickFacet * 23.0)
+);
+// Fade the grain as its cell approaches a pixel. The octave is authored in world
+// space, so a distant dome carries the same frequency and would alias into
+// shimmer long before it visually faded; fwidth on the grain's own frame is the
+// screen-space size of one cell, and the noise is worth nothing once that
+// crosses a pixel.
+float brickGrainCell = max(fwidth(brickGrainFrame.x), fwidth(brickGrainFrame.y));
+float brickGrainFade = 1.0 - smoothstep(0.35, 1.1, brickGrainCell);
+float brickCrystalHeight =
+  mix(brickAnisotropicFrost, brickCrossFacet, 0.24) +
+  (brickSnowGrain - 0.5) * 0.2 * brickGrainFade;
+// Front faces only, and that is not an oversight to be corrected later. A block is
+// a RoundedBoxGeometry — a closed solid with outward normals on all six sides — so
+// the far wall of the hollow dome, seen through a suspension gap, presents its
+// dome-facing side, whose normal points back at the camera. That is a FRONT face
+// and it draws under culling: the interior already exists without DoubleSide, and
+// there is no open surface here for DoubleSide to close.
+// Measured, not reasoned: the same camera captured with DoubleSide and with
+// FrontSide differs by mean 0.67/255, which is the wave animation moving block
+// edges between two live captures. It bought nothing, and it hands back backface
+// culling on 75 closed blocks in a frame that is fill-bound at ~13.9 ms per
+// megapixel. Do not re-enable it to "make the interior appear".
 vec3 brickNormal = normalize(vBrickWorldNormal);
 vec3 brickView = normalize(cameraPosition - vBrickWorldPosition);
 vec3 brickKeyDirection = normalize(vec3(-0.46, 0.82, 0.34));
@@ -680,7 +1115,20 @@ float brickFrost = brickMacroFrost * 0.42 + brickAnisotropicFrost * 0.58;
 // Hairline seams: the bevel band is a fraction of its old width so the joint reads as
 // a precise cut line between blocks instead of a chunky rounded toy edge. Screen-space
 // derivative width keeps it at least one pixel wide at any distance without fattening.
-float brickEdgeDistance = 0.5 - max(abs(vBrickLocalPosition.x), abs(vBrickLocalPosition.y));
+float brickFaceInset = 0.5 - max(abs(vBrickLocalPosition.x), abs(vBrickLocalPosition.y));
+// Only the outer face has a rim to cut. A block's SIDE wall carries x = +/-0.5 along
+// its whole depth, so an inset measured on it is zero everywhere and the recess paints
+// the entire wall — 62% seam blue-grey plus a 34% darkening over a surface that is
+// 15% of each block on screen. That was correct when the courses were thin tiles meeting
+// at hairline joints and the wall was the invisible inside of a joint. These courses
+// float apart on a published suspension gap, so the wall is an exposed lit face of an
+// ice block, and painting it is what framed every block like a picture tile.
+// Measured: the side walls came back rgb(47,74,124) against rgb(224,197,154) on the
+// face they border, the "cold saturated blue touching neutral cream" the gap names.
+// Held out at 0.5 the wall takes no recess, no seam core and no bevel band, so what
+// separates it from the face is its own turn away from the key — the value ladder
+// doing the work the paint was doing.
+float brickEdgeDistance = mix(0.5, brickFaceInset, smoothstep(0.30, 0.46, vBrickLocalPosition.z));
 // The seam field 0.5 - max(|x|,|y|) flips its gradient axis across the face
 // diagonals; raw fwidth() therefore jumps discontinuously there, and under
 // foreshortening it exceeded brickBevelWidth, degenerating the recess
@@ -712,15 +1160,194 @@ brickXzTint = mix(brickXzTint, uBrickFrostIvory, brickIvoryZone * 0.14);
 // Value ladder (dark seam recess / mid ice face / bright crown specular). Chroma is
 // carried almost entirely by value here; the XZ tint is a whisper so the shell stays
 // near-monochrome glacial glass.
-vec3 brickSurface = mix(diffuseColor.rgb, brickXzTint, 0.1);
-brickSurface *= 0.96 + brickWrappedDiffuse * 0.2 + (brickFrost - 0.5) * 0.08;
-brickSurface *= 1.0 + brickCrownGradient * 0.24;
-brickSurface = mix(brickSurface, uBrickWindCap, brickWindCap * 0.14 + brickCrownHighlight * 0.16);
+vec3 brickSurface = mix(diffuseColor.rgb, brickXzTint, 0.22);
+// The sign of the wrapped-diffuse term is inverted on purpose, and it is the fix for
+// the clipped crown rather than another attempt to shade around it.
+//
+// This used to read 0.96 + brickWrappedDiffuse * 0.2: it BRIGHTENED albedo on the
+// faces the key already hits hardest. Those faces were the ones resolving past 1.0
+// and coming back as flat white rectangles, so the term was adding gain exactly
+// where there was no headroom left, and adding nothing on the sides that were too
+// dark. The measured span was luma 63-255 against a reference dome's 59-101.
+// The compression happens in albedo, signed by how much light a face is already
+// getting. Key-facing albedo scales 0.92, away-facing 1.14: a 1.24:1 squeeze that
+// costs one sign flip and pulls the crown back under the ceiling without touching
+// the shadow side.
+// Sized gently on purpose: 0.24 was tried and took mean luma down with it. The
+// clipped faces lose nothing visible when they come down, but every partly-lit face
+// between the crown and the shadow side does, and there are far more of those. The
+// current 1.14/0.22 pair keeps the key-facing end where 1.08/0.16 had it and spends
+// the whole change on the away-facing end, which is the half that was too dark.
+//
+// The claim this comment used to open with — "direct light cannot come down" — is
+// no longer true and the reasoning that produced it is worth keeping as a warning.
+// It was inferred from the mascot's 34-luma regression, and the inference is sound
+// only if the character and the crown are equally far from the lamp. They were,
+// because the lamp sat on the roof. Once it moves out, the two separate and the
+// light CAN come down: the key light block below records 226 -> 154 on the crown
+// against ten luma on the mascot. What cannot come down is light from a lamp close
+// enough that the building and the character share its falloff.
+brickSurface *= 1.14 - brickWrappedDiffuse * 0.22 + (brickFrost - 0.5) * 0.08;
+// READ THIS BEFORE TOUCHING ANY COOL TERM ON THIS MATERIAL.
+// Three separate changes have destroyed this dome's shadow, by three different
+// mechanisms, and every one of them looked reasonable in isolation:
+//   1. gating the cool additives on face luminance (a "brickTone" multiplier),
+//   2. raising envMapIntensity to 1.62/1.45 to lift the shadow with the sky probe,
+//   3. warming the face palette so the body was warm ivory.
+// They share one shape: each made the cool contribution proportional to how much
+// light a fragment already had. A cool term multiplied by ANY lighting quantity
+// deletes itself exactly where it is needed, because the shadow is where that
+// quantity is zero. Measured cost of the worst of them: shadow-face saturation
+// 0.294 -> 0.092 and the building read as wet charcoal, then as terracotta.
+// The construction below is immune by design. Cool is not scaled by light; cool is
+// what this mix RETURNS at zero light. Keep any future cool term the same shape.
+//
+// Probe regions for re-measuring, via verification/palette-metrics.mjs. These follow
+// the lighting, so they go stale whenever it moves — the previous pair (lit
+// "640,300,180,260" / shadow "440,340,150,240") now samples the cool middle band and
+// reports a false failure, because the warm faces migrated up to the crown.
+//   warm crown  REGION="600,130,220,150"
+//   cool body   REGION="450,460,150,200"
+// Complementary temperature split, and this is what makes the shell read as sunlit
+// ice rather than as dusty stone. Warming the palette alone does not do it: the
+// shadow warms with the key, both ends converge on neutral, and the measurement
+// showed exactly that — shadow-face chroma 0.294 -> 0.092 while luma held. What the
+// near-monochrome original actually had, and what its comments never named, was a
+// distinctly COOL shadow against a warmer key. That opposition is the chroma; the
+// palette's absolute hue is almost beside the point.
+// Normalised by its own luminance so this rotates hue and nothing else. Every value
+// decision above — the clipping squeeze, the crown ladder, the seam recess — stays
+// bit-for-bit intact, which is the only reason it is safe to apply this broadly.
+// The ramp is sharpened before it drives temperature, and only temperature. The
+// wrapped-diffuse term is deliberately soft — it wraps 0.42 past the terminator so
+// the value falloff stays gentle — but borrowing that softness for hue left most of
+// the dome sitting near the middle of the mix, where the two tints average back to
+// neutral. Measured: the lit faces reached only R-B +6.4 against a +25 floor while
+// the shadow was already across at -27.2. Sharpening pushes each fragment toward one
+// end or the other, which is what a split is; the value ramp it is derived from is
+// untouched, so the form still falls off softly.
+// Biased toward the cool end. The crossover sits well up the lit ramp because this
+// is snow: only the faces the key really lands on should go warm, and everything
+// from the terminator down belongs to the sky. Centring it instead put the whole
+// dome on the warm side of neutral (shadow R-B -14.5 against a -25 floor) even
+// though the split itself was the right size.
+// Kept deliberately soft, and the reason is what a sharp version looks like rather
+// than what it measures. A sharpened ramp at full strength hits the numeric split
+// target exactly — lit R-B +19.9, shadow -38.9, both ends on the right side of
+// neutral — and the still is a beach ball: every block face a flat saturated yellow
+// panel, every block side flat blue. The cause is geometric. A block's outer face is
+// nearly planar, so brickWrappedDiffuse is nearly constant across it; sharpening the
+// ramp therefore posterises the shell into two flat colours at the block boundary
+// instead of shading across it. Flat colour on a face is what paint looks like.
+// The fix for that is the ramp's BIAS, not its strength. Softening the whole term
+// instead was tried and just slid the picture back toward monochrome-cool — lit R-B
+// -4.1, whole-dome saturation 0.180 — which is the same oscillation as before with
+// the amplitude turned down. Biasing the crossover high up the lit ramp keeps the
+// split at full strength while restricting the warm end to the few faces the key
+// genuinely lands on: the crown reads as sunlit, everything from the terminator down
+// belongs to the sky, and there is no large flat field of one saturated hue to read
+// as paint. Centring this ramp is what produced the yellow-panelled beach ball.
+// Half the driver is world HEIGHT, and that is what stops the posterising rather
+// than any amount of ramp tuning. brickWrappedDiffuse comes from the block's own
+// normal, which is nearly constant across its nearly-planar outer face, so a split
+// driven by it alone can only ever assign one flat colour per block — the beach-ball
+// read, and it survived every bias and strength setting tried: (0.20, 0.85) gave lit
+// R-B +53.9 / shadow -14.5, (0.29, 0.93) gave +19.9 / -38.9, (0.34, 0.98) gave about
+// +7 / -51, and all three painted flat panels. World height is continuous ACROSS
+// block boundaries, so neighbouring blocks land on almost the same temperature and
+// the warmth rakes smoothly up the shell the way sun on a curved building does.
+// Physically it is also the better story: the sun is overhead and the shadow is lit
+// by sky, so height IS the light's falloff here. Keeping half the normal term
+// preserves some directional response so the dome is not a flat vertical gradient.
+// A quarter, not a half. At an even blend the height term dominated the probe
+// regions and pushed BOTH ends cool — lit R-B -60.9, shadow -73.3, whole-dome
+// saturation 0.257 but the entire dome blue. Weighted down it does the one job it is
+// here for, which is to vary within and across block faces so the split has a
+// gradient to sit on, while the normal term keeps deciding which side of neutral a
+// fragment lands on.
+float brickSunHeight = smoothstep(0.6, 3.4, vBrickWorldPosition.y);
+float brickTemperatureMix = smoothstep(
+  0.29,
+  0.93,
+  brickWrappedDiffuse * 0.75 + brickSunHeight * 0.25
+);
+vec3 brickTemperature = mix(uBrickShadowTint, uBrickKeyTint, brickTemperatureMix);
+brickTemperature /= max(dot(brickTemperature, vec3(0.2126, 0.7152, 0.0722)), 0.001);
+// Asymmetric, and the argument for it is already written above in the comment that
+// rejected a teal key: "a saturated TEAL key stained every ice face cyan and read
+// as toy plastic ... light and albedo compound into a single wash". That comment
+// was applied only to the warm end, where it does not bite, because a warm key
+// lands on faces the cool fill has left alone. On the shadow end the same
+// compounding is exactly what happens, and it was measured on the settled frame:
+// the cool end of this mix is normalised #9DBBF5, which in linear working space is
+// (0.685, 1.007, 1.861) — a 1.9:1 blue-over-red bias on ALBEDO — and the light
+// reaching those faces is the biome fill at another 1.5:1. The product is the
+// lowest two courses reading rgb 43,65,130 at 0.67 saturation: cobalt paint, not
+// ice in shadow, against snow at 0.15 and sky at 0.25.
+// So the split keeps its full strength where it earns it and eases off at the cool
+// end. The direction is untouched, the warm crown is bit-for-bit what it was, and
+// the shadow stays well clear of the neutral drift this file records as a
+// regression: the -25 R-B floor named above is still cleared roughly twice over.
+// The warm end went 0.62 -> 0.70 and the cool end is untouched at 0.36. The albedo
+// lift above is a pure multiplier, so it scales the warm crown's R-B along with
+// everything else and cannot restore a temperature split on its own: measured, the
+// crown probe came back +8.1 before and +17.1 after, still under the +25 floor this
+// file has held since the split was authored. This term carries hue at constant
+// value — brickTemperature is normalised by its own luminance one line up — so it is
+// the one handle that closes that gap without touching the ladder the albedo just
+// widened. At 0.70 the crown probe reads R-B +25.6 and the whole-dome numbers are
+// within 0.001 luma of the same frame at 0.62.
+// 0.78 was measured and rejected on the still rather than on the numbers. It scores
+// better on every metric named here — crown R-B +32.7, saturation 0.375 — and the
+// crop is a gold cap on a blue building: past roughly 0.72 the split stops being sun
+// on snow and becomes two painted materials meeting at a course line, which is the
+// same failure as the old light rig arriving by the hue channel instead of the value
+// channel. The ceiling on this number is what the crop reads as, not what it measures.
+// 0.22 was tried at the cool end and reverted, and the measurement is worth keeping
+// because it rules this coefficient out as the handle for the saturated blue that the
+// exposed side walls now show. Dropping 0.36 -> 0.22 moved the wall from rgb(85,118,187)
+// to rgb(85,118,184): R-B -102 -> -99, HSL saturation 0.43 -> 0.41, whole-dome saturation
+// 0.384 -> 0.379. A 3% move for a third of the split's cool amplitude.
+// It cannot do more, and a plain-Lambert control says why. Under qa-dome-plain — no
+// authored shader at all, instance colours and the scene rig only — the same shadow-side
+// region comes back rgb(14,23,46), a 3.3:1 blue-over-red ratio, against 3.14:1 with the
+// full material. The shadow's hue is what the light arriving there already is; this term
+// is not adding it and therefore cannot remove it. Removing the dome's own point lights
+// (qa-no-point-lights) makes those faces BLUER still, 3.14:1 -> 3.36:1, so the remaining
+// chroma is the scene's ambient and fill rather than anything this component owns.
+brickSurface *= mix(vec3(1.0), brickTemperature, mix(0.36, 0.70, brickTemperatureMix));
+// Crown terms are deliberately small. Measured against the reference at 1440x900
+// the dome there spans luma 59-101 across crown, faces and shadow side — a 1.71
+// ratio held by a soft key and aerial haze. This shell was spanning 63-255 with
+// the upward faces pinned at pure 255,255,255: a clipped crown carries no form
+// at all, and the wide spread is what made laid courses read as separate plates.
+// The stack that got it there was a 0.24 world-height gradient, a 0.16 wind-cap
+// mix and a 0.075 emissive lift, all landing on the same upward normals.
+brickSurface *= 1.0 + brickCrownGradient * 0.09;
+brickSurface = mix(brickSurface, uBrickWindCap, brickWindCap * 0.09 + brickCrownHighlight * 0.06);
 brickSurface = mix(brickSurface, uBrickSeamBlueGrey, brickRecess * 0.62);
 // Cool grey-blue seam by default; the subtle cyan-mint only lives in the deep cut.
 brickSurface = mix(brickSurface, uBrickSubsurfaceCyan, brickSeamCore * 0.12);
 brickSurface *= 1.0 - brickSeamCore * 0.34;
-brickSurface += uBrickFrostIvory * brickBevelLight * (0.028 + vBrickFacet * 0.012);
+// DIRECTIONAL BEVEL. A cut ice block reads as a solid with thickness because its top
+// lip catches the sky and its underside is occluded by the course it sits on. This was
+// a uniform ring at 0.028 — equal strength the whole way round, which is an OUTLINE,
+// not relief, and it is why the dome read as flat plates glued to a ball rather than as
+// masonry. The seam width is deliberately hairline (see the note above; a fat bevel
+// read as a rounded toy edge) so the relief has to come from the light across the band,
+// not from making the band wider.
+// Tuned by capture, twice. At 0.16 with a smoothstep(-0.15, 0.45) ramp the highlight
+// still caught the left and right edges — those span the whole face height, so their
+// upper halves lit and every block read as a FRAMED PICTURE TILE, which is a different
+// wrong from flat but no better. The ramp now starts above the face centre so only the
+// genuine top band takes light, and the gain is less than half.
+float brickEdgeUp = smoothstep(0.16, 0.44, vBrickLocalPosition.y);
+brickSurface += uBrickFrostIvory * brickBevelLight * brickEdgeUp * (0.07 + vBrickFacet * 0.022);
+// The matching underside, confined the same way. Without it the blocks gain a lit lip
+// and still do not sit on each other — the shadow under the lip is what stacks them
+// into courses rather than leaving them as tiles at slightly different heights.
+float brickEdgeDown = smoothstep(0.16, 0.44, -vBrickLocalPosition.y);
+brickSurface *= 1.0 - brickBevelLight * brickEdgeDown * 0.17;
 brickSurface = mix(brickSurface, uBrickContactBlueGrey, brickContactOcclusion * 0.12);
 diffuseColor.rgb = brickSurface;`,
       )
@@ -740,14 +1367,68 @@ float brickContactSignal = uBrickImpact * (0.012 + brickBevelLight * 0.026);
 // Near-zero body emissive: only enough lift to keep the shadow side off black. The
 // dome is lit by the scene rig, so the seam/face/crown ladder is not washed flat.
 totalEmissiveRadiance += brickSurface * 0.06;
-totalEmissiveRadiance += uBrickIceBlue * 0.012;
-totalEmissiveRadiance += uBrickSubsurfaceCyan * brickTransmission * 0.1;
-totalEmissiveRadiance += uBrickFrostIvory * (brickFresnel * 0.07 + brickCrownHighlight * 0.075);
+// A luminance gate was tried on the three chroma additives below and is not coming
+// back. The idea was to make each additive's SHARE of a face the invariant, so the
+// "shell drifts blue as the body darkens" regression could not recur at any base
+// value. It does fix that, and it is still wrong: multiplying by the face's own
+// luminance takes the most light away from the faces that have the least, which is
+// precisely the shadow side these terms exist to lift. Measured over the dome
+// region it moved saturation 0.237 -> 0.133 and median luma 0.493 -> 0.44, and the
+// block sides went to wet charcoal. The correct handle for "this term is
+// disproportionate in shadow" is its coefficient, which is already small.
+totalEmissiveRadiance += uBrickIceBlue * 0.006;
+// Cool, and the reasoning that made it warm for one iteration is worth keeping as a
+// warning. The old comment identifies this term as landing "on exactly the faces
+// angled away from the key", and that is true — brickTransmission peaks where the
+// key does not reach. It was made warm on the theory that light scattering through
+// a block lit by a warm key comes out warm. The measurement said otherwise: lit
+// faces recovered to 0.320 while the shadow sat at 0.102, because this term was
+// pumping warmth into precisely the fragments the temperature split had just made
+// cool, and the two cancelled. A snow shadow is not lit by the sun it is hiding
+// from; it is lit by the sky, so the light coming through a block on that side is
+// the cool fill's colour. This is now the largest cool contribution in the frame and
+// it is shaped correctly: biggest where direct light is least.
+totalEmissiveRadiance += uBrickShadowTint * brickTransmission * 0.075;
+// Silhouette rim, and deliberately NOT tone-scaled. Measured on the settled frame,
+// the dome's left edge sits at almost the same luma as the sky behind it, so the
+// building loses its outline on exactly the side that is turned away from the key
+// — which is the side that needs it, and the side a tone-scaled term would refuse
+// to light. This is a value lift first: the ivory is near-white, so what it adds
+// to a dark shadow edge is separation, not colour.
+totalEmissiveRadiance += uBrickKeyTint * (brickFresnel * 0.15 + brickCrownHighlight * 0.022);
 // Interior spill through the seam cuts stays: this is the lab-lit-from-within read.
-totalEmissiveRadiance += uBrickSubsurfaceCyan * brickSeamCore * (0.05 + uBrickProximity * 0.16);
+totalEmissiveRadiance += uBrickSubsurfaceCyan * brickSeamCore * (0.03 + uBrickProximity * 0.1);
 totalEmissiveRadiance += uBrickFrostIvory * brickFresnel * uBrickProximity * 0.07;
 totalEmissiveRadiance += uBrickSubsurfaceCyan * vBrickHover * (0.12 + brickFresnel * 0.08);
 totalEmissiveRadiance += uBrickAccent * brickContactSignal;`,
+      )
+      .replace(
+        "#include <opaque_fragment>",
+        `#include <opaque_fragment>
+// See DOME_MATERIAL_UNITY_PROFILE. The dome's final response, conditioned once
+// after every authored value decision and before tone mapping.
+float domeUnityLuma = max(dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.0001);
+float domeUnityPeak = max(max(gl_FragColor.r, gl_FragColor.g), gl_FragColor.b);
+float domeUnityChroma =
+  (domeUnityPeak - min(min(gl_FragColor.r, gl_FragColor.g), gl_FragColor.b))
+  / max(domeUnityPeak, 0.0001);
+// Saturation ceiling, pulled toward this fragment's own luminance. Identically
+// 1.0 below the ceiling, so the split's direction is untouched and only its
+// extreme is capped; luminance-preserving, so the ladder below is unaffected.
+gl_FragColor.rgb = mix(
+  vec3(domeUnityLuma),
+  gl_FragColor.rgb,
+  min(1.0, ${DOME_MATERIAL_UNITY_PROFILE.chromaCeiling.toFixed(3)} / max(domeUnityChroma, 0.0001))
+);
+// Contrast reduction on the LIGHT: radiance over this fragment's own albedo, so
+// the authored seam/bevel/crown ladder divides out and multiplies back untouched
+// and the pivot is in physical units where 1.0 is a fully lit surface.
+float domeUnityLight = domeUnityLuma
+  / max(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.02);
+gl_FragColor.rgb *= pow(
+  domeUnityLight / ${DOME_MATERIAL_UNITY_PROFILE.lightPivot.toFixed(2)},
+  ${(DOME_MATERIAL_UNITY_PROFILE.lightContrast - 1).toFixed(2)}
+);`,
       );
   };
   material.userData.contactOptics = "bounded contact-weight optics";
@@ -758,7 +1439,12 @@ totalEmissiveRadiance += uBrickAccent * brickContactSignal;`,
 function useInstancedIceAssets(quality) {
   const domeGeometry = useMemo(() => createCurvedBlockGeometry(quality), [quality]);
   const airlockGeometry = useMemo(() => createCurvedBlockGeometry(quality), [quality]);
-  const material = useMemo(() => createInstancedIceMaterial(quality), [quality]);
+  const plain =
+    typeof window !== "undefined" && window.location?.search.includes("qa-dome-plain");
+  const material = useMemo(
+    () => (plain ? createPlainIceMaterial() : createInstancedIceMaterial(quality)),
+    [plain, quality],
+  );
   useEffect(
     () => () => {
       domeGeometry.dispose();
@@ -776,9 +1462,12 @@ function useInnerShellMaterial(quality) {
       new THREE.MeshPhysicalMaterial({
         clearcoat: quality === "high" ? 0.18 : 0.1,
         clearcoatRoughness: 0.76,
-        color: "#3D5680",
-        emissive: DOME_CRYSTAL_PALETTE.subsurfaceCyan,
-        emissiveIntensity: quality === "high" ? 0.52 : 0.46,
+        color: OBSERVATORY_INTERIOR_HEARTH_PROFILE.shellColor,
+        emissive: OBSERVATORY_INTERIOR_HEARTH_PROFILE.hearthColor,
+        emissiveIntensity:
+          quality === "high"
+            ? OBSERVATORY_INTERIOR_HEARTH_PROFILE.hearthIntensity.high
+            : OBSERVATORY_INTERIOR_HEARTH_PROFILE.hearthIntensity.medium,
         metalness: 0,
         roughness: 0.9,
       }),
@@ -788,20 +1477,32 @@ function useInnerShellMaterial(quality) {
   return material;
 }
 
-// Near-monochrome glacial band: the face family walks #B7C9E2 -> #D9E6F5 by frost seed
-// with only a whisper of dawn cyan. The saturated cornflower wash and the teal/sage XZ
-// zone lerps are gone; per-instance identity is carried by value, not hue.
+// Sunlit ice band: the face family walks periwinkle -> warm ivory by frost seed. The
+// saturated cornflower wash and the teal/sage XZ zone lerps stay gone; per-instance
+// identity is still carried by value, and the hue range is the shadow-to-key walk
+// that snow makes rather than a per-block colour scheme.
 function colorForDomeBlock(position, seed) {
   const iceBlue = new THREE.Color(DOME_CRYSTAL_PALETTE.iceBlue);
   const ivory = new THREE.Color(DOME_CRYSTAL_PALETTE.frostIvory);
-  const cyan = new THREE.Color(POLAR_PALETTE.dawnCyan);
   const windCap = new THREE.Color(DOME_CRYSTAL_PALETTE.windCap);
-  const color = iceBlue.clone().lerp(ivory, 0.3 + seed * 0.46).lerp(cyan, 0.012);
+  // A narrow band, walked from near the ivory end. Spanning 0.30-0.76 of the
+  // ice-to-ivory ramp gave neighbouring blocks a full value step between them,
+  // and on courses of ~13 large blocks that checkerboards: each face reads as
+  // its own plate instead of the wall reading as one mass cut from one drift.
+  // Cut snow varies, but within a few percent.
+  // The dawn-cyan lerp is gone. It was a 0.012 whisper of cool pulling against a band
+  // that is now warm, so all it did was cancel the thing it sits inside.
+  const color = iceBlue.clone().lerp(ivory, 0.52 + seed * 0.16);
   // Occasional near-white wind-packed frost block (~7% of the shell) breaks the uniform
   // toy read without adding hue. Deterministic: same frost seed the lattice already has.
-  if (seed > 0.93) color.lerp(windCap, 0.6);
-  // +/-6% per-instance value variation, saturation pulled down hard.
-  color.offsetHSL(0, -0.07, (seed - 0.5) * 0.12);
+  if (seed > 0.93) color.lerp(windCap, 0.32);
+  // +/-3% per-instance value variation. The saturation cut was -0.07, which is a
+  // large absolute pull on a family that only carries 0.16-0.19 to begin with: it was
+  // removing roughly a third of the band's chroma after the palette had already been
+  // capped, and it is a good part of why the measured dome sat at 0.110 saturation.
+  // -0.015 keeps the per-instance colours from compounding with the body tint without
+  // being the dominant term in what the shell's hue ends up being.
+  color.offsetHSL(0, -0.015, (seed - 0.5) * 0.06);
   return color;
 }
 
@@ -865,6 +1566,83 @@ function writePointerWakeSplat(material, event) {
   state.hasLast = true;
 }
 
+// Per-instance detachment state. The same instances stay in the same instanced draw;
+// only their transforms change, so knocking the shell apart adds zero draw calls.
+function createKnockState() {
+  return {
+    detached: false,
+    instanceFallOffset: 0,
+    instanceFallVelocity: 0,
+    knockAngle: 0,
+    knockAxis: new THREE.Vector3(0, 1, 0),
+    knockHidden: false,
+    knockOffsetX: 0,
+    knockOffsetZ: 0,
+    knockSettled: false,
+    knockSpin: 0,
+    knockVelocityX: 0,
+    knockVelocityZ: 0,
+  };
+}
+
+// Deterministic per-brick tumble seed. Same brick index, same salt, same tumble on
+// every run and every reload; there is no Math.random anywhere in the damage path.
+function knockHash(index, salt) {
+  const raw = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453;
+  return raw - Math.floor(raw);
+}
+
+function detachKnockedBlock(block, index, strength, biasX = 0, biasZ = 0) {
+  if (block.detached) return false;
+  const hashA = knockHash(index, 1);
+  const hashB = knockHash(index, 2);
+  const hashC = knockHash(index, 3);
+  const radial = Math.hypot(block.basePosition.x, block.basePosition.z) || 1;
+  const outwardX = block.basePosition.x / radial + biasX * 0.6;
+  const outwardZ = block.basePosition.z / radial + biasZ * 0.6;
+  const lateral = DOME_RAM_KNOCK_PROFILE.lateralMetresPerSecond * (0.45 + strength);
+  block.detached = true;
+  block.knockSettled = false;
+  block.instanceFallVelocity = 0.14 + strength * 0.42;
+  block.knockVelocityX = (outwardX * (0.55 + hashA * 0.8) + (hashB - 0.5) * 0.6) * lateral;
+  block.knockVelocityZ = (outwardZ * (0.55 + hashB * 0.8) + (hashC - 0.5) * 0.6) * lateral;
+  block.knockSpin =
+    (hashC - 0.5) * 2 * DOME_RAM_KNOCK_PROFILE.tumbleSpinRadiansPerSecond * (0.4 + strength);
+  block.knockAxis.set(hashA - 0.5, hashB - 0.5, hashC - 0.5);
+  if (block.knockAxis.lengthSq() < 1e-6) block.knockAxis.set(0, 1, 0);
+  block.knockAxis.normalize();
+  return true;
+}
+
+// Knock the bricks nearest the projected seal contact point loose. Bounded per ram so
+// a single hit chips the shell instead of erasing it; repeated rams accumulate.
+function knockBlocksNearContact(blocks, contactPoint, strength, damageFraction = 0) {
+  // The reach grows with accumulated damage: a shell that has already lost courses has
+  // less to hold the next ones, so repeated rams escalate instead of plateauing.
+  const radius =
+    DOME_RAM_KNOCK_PROFILE.knockRadiusLocal *
+    (0.55 + strength * 0.8) *
+    (1 + damageFraction * DOME_RAM_KNOCK_PROFILE.damageReachGain);
+  const reach = Math.hypot(contactPoint.x, contactPoint.z) || 1;
+  const biasX = contactPoint.x / reach;
+  const biasZ = contactPoint.z / reach;
+  let knocked = 0;
+  for (let index = 0; index < blocks.length; index += 1) {
+    if (knocked >= DOME_RAM_KNOCK_PROFILE.maxBricksPerRam) break;
+    const block = blocks[index];
+    if (block.detached) continue;
+    if (block.basePosition.distanceTo(contactPoint) > radius) continue;
+    if (detachKnockedBlock(block, index, strength, biasX, biasZ)) knocked += 1;
+  }
+  return knocked;
+}
+
+function collapseRemainingBlocks(blocks) {
+  for (let index = 0; index < blocks.length; index += 1) {
+    detachKnockedBlock(blocks[index], index, 0.85);
+  }
+}
+
 function buildDomeBlockInstances(lattice) {
   const blocks = [];
   const matrixBasis = new THREE.Matrix4();
@@ -897,56 +1675,77 @@ function buildDomeBlockInstances(lattice) {
       mass: Math.min(3.2, 1.05 + cell.mass * 0.46),
       matrix: matrix.clone(),
       basePosition: position.clone(),
+      baseQuaternion: quaternion.clone(),
+      baseScale: scale.clone(),
       renderMatrix: matrix.clone(),
-      instanceFallOffset: 0,
-      instanceFallVelocity: 0,
-      detached: false,
+      ...createKnockState(),
     });
   }
   return blocks;
 }
+
+// Courses along the tunnel, not one ring at its mouth. The reference builds its
+// entrance out of the same laid blocks as the dome, so the passage reads as
+// masonry from every angle; a single face arch over a shader-banded barrel reads
+// as a pipe with a decorated end, which is what this was while the tunnel was
+// too short to see. Ring spacing sets the block depth so courses abut, and
+// alternate rings step half a block round the arch the way the dome's courses
+// stagger.
+const AIRLOCK_COURSE_COUNT = 4;
 
 function buildAirlockBlockInstances() {
   const blocks = [];
   const matrix = new THREE.Matrix4();
   const quaternion = new THREE.Quaternion();
   const scale = new THREE.Vector3();
-  const z = AIRLOCK.depth + 0.075;
+  const mouthZ = AIRLOCK.depth + 0.075;
   const springY = AIRLOCK.springY;
   const radius = AIRLOCK.outerRadius + 0.018;
   const archCount = 11;
-  for (let index = 0; index < archCount; index += 1) {
-    const angle = (index / (archCount - 1)) * Math.PI;
-    const frost = (index * 0.61803398875) % 1;
-    quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle - HALF_PI);
-    scale.set((Math.PI * radius * 0.86) / (archCount - 1), 0.19, 0.135);
-    const position = new THREE.Vector3(Math.cos(angle) * radius, springY + Math.sin(angle) * radius, z);
-    matrix.compose(position, quaternion, scale);
-    blocks.push({
-      bevel: 0.42 + (index % 5) * 0.11,
-      color: colorForAirlockBlock(position, frost),
-      delay: index * 0.045,
-      facet: (index * 0.41421356237) % 1,
-      // The airlock arch stays mortared (float weight 0) so the always-on amber
-      // threshold keeps a seated masonry frame under the suspended shell.
-      floatAzimuth: Math.atan2(position.z, position.x),
-      floatHeight: 0,
-      floatPhase: suspensionPhaseFor(position),
-      frost,
-      mass: 1.3 + frost,
-      matrix: matrix.clone(),
-      basePosition: position.clone(),
-      renderMatrix: matrix.clone(),
-      instanceFallOffset: 0,
-      instanceFallVelocity: 0,
-      detached: false,
-    });
+  const courseDepth = mouthZ / AIRLOCK_COURSE_COUNT;
+  for (let course = 0; course < AIRLOCK_COURSE_COUNT; course += 1) {
+    const z = mouthZ - course * courseDepth;
+    const stagger = course % 2 === 0 ? 0 : 0.5;
+    for (let index = 0; index < archCount; index += 1) {
+      const angle = ((index + stagger) / (archCount - 1)) * Math.PI;
+      if (angle > Math.PI) continue;
+      const frost = ((index + course * 3) * 0.61803398875) % 1;
+      quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle - HALF_PI);
+      scale.set((Math.PI * radius * 0.86) / (archCount - 1), 0.19, courseDepth * 0.94);
+      const position = new THREE.Vector3(
+        Math.cos(angle) * radius,
+        springY + Math.sin(angle) * radius,
+        z,
+      );
+      matrix.compose(position, quaternion, scale);
+      blocks.push({
+        bevel: 0.42 + ((index + course) % 5) * 0.11,
+        color: colorForAirlockBlock(position, frost),
+        delay: course * 0.06 + index * 0.045,
+        facet: ((index + course * 2) * 0.41421356237) % 1,
+        // The airlock arch stays mortared (float weight 0) so the always-on amber
+        // threshold keeps a seated masonry frame under the suspended shell.
+        floatAzimuth: Math.atan2(position.z, position.x),
+        floatHeight: 0,
+        floatPhase: suspensionPhaseFor(position),
+        frost,
+        mass: 1.3 + frost,
+        matrix: matrix.clone(),
+        basePosition: position.clone(),
+        baseQuaternion: quaternion.clone(),
+        baseScale: scale.clone(),
+        renderMatrix: matrix.clone(),
+        ...createKnockState(),
+      });
+    }
   }
   for (const side of [-1, 1]) {
-    for (let row = 0; row < 3; row += 1) {
-      const frost = ((row + 1) * (side < 0 ? 0.271 : 0.731)) % 1;
+    for (let course = 0; course < AIRLOCK_COURSE_COUNT; course += 1) {
+     for (let row = 0; row < 3; row += 1) {
+      const z = mouthZ - course * courseDepth;
+      const frost = ((row + 1 + course) * (side < 0 ? 0.271 : 0.731)) % 1;
       quaternion.identity();
-      scale.set(0.19, 0.19, 0.135);
+      scale.set(0.19, 0.19, courseDepth * 0.94);
       const position = new THREE.Vector3(side * radius, 0.09 + row * 0.19, z);
       matrix.compose(position, quaternion, scale);
       blocks.push({
@@ -961,11 +1760,12 @@ function buildAirlockBlockInstances() {
         mass: 1.4 + frost,
         matrix: matrix.clone(),
         basePosition: position.clone(),
+        baseQuaternion: quaternion.clone(),
+        baseScale: scale.clone(),
         renderMatrix: matrix.clone(),
-        instanceFallOffset: 0,
-        instanceFallVelocity: 0,
-        detached: false,
+        ...createKnockState(),
       });
+     }
     }
   }
   return blocks;
@@ -1018,9 +1818,7 @@ function resetDetachedBlocks(mesh, blocks) {
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index];
     if (!block.detached && block.instanceFallOffset === 0 && block.instanceFallVelocity === 0) continue;
-    block.detached = false;
-    block.instanceFallOffset = 0;
-    block.instanceFallVelocity = 0;
+    Object.assign(block, createKnockState());
     block.renderMatrix.copy(block.matrix);
     mesh.setMatrixAt(index, block.renderMatrix);
     changed = true;
@@ -1029,29 +1827,52 @@ function resetDetachedBlocks(mesh, blocks) {
   return changed;
 }
 
+const KNOCK_POSITION = new THREE.Vector3();
+const KNOCK_QUATERNION = new THREE.Quaternion();
+const KNOCK_ZERO_SCALE = new THREE.Vector3(0, 0, 0);
+
 function stepDetachedBlocks(mesh, blocks, hover, pointerInteractionEnabled, reducedMotion, delta) {
-  // instanceFallOffset and instanceFallVelocity implement damped gravity.
-  if (!mesh || !blocks || !hover) return;
-  if (!pointerInteractionEnabled || reducedMotion) {
-    resetDetachedBlocks(mesh, blocks);
-    return;
-  }
+  // instanceFallOffset and instanceFallVelocity implement damped gravity; the lateral
+  // and spin terms are the deterministic knock tumble. Detached bricks keep falling
+  // and stay fallen whether or not the pointer is still over the shell: only an
+  // explicit rebuild re-seats them.
+  if (!mesh || !blocks || !hover) return 0;
 
   let matrixChanged = false;
+  let detachedCount = 0;
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index];
     const hoverValue = hover.getX(index);
-    if (!block.detached && hoverValue >= DOME_TILE_FALL_PROFILE.detachThreshold) {
-      block.detached = true;
-      block.instanceFallVelocity = 0.18;
+    if (
+      !block.detached &&
+      pointerInteractionEnabled &&
+      hoverValue >= DOME_TILE_FALL_PROFILE.detachThreshold
+    ) {
+      detachKnockedBlock(block, index, 0.35);
     }
     if (!block.detached) continue;
+    detachedCount += 1;
+
+    if (reducedMotion) {
+      // Reduced motion: the brick is simply not there any more. Zero scale on the same
+      // instance, no gravity, no tumble, and it reappears on rebuild.
+      if (!block.knockHidden) {
+        block.renderMatrix.compose(block.basePosition, block.baseQuaternion, KNOCK_ZERO_SCALE);
+        mesh.setMatrixAt(index, block.renderMatrix);
+        block.knockHidden = true;
+        matrixChanged = true;
+      }
+      continue;
+    }
+    if (block.knockSettled) continue;
 
     block.instanceFallVelocity += DOME_TILE_FALL_PROFILE.gravity * delta;
     block.instanceFallOffset += block.instanceFallVelocity * delta;
     const floorOffset = DOME_TILE_FALL_PROFILE.settleFloorY - block.basePosition.y;
+    let grounded = false;
     if (block.instanceFallOffset <= floorOffset) {
       block.instanceFallOffset = floorOffset;
+      grounded = true;
       if (Math.abs(block.instanceFallVelocity) > DOME_TILE_FALL_PROFILE.settleVelocity) {
         block.instanceFallVelocity = -block.instanceFallVelocity * DOME_TILE_FALL_PROFILE.settleBounce;
       } else {
@@ -1059,15 +1880,40 @@ function stepDetachedBlocks(mesh, blocks, hover, pointerInteractionEnabled, redu
       }
     }
     block.instanceFallVelocity *= Math.exp(-DOME_TILE_FALL_PROFILE.damping * delta);
-    block.renderMatrix.copy(block.matrix);
-    block.renderMatrix.elements[13] = block.basePosition.y + block.instanceFallOffset;
+    const friction = Math.exp(
+      -(grounded ? DOME_TILE_FALL_PROFILE.groundFriction : DOME_TILE_FALL_PROFILE.damping) * delta,
+    );
+    block.knockVelocityX *= friction;
+    block.knockVelocityZ *= friction;
+    block.knockSpin *= friction;
+    block.knockOffsetX += block.knockVelocityX * delta;
+    block.knockOffsetZ += block.knockVelocityZ * delta;
+    block.knockAngle += block.knockSpin * delta;
+    KNOCK_POSITION.set(
+      block.basePosition.x + block.knockOffsetX,
+      block.basePosition.y + block.instanceFallOffset,
+      block.basePosition.z + block.knockOffsetZ,
+    );
+    KNOCK_QUATERNION.setFromAxisAngle(block.knockAxis, block.knockAngle).multiply(
+      block.baseQuaternion,
+    );
+    block.renderMatrix.compose(KNOCK_POSITION, KNOCK_QUATERNION, block.baseScale);
     mesh.setMatrixAt(index, block.renderMatrix);
     matrixChanged = true;
+    if (
+      grounded &&
+      block.instanceFallVelocity === 0 &&
+      Math.abs(block.knockSpin) < 0.01 &&
+      Math.hypot(block.knockVelocityX, block.knockVelocityZ) < 0.01
+    ) {
+      block.knockSettled = true;
+    }
   }
   if (matrixChanged) {
     mesh.instanceMatrix.needsUpdate = true;
     mesh.computeBoundingSphere();
   }
+  return detachedCount;
 }
 
 function updateHoverTargets(targets, blocks, nextIndex) {
@@ -1094,13 +1940,42 @@ function useSmoothHoverAttribute(
   targetsRef,
   pointerInteractionEnabled,
   reducedMotion,
+  proximityRef,
+  damageRef,
 ) {
+  const knockSequenceRef = useRef(0);
+  const rebuildSequenceRef = useRef(0);
   useFrame((_, delta) => {
-    const hover = meshRef.current?.geometry?.getAttribute("instanceHover");
+    const mesh = meshRef.current;
+    const hover = mesh?.geometry?.getAttribute("instanceHover");
     if (!hover) return;
+    const damage = damageRef?.current;
+    if (damage) {
+      // The shell re-lays itself: every brick returns to its seated matrix and the
+      // existing bottom-up uBrickReveal materialize replays from zero.
+      if (damage.rebuildSequence !== rebuildSequenceRef.current) {
+        rebuildSequenceRef.current = damage.rebuildSequence;
+        resetDetachedBlocks(mesh, blocks);
+        damage.detachedCount = 0;
+      }
+      // A real seal ram: knock the bricks nearest the projected contact point loose.
+      if (damage.knockSequence !== knockSequenceRef.current) {
+        knockSequenceRef.current = damage.knockSequence;
+        knockBlocksNearContact(
+          blocks,
+          damage.knockPoint,
+          damage.knockStrength,
+          blocks.length ? damage.detachedCount / blocks.length : 0,
+        );
+      }
+    }
+    // Pointer lift ramps with nearness rather than switching on at a dock point.
+    const proximityGain = proximityRef ? THREE.MathUtils.clamp(proximityRef.current ?? 0, 0, 1) : 1;
     let changed = false;
     for (let index = 0; index < hover.count; index += 1) {
-      const target = pointerInteractionEnabled ? targetsRef.current[index] ?? 0 : 0;
+      const target = pointerInteractionEnabled
+        ? (targetsRef.current[index] ?? 0) * proximityGain
+        : 0;
       const current = hover.getX(index);
       const response = target > current
         ? DOME_POINTER_LIFT_PROFILE.approachResponse
@@ -1111,18 +1986,32 @@ function useSmoothHoverAttribute(
       changed = true;
     }
     if (changed) hover.needsUpdate = true;
-    stepDetachedBlocks(
-      meshRef.current,
+    const detachedCount = stepDetachedBlocks(
+      mesh,
       blocks,
       hover,
       pointerInteractionEnabled,
       reducedMotion,
       delta,
     );
+    if (!damage) return;
+    damage.totalCount = blocks.length;
+    damage.detachedCount = detachedCount;
+    if (!damage.demolished && detachedCount >= blocks.length * DOME_DEMOLITION_PROFILE.collapseFraction) {
+      collapseRemainingBlocks(blocks);
+      damage.demolished = true;
+    }
   });
 }
 
-function InstancedDomeBlocks({ assets, lattice, pointerInteractionEnabled, reducedMotion }) {
+function InstancedDomeBlocks({
+  assets,
+  damageRef,
+  lattice,
+  pointerInteractionEnabled,
+  proximityRef,
+  reducedMotion,
+}) {
   const meshRef = useRef(null);
   const hoveredRef = useRef(-1);
   const blocks = useMemo(() => buildDomeBlockInstances(lattice), [lattice]);
@@ -1136,6 +2025,8 @@ function InstancedDomeBlocks({ assets, lattice, pointerInteractionEnabled, reduc
     hoverTargetsRef,
     pointerInteractionEnabled,
     reducedMotion,
+    proximityRef,
+    damageRef,
   );
   useLayoutEffect(() => {
     if (!meshRef.current) return;
@@ -1144,9 +2035,9 @@ function InstancedDomeBlocks({ assets, lattice, pointerInteractionEnabled, reduc
   return (
     <instancedMesh
       args={[assets.domeGeometry, assets.material, blocks.length]}
-      castShadow={false}
+      castShadow
       name={`InstancedDomeBlocks ${blocks.length}-blocks one-draw`}
-      receiveShadow={false}
+      receiveShadow
       ref={meshRef}
       onPointerMove={(event) => {
         if (!pointerInteractionEnabled) return;
@@ -1166,17 +2057,19 @@ function InstancedDomeBlocks({ assets, lattice, pointerInteractionEnabled, reduc
   );
 }
 
-function InstancedAirlockBlocks({ assets, pointerInteractionEnabled, reducedMotion }) {
+function InstancedAirlockBlocks({ assets, pointerInteractionEnabled, proximityRef, reducedMotion }) {
   const meshRef = useRef(null);
   const hoveredRef = useRef(-1);
   const blocks = useMemo(() => buildAirlockBlockInstances(), []);
   const hoverTargetsRef = useRef(new Float32Array(blocks.length));
+  // The arch is the doorway frame and is never demolished: no damage ref here.
   useSmoothHoverAttribute(
     meshRef,
     blocks,
     hoverTargetsRef,
     pointerInteractionEnabled,
     reducedMotion,
+    proximityRef,
   );
   useLayoutEffect(() => {
     if (!meshRef.current) return;
@@ -1339,7 +2232,7 @@ function ContinuousDomeIceMaterial({ material }) {
   return <primitive attach="material" object={material} />;
 }
 
-function ContinuousDomeTopology({ castShadow = true, material, quality }) {
+function ContinuousDomeTopology({ castShadow = true, material, quality, visible = true }) {
   const widthSegments = quality === "high" ? 96 : quality === "medium" ? 72 : 48;
   const heightSegments = quality === "high" ? 48 : quality === "medium" ? 36 : 24;
   const mortarFill = quality === "low" ? 1 : 1.004;
@@ -1355,6 +2248,7 @@ function ContinuousDomeTopology({ castShadow = true, material, quality }) {
         DOME_RADIUS.z * mortarFill,
       ]}
       userData={{ className: "ice-block igloo-dome shader-course-shell" }}
+      visible={visible}
     >
       <sphereGeometry args={[1, widthSegments, heightSegments, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
       <ContinuousDomeIceMaterial material={material} />
@@ -1401,6 +2295,7 @@ function IntegratedAirlock({
   assets,
   material,
   pointerInteractionEnabled,
+  proximityRef,
   quality,
   reducedMotion,
   showBlocks,
@@ -1410,18 +2305,25 @@ function IntegratedAirlock({
   const thresholdLightRef = useRef(null);
   const baseThresholdIntensity = OBSERVATORY_HOME_LIGHT_PROFILE.intensity[quality];
 
-  // Standing warm interior glow: always on (idle and undocked), gently breathing.
-  // Reduced motion holds the constant mid-glow instead of pulsing.
+  // Standing warm interior glow: always on (idle and undocked), gently breathing, and
+  // lifting continuously with how near the seal is. The threshold brightening is the
+  // dome's own "arrived" signal and is a function of distance, not of a dock event.
   useFrame(({ clock }) => {
     const glowPulse = reducedMotion
       ? 0.78
       : 0.78 + Math.sin(clock.elapsedTime * 1.4) * 0.22;
+    const proximity = THREE.MathUtils.clamp(proximityRef?.current ?? 0, 0, 1);
+    const approachLift = 1 + proximity * DOME_PROXIMITY_RESPONSE_PROFILE.thresholdLightGain;
     if (doorGlowRef.current) {
-      doorGlowRef.current.color.lerpColors(DOOR_GLOW_DIM, DOOR_GLOW_BRIGHT, glowPulse);
+      doorGlowRef.current.color.lerpColors(
+        DOOR_GLOW_DIM,
+        DOOR_GLOW_BRIGHT,
+        THREE.MathUtils.clamp(glowPulse * approachLift, 0, 1),
+      );
     }
     if (thresholdLightRef.current) {
       thresholdLightRef.current.intensity =
-        baseThresholdIntensity * (0.72 + glowPulse * 0.42);
+        baseThresholdIntensity * (0.72 + glowPulse * 0.42) * approachLift;
     }
   });
 
@@ -1440,6 +2342,7 @@ function IntegratedAirlock({
         <InstancedAirlockBlocks
           assets={assets}
           pointerInteractionEnabled={pointerInteractionEnabled}
+          proximityRef={proximityRef}
           reducedMotion={reducedMotion}
         />
       )}
@@ -1453,6 +2356,7 @@ function IntegratedAirlock({
           toneMapped={false}
         />
       </mesh>
+      {!DOME_POINT_LIGHTS_ABLATED && (
       <pointLight
         color={OBSERVATORY_HOME_LIGHT_PROFILE.color}
         decay={2}
@@ -1464,6 +2368,7 @@ function IntegratedAirlock({
         position={[0, 0.3, 0.34]}
         ref={thresholdLightRef}
       />
+      )}
     </group>
   );
 }
@@ -1565,28 +2470,129 @@ function createObservatoryHomeGroundGeometry(quality) {
   return merged;
 }
 
-function NeutralContactPlinth({ impact, quality }) {
+// Ambient occlusion under the shell, not a decal of a shadow.
+//
+// Two things were wrong with the disc this replaces, and the first one is why the
+// building has been standing on bare flat snow the whole time: it was positioned at
+// y=0.009, INSIDE the plinth's own snow cap, whose top face is at 0.0525
+// (a 0.055-high cylinder centred at 0.025). Every fragment of it was depth-rejected
+// by the very surface it was supposed to darken, so nothing about its colour or its
+// opacity ever reached the frame. Measured on the settled capture before this
+// change: the snow immediately outside the shell read 137.7 luma against 149.9 in
+// the open field, and that 12-luma difference is the terrain's own shading, not a
+// contact shadow. Any future edit here must keep this mesh between the cap top
+// (0.0525) and the buried cache floor (0.08) or it silently disappears again.
+//
+// The second is shape. A uniform-alpha ellipse is the flat oval the object-world
+// gate fails by name, and it fails it for a reason: occlusion is not constant over
+// a footprint. It is near-total in the crack where the shell meets the snow and
+// gone within a fraction of a radius. So this holds full strength out to the
+// lattice footprint, which the shell hides anyway, and spends its whole visible
+// life in a cubic falloff across the last third — dark line at the base, nothing
+// two block-widths out.
+//
+// The strength lives in ALPHA over the existing cool contact tone, and that is a
+// measurement rather than a preference. The first build of this disc multiplied the
+// framebuffer (THREE.MultiplyBlending), which is the physically right operation for
+// occlusion — it darkens the snow while leaving its own value structure and
+// sastrugi relief intact. This pipeline does not honour it: the same capture came
+// back with the snow under the shell rim at 207.3 luma against 131.2 before, a
+// 76-luma BRIGHTENING, which is the disc drawing as an opaque light quad with its
+// blend function discarded somewhere between here and the composite. Alpha over a
+// dark tone is what survives, so that is what this uses.
+// Where the shell's own footprint sits inside this disc, in normalised radius:
+// the mesh radii below are the lattice footprint times 1.5, so the plateau has to
+// end at 1/1.5. Getting this wrong is silent and looks like a strength problem —
+// at 0.62 against a 1.35 disc the cubic had already decayed to 0.30 by the time it
+// cleared the blocks, which measured as 2.5 luma of darkening at the one place the
+// disc exists for.
+//
+// The 1.5 is set by the camera, not by taste. The docked view is shallow enough
+// that a world unit of ground in front of the shell is about 35 screen pixels
+// against 133 across it, so a tail sized to look right in plan view disappears:
+// at 1.22 the whole falloff landed in a 15-pixel band and a column profile
+// through it came back within 2 luma of the untouched capture from y=586 down.
+const CONTACT_OCCLUSION_FOOTPRINT = 0.667;
+function createContactOcclusionTexture() {
+  // 128, not 64: the ramp now lives in the last tenth of the radius, which is three
+  // texels at 64 and bands visibly across forty screen pixels.
+  const size = 128;
+  const data = new Uint8Array(size * size * 4);
+  for (let row = 0; row < size; row += 1) {
+    for (let column = 0; column < size; column += 1) {
+      const u = ((column + 0.5) / size) * 2 - 1;
+      const v = ((row + 0.5) / size) * 2 - 1;
+      const tail = Math.min(
+        1,
+        Math.max(0, (Math.hypot(u, v) - CONTACT_OCCLUSION_FOOTPRINT) / (1 - CONTACT_OCCLUSION_FOOTPRINT)),
+      );
+      // A hard cubic carrying most of the weight, plus a quarter-weight linear
+      // skirt. Neither alone works and both failures were captured. Pure linear
+      // over this span is an airbrushed pool that reads as a soft sticker. Pure
+      // cubic, tightened until that pool was gone, put the whole falloff inside the
+      // sliver of ground the blocks themselves hide at the docked camera angle: the
+      // crack measured 78.2 luma against 136.8 open snow and still read as a
+      // hairline, because there was nothing left of it one block-width out. The
+      // cubic is the contact; the skirt is what makes the contact visible.
+      const occlusion = Math.round(255 * ((1 - tail) ** 3 * 0.8 + (1 - tail) * 0.2));
+      const index = (row * size + column) * 4;
+      data[index] = occlusion;
+      data[index + 1] = occlusion;
+      data[index + 2] = occlusion;
+      data[index + 3] = occlusion;
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size);
+  // DataTexture defaults to NearestFilter, which would step this ramp into visible
+  // 64-texel rings across a three-metre ellipse.
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function NeutralContactPlinth({ quality }) {
   const groundGeometry = useMemo(
     () => createObservatoryHomeGroundGeometry(quality),
     [quality],
   );
+  const occlusionTexture = useMemo(createContactOcclusionTexture, []);
   useEffect(() => () => groundGeometry.dispose(), [groundGeometry]);
+  useEffect(() => () => occlusionTexture.dispose(), [occlusionTexture]);
   return (
     <group name="bounded-neutral-contact-plinth">
+      {!DOME_CONTACT_OCCLUSION_ABLATED && (
       <mesh
-        position={[0.03, 0.009, 0.12]}
-        renderOrder={1}
+        // Clear of the plinth cap it darkens and under the buried cache floor, so
+        // the excavated interior stays exactly as authored. The radii run past the
+        // lattice footprint (2.1 x 1.86) by about half a block on each side, which
+        // is all the tail this curve needs.
+        position={[0.03, 0.062, 0.06]}
+        // Behind every other transparent in the scene. At renderOrder 1 this disc
+        // drew AFTER the docked mascot and painted straight over it — the character
+        // measured 70.3 luma against 132.8 with nothing but this mesh changed. A
+        // negative order still lands after all opaque geometry, because three keeps
+        // opaque and transparent in separate lists, so the ground it darkens is
+        // already in the buffer either way.
+        renderOrder={-1}
         rotation={[-Math.PI * 0.5, 0, 0]}
-        scale={[2.25, 1.64, 1]}
+        scale={[3.15, 2.79, 1]}
       >
         <circleGeometry args={[1, quality === "low" ? 32 : 64]} />
         <meshBasicMaterial
+          alphaMap={occlusionTexture}
           color={DOME_CRYSTAL_PALETTE.contactBlueGrey}
           depthWrite={false}
-          opacity={0.19 + impact * 0.0175}
+          // Unfogged on purpose. The snow underneath already carries the scene's
+          // aerial perspective; fogging the darkening as well applies the same
+          // atmosphere twice and is why raising opacity from 0.68 to 0.92 moved the
+          // measured crack by 3 luma in the wrong direction.
+          fog={false}
+          opacity={1}
           transparent
         />
       </mesh>
+      )}
       <mesh
         geometry={groundGeometry}
         name="observatory-home-sastrugi-expedition-dressing one-draw"
@@ -1602,6 +2608,128 @@ function NeutralContactPlinth({ impact, quality }) {
         />
       </mesh>
     </group>
+  );
+}
+
+// The buried entry cache. It only exists while the shell is down, and it takes the
+// hidden inner weather shell's draw slot, so the full-frame budget is unchanged. The
+// point is meaning, not spectacle: the home dome is standing on the mined public
+// corpus it was built from, and knocking it apart is what shows you that.
+function createEntryCacheGeometry(quality) {
+  const pieces = [];
+  const radialSegments = quality === "low" ? 14 : quality === "medium" ? 22 : 32;
+  // Excavated floor. The dome's own ground dressing carries a deliberate dark shelf
+  // under the shell; with the shell down that shelf is suddenly the whole read, so the
+  // cache lays its own pale packed-snow floor over it and keeps the scene glacial.
+  pieces.push(
+    transformedGeometry(
+      new THREE.CylinderGeometry(1, 1, 1, radialSegments),
+      DOME_CRYSTAL_PALETTE.frostIvory,
+      [0, 0.055, 0],
+      [1.5, 0.05, 1.05],
+    ),
+  );
+  // Hearth: a low blue-grey basin with one warm ember core. This is the only warm
+  // element down here, so the eye lands on it first.
+  pieces.push(
+    transformedGeometry(
+      new THREE.CylinderGeometry(1, 0.88, 1, radialSegments),
+      DOME_CRYSTAL_PALETTE.seamBlueGrey,
+      [0, 0.115, 0.06],
+      [0.4, 0.11, 0.4],
+    ),
+  );
+  pieces.push(
+    transformedGeometry(
+      new THREE.SphereGeometry(1, radialSegments, Math.max(6, Math.round(radialSegments * 0.5))),
+      DOOR_GLOW_BRIGHT,
+      [0, 0.2, 0.06],
+      [0.25, 0.18, 0.25],
+    ),
+  );
+  // Plaque core: the station marker the shell was built around.
+  pieces.push(
+    transformedGeometry(
+      new THREE.BoxGeometry(1, 1, 1),
+      DOME_CRYSTAL_PALETTE.windCap,
+      [0, 0.44, -0.66],
+      [0.6, 0.66, 0.06],
+      0.16,
+    ),
+  );
+  pieces.push(
+    transformedGeometry(
+      new THREE.BoxGeometry(1, 1, 1),
+      DOME_CRYSTAL_PALETTE.seamBlueGrey,
+      [0, 0.14, -0.66],
+      [0.72, 0.16, 0.2],
+      0.16,
+    ),
+  );
+  // Mined public-corpus crates, ringed around the hearth: same ice family as the shell
+  // so they read as part of the station rather than imported cargo.
+  const corpusCrates = [
+    [-1.1, 0.36, 0.3, -0.42],
+    [-0.66, -0.78, 0.24, 0.24],
+    [0.4, -0.94, 0.32, 0.62],
+    [1.14, -0.24, 0.26, -0.18],
+    [0.96, 0.62, 0.22, 0.34],
+    [0.16, 0.92, 0.28, -0.54],
+    [-0.82, 0.82, 0.2, 0.18],
+  ];
+  for (const [x, z, height, rotation] of corpusCrates) {
+    pieces.push(
+      transformedGeometry(
+        new THREE.BoxGeometry(1, 1, 1),
+        DOME_CRYSTAL_PALETTE.iceBlue,
+        [x, 0.08 + height * 0.5, z],
+        [0.32, height, 0.26],
+        rotation,
+      ),
+    );
+    pieces.push(
+      transformedGeometry(
+        new THREE.BoxGeometry(1, 1, 1),
+        DOME_CRYSTAL_PALETTE.windCap,
+        [x, 0.08 + height + 0.016, z],
+        [0.34, 0.032, 0.28],
+        rotation,
+      ),
+    );
+  }
+  const merged = mergeGeometries(pieces, false);
+  for (const piece of pieces) piece.dispose();
+  if (!merged) {
+    return colorGeometry(
+      new THREE.CylinderGeometry(0.46, 0.46, 0.18, 12),
+      DOME_CRYSTAL_PALETTE.frostIvory,
+    );
+  }
+  merged.computeVertexNormals();
+  return merged;
+}
+
+function BuriedEntryCache({ quality }) {
+  const geometry = useMemo(() => createEntryCacheGeometry(quality), [quality]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh
+      geometry={geometry}
+      name="observatory-buried-entry-cache mined-public-corpus hearth plaque-core one-draw"
+      renderOrder={2}
+      userData={{
+        cache: OBSERVATORY_ENTRY_CACHE_PROFILE,
+        className: "observatory-entry-cache",
+      }}
+    >
+      <meshStandardMaterial
+        emissive={DOME_CRYSTAL_PALETTE.subsurfaceCyan}
+        emissiveIntensity={0.09}
+        metalness={0}
+        roughness={0.8}
+        vertexColors
+      />
+    </mesh>
   );
 }
 
@@ -1727,22 +2855,121 @@ export default function PolarObservatoryDome({
     resolvedAxisX - resolvedHomeX,
     resolvedDepthZ - resolvedHomeZ,
   );
+  // Continuous contact band. The traversal collider stops the seal a little outside the
+  // shell, so the old 0.34m near-band could never be entered and this term was dead:
+  // the dome only ever reacted to the pulse the world handed it. It now ramps with real
+  // nearness, which is what makes contact feel like contact rather than a dock event.
+  const contactBand =
+    1 -
+    THREE.MathUtils.smoothstep(
+      contactDistance,
+      DOME_PROXIMITY_RESPONSE_PROFILE.contactRadius,
+      DOME_PROXIMITY_RESPONSE_PROFILE.nearRadius + 1.4,
+    );
   const collisionImpact =
-    Math.max(0, 1 - contactDistance / 0.34) *
-    Math.min(1, Math.max(0, Math.abs(axisVelocity) - 0.72) * 2.1);
+    contactBand * Math.min(1, Math.max(0, Math.abs(axisVelocity) - 0.72) * 2.1);
   const impact = Math.max(collisionImpact, Math.max(0, Math.min(1, impactPulse)));
-  // Approach reactivity: 0 far from the observatory, 1 at the shell. Reused for the
-  // seam/rim emissive breath and the lattice rib glow; no new RAF loops.
-  const approachProximity = THREE.MathUtils.clamp(1 - contactDistance / 5.4, 0, 1);
+  // Approach reactivity: 0 far from the observatory, 1 at the shell, smooth in between.
+  // One ramp drives the seam/rim emissive breath, the lattice rib glow, the airlock
+  // threshold lift, and whether pointer lift is live. No dock point anywhere in it.
+  const approachProximity =
+    1 -
+    THREE.MathUtils.smoothstep(
+      contactDistance,
+      DOME_PROXIMITY_RESPONSE_PROFILE.nearRadius,
+      DOME_PROXIMITY_RESPONSE_PROFILE.farRadius,
+    );
   const proximityBreathRef = useRef(0);
+  const proximityRef = useRef(0);
+  const damageRef = useRef({
+    cooldown: 0,
+    demolished: false,
+    detachedCount: 0,
+    knockPoint: new THREE.Vector3(),
+    knockSequence: 0,
+    knockStrength: 0,
+    rebuildProgress: 1,
+    rebuildSequence: 0,
+    totalCount: 0,
+  });
+  const previousPulseRef = useRef(0);
+  const [shellDemolished, setShellDemolished] = useState(false);
+  // Same canvas-dataset diagnostic channel the scene already uses for dome distance and
+  // visibility, so the runtime damage fraction is observable without a debug overlay.
+  const canvas = useThree((threeState) => threeState.gl.domElement);
+  // Reduced motion runs the canvas on frameloop="demand", so an idle dome gets no
+  // frames and a damage cooldown would never elapse. While anything is detached or a
+  // rebuild is in flight the dome asks for the next frame itself; once the shell is
+  // whole again it stops and the canvas goes back to sleep.
+  const invalidate = useThree((threeState) => threeState.invalidate);
+  const damageSignatureRef = useRef("");
+  // The dome reacts to nearness on its own; the scene prop only widens the window.
+  const proximityInteractive =
+    pointerInteractionEnabled ||
+    approachProximity > DOME_PROXIMITY_RESPONSE_PROFILE.hoverEnableRamp;
 
   useFrame(({ clock }, delta) => {
     const elapsed = reducedMotion ? 0 : clock.elapsedTime;
-    const reveal = streamRevealProgressRef?.current ?? initialStreamRevealProgress;
+    const damage = damageRef.current;
+    // Seal ram: the traversal collision impulse arrives as a rising impactPulse edge.
+    // Project the seal's world position onto the dome ellipsoid to get the hit point.
+    const pulse = Math.max(0, Math.min(1, impactPulse));
+    if (
+      !damage.demolished &&
+      pulse >= DOME_RAM_KNOCK_PROFILE.minStrength &&
+      pulse > previousPulseRef.current + 0.01
+    ) {
+      const worldScale = OBSERVATORY_MACRO_SCALE_PROFILE.worldScale;
+      const localX = (resolvedAxisX - resolvedHomeX) / worldScale;
+      const localZ = (resolvedDepthZ - resolvedHomeZ) / worldScale;
+      const ellipsoidReach = Math.max(
+        1e-4,
+        Math.hypot(localX / DOME_RADIUS.x, localZ / DOME_RADIUS.z),
+      );
+      damage.knockPoint.set(
+        localX / ellipsoidReach,
+        DOME_RAM_KNOCK_PROFILE.contactHeightLocal,
+        localZ / ellipsoidReach,
+      );
+      damage.knockStrength = pulse;
+      damage.knockSequence += 1;
+    }
+    previousPulseRef.current = pulse;
+    // Auto-rebuild so the world can never be permanently broken: cooldown, then replay
+    // the existing bottom-up materialize by ramping the same uBrickReveal register.
+    if (damage.demolished) {
+      if (damage.rebuildProgress >= 1) {
+        damage.cooldown += delta;
+        if (damage.cooldown >= DOME_DEMOLITION_PROFILE.rebuildCooldownSeconds) {
+          damage.cooldown = 0;
+          damage.rebuildProgress = 0;
+          damage.rebuildSequence += 1;
+        }
+      } else {
+        damage.rebuildProgress = Math.min(
+          1,
+          damage.rebuildProgress + delta / DOME_DEMOLITION_PROFILE.rebuildSeconds,
+        );
+        if (damage.rebuildProgress >= 1) damage.demolished = false;
+      }
+    }
+    if (shellDemolished !== damage.demolished) setShellDemolished(damage.demolished);
+    if (damage.demolished || damage.detachedCount > 0 || damage.rebuildProgress < 1) invalidate();
+    const damageFraction = damage.totalCount ? damage.detachedCount / damage.totalCount : 0;
+    const signature = `${damageFraction.toFixed(2)}|${damage.demolished ? 1 : 0}|${damage.rebuildProgress.toFixed(2)}`;
+    if (canvas && signature !== damageSignatureRef.current) {
+      damageSignatureRef.current = signature;
+      canvas.dataset.observatoryDomeDamage = damageFraction.toFixed(3);
+      canvas.dataset.observatoryDomeDemolished = damage.demolished ? "true" : "false";
+      canvas.dataset.observatoryDomeRebuild = damage.rebuildProgress.toFixed(3);
+    }
+    const streamReveal = streamRevealProgressRef?.current ?? initialStreamRevealProgress;
+    const reveal = Math.min(streamReveal, damage.rebuildProgress);
     const proximityBreath = reducedMotion
       ? approachProximity
       : approachProximity * (0.78 + 0.22 * Math.sin(clock.elapsedTime * 1.5));
     proximityBreathRef.current = proximityBreath;
+    proximityRef.current = approachProximity;
     updateDomeUniforms(shellMaterial, { accent, impact, reveal, time: elapsed });
     updateDomeUniforms(airlockMaterial, { accent, impact, reveal, time: elapsed });
     if (!rootRef.current) return;
@@ -1776,6 +3003,11 @@ export default function PolarObservatoryDome({
         className: "igloo-polar-dome igloo-dome",
         collision: lattice.collision,
         construction: DOME_BRICK_SHADER_PROFILE,
+        // Live runtime damage state (same mutable object the frame loop writes), so the
+        // demolition fraction is inspectable without a second bookkeeping copy.
+        damage: damageRef.current,
+        demolition: DOME_DEMOLITION_PROFILE,
+        entryCache: OBSERVATORY_ENTRY_CACHE_PROFILE,
         homeDressing: OBSERVATORY_HOME_DRESSING_PROFILE,
         homeWorld: OBSERVATORY_HOME_WORLD_PROFILE,
         lattice: {
@@ -1787,38 +3019,116 @@ export default function PolarObservatoryDome({
         texturePolicy: DOME_TEXTURE_POLICY,
       }}
     >
+      {!DOME_POINT_LIGHTS_ABLATED && (
       <pointLight
-        // Cold near-white key, not the saturated station accent: the shell carries
-        // almost no body emissive now, so this local light IS the dome's colour. A
-        // teal key stained every ice face cyan and read as toy plastic.
-        color={DOME_CRYSTAL_PALETTE.windCap}
+        // This local light IS the dome's colour: the shell carries almost no body
+        // emissive, so whatever this is, the building is. It used to be near-white
+        // for a good reason — a saturated TEAL key stained every ice face cyan and
+        // read as toy plastic — but that finding is about a cool key on cool paint,
+        // where light and albedo compound into a single wash. A warm key on
+        // near-white paint does the opposite: it separates, because the faces it
+        // misses fall to the cool fill instead of to grey.
+        color={DOME_KEY_LIGHT_COLOR}
         decay={2}
-        distance={8.5}
-        intensity={tier === "high" ? 34 : tier === "medium" ? 28 : 14}
-        name="cyan-white-observatory-key-light"
-        position={[-2.1, 2.9, 1.7]}
+        // Far enough away to be a sun rather than a lamp resting on the roof, and
+        // that distance is the entire fix for the "two materials" read. Ablating
+        // these two lights was the measurement: without them the shell spans 58 to
+        // 114 luma, a 1.97 ratio, and reads as one continuous material. With them at
+        // the old (-2.1, 2.9, 1.7) it spanned 58 to 226, because at 2.7 units from
+        // the crown and 4.3 from the lowest course an inverse-square falloff is
+        // steep across the building's own diameter: the same capture measured +110
+        // luma on the crown blocks and +0 on everything below the third course.
+        // Faces on either side of that hotspot fell on opposite sides of the
+        // terminator, and since a block face is nearly planar each one resolved to a
+        // single flat value — near-white cream next to charcoal slate, in the same
+        // course. Moving the light out to 2.2x its old radius flattens the falloff
+        // across the shell; the cost is that intensity has to rise with the square,
+        // which is what the number below is.
+        //
+        // The docked mascot pays about ten luma for this, measured rather than
+        // assumed, because this file already records these lights costing the
+        // character 34 luma once. The only honest form of that measurement is an
+        // ablation A/B on ONE build, since the mascot is not this component's and
+        // changed underneath the capture series: under the identical old rig it read
+        // 132.8 luma at the start of the work and 77.0 a few builds later. On the
+        // same build, old rig against ablated: 77.0 / 52.9, so the point lights were
+        // worth +24.1. New rig against ablated: 66.8 / 51.8, worth +15.0. That is
+        // the real cost of moving out — ten luma absolute — against the dome's
+        // 10th-to-90th percentile spread falling from 174.2 to 121.7 and the crown
+        // coming off the clipping ceiling. Re-measure this way before moving it
+        // again: a single capture compared against an older one measures the other
+        // component's changes, not this light.
+        distance={15}
+        // Low matches medium. These two point lights are the observatory's local
+        // key and fill, and the mascot docks directly under them, so the tier
+        // that cut them to 14 and 4.5 was also the tier where the character
+        // measured 34 luma below its high-tier reading. The lights exist at
+        // every tier regardless — their count is a shader define — and a
+        // measured 0.43ms for all three is paid whether they are bright or not.
+        // Unchanged, and an intensity sweep on one served build is why. Raising this
+        // is the obvious way to spend the headroom the move-out bought and it is the
+        // wrong one: this lamp is high and off the crown, so N.L alone means it barely
+        // reaches the lower courses. Measured across 150 / 210 / 290 / 400 on a single
+        // build, the cool-body probe moved luma 0.371 -> 0.378 while the warm crown
+        // went 0.482 -> 0.642. The whole-dome value spread went 0.525 -> 0.693 and p95
+        // 0.685 -> 0.878: at 290 the still is cream crown against steel-blue body
+        // again, which is the two-materials read this rig was moved to fix. Brightness
+        // that has to land on the shadow side too cannot come from this light.
+        intensity={tier === "high" ? 150 : 124}
+        name="sunrise-warm-observatory-key-light"
+        position={[-4.6, 6.4, 3.7]}
       />
+      )}
+      {!DOME_POINT_LIGHTS_ABLATED && (
       <pointLight
-        color={DOME_CRYSTAL_PALETTE.frostIvory}
+        color={DOME_FILL_LIGHT_COLOR}
         decay={2}
-        // Short range so the grazing fill stays on the shell instead of spilling onto
-        // the seal and the surrounding snow.
-        distance={6.5}
-        intensity={tier === "high" ? 11 : tier === "medium" ? 9 : 4.5}
+        // Short range so the grazing fill stays on the shell rather than washing the
+        // surrounding snow. It is no longer kept off the seal: this is now the light
+        // that carries the dock.
+        //
+        // The two lights have swapped jobs because one point light cannot do both.
+        // The crown and the docked mascot are 2.5 units apart, so any light far
+        // enough to stop blowing out the crown is also far from the character —
+        // measured, the key's contribution to the seal fell from +51.5 luma to +15.0
+        // when it moved out, and pulling it back toward the dock put it right back on
+        // top of the crown. A near light and a far light separate cleanly; two near
+        // lights or two far lights do not. So the key went far and became the shell's
+        // form light, and this one stayed at 3.3 units off the dock and took over the
+        // character. Its count is unchanged, which is the constraint that matters:
+        // point-light count is a shader define.
+        distance={7.5}
+        intensity={tier === "high" ? 30 : 25}
         name="cold-observatory-fill-light"
         position={[2.6, 2.3, 1.5]}
       />
-      <NeutralContactPlinth impact={impact} quality={tier} />
+      )}
+      <NeutralContactPlinth quality={tier} />
       <ContinuousDomeTopology
         castShadow={tier === "low"}
         material={tier === "low" ? shellMaterial : innerShellMaterial}
         quality={tier}
+        // The inner weather shell only ever draws where it is the dome, which is low.
+        // Above that the masonry hovers off it with real gaps, and a continuous white
+        // surface behind those gaps is what made the igloo read as solid. It steps
+        // aside and hands its single draw slot straight to the cache mesh, so the
+        // count is unchanged whether the building is hollow or demolished.
+        visible={tier === "low" && !shellDemolished}
       />
-      {tier !== "low" && (
+      {(tier !== "low" || shellDemolished) && <BuriedEntryCache quality={tier} />}
+      {/* All tiers, including low. The masonry is what makes this building an
+          igloo rather than a painted dome, and the quality ladder now steps down
+          to low on any machine that cannot hold 60fps at high — which is most of
+          them — so dropping the blocks there meant the frame rate target and the
+          building's identity were mutually exclusive. Low draws its own 32-cell
+          lattice against high's 75, in the same single instanced draw. */}
+      {(
         <InstancedDomeBlocks
           assets={instancedAssets}
+          damageRef={damageRef}
           lattice={lattice}
-          pointerInteractionEnabled={pointerInteractionEnabled}
+          pointerInteractionEnabled={proximityInteractive}
+          proximityRef={proximityRef}
           reducedMotion={reducedMotion}
         />
       )}
@@ -1833,7 +3143,8 @@ export default function PolarObservatoryDome({
       <IntegratedAirlock
         assets={instancedAssets}
         material={airlockMaterial}
-        pointerInteractionEnabled={pointerInteractionEnabled}
+        pointerInteractionEnabled={proximityInteractive}
+        proximityRef={proximityRef}
         quality={tier}
         reducedMotion={reducedMotion}
         showBlocks={tier !== "low"}

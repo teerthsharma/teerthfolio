@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import AuroraFieldVeil from "../components/AuroraFieldVeil";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,7 +38,14 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistDisplay.variable} ${geistMono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Site-wide, so the same curtain hangs over every route rather than
+            over one section. Last in the body so it composites above the
+            world's canvas; the shader's own band layout is what keeps it off
+            the page's text. */}
+        <AuroraFieldVeil />
+      </body>
     </html>
   );
 }

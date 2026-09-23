@@ -483,7 +483,10 @@ async function collectSectionMetrics(page) {
         archiveGrid: visible(archiveGrid, 160, 160),
         archiveHead: visible(archiveHead, 160, 80),
         projectDetail: visible(projectDetail, 160, 120),
-        projectHead: visible(projectHead, 160, 80),
+        // 74px at 1024px-wide: .project-index-head became a two-column grid
+        // (title beside description) in a74e08b, so the block is shorter than
+        // the stacked-layout era 80px floor while still fully in viewport.
+        projectHead: visible(projectHead, 160, 60),
         projectList: visible(projectList, 160, 60),
         repoTape: visible(repoTape, 160, 60),
       },
@@ -831,7 +834,7 @@ function assertSafeGate(result) {
   }
   if (!buttonVisible(initial.buttonBounds)) failures.push(`safe gate button is not visible: ${JSON.stringify(initial.buttonBounds)}`);
   if (overlaps(initial.buttonBounds, initial.diagnosticsBounds)) failures.push("safe gate diagnostics overlap the start button");
-  if (!/start (?:exploring|the adventure)/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
+  if (!/enter the world/i.test(initial.gateButtonText)) failures.push(`safe gate button text is wrong: ${initial.gateButtonText}`);
   if (initial.renderEnabled !== "false") failures.push(`safe gate initially enabled renderer: ${initial.renderEnabled}`);
   if (initial.rendererMode !== "safe") failures.push(`safe gate initial mode is ${initial.rendererMode}`);
   if (initial.sealAwake !== "false") failures.push(`safe gate initially woke seal: ${initial.sealAwake}`);

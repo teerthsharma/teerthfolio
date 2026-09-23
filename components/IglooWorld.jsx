@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
 import {
@@ -17,9 +18,17 @@ import {
 import { deriveSealGuideState } from "../lib/seal-guide-state";
 import BlackHoleTransition from "./BlackHoleTransition";
 import IglooHud from "./IglooHud";
-import IglooScene from "./IglooScene";
-import { IGLOO_ARTIFACTS } from "./IglooArtifacts";
+import { IGLOO_ARTIFACTS } from "../lib/igloo-artifacts";
 import SdfSealSplash from "./SdfSealSplash";
+
+// three.js is 703 KB raw / 178 KB gzip - 33.9% of a 2.07 MB first load that
+// every visitor paid for, including the ones who never press "Enter the world"
+// and the ones on mobile who cannot. Nothing on the gate path needs it:
+// SdfSealSplash, AntarcticSplashShader, IglooHud and BlackHoleTransition all
+// drive raw WebGL. Only this subtree pulls three, drei and three-stdlib, and it
+// is already gated behind sdfRenderEnabled, so the import can wait for the
+// click that mounts it. ssr:false because the scene touches WebGL on mount.
+const IglooScene = dynamic(() => import("./IglooScene"), { ssr: false });
 
 const WORLD_Z_VALUES = STATION_WORLD_SCHEMA.order.map(
   (id) => STATION_WORLD_SCHEMA.stations[id].dock.z,
@@ -42,6 +51,7 @@ const SEAL_ROUTE_HINT_VISIBLE_MS = 3800;
 const FATAL_RENDER_EVENT_TYPES = new Set(["webgl-context-lost", "webgl-create-failed", "canvas-error"]);
 const SAFE_RENDER_QUERY = "safe=1";
 const QA_AUTO_PROBE_RENDER_QUERY = "qa-auto-probe";
+const QA_DIAGNOSTICS_RENDER_QUERY = "qa-diagnostics";
 const QA_LOW_RENDER_QUERY = "qa-low";
 const SAFE_QA_AUTO_PROBE_DELAY_MS = 900;
 const IDLE_WORLD_FRAME_MS = 1000 / 20;
@@ -55,6 +65,146 @@ export const ABETO_REFERENCE_MOTION_PROFILE =
 export const OPEN_WORLD_LOADING_PROFILE =
   "best-of-two loading: Abeto fullscreen in-place world stream plus Bruno horizontal evidence index fallback";
 const OPEN_WORLD_LOADING_SETTLE_MS = 1800;
+
+/**
+ * Measured quality selection.
+ *
+ * The tier was chosen from navigator.deviceMemory, which reports system RAM and
+ * says nothing whatever about a GPU: an 8GB laptop with integrated graphics and
+ * an 8GB desktop with a discrete card both got the most expensive tier. The
+ * tiers are not close — measured at 1440x900 on one desktop, high runs 30.6ms,
+ * medium 24.3ms and low 17.2ms, so the gaps are 6ms and 7ms — which is far more
+ * than anything tuning inside a tier can move, and makes the choice between
+ * them the single largest lever on how smooth the world feels.
+ *
+ * Downgrade only. Stepping up as well would need hysteresis to avoid hunting,
+ * and a world that visibly changes quality twice while you watch is worse than
+ * one that settles a little low. A machine that can hold high keeps it.
+ *
+ * Sampling starts well past the shader warm-up, whose links are the only source
+ * of hitches once the world is up (measured: after the warm-up completes, p95
+ * sits 4.2ms over median and 2 frames in 557 exceed it by half). Sampling
+ * during it would downgrade every visitor on load cost they only pay once.
+ */
+// Declared before AUTO_QUALITY_POLICY, which freezes it as its `order`. Placed
+// after it, module evaluation throws "Cannot access before initialization" and
+// the whole world fails to mount — which is how it was found.
+const AUTO_QUALITY_ORDER = ["high", "medium", "low"];
+
+const AUTO_QUALITY_POLICY = Object.freeze({
+  // How long the world runs before the first window is sampled. This was 5200,
+  // which is 5.2s the visitor spends at whatever tier deviceMemory guessed —
+  // `high` on most machines, and on integrated graphics that is 28.9ms frames.
+  // Measured from the renderer reporting webgl, the first step landed at 11.1,
+  // 11.2 and 14.8s; at 2000 it lands at 7.8, 7.8, 7.9, 8.0, 8.3, 8.3, 10.0, 12.0
+  // and 12.1s across nine runs, every one of them settling on the correct tier
+  // and none overshooting to low. About three seconds less of the opening at a
+  // frame rate the machine cannot hold.
+  //
+  // Sampling this early risks catching the shader link storm, which is what the
+  // longer settle was avoiding. Two things make it survivable now that did not
+  // exist then: the window reports a median rather than a mean, so a handful of
+  // multi-second link frames among ninety do not move it, and a reading only
+  // just over the ceiling asks for a second window before spending a tier.
+  settleMs: 2000,
+  sampleFrames: 90,
+  // The window is bounded in wall-clock as well as frames, because a window
+  // counted only in frames takes 90/fps seconds to close and so gets longer
+  // exactly as the machine gets worse: 1.5s at 60fps, 7.5s at 12fps, 10s at
+  // 9fps. Measured under 20x CPU throttling, that put the second step 30s after
+  // entry — half a minute of stutter on the machines the ladder exists for.
+  // 2600ms yields 23 samples at 9fps, which is ample to tell a 111ms median from
+  // a 19ms ceiling; the floor keeps a slower machine from deciding on too few.
+  sampleWindowMs: 2600,
+  minSampleFrames: 16,
+  // A step down is permanent — the sampler runs once per tier and never revisits
+  // it — so a decision taken during a passing stall follows the visitor for the
+  // whole session. Background load alone moves this frame about 5ms: the same
+  // configuration has measured 14.5ms and 19.5ms on this machine, and the
+  // eight-station sweep 13.5-15.0ms and 15.8-17.7ms with GPU time unchanged.
+  // A reading just over the ceiling is therefore not evidence of a slow machine.
+  //
+  // So the band above each ceiling asks for a second opinion. Over the ceiling
+  // but inside the band, sample again and step only if both windows agree; past
+  // the band, step at once, because nothing that far over is noise — under 20x
+  // CPU throttling the median lands near 111ms against a 19ms ceiling.
+  confirmBandMs: 5,
+  confirmDelayMs: 1400,
+  // The ladder keeps watching instead of deciding once. Sampling a tier a single
+  // time assumes the machine a visitor arrives with is the machine they keep,
+  // and it is not: a laptop drops to battery, a phone warms up, another tab
+  // starts decoding video. Without this the only rescue is a reload, which a
+  // visitor has no reason to think would help.
+  //
+  // Re-checking cannot oscillate, because the ladder only ever steps down. The
+  // cost is one 2.6s sampling window every 24s, and the window is rAF timing
+  // with no allocation and no draw of its own.
+  recheckMs: 24000,
+  // Stepping back up. A visitor whose machine was busy for one window at load
+  // otherwise spends the session a tier below what their hardware can hold, and
+  // the tier carries content, not just resolution.
+  //
+  // The danger is ping-pong, which reads worse than either tier, so restoring is
+  // deliberately hard. The tier above cannot be measured without entering it, so
+  // its cost is predicted from this one: measured on integrated graphics, high
+  // runs about twice medium — 28.9ms against 14.6ms — and that ratio is what the
+  // estimate below uses. A restore needs the prediction to clear the upper
+  // tier's own ceiling with 2ms to spare, two consecutive healthy windows to
+  // agree, and it may happen once. One wasted up-and-down cycle is the worst
+  // case, after which the ladder settles for good.
+  //
+  // The prediction uses this machine's own history wherever it has one. The
+  // ladder has already been at the tier above and measured it, so what the tier
+  // costs here is remembered rather than assumed: the estimate is that remembered
+  // cost scaled by how much this tier has improved since the ladder arrived at
+  // it. If medium measured 14.8ms on arrival and measures 7.4ms now, the machine
+  // is running twice as fast and high's remembered 28.9ms is estimated at
+  // 14.5ms. tierCostRatio is only the fallback for a tier never visited, which
+  // happens when deviceMemory opens below high.
+  //
+  // On the machine this was written on nothing improves, so the estimate stays
+  // at high's measured 28.9ms against a 19ms ceiling and it correctly never
+  // fires.
+  tierCostRatio: 2,
+  restoreMarginMs: 2,
+  restoreAfterHealthyWindows: 2,
+  maxRestores: 1,
+  // Both ceilings target 60fps rather than "not broken". The itemised frame
+  // budget is why: measured on a cool machine, no single subsystem is worth
+  // more than 3ms — observatory 2.97, all material cost 2.63, ground sheet
+  // 2.26, grade chain 1.86, sky 1.23 — against a ~15ms GPU frame that also
+  // carries ~3ms of JavaScript and ~2.9ms of compositor blur. There is no one
+  // thing to fix; the tier ladder is the only lever that cuts across all of
+  // them at once, and it only reaches 60fps if it is allowed to keep stepping.
+  //
+  // 19ms is about 53fps, which leaves headroom for the frame to vary without
+  // the world sitting just under the bar. The medium floor used to be 30ms —
+  // about 33fps — so a machine holding 41fps stopped there and never reached
+  // the target it was supposed to be chasing.
+  // Measured 2026-08-02 on Intel UHD integrated graphics at 1440x900: the tiers
+  // floor at 28.9ms (high), 22.9ms (medium) and 17.1ms (low). Medium is the
+  // interesting one, because it is NOT fill-bound the way the ladder as a whole
+  // is: dropping its buffer from 0.9 to 0.75 device pixels took it 22.9ms ->
+  // 18.9ms, but 0.75 -> 0.72 took it only 18.9ms -> 18.7ms. An 8% pixel cut
+  // bought 0.2ms, so what medium costs is its content — 64 terrain segments, 24
+  // geography instances, dynamic weather — not its resolution.
+  //
+  // That puts medium's floor at 18.7-19.5ms across runs. A ceiling inside a
+  // tier's own variance makes the outcome a coin flip — three settle runs at
+  // 19ms landed medium, medium, low — and lowering the resolution further cannot
+  // fix what resolution does not cost.
+  //
+  // So the two ceilings are not the same number. High steps at 19ms, because the
+  // tier below it is worth reaching. Medium steps at 21ms, which is below it,
+  // deliberately: 21ms is about 48fps, and holding medium at 51-53fps keeps the
+  // distant geography, the tunnel arch, the drift detail and three times the
+  // dome's masonry that the low tier sheds. Stable pacing at the richer tier
+  // beats a coin flip between 59fps sparse and 51fps rich.
+  stepFromHighAboveMs: 19,
+  stepFromMediumAboveMs: 21,
+  order: Object.freeze(AUTO_QUALITY_ORDER),
+});
+
 const STATION_COLLIDERS = Object.freeze(
   createStationCollisionSet().map((collider) => Object.freeze(collider)),
 );
@@ -64,6 +214,39 @@ const STATION_TARGETS = Object.freeze(
   ),
 );
 const HOME_TARGET = Object.freeze(createStationTraversalTarget(HOME_STATION_ID));
+// The tier this machine settled on last visit. deviceMemory is the only signal
+// available before a frame exists and it is a poor one — it says nothing about
+// the GPU, so a desktop with plenty of memory and integrated graphics opens at
+// `high` and spends about eight seconds there at a frame rate it cannot hold.
+// A returning visitor does not need to be guessed at: the ladder already
+// measured the answer on their hardware, and throwing it away every visit is the
+// only reason they pay that opening twice.
+//
+// Written when a sampling window finds the current tier healthy, which is the
+// ladder's own statement that this tier holds here. Read as the opening guess.
+// It is a hint, not a lock: the ladder still samples, still steps down if the
+// machine has changed or is busier, and can still restore once.
+const SETTLED_TIER_KEY = "seal.render.settled-tier";
+
+function readSettledTier() {
+  try {
+    const stored = window.localStorage.getItem(SETTLED_TIER_KEY);
+    return AUTO_QUALITY_ORDER.includes(stored) ? stored : null;
+  } catch {
+    // Private mode, disabled storage, or a quota error. The guess below is the
+    // fallback and works without this.
+    return null;
+  }
+}
+
+function writeSettledTier(tier) {
+  try {
+    window.localStorage.setItem(SETTLED_TIER_KEY, tier);
+  } catch {
+    // Not worth failing a render for.
+  }
+}
+
 const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-no-dome", "noDome"],
   ["qa-no-veil", "noVeil"],
@@ -75,6 +258,48 @@ const SCENE_DEBUG_FLAG_QUERIES = [
   ["qa-no-topology", "noTopology"],
   ["qa-no-seal", "noSeal"],
   ["qa-no-artifacts", "noArtifacts"],
+  // Stops the world's clock so two builds render the same frame. Every animated
+  // surface here reads clock.elapsedTime as a property rather than calling
+  // getElapsedTime(), so pinning it once before the frame's other callbacks
+  // freezes the aurora, the drift, the particles and the mascot together.
+  //
+  // This exists for measurement. probe:frame-detail can difference a global
+  // statistic across a moving scene, because the motion cancels inside a pair,
+  // but it cannot compare individual pixels: two browser sessions cannot be
+  // phase-locked, so a moving aurora reads as ringing and the overshoot figure
+  // is an upper bound rather than a measurement. With the clock stopped the
+  // comparison becomes exact.
+  ["qa-freeze", "freezeClock"],
+  // Ablation switch for the fullscreen grade. The frame is fragment-bound, and
+  // separating the post chain's share from the world's share is not inferable
+  // from draw counts, so it needs a real toggle to measure against.
+  ["qa-no-post", "noPost"],
+  // Ablation switch for the shadow pass. It re-renders every caster into a
+  // depth map at a resolution the canvas ratio does not touch, so it is the one
+  // candidate a device-pixel-ratio sweep cannot rule in or out.
+  ["qa-no-shadows", "noShadows"],
+  // Ablation switch for the sky dome alone. It shares its authored shader and
+  // its component with the ground sheet, so without this the two cannot be
+  // told apart in a frame budget.
+  ["qa-no-sky", "noSky"],
+  // Hides the ground mesh while the component, and therefore the scene light
+  // rig, stays mounted. qa-no-terrain unmounts both together.
+  ["qa-no-ground", "noGround"],
+  // Two candidate levers on the light rig, which paired measurement puts at
+  // roughly 7ms of the frame. Flags rather than edits so each can be measured
+  // against its own baseline in the same browser.
+  ["qa-hard-shadows", "hardShadows"],
+  ["qa-no-env", "noEnv"],
+  // Swaps every material for MeshLambert. Diagnostic only; the output is wrong
+  // on purpose, and what it measures is per-pixel shading cost.
+  ["qa-cheap-materials", "cheapMaterials"],
+  // Renders a per-pixel write count instead of the world.
+  ["qa-overdraw", "overdraw"],
+  // Same counter, but only counting fragments that survive depth rejection.
+  ["qa-overdraw-depth", "overdrawDepth"],
+  // Removes the three point lights. Their count is a shader define, so even at
+  // intensity zero they are three more light evaluations on every lit fragment.
+  ["qa-no-point-lights", "noPointLights"],
 ];
 const DEFAULT_SCENE_DEBUG_FLAGS = Object.freeze(
   SCENE_DEBUG_FLAG_QUERIES.reduce((flags, [, flag]) => ({ ...flags, [flag]: false }), {}),
@@ -156,13 +381,20 @@ function describeError(error) {
   return error.message || error.reason?.message || String(error);
 }
 
-function DiagnosticPanel({ events, onReloadWorld, rendererMode }) {
-  const visibleEvents =
-    rendererMode === "safe" || rendererMode === "probe"
-      ? events
-      : events.filter((event) => event.severity === "error" || event.severity === "warn");
+function DiagnosticPanel({ events, forced, onReloadWorld, rendererMode }) {
+  // "probe" is the ordinary state during a cold shader compile, which can run
+  // 25-32s on a first visit. Treating it as a diagnostic condition meant a
+  // stranger spent that half-minute reading "renderer diagnostics / probe" and
+  // being offered a "reload world" button that restarts the compile from zero.
+  // A real failure still surfaces unprompted; the slow-but-working path does
+  // not, and ?qa-diagnostics brings the full strip back for debugging.
+  const errorEvents = events.filter(
+    (event) => event.severity === "error" || event.severity === "warn",
+  );
+  const verbose = forced || rendererMode === "safe";
+  const visibleEvents = verbose ? events : errorEvents;
 
-  if (!visibleEvents.length && rendererMode !== "safe" && rendererMode !== "probe") return null;
+  if (!visibleEvents.length && !verbose) return null;
 
   return (
     <div className="igloo-diagnostics" role="status" aria-live="polite">
@@ -170,7 +402,7 @@ function DiagnosticPanel({ events, onReloadWorld, rendererMode }) {
       {/* Probe recovery: a wedged probe (e.g. a killed R3F loop before
           scene-ready) never resolves on its own, so the strip offers a clean
           canvas remount instead of demanding a manual page reload. */}
-      {rendererMode === "probe" && onReloadWorld && (
+      {verbose && rendererMode === "probe" && onReloadWorld && (
         <button
           className="igloo-diagnostics-reload"
           onClick={onReloadWorld}
@@ -269,7 +501,7 @@ function useReducedMotion() {
   return reduced;
 }
 
-export default function IglooWorld({ content, initialQuery = {}, liveSummary, projects, stations }) {
+export default function IglooWorld({ content, initialQuery = {}, liveSummary, projects }) {
   const reduced = useReducedMotion();
   const traversalRef = useRef(null);
   if (!traversalRef.current) {
@@ -303,6 +535,19 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const initialSafeMode = Boolean(initialQuery.initialSafeMode);
   const initialSafetyQuality = Boolean(initialQuery.initialQaLow || initialSafeMode);
   const [quality, setQuality] = useState(initialSafetyQuality ? "low" : "high");
+  // Set the moment the visitor picks a tier themselves. Their choice is final:
+  // a world that overrides a deliberate selection two seconds later is broken,
+  // however well-meant the measurement behind it.
+  const qualityLockedRef = useRef(false);
+  // Restores are capped for the session, not per tier, so the ladder cannot walk
+  // up and down repeatedly by resetting its own counter on the way past.
+  const restoresRef = useRef(0);
+  // What each tier measured when the ladder first arrived at it on this machine.
+  const tierCostRef = useRef({});
+  const selectQuality = useCallback((next) => {
+    qualityLockedRef.current = true;
+    setQuality(next);
+  }, []);
   const [highContrast, setHighContrast] = useState(false);
   const [traversalPresentation, setTraversalPresentation] = useState(
     INITIAL_TRAVERSAL_PRESENTATION,
@@ -333,9 +578,35 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
   const [inputHint, setInputHint] = useState("");
   const [sealRouteHint, setSealRouteHint] = useState("");
   const [worldLoadBridgeActive, setWorldLoadBridgeActive] = useState(false);
+
+  // Fetch the scene chunk while the visitor is still on the entry screen. It is
+  // a dynamic import gated on gpuStageMounted, so by default nothing requests it
+  // until after the click: measured, exactly one chunk is fetched in that window
+  // and the canvas takes about 690ms to exist. The entry screen is otherwise
+  // dead network time. Nothing here mounts or renders anything — webpack dedupes
+  // this against the dynamic import — so the entry screen's own work is
+  // untouched.
+  //
+  // The chunk this moves is 1,293KB decoded — the largest single asset the site
+  // fetches — which is why moving it off the click matters at all and why it is
+  // invisible on localhost. What still arrives after the click is one asset under
+  // a kilobyte, so there is nothing further to pull forward on this path; the
+  // remaining opportunity is making that chunk smaller, not fetching it sooner.
+  useEffect(() => {
+    let cancelled = false;
+    const idle = window.requestIdleCallback || window.setTimeout;
+    idle(() => {
+      if (cancelled) return;
+      import("./IglooScene").catch(() => {});
+    }, { timeout: 1200 });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [archivePortalOfferOpen, setArchivePortalOfferOpen] = useState(false);
   const [blackHoleActive, setBlackHoleActive] = useState(false);
   const [qaAutoProbe, setQaAutoProbe] = useState(false);
+  const [qaDiagnostics, setQaDiagnostics] = useState(false);
   const [stationProximity, setStationProximity] = useState(0);
   const [worldInView, setWorldInView] = useState(true);
   const [gpuStageMounted, setGpuStageMounted] = useState(true);
@@ -529,6 +800,164 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
     [],
   );
 
+  // Measured downgrade. See AUTO_QUALITY_POLICY.
+  useEffect(() => {
+    // A material probe replaces every material in the scene and a re-render
+    // undoes it, so the downgrade must not fire underneath one.
+    if (
+      sceneDebugFlags.cheapMaterials ||
+      sceneDebugFlags.overdraw ||
+      sceneDebugFlags.overdrawDepth
+    ) {
+      return undefined;
+    }
+    if (!sceneReady || qualityLockedRef.current) return undefined;
+    // Low keeps sampling. It used to return here, which was right when the
+    // ladder only stepped down and low was the floor — but a tier that can be
+    // earned back has to be watched from below, or a machine that fell to low
+    // during one bad window stays there for the session no matter how well it
+    // runs afterwards. That is the case the restore exists for.
+    if (quality === "low" && restoresRef.current >= AUTO_QUALITY_POLICY.maxRestores) {
+      return undefined;
+    }
+    let cancelled = false;
+    let frameHandle = 0;
+    let confirming = false;
+    let confirmedFirst = 0;
+    let confirm = 0;
+    let restart = () => {};
+    let arm = () => {};
+    let timer = 0;
+    let healthyWindows = 0;
+    const buildSampler = () => {
+      const intervals = [];
+      let started = performance.now();
+      let last = started;
+      restart = () => {
+        started = performance.now();
+        last = started;
+        frameHandle = window.requestAnimationFrame(sample);
+      };
+      const sample = () => {
+        if (cancelled) return;
+        const now = performance.now();
+        intervals.push(now - last);
+        last = now;
+        const enough =
+          intervals.length >= AUTO_QUALITY_POLICY.sampleFrames ||
+          (now - started >= AUTO_QUALITY_POLICY.sampleWindowMs &&
+            intervals.length >= AUTO_QUALITY_POLICY.minSampleFrames);
+        if (!enough) {
+          frameHandle = window.requestAnimationFrame(sample);
+          return;
+        }
+        // Drop the first few: the sampler's own first frames land while the
+        // timeout callback is still unwinding.
+        const usable = intervals.slice(Math.min(8, intervals.length >> 1)).sort((a, b) => a - b);
+        const median = usable[Math.floor(usable.length / 2)];
+        // First reading at this tier is its cost on arrival, and the reference
+        // every later comparison is made against. Later readings do not overwrite
+        // it: the question a restore asks is whether the machine has improved
+        // since it arrived, not since the last window.
+        if (Number.isFinite(median) && !tierCostRef.current[quality]) {
+          tierCostRef.current[quality] = median;
+        }
+        const ceiling =
+          quality === "high"
+            ? AUTO_QUALITY_POLICY.stepFromHighAboveMs
+            : AUTO_QUALITY_POLICY.stepFromMediumAboveMs;
+        if (!Number.isFinite(median) || median <= ceiling) {
+          // Healthy this window. Watch again later rather than concluding.
+          confirming = false;
+          healthyWindows += 1;
+          // The ladder has just measured this tier as holding on this machine.
+          writeSettledTier(quality);
+          const upIndex = AUTO_QUALITY_POLICY.order.indexOf(quality) - 1;
+          const up = upIndex >= 0 ? AUTO_QUALITY_POLICY.order[upIndex] : null;
+          const upCeiling =
+            up === "high"
+              ? AUTO_QUALITY_POLICY.stepFromHighAboveMs
+              : AUTO_QUALITY_POLICY.stepFromMediumAboveMs;
+          // Prefer measured history over the constant: what the tier above
+          // actually cost here, scaled by how much this tier has improved since
+          // the ladder arrived at it.
+          const seenUp = tierCostRef.current[up];
+          const seenHere = tierCostRef.current[quality];
+          const predicted =
+            seenUp && seenHere && median > 0
+              ? seenUp * (median / seenHere)
+              : median * AUTO_QUALITY_POLICY.tierCostRatio;
+          if (
+            up &&
+            !qualityLockedRef.current &&
+            restoresRef.current < AUTO_QUALITY_POLICY.maxRestores &&
+            healthyWindows >= AUTO_QUALITY_POLICY.restoreAfterHealthyWindows &&
+            predicted <= upCeiling - AUTO_QUALITY_POLICY.restoreMarginMs
+          ) {
+            restoresRef.current += 1;
+            setQuality(up);
+            reportGpuEvent({
+              detail: `median frame ${median.toFixed(1)}ms predicts ${predicted.toFixed(1)}ms at ${up} (${seenUp ? `measured ${seenUp.toFixed(1)}ms there` : "no reading there, using the ratio"}), under its ${upCeiling}ms ceiling`,
+              message: `Quality restored from ${quality} to ${up}; the frame had room.`,
+              severity: "info",
+              type: "auto-quality-restore",
+            });
+            return;
+          }
+          arm(AUTO_QUALITY_POLICY.recheckMs);
+          return;
+        }
+        const index = AUTO_QUALITY_POLICY.order.indexOf(quality);
+        const next = AUTO_QUALITY_POLICY.order[index + 1];
+        if (!next || qualityLockedRef.current) {
+          // Nothing below this tier to step to, but the watch continues: the
+          // frame may yet recover far enough to earn a tier back.
+          healthyWindows = 0;
+          arm(AUTO_QUALITY_POLICY.recheckMs);
+          return;
+        }
+        // Marginal reading: take a second window before spending the tier.
+        if (median <= ceiling + AUTO_QUALITY_POLICY.confirmBandMs && !confirming) {
+          confirming = true;
+          confirmedFirst = median;
+          intervals.length = 0;
+          window.clearTimeout(confirm);
+          confirm = window.setTimeout(() => {
+            if (cancelled) return;
+            intervals.length = 0;
+            restart();
+          }, AUTO_QUALITY_POLICY.confirmDelayMs);
+          return;
+        }
+        setQuality(next);
+        reportGpuEvent({
+          detail: confirming
+            ? `median frame ${confirmedFirst.toFixed(1)}ms then ${median.toFixed(1)}ms, both over a ${ceiling}ms ceiling`
+            : `median frame ${median.toFixed(1)}ms over a ${ceiling}ms ceiling`,
+          message: `Quality stepped from ${quality} to ${next} to hold the frame.`,
+          severity: "info",
+          type: "auto-quality-step",
+        });
+      };
+      frameHandle = window.requestAnimationFrame(sample);
+    };
+    arm = (delay) => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        buildSampler();
+      }, delay);
+    };
+    arm(AUTO_QUALITY_POLICY.settleMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.clearTimeout(confirm);
+      window.cancelAnimationFrame(frameHandle);
+    };
+  }, [quality, reportGpuEvent, sceneDebugFlags, sceneReady]);
+
+
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     // safe=1 is the incident path: boot cheap first and wait for an explicit user probe.
@@ -538,13 +967,18 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       {},
     );
     const nextQaAutoProbe = query.has(QA_AUTO_PROBE_RENDER_QUERY);
+    setQaDiagnostics(query.has(QA_DIAGNOSTICS_RENDER_QUERY));
     setQaAutoProbe(nextQaAutoProbe);
     if (query.has(QA_LOW_RENDER_QUERY)) {
       setQuality("low");
     } else {
+      // Opening guess only; AUTO_QUALITY_POLICY measures and steps down from
+      // here once the world is up. deviceMemory is kept as the one signal
+      // available before a frame has been drawn.
       const memory = navigator.deviceMemory || 8;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      setQuality(memory <= 4 ? "low" : reducedMotion ? "medium" : "high");
+      const remembered = readSettledTier();
+      setQuality(remembered ?? (memory <= 4 ? "low" : reducedMotion ? "medium" : "high"));
     }
     setSceneDebugFlags(nextSceneDebugFlags);
     setSafeMode(nextSafeMode);
@@ -964,7 +1398,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
           : "false"
       }
       data-project-count={projects?.length || 0}
-      data-station-count={stations?.length || 0}
+      data-station-count={artifacts.length}
       id="world"
       ref={worldRef}
       data-render-enabled={publicRenderEnabled ? "true" : "false"}
@@ -1050,6 +1484,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
       )}
       <DiagnosticPanel
         events={gpuDiagnostics}
+        forced={qaDiagnostics}
         onReloadWorld={reloadWorld}
         rendererMode={rendererMode}
       />
@@ -1078,7 +1513,7 @@ export default function IglooWorld({ content, initialQuery = {}, liveSummary, pr
         reducedMotion={reduced}
         renderEnabled={publicRenderEnabled}
         sealAwake={sealAwake}
-        setQuality={setQuality}
+        setQuality={selectQuality}
         setHighContrast={setHighContrast}
       />
       <BlackHoleTransition

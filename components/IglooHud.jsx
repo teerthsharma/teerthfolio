@@ -37,6 +37,14 @@ export default function IglooHud({
     docked: "none",
     proximity: "none",
   });
+  // Phone layout is a different information contract, not a narrower desktop:
+  // the seal is the interaction, and every panel that covers it is a bug. Both
+  // panels below therefore start expanded (the desktop truth, and the one the
+  // server renders) and collapse only once a compact viewport is measured.
+  const [compact, setCompact] = useState(false);
+  const [coarsePointer, setCoarsePointer] = useState(false);
+  const [evidenceOpen, setEvidenceOpen] = useState(true);
+  const [controlsOpen, setControlsOpen] = useState(true);
   const latest = liveSummary?.latest?.[0];
   const moving = ["moving", "docking"].includes(presentation.phase);
   const worldActive = renderEnabled && sealAwake;
@@ -87,6 +95,24 @@ export default function IglooHud({
     radioContact.proximity === UPSTREAM_EVIDENCE_STATION_ID ||
     radioContact.docked === UPSTREAM_EVIDENCE_STATION_ID ||
     presentation.dockedStationId === UPSTREAM_EVIDENCE_STATION_ID;
+
+  useEffect(() => {
+    const compactQuery = window.matchMedia("(max-width: 720px)");
+    const coarseQuery = window.matchMedia("(pointer: coarse)");
+    const sync = () => {
+      setCompact(compactQuery.matches);
+      setCoarsePointer(coarseQuery.matches);
+      setEvidenceOpen(!compactQuery.matches);
+      setControlsOpen(!compactQuery.matches);
+    };
+    sync();
+    compactQuery.addEventListener("change", sync);
+    coarseQuery.addEventListener("change", sync);
+    return () => {
+      compactQuery.removeEventListener("change", sync);
+      coarseQuery.removeEventListener("change", sync);
+    };
+  }, []);
 
   useEffect(() => {
     const rail = stationRailRef.current;
@@ -147,9 +173,18 @@ export default function IglooHud({
         <a href={content.profile.github}>Contact</a>
       </nav>
 
-      <div className="igloo-controls-hint">
+      {/* A phone has no WASD. Touch traversal is dispatch, not piloting: tapping
+          a station beacon or a route chip sends the seal there, so the coarse
+          copy names the gesture that actually exists. */}
+      <div className="igloo-controls-hint" data-input={coarsePointer ? "touch" : "keys"}>
         <span className="hud-technical">
-          {moving ? "WASD pilot active" : "Use WASD to move the seal"}
+          {coarsePointer
+            ? moving
+              ? "Seal en route"
+              : "Tap a station to send the seal"
+            : moving
+              ? "WASD pilot active"
+              : "Use WASD to move the seal"}
         </span>
         <small className="hud-technical">Dock at glowing stations</small>
       </div>
@@ -167,9 +202,14 @@ export default function IglooHud({
           }
           aria-live="polite"
           className="igloo-readout igloo-artifact-readout"
+          data-evidence-open={evidenceOpen || portalOfferOpen ? "true" : "false"}
           data-station-id={readoutArtifact.id}
           id="active-station-readout"
           key={`${readoutArtifact.id}-${presentation.phase}`}
+          /* Same per-station accent the route chips already carry. The readout
+             named its station in text but wore no colour from it, so the card
+             was the one part of the HUD with no identity at all. */
+          style={{ "--station-accent": readoutArtifact.accent }}
         >
           <span
             className="igloo-route-status hud-technical"
@@ -184,6 +224,49 @@ export default function IglooHud({
             / {readoutArtifact.handle}
           </span>
           <h2>{readoutArtifact.label}</h2>
+          {/* The signal line is the strongest single sentence of evidence a
+              station has, so it stays in the peek the collapsed phone sheet
+              shows rather than hiding behind the disclosure with the prose. */}
+          {!portalOfferOpen && (
+            <>
+            <p className="igloo-artifact-signal hud-technical">
+              {showDockedEvidence
+                ? activeArtifact.signal
+                : "Destination selected. Dock the seal to reveal its evidence."}
+            </p>
+            {/* The evidence, made reachable. Gated on showDockedEvidence for the same
+                reason the signal line is: a station's sources belong to a docked visit,
+                not to a destination they merely selected. rel carries noopener because
+                these open a new context; noreferrer matches the live strip's pattern. */}
+            {showDockedEvidence && activeArtifact.repos?.length ? (
+              <ul className="igloo-artifact-repos">
+                {activeArtifact.repos.map((repo) => (
+                  <li key={repo.url}>
+                    <a
+                      className="igloo-repo-link"
+                      href={repo.url}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {repo.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            </>
+          )}
+          {compact && !portalOfferOpen && (
+            <button
+              aria-controls="active-station-readout"
+              aria-expanded={evidenceOpen}
+              className="igloo-evidence-toggle"
+              onClick={() => setEvidenceOpen((value) => !value)}
+              type="button"
+            >
+              {evidenceOpen ? "Hide station evidence" : "Show station evidence"}
+            </button>
+          )}
           {portalOfferOpen ? (
             <div
               aria-labelledby="archive-portal-offer-title"
@@ -220,19 +303,12 @@ export default function IglooHud({
             </div>
           ) : showDockedEvidence ? (
             <>
-              <p className="igloo-artifact-signal hud-technical">
-                {activeArtifact.signal}
-              </p>
               <p>{activeArtifact.description}</p>
               <small className="igloo-artifact-meta hud-technical">
                 {activeArtifact.topology} / {activeArtifact.betti} / {activeArtifact.homology}
               </small>
             </>
-          ) : (
-            <p className="igloo-artifact-signal hud-technical">
-              Destination selected. Dock the seal to reveal its source-backed evidence.
-            </p>
-          )}
+          ) : null}
         </aside>
 
         <nav
@@ -311,7 +387,26 @@ export default function IglooHud({
         </small>
       </div>
 
-      <fieldset className="igloo-controls">
+      {/* Renderer tier is a QA affordance that had reflowed onto the most
+          valuable band of a phone screen. It stays a first-class control, but
+          on a compact viewport it costs one 44px chip at rest instead of a
+          four-button strip across the top of the world. */}
+      {compact && (
+        <button
+          aria-controls="igloo-graphics-controls"
+          aria-expanded={controlsOpen}
+          aria-label="Graphics quality and contrast settings"
+          className="igloo-controls-toggle"
+          onClick={() => setControlsOpen((value) => !value)}
+          type="button"
+        >
+          display
+        </button>
+      )}
+      <fieldset className="igloo-controls"
+        data-open={controlsOpen ? "true" : "false"}
+        id="igloo-graphics-controls"
+      >
         <legend className="hud-sr-only">Graphics quality and contrast</legend>
         {["low", "medium", "high"].map((mode) => (
           <button

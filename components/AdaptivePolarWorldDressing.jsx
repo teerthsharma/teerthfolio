@@ -44,7 +44,11 @@ export const HORIZON_THEATRE_LAYERS = Object.freeze([
     follow: 0.965,
     drift: 0.0016,
     baseY: -2.2,
-    haze: [0.62, 0.78],
+    // Atmospheric perspective, at the strength the eye expects over tens of
+    // kilometres of polar air. At 0.62-0.78 the far ring kept a quarter of its
+    // own value and read as painted cardboard standing behind the field; the
+    // reference dissolves its farthest ridge almost entirely into the sky.
+    haze: [0.88, 0.95],
     width: [7.2, 11.5],
     height: [4.6, 7.4],
   }),
@@ -56,7 +60,7 @@ export const HORIZON_THEATRE_LAYERS = Object.freeze([
     follow: 0.9,
     drift: -0.0011,
     baseY: -1.9,
-    haze: [0.44, 0.58],
+    haze: [0.72, 0.84],
     width: [5.2, 8.4],
     height: [3.1, 5.2],
   }),
@@ -68,7 +72,7 @@ export const HORIZON_THEATRE_LAYERS = Object.freeze([
     follow: 0.82,
     drift: 0.0007,
     baseY: -1.7,
-    haze: [0.26, 0.4],
+    haze: [0.52, 0.66],
     width: [3.6, 6.2],
     height: [2.0, 3.6],
   }),
@@ -77,12 +81,37 @@ export const HORIZON_THEATRE_LAYERS = Object.freeze([
 const HORIZON_VERTEX_SHADER = `
   varying vec3 vInstanceColor;
   varying float vCrest;
+  varying float vFlank;
   varying vec3 vWorldPosition;
 
   void main() {
     vec4 localPosition = vec4(position, 1.0);
     #ifdef USE_INSTANCING
+      // SILHOUETTE. Every ridge on the skyline was the same fourteen-point crest
+      // profile, scaled, mirrored and rotated -- which is why a ring of them read
+      // as one lump repeated rather than as a range. Reshaped per instance from a
+      // seed hashed out of the instance's own translation, so no attribute, no
+      // second buffer and no CPU work: the ring is populated once at mount and
+      // the profile falls out of where each berg already stands.
+      //
+      // Warped above the shoulder only. The skirt still has to meet the snow flat
+      // -- a berg that lifts off its base cuts the hard ground line the haze mix
+      // exists to hide.
+      float bergSeed = fract(
+        sin(dot(instanceMatrix[3].xz, vec2(12.9898, 78.233))) * 43758.5453
+      );
+      float crestMask = smoothstep(0.0, 0.30, position.y);
+      localPosition.y *= 0.70 + 0.60 * fract(bergSeed * 7.31);
+      localPosition.y += crestMask * 0.26
+        * sin(position.x * (4.0 + 11.0 * bergSeed) + bergSeed * 31.4);
+      localPosition.x += crestMask * 0.12 * sin(position.x * 3.1 + bergSeed * 17.7);
+      // Which way is across this berg, in world space, mirror and yaw included.
+      // The fragment stage needs it to tell a sunward face from a lee face.
+      vec2 acrossWorld = normalize((instanceMatrix * vec4(1.0, 0.0, 0.0, 0.0)).xz);
+      vFlank = position.x * dot(acrossWorld, normalize(vec2(0.904, -0.426)));
       localPosition = instanceMatrix * localPosition;
+    #else
+      vFlank = 0.0;
     #endif
     vec4 worldPosition = modelMatrix * localPosition;
     #ifdef USE_INSTANCING_COLOR
@@ -96,22 +125,53 @@ const HORIZON_VERTEX_SHADER = `
   }
 `;
 
+const HORIZON_SKY_TINT = new THREE.Color("#E2E9F4");
+
 const HORIZON_FRAGMENT_SHADER = `
   uniform vec2 uTravelerXZ;
+  // The haze the rings dissolve into is the scene's own fog colour, not a
+  // baked constant: each station carries its own atmosphere, and a fixed haze
+  // left the horizon reading as cardboard pasted over whichever sky was live.
+  uniform vec3 uHazeColor;
   varying vec3 vInstanceColor;
   varying float vCrest;
+  varying float vFlank;
   varying vec3 vWorldPosition;
 
   void main() {
-    vec3 hazeColor = vec3(0.740, 0.778, 0.882);
+    vec3 hazeColor = uHazeColor;
     // Base color already carries the layer haze mix; the skirt dissolves
     // further into the horizon haze so bergs never cut a hard ground line.
     vec3 color = mix(vInstanceColor, hazeColor, (1.0 - vCrest) * 0.42);
+    // RIDGE AND FACE. These are flat extruded silhouettes with no form to light,
+    // and shading them by their geometric normal would only report which way the
+    // billboard faces. What separates a ridge from a grey lump is that its two
+    // flanks take the sun differently, with the break landing on the crest line
+    // -- so the separation is DIRECTIONAL, driven by which side of its own spine
+    // a fragment sits on relative to the sun bearing, rather than a uniform
+    // gradient laid over the whole shape. Value only; the aerial haze mix that
+    // sets each ring's depth is untouched, and the term vanishes into the skirt
+    // where the berg is already dissolving into the horizon.
+    //
+    // Symmetric on purpose. A one-sided mix toward a darkened haze was tried
+    // for the lee face and it only ever removed light: over a ring that fills
+    // the horizon band it cost ~3 mean luma, which at the darkest station is
+    // enough to drop a large block of sky-and-snow pixels under the 100-luma
+    // line check-polar-color-continuity uses to count a snow anchor. A multiply
+    // by a zero-mean quantity lights one flank and drops the other by the same
+    // amount and leaves the band's mean where it found it.
+    float flank = clamp(vFlank * 1.7, -1.0, 1.0) * smoothstep(0.04, 0.46, vCrest);
+    color *= 1.0 + flank * 0.21;
     vec2 toBerg = normalize(vWorldPosition.xz - uTravelerXZ);
     vec2 sunXZ = normalize(vec2(0.904, -0.426));
     float sunSide = clamp(dot(toBerg, sunXZ), 0.0, 1.0);
     float rim = pow(sunSide, 3.0) * smoothstep(0.35, 0.95, vCrest);
     color += vec3(0.910, 0.608, 0.373) * rim * 0.16;
+    // Snow-line lip. A tabular berg carries its brightest value along the top
+    // edge where wind-packed crust catches a low sun, and weighting it to the
+    // sunward flank keeps the read directional rather than outlining the shape.
+    float crestLip = smoothstep(0.60, 0.97, vCrest);
+    color += vec3(0.965, 0.950, 0.930) * crestLip * (0.05 + 0.11 * max(flank, 0.0));
     // Faint stratification: horizontal compression bands in world Y, the way
     // tabular bergs carry annual layering. Value-only darkening that fades
     // into the skirt haze so the horizon still reads clean at a glance.
@@ -314,7 +374,11 @@ function applyInstances(mesh, placements, band, allowedStationIds) {
   );
   const transform = new THREE.Object3D();
   const color = new THREE.Color();
-  const frost = new THREE.Color("#A9C2DB");
+  // Ground cover is snow, and snow next to snow differs by a few percent of
+  // value, not by a hue step. At #A9C2DB the sastrugi sat a full value below the
+  // field they are cut from, so a dense band of them read as blue glass shards
+  // scattered on white rather than as drift the wind carved out of it.
+  const frost = new THREE.Color("#CBD9E8");
   const morphology = new Float32Array(visiblePlacements.length);
   const bandMix =
     band === "near"
@@ -381,7 +445,10 @@ export default function AdaptivePolarWorldDressing({
         fragmentShader: HORIZON_FRAGMENT_SHADER,
         side: THREE.DoubleSide,
         toneMapped: false,
-        uniforms: { uTravelerXZ: { value: new THREE.Vector2() } },
+        uniforms: {
+          uHazeColor: { value: new THREE.Color("#BDC7E1") },
+          uTravelerXZ: { value: new THREE.Vector2() },
+        },
         vertexColors: true,
         vertexShader: HORIZON_VERTEX_SHADER,
       }),
@@ -439,7 +506,7 @@ export default function AdaptivePolarWorldDressing({
     [geometries, horizonGeometry, horizonMaterial, material],
   );
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, scene }) => {
     const pose = traversalPoseRef?.current;
     positionScratch.current[0] = Number.isFinite(pose?.x) ? pose.x : 0;
     positionScratch.current[1] = Number.isFinite(pose?.z) ? pose.z : 0;
@@ -488,6 +555,16 @@ export default function AdaptivePolarWorldDressing({
       positionScratch.current[0],
       positionScratch.current[1],
     );
+    if (scene.fog?.color) {
+      // Toward the sky the rings actually stand against, not the fog constant.
+      // scene.fog.color is the mid-depth extinction tint (#697CA6 at the home
+      // field); the sky it meets at the horizon is far lighter, so dissolving
+      // straight into the fog value left the ridges reading as dark cardboard
+      // instead of disappearing.
+      horizonMaterial.uniforms.uHazeColor.value
+        .copy(scene.fog.color)
+        .lerp(HORIZON_SKY_TINT, 0.55);
+    }
     for (let index = 0; index < horizonLayerCount; index += 1) {
       const ring = horizonRings.current[index];
       const layer = HORIZON_THEATRE_LAYERS[index];

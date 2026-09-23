@@ -222,8 +222,237 @@ npm run verify:render
 npm run build
 ```
 
-`npm run build` runs the Teerth contract, render-budget, and polar-rescue checks before `next build`.
+`npm run build` runs **33 browser-free contracts** before `next build` — not the
+three this line used to name. The chain is the source of truth; `package.json`
+lists it in execution order. Three of the newest are worth knowing about because
+they guard things a reader would not expect a portfolio to assert:
+
+- `check-aurora-field` — 26 assertions on the aurora's split-step Fourier field:
+  unitary evolution, energy bounded without drift, free-packet spread and group
+  velocity against closed forms, Chapman hem asymmetry against a Gaussian, carrier
+  coprimality, two negative controls, and that the curtain is actually inside the
+  camera frame at all eight stations. That last one exists because it once was not,
+  at three of them.
+- `check-crypto-structures` — the archive wall's masonry is a real SHA-256 Merkle
+  tree over the archived corpus (courses are tree levels, block depth and height
+  come from digest bytes 1 and 2, the wall converges on a root capstone), and the
+  mast's telemetry lamps run a 32-bit maximal-length LFSR keystream seeded from
+  SHA-256 of the upstream repository names. The check recomputes both from the
+  source data, so a hand-tweaked "prettier" value fails.
+- `check-station-reveal-follow` — the reveal spring lags, overshoots within bounds,
+  settles, and is shared by both station families rather than duplicated.
 `npm run verify:render` starts an isolated local dev server on `127.0.0.1:5273` when needed, captures desktop, iPad, and mobile screenshots, and checks the WebGL gate plus WASD-only seal movement.
+
+### The check/verify boundary
+
+`check:*` scripts are browser-free and run inside `npm run build`. `verify:*`
+scripts drive Playwright and must not, because a build agent has no GPU and the
+readings would be meaningless. `scripts/check-ci-browser-boundary.mjs` enforces
+the split and pins the membership of `verify:ci-browser`, so a browser-driven
+gate cannot drift into the build chain unnoticed.
+
+```bash
+npm run verify:ci-browser
+```
+
+That is the render suite: `verify:biome-shaders` (every biome program compiles
+and links), `verify:render-frame` (a 12x8 luminance grid at the home dock), and
+`verify:station-frames` (a 10x6 grid at each of the eight stations, reached the
+way a visitor reaches them, by selecting the station in the HUD). Run it against
+a production build on `:3100`. Both frame gates take `--update` to rewrite their
+reference; do that only alongside a deliberate visual change and say so in the
+commit. They refuse to write a reference from a run that never reached WebGL.
+
+Why two frame gates: `verify:render-frame` guards one camera position, which
+covers the observatory and nothing else. Seven other buildings could stop
+drawing and every contract in the repository would still pass — the blind spot
+that let two optimisations on this branch measure large wins on a scene whose
+terrain had silently broken.
+
+## Render Evidence
+
+Seventeen probes under `scripts/probe-*.mjs`, each answering one question and
+writing to `verification/`. They are not gates and nothing runs them
+automatically; they exist so a claim about performance can be checked instead of
+argued.
+
+| Question | Command |
+| --- | --- |
+| Where does a cold visit spend its time? | `npm run probe:render-timeline` |
+| Which GL calls block, and for how long? | `npm run probe:gl-cost` |
+| Which shader programs cost the link time? | `npm run probe:link-timeline`, `probe:shader-blame` |
+| What does each subsystem cost per frame? | `npm run probe:gpu-time`, `probe:frame-ablation` |
+| Is the cost CPU or GPU? | `npm run probe:cpu-frame`, `probe:stall` |
+| How many times is each pixel shaded? | `npm run probe:overdraw`, `probe:fill-calibration` |
+| Are frames evenly paced, or just fast on average? | `npm run probe:pacing` |
+| What do the CSS compositing layers cost? | `npm run probe:blur-surfaces`, `probe:composite` |
+| How does each station look and cost? | `npm run probe:station-survey`, `probe:station-contrast`, `probe:station-frame-cost` |
+| Does the mascot read against the snow? | `npm run probe:mascot-contrast` |
+
+### The quality ladder
+
+The ladder picks a tier by measuring the frame, and it controls content as well
+as resolution — falling a tier costs the distant geography, the tunnel arch, the
+drift detail and two thirds of the dome's masonry, not just sharpness. That is
+why its four behaviours are all about deciding carefully rather than quickly.
+
+| Behaviour | What it does | Measured |
+| --- | --- | --- |
+| Step down | Samples 90 frames or 2600ms, whichever comes first, and steps when the median is over the tier's ceiling | Sustained 20x CPU throttling reaches `low` in 18.9s |
+| Confirm | A median within 5ms of the ceiling asks for a second window 1.4s later and steps only if both agree | An 8x stall across one window takes the tier without this, keeps it with |
+| Re-check | A healthy window re-arms 24s later instead of concluding | 30s healthy then sustained throttling steps down at 21.3s; previously stranded forever |
+| Restore | Once per session, steps back up when the tier above is predicted to hold | Busy at load then clearing: `high→medium→low`, then `low→medium` at 55s |
+
+The frame-count bound matters because a window counted only in frames runs
+90/fps seconds and so gets longer exactly as the machine gets worse — 1.5s at
+60fps but 10s at 9fps. The wall-clock bound is what keeps the rescue fast for the
+machines that need rescuing.
+
+Restore predicts from this machine's own history rather than a constant: the cost
+recorded on arrival at the tier above, scaled by how much the current tier has
+improved since. It is capped at one per session, so the worst case is a single
+up-and-down cycle. On integrated graphics it correctly never fires — `high`
+measured 28.9ms against a 19ms ceiling, and no amount of idle time changes that.
+
+`check-polar-rescue` pins every one of these.
+
+### Known: the first visit freezes for about four seconds
+
+A cold visit composes the world in 527ms after the entry click, and then stops
+for about 3.9 seconds at t+3s. This is measured, understood, and not fixed.
+
+It is one program link. `polar-biome-world-solid` takes 2,570ms to link on a
+cold GPU program cache, and the terrain cannot draw until it does. Warm visits
+never see it, because Chrome caches the linked program — so it lands only on
+first-time visitors, which is exactly who it should not land on.
+
+Everything cheap has been tried and measured:
+
+**Read the attempt table below with a caveat that was found after it was
+written.** Chrome's `--disable-gpu-program-cache` does not make a run cold: ANGLE
+translates GLSL through HLSL to D3D bytecode and Windows caches the result
+system-wide, outside any browser profile. After enough runs on one machine the
+links become free — `probe:shader-blame` on this machine now reports 0 blocking
+links and 0ms blocked, against 6,905ms earlier the same day, with no code change
+between. The figures below were taken as that cache warmed, so the differences
+between rows are not safely attributable to the changes in them. Reproducing any
+of this needs the machine's D3D shader cache cleared, not just a fresh profile.
+
+| Attempt | Result |
+| --- | --- |
+| Admitting sky and terrain a bucket apart | 5.4s → 3.9s measured, but see the caveat above; shipped because two links sharing a frame is worth avoiding regardless |
+| `gl.compileAsync` in the warmup | No change. three.js resolves the link synchronously at first use |
+| Warming before the bucket that draws it | Same size, moved into first paint, more total stall |
+| Deleting the 3x3 Worley loop | 6%. There is no hot spot to remove |
+
+Two ways out were offered here before either was thought through, and one of
+them does not work.
+
+Specialising the biome program per quality tier, the way `BIOME_ROLE_SKY`
+specialises it per role, cannot help. The world opens at `high` — the tier is a
+`deviceMemory` guess made before a frame exists, and the measured ladder only
+steps down afterwards — so the expensive program is compiled at the top tier
+whatever the tiers below it contain. Worse, the shader policy budgets two
+compiled programs; a per-tier define makes the tier a third axis, so every step
+down would compile a *new* program and add a link stall where there is currently
+none. It would trade one freeze for several.
+
+That leaves the honest one. Holding the loading bridge until the terrain program
+has linked replaces the freeze with a progress state, at the cost of taking
+time-to-world from 0.5s to roughly 4.5s. It is not taken here, because the
+requirement this branch was built against is that the igloo renders in under two
+seconds, and it does: the freeze arrives after the world is on screen, so the
+current behaviour satisfies that requirement and the alternative does not. A
+frozen world does look worse than a loading screen, so this is worth revisiting
+if the priority ever changes — but it is a change of priority, not a fix.
+
+A third option exists but is larger than it first appears. The entry screen is
+dead time the driver could be using: counted directly, **1 of 77 WebGL programs
+exist before the visitor clicks**, and the other 76 are created after. Moving the
+terrain link into that window would hide it from anyone who reads for longer than
+the link takes, and cost nothing to anyone who clicks immediately.
+
+It is not a matter of rendering one frame behind the splash, which is what this
+section said before the count was taken. `IglooScene` is a dynamic import gated
+on `gpuStageMounted`, so before entry there is no world canvas at all — the
+measurement above reports `no canvas`, and the single program belongs to the
+splash's own surface. Doing this means mounting the GPU stage during the entry
+screen: fetching the chunk, building the scene graph and drawing a frame, all
+while the splash animates. That is a real change with a real cost to the entry
+screen, not a free win.
+
+It is also unverifiable here. This machine's shader cache is warm, so the
+difference it would make is no longer observable — shipping it would mean
+shipping a change whose effect cannot be measured, and reporting it as a fix
+would be reporting a warm cache as a result.
+
+### What is known about phones, and what is not
+
+No measurement here comes from real mobile hardware. Playwright emulates the
+viewport, the device pixel ratio and touch, but the drawing is still done by this
+desktop's GPU, so a frame rate measured that way is not a phone's frame rate and
+is not quoted as one. CPU throttling is the usual stand-in for a phone's
+processor and it is used below on that understanding: it models a slower main
+thread, not a slower GPU.
+
+What the emulation does establish is how much work a phone is asked to do, which
+is a property of the viewport and the tier tables rather than of the hardware.
+
+| Case | Result |
+| --- | --- |
+| 390x844, CPU 4x | settles on `high`, never steps, buffer 585x1266 = 0.74 Mpx |
+| 390x844, CPU 20x | `high→medium` at 10s, `medium→low` at 20s, buffer 292x633 = 0.18 Mpx |
+
+A phone reaching the top tier is not a mistake. `high` clamps the device pixel
+ratio at 1.5, so a 390pt viewport asks for 0.74 Mpx — the same pixel count this
+desktop draws at its `low` tier. The fill work is comparable; whether a phone's
+GPU holds it is a question about that GPU, and if it does not, the ladder steps
+down exactly as it does here.
+
+The second row shows the ladder's boundary. It trades resolution, which helps a
+frame limited by fill. Under 20x CPU throttling the frame stays at 41.5ms even
+after dropping to 0.18 Mpx — a quarter of the pixels — because the bottleneck is
+the main thread and no amount of resolution buys it back. A device that is CPU
+bound is not something this ladder can rescue.
+
+### Read every frame number with its tier
+
+The quality ladder is a resolution ladder: at a 1440x900 window the drawing
+buffer is 1.3 Mpx at `high`, 1.05 Mpx at `medium` and 0.73 Mpx at `low`. Frame
+time tracks pixel count almost exactly — 1.8x fewer pixels buys 1.76x the frame
+rate — so the world is fill-bound and the tier is the only lever that moves it
+much. Ablated at locked `high` on integrated graphics, no single pass dominates:
+dome 5.6ms, grade chain 4.6ms, ground sheet 3.9ms, sky 1.6ms, against a 28.6ms
+frame.
+
+Measured across all eight stations at tier `medium`, docking at each the way a
+visitor does, the presented frame runs 13.5-15.0ms — 67 to 74fps with a 1.5ms
+spread, GPU time 6.4-7.6ms. The world is uniformly fast rather than fast where
+you happen to spawn, and every station's median sits clear of medium's 21ms
+step-down ceiling, so arriving at a building cannot cost the visitor the tier.
+
+Read the GPU column, not the presented one, when comparing two runs. An earlier
+sweep of the same eight stations read 15.8-17.7ms presented against 6.4-7.5ms
+GPU: the GPU cost did not move, and the presented frame did, because the machine
+was busier. Presented frame is what a visitor feels and GPU time is what the code
+controls.
+
+That is why the ladder exists and why `probe:*` and both frame gates pin a tier
+before they measure. A frame rate quoted without its tier says nothing, and two
+runs that settled on different tiers are not comparable — which happened once
+and made an ambient change look like a regression.
+
+Two rules these probes were built the hard way to satisfy, both worth keeping:
+
+**Use real Chrome.** Every probe launches `channel: "chrome", headless: false`.
+Playwright's bundled Chromium software-rasters, which reported a 40x regression
+that did not exist.
+
+**Measure in pairs.** A nine-case run of `probe:gpu-time` drifted 2.5ms from
+first case to last as the machine warmed, which is larger than most of what it
+measures. Each case is now taken immediately after its own fresh baseline,
+against a null-control pair that must read 0.00ms, and the first pair is
+discarded because browser warm-up puts several milliseconds into it.
 
 ## Deployment
 

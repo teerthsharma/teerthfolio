@@ -3,6 +3,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import {
   OBSERVATORY_DOME_DEPARTURE_DISTANCE,
+  POST_PROCESS_BUDGET,
   shouldRenderObservatoryDome,
 } from "../lib/polar-art-direction.js";
 import { STATION_PERSONALITY_PROFILES } from "../lib/polar-station-personality.js";
@@ -49,6 +50,14 @@ assert.equal(
   "Observatory must remain visible while an outbound traveler is still inside its home field",
 );
 
+// Tier presence only. Exact numeric caps for low/medium/high are pinned once,
+// by assert.deepEqual(POST_PROCESS_BUDGET, {...}) in check-polar-rescue.mjs.
+assert.deepEqual(
+  Object.keys(POST_PROCESS_BUDGET).sort(),
+  ["high", "low", "medium"],
+  "POST_PROCESS_BUDGET must define exactly the low/medium/high tiers",
+);
+
 const files = {
   world: readFileSync(join(root, "components", "IglooWorld.jsx"), "utf8"),
   page: readFileSync(join(root, "app", "page.jsx"), "utf8"),
@@ -56,7 +65,12 @@ const files = {
   scene: readFileSync(join(root, "components", "IglooScene.jsx"), "utf8"),
   biome: readFileSync(join(root, "components", "PolarBiomeWorld.jsx"), "utf8"),
   biomeFields: readFileSync(join(root, "lib", "polar-biome-fields.js"), "utf8"),
-  artifacts: readFileSync(join(root, "components", "IglooArtifacts.jsx"), "utf8"),
+  // Station identity data lives in lib/igloo-artifacts.js; the R3F components
+  // that consume it stay in components/IglooArtifacts.jsx. Both are read here
+  // because the art-direction contract below spans the pair.
+  artifacts:
+    readFileSync(join(root, "lib", "igloo-artifacts.js"), "utf8") +
+    readFileSync(join(root, "components", "IglooArtifacts.jsx"), "utf8"),
   dome: readFileSync(join(root, "components", "PolarObservatoryDome.jsx"), "utf8"),
   splash: readFileSync(join(root, "components", "SdfSealSplash.jsx"), "utf8"),
   nextConfig: readFileSync(join(root, "next.config.mjs"), "utf8"),
@@ -217,9 +231,11 @@ const checks = [
     pattern: /WORLD_RENDER_WINDOW_NOTE/,
   },
   {
+    // The debris pool stays mounted (so its programs warm-compile once and
+    // survive travel stops) but only renders while the seal is moving.
     name: "smashables only render during active movement",
     file: files.scene,
-    pattern: /renderEnabled && moving && !debugFlags\.noSmashables/,
+    pattern: /renderEnabled && !debugFlags\.noSmashables[\s\S]{0,260}visible=\{moving\}[\s\S]{0,160}<PolarTravelDebris/,
   },
   {
     name: "polar dome rows remain finite",
@@ -260,6 +276,16 @@ const checks = [
     name: "polar dome publishes a bounded instanced construction contract",
     file: files.dome,
     pattern: /DOME_CONTINUOUS_DRAW_CALL_PROFILE[\s\S]*continuousShellCalls:\s*1[\s\S]*shellBlockInstanceCalls:\s*1[\s\S]*airlockBlockInstanceCalls:\s*1[\s\S]*maxFullFrameCalls:\s*8/,
+  },
+  {
+    name: "the revealed entry cache is draw-neutral against the hidden inner shell",
+    file: files.dome,
+    pattern: /entryCacheCalls:\s*1[\s\S]*entryCacheReplaces:\s*"continuousShellCalls"[\s\S]*maxFullFrameCalls:\s*8/,
+  },
+  {
+    name: "brick knock-off and demolition reuse the existing instance pool",
+    file: files.dome,
+    pattern: /DOME_RAM_KNOCK_PROFILE[\s\S]*DOME_DEMOLITION_PROFILE[\s\S]*mesh\.setMatrixAt\(index, block\.renderMatrix\)[\s\S]*mesh\.instanceMatrix\.needsUpdate = true/,
   },
   {
     name: "polar dome uses real curved instanced blocks at full density",
@@ -315,10 +341,18 @@ const checks = [
     // A docked station drives key/fill/rim at full weight from its own identity hue.
     // Unclamped, that dyes every material one colour (the monochrome-building bug).
     // The rig must stay near-neutral and let the sky/fog carry the dusk instead.
+    //
+    // The hemisphere's ground half is the bounce, and this world's ground is
+    // snow. It was pinned at #6E6154, a warm dark brown: correct for earth,
+    // wrong for an ice sheet, and the reason every downward-facing surface was
+    // lit from below by dirt. The terrain never revealed it because the terrain
+    // paints its own brightness in a custom ShaderMaterial and takes no part in
+    // the rig; the mascot did, and read as a black silhouette everywhere the
+    // observatory's point lights could not reach.
     name: "world light rig stays near-neutral so material albedo reads",
     file: `${files.scene}\n${files.biome}`,
     pattern:
-      /<ambientLight color="#C6C8CE"[\s\S]*<hemisphereLight color="#BCCADF" groundColor="#6E6154"[\s\S]*RIG_NEUTRALITY = Object\.freeze\(\{[\s\S]*key: \{ saturationCap: 0\.16[\s\S]*neutralizeRigColor\(environmentScratch\.keyColor[\s\S]*neutralizeRigColor\(environmentScratch\.rimColor[\s\S]*neutralizeRigColor\(environmentScratch\.fillColor/,
+      /<ambientLight color="#C6C8CE"[\s\S]*<hemisphereLight color="#BCCADF" groundColor="#C6D2E0"[\s\S]*RIG_NEUTRALITY = Object\.freeze\(\{[\s\S]*key: \{ saturationCap: 0\.16[\s\S]*neutralizeRigColor\(environmentScratch\.keyColor[\s\S]*neutralizeRigColor\(environmentScratch\.rimColor[\s\S]*neutralizeRigColor\(environmentScratch\.fillColor/,
   },
   {
     name: "biome compositor owns bounded terrain sky geography and singular weather",
@@ -336,9 +370,15 @@ const checks = [
     pattern: /RetroCinematicPostProcess[\s\S]*GLOBAL_ANIME_POST_PROFILE[\s\S]*anime-soft depth pixel fog[\s\S]*gaussianEdgeConfidence[\s\S]*depthEdgeConfidence[\s\S]*chromaticEdgeAA[\s\S]*toonQuantize[\s\S]*DepthTexture[\s\S]*useFrame/,
   },
   {
-    name: "anime post quality tiers retain exact bounded effect caps",
-    file: `${files.post}\n${files.polarArtDirection}`,
-    pattern: /POST_PROCESS_BUDGET[\s\S]*low:[\s\S]*scale:\s*0\.82[\s\S]*fisheye:\s*0[\s\S]*chroma:\s*0[\s\S]*ink:\s*0\.08[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1[\s\S]*quantize:\s*0\.12[\s\S]*gradeBase:\s*0\.04[\s\S]*gradeCurve:\s*0\.9[\s\S]*medium:[\s\S]*scale:\s*0\.94[\s\S]*fisheye:\s*0\.001[\s\S]*chroma:\s*0\.12[\s\S]*ink:\s*0\.05[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1\.3[\s\S]*quantize:\s*0\.04[\s\S]*gradeBase:\s*0\.56[\s\S]*gradeCurve:\s*0\.4[\s\S]*high:[\s\S]*scale:\s*1[\s\S]*fisheye:\s*0\.0015[\s\S]*chroma:\s*0\.15[\s\S]*ink:\s*0\.06[\s\S]*scanline:\s*0[\s\S]*pixel:\s*1\.4[\s\S]*quantize:\s*0\.05[\s\S]*gradeBase:\s*0\.6[\s\S]*gradeCurve:\s*0\.4/,
+    name: "anime post quality tiers stay consumed via the frozen budget",
+    file: files.post,
+    // Tier presence is asserted directly against the imported
+    // POST_PROCESS_BUDGET above (not by regex, so it can't rubber-stamp
+    // against an unrelated object elsewhere in the concatenated source).
+    // Exact numeric caps are pinned once, by
+    // assert.deepEqual(POST_PROCESS_BUDGET, {...}) in
+    // scripts/check-polar-rescue.mjs.
+    pattern: /POST_PROCESS_BUDGET[\s\S]*qualityBudget\[quality\] \|\| qualityBudget\.high/,
   },
   {
     name: "low-tier paper grade restores a bounded luminance toe without dimming highlights",
@@ -373,6 +413,24 @@ for (const check of checks) {
 
 if (failed) {
   process.exit(1);
+}
+
+// The bounce colour is load-bearing for anything the rig actually lights, so it
+// is asserted as a property rather than only pinned as a string: a high-value
+// near-neutral, which is what snow is.
+{
+  // files.* already hold contents, not paths.
+  const hex = /<hemisphereLight color="#[0-9A-Fa-f]{6}" groundColor="(#[0-9A-Fa-f]{6})"/.exec(
+    files.scene,
+  )?.[1];
+  assert.ok(hex, "the scene must declare a hemisphere ground bounce");
+  const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+  const peak = Math.max(...channels);
+  const saturation = (peak - Math.min(...channels)) / peak;
+  assert.ok(
+    peak >= 176 && saturation <= 0.2,
+    `hemisphere ground bounce ${hex} must stay a high-value near-neutral: this world's ground is snow`,
+  );
 }
 
 console.log(`render-budget contract passed: ${checks.length} checks`);

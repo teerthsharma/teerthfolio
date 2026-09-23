@@ -1,9 +1,19 @@
 "use client";
 
-import { Line } from "@react-three/drei";
+import dynamic from "next/dynamic";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
 import {
   CAMERA_COMPOSITION,
   POLAR_PALETTE,
@@ -15,22 +25,59 @@ import {
   STATION_WORLD_SCHEMA,
 } from "../lib/polar-station-world";
 import {
+  CAMERA_OCCLUSION_MIN_FACTOR,
   resolvePolarTravelComposition,
+  solveCameraOcclusionFactor,
   solvePolarCameraComposition,
 } from "../lib/polar-camera-composition";
+import {
+  RENDER_BUCKETS,
+  RENDER_BUCKET_FRAME_GAP,
+  RENDER_BUCKET_MAX,
+  shouldStageRenderBuckets,
+} from "../lib/render-buckets";
 import AdaptivePolarWorldDressing from "./AdaptivePolarWorldDressing";
-import ActiveTheoryVeil from "./ActiveTheoryVeil";
+// Everything below is admitted at the systems or finish bucket, which is after
+// the first viewport has been presented. None of it can be needed to draw that
+// frame, so none of it belongs in the chunk whose arrival gates the canvas — the
+// same argument that took the station machinery out and the largest chunk from
+// 1,293KB to 820KB. `loading: () => null` is required rather than cosmetic: these
+// render inside a react-three-fiber Canvas, where a DOM placeholder is not a
+// valid child.
+const ActiveTheoryVeil = dynamic(() => import("./ActiveTheoryVeil"), { ssr: false, loading: () => null });
+// The aurora, on a depth-tested sky shell inside this scene rather than in its
+// own context over the top of it. Dynamic for the same reason the field module
+// has always been dynamic: a shader that will not compile has to resolve to a
+// missing background, never to a missing world.
+const AuroraSkyShell = dynamic(() => import("./AuroraSkyShell"), { ssr: false, loading: () => null });
 import IglooArtifacts, { IGLOO_ARTIFACTS } from "./IglooArtifacts";
 import IglooTouch from "./IglooTouch";
 import PolarBiomeWorld from "./PolarBiomeWorld";
 import PolarObservatoryDome from "./PolarObservatoryDome";
-import PolarSemanticParticles from "./PolarSemanticParticles";
+const PolarSemanticParticles = dynamic(() => import("./PolarSemanticParticles"), { ssr: false, loading: () => null });
 import PolarStationMechanismLayer from "./PolarStationMechanismLayer";
-import PolarTravelDebris from "./PolarTravelDebris";
+const PolarTravelDebris = dynamic(() => import("./PolarTravelDebris"), { ssr: false, loading: () => null });
 import RetroCinematicPostProcess, { GLOBAL_RETRO_POST_PROFILE } from "./RetroCinematicPostProcess";
+// Nothing in a shipped build sets debugFlags.legacySeal — no query registers it —
+// so this 30KB component is unreachable and rides in the chunk that gates the
+// canvas for nothing. It was moved behind next/dynamic and put back: the largest
+// chunk measured 820KB before and after, and neither a search for its identifiers
+// nor one for its colour literals could confirm the code had actually moved
+// (identifiers are mangled by minification, and the colours are shared palette
+// values present in seven chunks). A boundary that cannot be shown to do anything
+// is not worth the indirection. Deleting the component outright is the change
+// that would definitely work, and that is a decision about whether the legacy
+// avatar is still wanted as a fallback.
+//
+// What deleting it would be worth, measured rather than guessed: replacing the
+// component with a stub that renders null and rebuilding takes the bundle from
+// 2,120.8KB to 2,104.3KB before the entry click and from 2,219.7KB to 2,203.2KB
+// in total. 16.5KB, identical on both figures. That is the whole value of the
+// decision, and it is small enough that keeping a working fallback is a
+// defensible answer.
 import SealAvatar from "./SealAvatar";
 import TopologicalSealMascot from "./TopologicalSealMascot";
-import TopologyConstellation from "./TopologyConstellation";
+const TopologyConstellation = dynamic(() => import("./TopologyConstellation"), { ssr: false, loading: () => null });
 
 // Compatibility surface for the original interaction contract. Smashable ice
 // remains owned by IglooArtifacts/Observatory; the scene-level primitive is a
@@ -47,10 +94,425 @@ export const TERRAIN_CHUNK_LENGTH = 26;
 export const TERRAIN_CHUNK_COUNT = 7;
 export const WORLD_RENDER_WINDOW_NOTE = "Pokemon-style bounded render window over an infinite logical polar field";
 export const SCENE_LIGHT_BUDGET = "two biome-driven directionals plus quiet ambient hemisphere";
+export const SCENE_ENVIRONMENT_PROFILE =
+  "procedural PMREM room probe: no network HDRI, one 256px cube, disposed with the canvas";
+
+// Every standard/physical material in this world had a specular response of
+// exactly zero: no scene.environment, no envMap, no PMREM anywhere. PBR without
+// an irradiance probe cannot produce a reflection, which is why laid ice bricks
+// read as painted styrofoam. RoomEnvironment ships inside three, so the probe
+// costs one 256px cube render at mount and no network request.
+// Layout effect, not passive: `scene.environment` must be in place before the
+// first gl.render, because assigning it later marks every material for
+// recompile. Setting it after the fact relinked the whole scene a second time
+// and cost ~4s of an already slow boot.
+function SceneEnvironment({ intensity = 0.55 }) {
+  const gl = useThree((state) => state.gl);
+  const scene = useThree((state) => state.scene);
+
+  useLayoutEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const probe = pmrem.fromScene(room, 0.04);
+    scene.environment = probe.texture;
+    scene.environmentIntensity = intensity;
+    room.dispose();
+    pmrem.dispose();
+    return () => {
+      scene.environment = null;
+      probe.dispose();
+    };
+  }, [gl, intensity, scene]);
+
+  return null;
+}
 export const SCENE_POST_PROFILE = GLOBAL_RETRO_POST_PROFILE;
 export const CAMERA_DAMPING_PROFILE = "Abeto-style frame-rate independent camera damping with smoothed look target";
 
 const EMPTY_PROJECTS = Object.freeze([]);
+
+// Background shader warm-up. The world presents as soon as it can render;
+// program linking then continues one object at a time across idle callbacks so
+// compiles land before the traveller reaches a station instead of before they
+// see anything. This replaces a blocking renderer.compileAsync pre-pass: three's
+// compileAsync is only asynchronous in its readiness poll, the actual
+// compile+link of every program is one synchronous call, which measured as a
+// ~25-40s frozen main thread between webgl-created and webgl-scene-ready.
+//
+// compileAsync was tried again after gl.debug.checkShaderErrors was turned off,
+// on the theory that the freeze above was getShaderInfoLog blocking rather than
+// the extension failing. KHR_parallel_shader_compile is present on this machine
+// and the freeze does go away — total main-thread blocking measured 9,046ms
+// before and 3,028ms after, with the worst single stall 3,633ms down to 390ms.
+// The promise then never resolves. Holding the authored ground back until it
+// did meant the ground never appeared at all, and the whole apparent win was
+// that its two programs were never linked. Any future attempt needs a deadline
+// after which the mesh is revealed regardless — and has to account for the fact
+// that revealing it is what forces the link, so the deadline reintroduces the
+// stall it was avoiding.
+const WARM_START_FRAME_DELAY = 12;
+const WARM_SLICE_BUDGET_MS = 4;
+const WARM_IDLE_TIMEOUT_MS = 240;
+const SCENE_CAMERA_FAR = 94;
+// Shared fat-line materials for the route lead. Module singletons are never
+// disposed, so the LineMaterial programs compile once during the warm pre-pass
+// and survive every dock/undock remount of PolarRouteNetwork. The previous
+// drei <Line> disposed its material on every points change, relinking the
+// fat-line program ~10x/s during travel (the measured travel hitch source).
+const ROUTE_LINE_MATERIALS = {
+  accent: new LineMaterial({ opacity: 0.46, transparent: true }),
+  base: new LineMaterial({ color: "#dffdf7", opacity: 0.28, transparent: true }),
+};
+const ROUTE_LEAD_POINT_COUNT = 3;
+const WARMUP_LINE_POINTS = Object.freeze([
+  [0, 0, 0],
+  [0, 0.5, 0],
+  [0, 1, 0],
+]);
+// Shared dock-ring geometries. Station "promise" membership flickers during
+// travel; per-mount <ringGeometry> children made every flicker create and
+// dispose five GPU buffers (the measured route-side remount churn). Module
+// singletons upload once and survive every mount.
+const DOCK_GEOMETRIES = {
+  beacon: new THREE.OctahedronGeometry(1, 0),
+  flag: new THREE.ConeGeometry(1, 1, 3),
+  halo: new THREE.RingGeometry(0.62, 0.626, 72),
+  mast: new THREE.CylinderGeometry(1, 1, 1, 8),
+  ring: new THREE.RingGeometry(0.44, 0.47, 68),
+};
+// Route lead points live outside React: PolarRouteNetwork's frame loop writes
+// them from the 60Hz traversal pose and bumps `version` only when an endpoint
+// actually moved, so the two lead lines rewrite their fat-line buffers at most
+// once per moved frame and never re-render through React while traveling.
+const ROUTE_LEAD_STATE = {
+  points: [
+    [0, 0.035, 0],
+    [0, 0.085, 0],
+    [0, 0.035, 0],
+  ],
+  version: 0,
+};
+const ROUTE_LEAD_EPSILON = 0.002;
+
+function writeRouteLeadSegments(line, points) {
+  // Rewrite the segment pairs in place. Rebuilding the geometry (or the
+  // material) per travel frame is what forced the fat-line shader to relink
+  // continuously while the seal moved.
+  const segments = line.geometry.attributes.instanceStart.data;
+  const array = segments.array;
+  for (let index = 0; index < ROUTE_LEAD_POINT_COUNT - 1; index += 1) {
+    const start = points[index];
+    const end = points[index + 1];
+    const offset = index * 6;
+    array[offset] = start[0];
+    array[offset + 1] = start[1];
+    array[offset + 2] = start[2];
+    array[offset + 3] = end[0];
+    array[offset + 4] = end[1];
+    array[offset + 5] = end[2];
+  }
+  segments.needsUpdate = true;
+}
+
+function RouteLeadLine({ lineWidth, material, points, trackRouteLead = false }) {
+  const size = useThree((state) => state.size);
+  const writtenVersion = useRef(-1);
+  const line = useMemo(() => {
+    const geometry = new LineGeometry();
+    geometry.setPositions(new Float32Array(ROUTE_LEAD_POINT_COUNT * 3));
+    const routeLine = new Line2(geometry, material);
+    // Three-point lead ribbon: skip bounding-volume upkeep entirely.
+    routeLine.frustumCulled = false;
+    return routeLine;
+  }, [material]);
+
+  useEffect(() => () => line.geometry.dispose(), [line]);
+
+  useLayoutEffect(() => {
+    if (!points) return;
+    writeRouteLeadSegments(line, points);
+  }, [line, points]);
+
+  useFrame(() => {
+    // Version-gated copy from the shared route lead state: no React re-render
+    // and no buffer upload on frames where the lead has not actually moved.
+    if (!trackRouteLead) return;
+    if (writtenVersion.current === ROUTE_LEAD_STATE.version) return;
+    writtenVersion.current = ROUTE_LEAD_STATE.version;
+    writeRouteLeadSegments(line, ROUTE_LEAD_STATE.points);
+  });
+
+  useLayoutEffect(() => {
+    material.linewidth = lineWidth;
+    material.resolution.set(size.width, size.height);
+  }, [lineWidth, material, size]);
+
+  return <primitive object={line} />;
+}
+
+/**
+ * Advances the scene-admission bucket one step per RENDER_BUCKET_FRAME_GAP
+ * presented frames. Lives inside the Canvas because only useFrame knows a frame
+ * actually reached the screen: a timer would happily queue the next bucket's
+ * program links on top of the stall the previous bucket is still inside.
+ */
+function RenderBucketPump({ level, onAdvance }) {
+  const framesRef = useRef(0);
+  useFrame(() => {
+    if (level >= RENDER_BUCKET_MAX) return;
+    framesRef.current += 1;
+    if (framesRef.current < RENDER_BUCKET_FRAME_GAP) return;
+    framesRef.current = 0;
+    onAdvance();
+  });
+  return null;
+}
+
+/**
+ * Ablation only, behind qa-cheap-materials.
+ *
+ * The frame is fill-bound at roughly 13.9ms per megapixel, which is an enormous
+ * per-pixel cost for a scene of ~54 draws and zero image textures, and no single
+ * subsystem accounts for it — each ablates out at a few milliseconds or less.
+ * The remaining explanation is that almost every surface is a standard or
+ * physical material carrying a large custom injection, under an environment
+ * probe and shadows, so each fragment runs hundreds of instructions.
+ *
+ * The reference this world is measured against solves that by not doing it:
+ * flat-shaded low-poly with colour baked into vertices. This swaps every
+ * material in the scene for the cheapest lit one three has, keeping every draw,
+ * instance, triangle and light, so the difference is per-pixel shading cost and
+ * nothing else. It is a measurement, not a proposal — the output is wrong on
+ * purpose.
+ */
+/**
+ * Ablation only, behind qa-overdraw. Counts how many times each pixel is
+ * written, which is the last standing explanation for a frame that scales with
+ * resolution while being indifferent to what shader runs at each pixel.
+ *
+ * A count, not a duration, so it is immune to the thermal drift that now bounds
+ * every timing measurement here. Every surface contributes a fixed additive
+ * increment with depth testing off; the red channel read back is the write
+ * count. Three earlier attempts failed for three separate reasons, all fixed
+ * here: the tone-mapping and sRGB transfer remapped the values before readback,
+ * the world's clear colour floored them, and the material swap was being undone
+ * between frames — IglooScene re-renders whenever station proximity changes,
+ * which is most frames, so a timer-based re-apply always loses. The swap runs
+ * in the frame loop.
+ */
+const OVERDRAW_STEP = 4 / 255;
+
+function OverdrawProbe({ enabled, respectDepth = false }) {
+  const gl = useThree((state) => state.gl);
+  const scene = useThree((state) => state.scene);
+  const material = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        blending: THREE.AdditiveBlending,
+        color: new THREE.Color(OVERDRAW_STEP, 0, 0),
+        // Two modes. Without depth, the count is every fragment the scene
+        // submits — an upper bound that ignores early-Z. With depth, the
+        // material joins the opaque queue, which three sorts front-to-back, and
+        // writes depth as it goes, so only fragments that survive rejection are
+        // counted. The difference between the two is what render ordering is
+        // already saving, and what changing it can still save.
+        depthTest: respectDepth,
+        depthWrite: respectDepth,
+        fog: false,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+        transparent: !respectDepth,
+      }),
+    [respectDepth],
+  );
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const previous = {
+      background: scene.background,
+      toneMapping: gl.toneMapping,
+      outputColorSpace: gl.outputColorSpace,
+    };
+    // Imperative, so the world's own background colour and its no-pure-black
+    // contract are untouched: the counter needs a zero floor and a linear path
+    // to the framebuffer, and asserting either declaratively would change the
+    // world rather than the measurement.
+    scene.background = null;
+    gl.setClearColor(0x000000, 1);
+    gl.toneMapping = THREE.NoToneMapping;
+    gl.outputColorSpace = THREE.LinearSRGBColorSpace;
+    gl.domElement.dataset.overdrawActive = "true";
+    return () => {
+      scene.background = previous.background;
+      gl.toneMapping = previous.toneMapping;
+      gl.outputColorSpace = previous.outputColorSpace;
+      delete gl.domElement.dataset.overdrawActive;
+      material.dispose();
+    };
+  }, [enabled, gl, material, scene]);
+  useFrame(() => {
+    if (!enabled) return;
+    scene.traverse((object) => {
+      if (object.material && object.material !== material) object.material = material;
+    });
+  });
+  return null;
+}
+
+// Pins the shared clock to a fixed time before any other frame callback runs.
+// R3F advances state.clock and then invokes subscribers in ascending priority,
+// so the lowest priority here overwrites the value everything downstream reads.
+// The time is arbitrary but must be non-zero: several surfaces phase their
+// motion off it and zero is a degenerate pose for some of them.
+const FROZEN_CLOCK_SECONDS = 8;
+// Frames the world is allowed to run before the freeze engages. Pinning delta
+// from the first frame stops the entry easings where they start, and the pose it
+// locks is one no visitor sees: the dome's blocks still detached and drifting to
+// their seats, the distant geography not yet admitted. Comparisons taken there
+// are still like-for-like, but they measure the wrong picture. Letting the scene
+// run first and freezing it afterwards locks the composed world instead.
+const FREEZE_AFTER_FRAMES = 420;
+
+function FrozenClock({ enabled }) {
+  const framesSeen = useRef(0);
+  useFrame((state) => {
+    if (!enabled) return;
+    if (framesSeen.current < FREEZE_AFTER_FRAMES) {
+      framesSeen.current += 1;
+      return;
+    }
+    // Pinning elapsedTime alone is not a freeze. Twelve frame callbacks in this
+    // scene take `delta` and ease toward a target with it, so with the clock
+    // pinned but delta live they keep integrating: measured inside one frozen
+    // session, successive frames drifted from the first by a mean of 0.22, then
+    // 1.49, then 1.79 grey levels, with 12% of pixels moving.
+    //
+    // THREE.Clock.getDelta returns 0 and restarts itself when it is not running
+    // and autoStart is set, so clearing `running` every frame makes the next
+    // frame's delta exactly 0 and leaves elapsedTime for the assignment below.
+    state.clock.running = false;
+    state.clock.elapsedTime = FROZEN_CLOCK_SECONDS;
+  }, -1000);
+  return null;
+}
+
+function CheapMaterialProbe({ enabled }) {
+  const scene = useThree((state) => state.scene);
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const swapped = new Map();
+    // Re-applied on an interval, not once. R3F assigns material declaratively,
+    // so any re-render of the owning component restores the original — and the
+    // measured quality downgrade is itself a re-render, which is what made the
+    // first two runs of this probe report subsystems whose removal increased
+    // the write count.
+    const apply = () => {
+      scene.traverse((object) => {
+        if (!object.material || object.userData?.cheapProbeSkip) return;
+        const original = object.material;
+        const source = Array.isArray(original) ? original[0] : original;
+        const cheap = new THREE.MeshLambertMaterial({
+          color: source.color ? source.color.clone() : new THREE.Color("#cfd8e4"),
+          side: source.side,
+          transparent: source.transparent,
+          opacity: source.opacity,
+          depthWrite: source.depthWrite,
+          vertexColors: Boolean(source.vertexColors),
+        });
+        if (original.userData?.probeSwapped) return;
+        cheap.userData.probeSwapped = true;
+        if (!swapped.has(object)) swapped.set(object, original);
+        object.material = cheap;
+      });
+    };
+    const start = window.setTimeout(apply, 7000);
+    const repeat = window.setInterval(apply, 400);
+    return () => {
+      window.clearTimeout(start);
+      window.clearInterval(repeat);
+      for (const [object, original] of swapped) {
+        object.material = original;
+      }
+    };
+  }, [enabled, scene]);
+  return null;
+}
+
+// Two things this deliberately does not do, both tried and measured.
+//
+// It does not use compileAsync. KHR_parallel_shader_compile is available on this
+// hardware, but swapping gl.compile for gl.compileAsync here left the worst frame
+// unchanged at 3.9s — the block is the driver's link, and asking for it
+// asynchronously did not stop three.js resolving it synchronously at first use.
+//
+// And it does not run earlier than the finish bucket. Mounting the biome world
+// at `hero` so its programs could be warmed before they are drawn moved the stall
+// rather than removing it: the worst frame stayed at about 3.9s but arrived at
+// t+1.8s instead of t+3.0s — that is, inside first paint — and total stalled time
+// across the first fourteen seconds rose from 5.9s to 7.2s. Warming a program
+// costs the same whenever it happens; the only thing that moves is who waits.
+//
+// The remaining cost is one program: polar-biome-world-solid links in 2,570ms.
+// Anything that actually fixes this has to make that link cheaper rather than
+// rescheduling it.
+function BackgroundShaderWarmup({ enabled }) {
+  const { camera, gl, scene } = useThree();
+  const startedRef = useRef(false);
+  const frameRef = useRef(0);
+  const cancelledRef = useRef(false);
+
+  useEffect(() => () => {
+    // A queued slice must never touch a renderer that is tearing down.
+    cancelledRef.current = true;
+  }, []);
+
+  useFrame(() => {
+    // Self-armed off the render loop: no prop plumbing and no extra React
+    // render just to learn the world became visible. A few presented frames of
+    // slack keeps the world-stream reveal choreography clean before any
+    // compile slice can steal a frame.
+    if (!enabled || startedRef.current) return;
+    frameRef.current += 1;
+    if (frameRef.current < WARM_START_FRAME_DELAY) return;
+    startedRef.current = true;
+
+    // One object per step, budgeted per idle slice. A single program link can
+    // overshoot the budget on a slow driver, so this is a floor on progress,
+    // not a ceiling on any one compile: the alternative is that exact link
+    // happening mid-travel instead of while the traveller is parked.
+    const queue = [];
+    scene.traverse((object) => {
+      if (object.isMesh || object.isPoints || object.isLine || object.isSprite) {
+        queue.push(object);
+      }
+    });
+    let index = 0;
+    const idle = window.requestIdleCallback || window.setTimeout;
+    const pump = () => {
+      if (cancelledRef.current) return;
+      const sliceStart = performance.now();
+      while (index < queue.length) {
+        try {
+          // targetScene = scene keeps the light/shadow context identical to the
+          // real render, so these programs are the variants actually used.
+          gl.compile(queue[index], camera, scene);
+        } catch {
+          // A disposed or mid-remount object is not worth failing the pass for.
+        }
+        index += 1;
+        if (performance.now() - sliceStart >= WARM_SLICE_BUDGET_MS) break;
+      }
+      if (index < queue.length) {
+        idle(pump, { timeout: WARM_IDLE_TIMEOUT_MS });
+        return;
+      }
+      gl.domElement.dataset.shaderWarmComplete = "true";
+    };
+    gl.domElement.dataset.shaderWarmComplete = "false";
+    idle(pump, { timeout: WARM_IDLE_TIMEOUT_MS });
+  });
+
+  return null;
+}
 
 // Local camera-rig idle life. These are rig-only breathing terms layered on top
 // of the pinned CAMERA_COMPOSITION solve; all of them read zero under reduced
@@ -207,6 +669,14 @@ function CameraRig({
   // Smoothed travel heading in radians; null until the first frame seeds it
   // from the dock azimuth so the chase blend starts without a swing.
   const headingRef = useRef(null);
+  // The very first rendered frame snaps to the solved dock pose instead of
+  // lerping in from the Canvas seed position, so the world's first paint is
+  // already composed rather than gliding into place.
+  const snapPoseRef = useRef(true);
+  // Damped chase-distance scale that keeps the seal in view when a facility
+  // would otherwise come between it and the lens. 1 = the fully solved
+  // distance; lower values pull the camera in along its own axis.
+  const occlusionFactorRef = useRef(1);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -263,6 +733,10 @@ function CameraRig({
   }, [camera, dockComposition.camera.verticalFovDegrees]);
 
   useFrame(({ clock }, delta) => {
+    if (camera.far !== SCENE_CAMERA_FAR) {
+      camera.far = SCENE_CAMERA_FAR;
+      camera.updateProjectionMatrix();
+    }
     const t = clock.elapsedTime;
     const seal = sealPosition.current;
     const traversalPose = traversalPoseRef?.current;
@@ -348,6 +822,40 @@ function CameraRig({
       target.y + Math.sin(elevation) * distance + idleHeight,
       target.z + Math.cos(swayedAzimuth) * horizontalDistance + Math.cos(t * 0.09) * 0.065 * drift,
     );
+    // Occlusion pull-in. The solve above places the lens purely by azimuth,
+    // elevation and distance around the seal, with no knowledge of world
+    // geometry, so driving forward from the home dock walked the observatory
+    // dome straight between the camera and the character being piloted.
+    // Recompute the offset against the facility envelopes and shorten it until
+    // the seal is visible again.
+    const rawFactor = solveCameraOcclusionFactor({
+      cameraX: desired.x,
+      cameraY: desired.y,
+      cameraZ: desired.z,
+      targetX: target.x,
+      targetY: target.y,
+      targetZ: target.z,
+    });
+    // Snap in, ease out: hiding the subject is a defect that must be corrected
+    // on the frame it happens, while returning to the full distance can afford
+    // to be gentle. Both use the rig's frame-rate-independent damping form.
+    const occlusionDamping =
+      reducedMotion || rawFactor < occlusionFactorRef.current
+        ? 1
+        : 1 - Math.exp(-delta * 2.2);
+    occlusionFactorRef.current +=
+      (rawFactor - occlusionFactorRef.current) * occlusionDamping;
+    const occlusionFactor = Math.max(
+      CAMERA_OCCLUSION_MIN_FACTOR,
+      Math.min(1, occlusionFactorRef.current),
+    );
+    if (occlusionFactor < 1) {
+      desired.set(
+        target.x + (desired.x - target.x) * occlusionFactor,
+        target.y + (desired.y - target.y) * occlusionFactor,
+        target.z + (desired.z - target.z) * occlusionFactor,
+      );
+    }
     desiredLook.copy(target);
     // Pointer reactivity lives on the look target only, capped below half a
     // degree so the authored composition never leaves its solved envelope.
@@ -362,14 +870,48 @@ function CameraRig({
       desiredLook.z += -Math.sin(azimuth) * pointerCurrent.current.x * pointerReach;
       desiredLook.y += -pointerCurrent.current.y * pointerReach;
     }
+    // DOCKED BREATH. Measured on two frames 1.0s apart, 12.5% of pixels moved by more
+    // than 4/255 and the mean delta was 3.05 — nearly nine tenths of a still frame was
+    // frozen, which is the single clearest tell separating this from a game that is
+    // running rather than paused. Everything that DOES move here (aurora, mechanisms,
+    // mascot idle) is small in frame; the camera is the only thing that moves all of it.
+    //
+    // Two incommensurate periods so the pose never repeats on a countable beat, and an
+    // amplitude in DEGREES of arc rather than world units, so a station framed at 3.7
+    // degrees of sky and one framed at 16 breathe by the same visual amount. Applied to
+    // the look target, not the position: rotating the frame keeps the solved composition
+    // (which the camera contract asserts over 8 stations x desktop/portrait) exactly
+    // where it was solved, where translating the eye would not.
+    if (!reducedMotion) {
+      const breathTime = clock.elapsedTime;
+      const breathReach = distance * Math.tan(THREE.MathUtils.degToRad(0.34));
+      // Rates, not amplitude, are what make this readable: at 0.187 rad/s the cycle
+      // ran ~34s, so a one-second sample advanced 3% of a phase and measured the same
+      // 14.8% moved pixels at 0.26 and 0.44 degrees — the amplitude was invisible
+      // because the motion was too slow to reach the eye. 0.83 and 0.57 rad/s give
+      // ~7.6s and ~11.0s periods (still incommensurate, so the pose never repeats on a
+      // countable beat) which is the register a game camera actually breathes in.
+      const breath =
+        Math.sin(breathTime * 0.83) * 0.62 + Math.sin(breathTime * 0.57) * 0.38;
+      const bob = Math.sin(breathTime * 0.68 + 1.7);
+      desiredLook.x += Math.cos(azimuth) * breath * breathReach;
+      desiredLook.z += -Math.sin(azimuth) * breath * breathReach;
+      desiredLook.y += bob * breathReach * 0.5;
+    }
     const cameraDamping = reducedMotion
       ? 1
       : 1 - Math.exp(-delta * CAMERA_COMPOSITION.positionDamping);
     const lookDamping = reducedMotion
       ? 1
       : 1 - Math.exp(-delta * CAMERA_COMPOSITION.lookDamping);
-    camera.position.lerp(desired, cameraDamping);
-    lookTarget.lerp(desiredLook, lookDamping);
+    if (snapPoseRef.current) {
+      snapPoseRef.current = false;
+      camera.position.copy(desired);
+      lookTarget.copy(desiredLook);
+    } else {
+      camera.position.lerp(desired, cameraDamping);
+      lookTarget.lerp(desiredLook, lookDamping);
+    }
     camera.lookAt(lookTarget);
 
     const rendererCanvas = gl.domElement;
@@ -484,13 +1026,18 @@ function SceneDiagnostics({
   }, [gl, onGpuEvent]);
 
   useFrame(({ clock }) => {
+    // Program census for diagnostics/measurement: late links after the first
+    // visible frame are the travel-hitch signature the background warm chases.
+    const canvas = gl.domElement;
+    const programCount = String(gl.info.programs?.length ?? 0);
+    if (canvas.dataset.programCount !== programCount) {
+      canvas.dataset.programCount = programCount;
+    }
     if (readyFrames.current >= 2) return;
     readyFrames.current += 1;
-    // Re-pin the world-stream reveal epoch through the warm-up frames. Those
-    // frames run behind the splash hand-off while shaders compile, so an epoch
-    // seeded there would finish the whole materialize choreography (terrain,
-    // stations, dome courses) before the first visible paint. Stamping until
-    // the scene-ready frame starts the choreography at real visibility.
+    // Pin the world-stream reveal epoch to the scene-ready frame so the
+    // materialize choreography (terrain, stations, dome courses) starts at real
+    // visibility rather than partway through.
     if (streamEpochMsRef) streamEpochMsRef.current = clock.elapsedTime * 1000;
     if (readyFrames.current === 2) {
       onGpuEvent?.({
@@ -505,15 +1052,74 @@ function SceneDiagnostics({
   return null;
 }
 
-function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }) {
+function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, poseRef, quality }) {
   const activeId = activeArtifact?.id || artifacts[0]?.id;
+  // The parent streams axisX/depthZ into this subtree at the 10Hz semantic
+  // snapshot cadence. Station promise membership and dock-ring fades only need
+  // whole-unit resolution (thresholds are 12-14 units, fades 0.008/unit), so
+  // quantized coordinates keep every memo below (and the JSX they feed)
+  // referentially stable between crossings instead of rebuilding and
+  // reconciling the whole dock subtree on every snapshot. At full travel speed
+  // (4 u/s) that is a ~250ms dock refresh cadence; the lead line itself tracks
+  // the pose at 60Hz in the frame loop below.
+  const coarseX = Math.round(axisX);
+  const coarseZ = Math.round(depthZ);
+  const latestRouteInput = useRef({ activeId, axisX, depthZ });
+  latestRouteInput.current.activeId = activeId;
+  latestRouteInput.current.axisX = axisX;
+  latestRouteInput.current.depthZ = depthZ;
+
+  useFrame(() => {
+    // Route lead solve at 60Hz from the traversal pose (smoother than the old
+    // 10Hz React-prop stepping), written into the shared module state. The
+    // version only advances when an endpoint moved beyond epsilon, so parked
+    // frames upload nothing.
+    const input = latestRouteInput.current;
+    const pose = poseRef?.current;
+    const sealX = pose ? pose.x : input.axisX;
+    const sealZ = pose ? pose.z : input.depthZ;
+    const activeDock = STATION_WORLD_SCHEMA.stations[input.activeId]?.dock;
+    const activeDistance = activeDock
+      ? Math.hypot(activeDock.x - sealX, activeDock.z - sealZ)
+      : 0;
+    const activeIndex = STATION_WORLD_SCHEMA.order.indexOf(input.activeId);
+    const nextId = STATION_WORLD_SCHEMA.order[
+      (Math.max(0, activeIndex) + 1) % STATION_WORLD_SCHEMA.order.length
+    ];
+    const targetDock = activeDistance > 0.35
+      ? activeDock
+      : STATION_WORLD_SCHEMA.stations[nextId].dock;
+    const deltaX = targetDock.x - sealX;
+    const deltaZ = targetDock.z - sealZ;
+    const distance = Math.max(0.001, Math.hypot(deltaX, deltaZ));
+    const leadDistance = Math.min(7.5, distance);
+    const endX = sealX + (deltaX / distance) * leadDistance;
+    const endZ = sealZ + (deltaZ / distance) * leadDistance;
+    const points = ROUTE_LEAD_STATE.points;
+    if (
+      Math.abs(points[0][0] - sealX) < ROUTE_LEAD_EPSILON &&
+      Math.abs(points[0][2] - sealZ) < ROUTE_LEAD_EPSILON &&
+      Math.abs(points[2][0] - endX) < ROUTE_LEAD_EPSILON &&
+      Math.abs(points[2][2] - endZ) < ROUTE_LEAD_EPSILON
+    ) {
+      return;
+    }
+    points[0][0] = sealX;
+    points[0][2] = sealZ;
+    points[1][0] = (sealX + endX) * 0.5;
+    points[1][2] = (sealZ + endZ) * 0.5;
+    points[2][0] = endX;
+    points[2][2] = endZ;
+    ROUTE_LEAD_STATE.version += 1;
+  }, -1);
+
   const visibleStations = useMemo(() => {
     const ranked = artifacts
       .map((artifact, index) => {
         const dock = STATION_WORLD_SCHEMA.stations[artifact.id].dock;
         return {
           artifact,
-          distance: Math.hypot(dock.x - axisX, dock.z - depthZ),
+          distance: Math.hypot(dock.x - coarseX, dock.z - coarseZ),
           index,
           worldX: dock.x,
           worldZ: dock.z,
@@ -529,56 +1135,22 @@ function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }
           ? ranked[1]
           : null;
     return [nearest, promise].filter(Boolean);
-  }, [activeId, artifacts, axisX, depthZ]);
-  const routePoints = useMemo(() => {
-    const activeDock = STATION_WORLD_SCHEMA.stations[activeId]?.dock;
-    const activeDistance = activeDock
-      ? Math.hypot(activeDock.x - axisX, activeDock.z - depthZ)
-      : 0;
-    const activeIndex = STATION_WORLD_SCHEMA.order.indexOf(activeId);
-    const nextId = STATION_WORLD_SCHEMA.order[
-      (Math.max(0, activeIndex) + 1) % STATION_WORLD_SCHEMA.order.length
-    ];
-    const targetDock = activeDistance > 0.35
-      ? activeDock
-      : STATION_WORLD_SCHEMA.stations[nextId].dock;
-    const deltaX = targetDock.x - axisX;
-    const deltaZ = targetDock.z - depthZ;
-    const distance = Math.max(0.001, Math.hypot(deltaX, deltaZ));
-    const leadDistance = Math.min(7.5, distance);
-    const endX = axisX + (deltaX / distance) * leadDistance;
-    const endZ = depthZ + (deltaZ / distance) * leadDistance;
-    return [
-      [axisX, 0.035, depthZ],
-      [(axisX + endX) * 0.5, 0.085, (depthZ + endZ) * 0.5],
-      [endX, 0.035, endZ],
-    ];
-  }, [activeId, axisX, depthZ]);
+  }, [activeId, artifacts, coarseX, coarseZ]);
   const accent = activeArtifact?.accent || "#5ff8e7";
 
-  return (
-    <group name="BrunoOpenWorldNavigation local-route-lead max-two-station-promises">
-      {routePoints.length > 1 && (
-        <Line
-          color="#dffdf7"
-          lineWidth={quality === "high" ? 2.2 : 1.4}
-          opacity={0.28}
-          points={routePoints}
-          transparent
-        />
-      )}
-      {routePoints.length > 1 && (
-        <Line
-          color={accent}
-          lineWidth={quality === "high" ? 1.2 : 0.82}
-          opacity={0.46}
-          points={routePoints}
-          transparent
-        />
-      )}
-      {visibleStations.map(({ artifact, index, worldX, worldZ }) => {
+  useLayoutEffect(() => {
+    // Accent hue rides a uniform on the shared material; never a new program.
+    ROUTE_LINE_MATERIALS.accent.color.set(accent);
+  }, [accent]);
+
+  // Stable element identities let React bail out of the dock subtree entirely
+  // on snapshots where nothing crossed a half-unit boundary. The geometries are
+  // module singletons (never disposed), so a membership flicker only allocates
+  // five small materials instead of five GPU geometry uploads.
+  const dockRings = useMemo(
+    () =>
+      visibleStations.map(({ artifact, distance, index, worldX, worldZ }) => {
         const active = artifact.id === activeId;
-        const distance = Math.hypot(worldX - axisX, worldZ - depthZ);
         const stationOpacity = active ? 0.86 : Math.max(0.16, 0.46 - distance * 0.008);
         return (
           <group
@@ -587,31 +1159,42 @@ function PolarRouteNetwork({ activeArtifact, artifacts, axisX, depthZ, quality }
             position={[worldX, 0.045, worldZ]}
             userData={{ className: "station-dock", topology: artifact.topology }}
           >
-            <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[1.0, 0.58, 1]}>
-              <ringGeometry args={[0.44, 0.47, 68]} />
+            <mesh geometry={DOCK_GEOMETRIES.ring} rotation={[-Math.PI / 2, 0, 0]} scale={[1.0, 0.58, 1]}>
               <meshBasicMaterial color={artifact.accent} transparent opacity={stationOpacity} />
             </mesh>
-            <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[active ? 1.46 : 1.12, active ? 0.86 : 0.66, 1]}>
-              <ringGeometry args={[0.62, 0.626, 72]} />
+            <mesh geometry={DOCK_GEOMETRIES.halo} rotation={[-Math.PI / 2, 0, 0]} scale={[active ? 1.46 : 1.12, active ? 0.86 : 0.66, 1]}>
               <meshBasicMaterial color="#dffdf7" transparent opacity={active ? 0.48 : 0.12} />
             </mesh>
-            <mesh position={[0, 0.26, 0]} scale={[0.026, active ? 0.58 : 0.34, 0.026]}>
-              <cylinderGeometry args={[1, 1, 1, 8]} />
+            <mesh geometry={DOCK_GEOMETRIES.mast} position={[0, 0.26, 0]} scale={[0.026, active ? 0.58 : 0.34, 0.026]}>
               <meshBasicMaterial color={artifact.accent} transparent opacity={active ? 0.64 : 0.28} />
             </mesh>
-            <mesh position={[0, active ? 0.62 : 0.42, 0]} scale={[active ? 0.07 : 0.045, active ? 0.07 : 0.045, active ? 0.07 : 0.045]}>
-              <octahedronGeometry args={[1, 0]} />
+            <mesh geometry={DOCK_GEOMETRIES.beacon} position={[0, active ? 0.62 : 0.42, 0]} scale={[active ? 0.07 : 0.045, active ? 0.07 : 0.045, active ? 0.07 : 0.045]}>
               <meshBasicMaterial color={active ? "#dffdf7" : artifact.accent} transparent opacity={active ? 0.9 : 0.46} />
             </mesh>
             {index % 2 === 0 && (
-              <mesh position={[0.72, 0.05, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.08, 0.16, 0.08]}>
-                <coneGeometry args={[1, 1, 3]} />
+              <mesh geometry={DOCK_GEOMETRIES.flag} position={[0.72, 0.05, 0]} rotation={[0, 0, -Math.PI / 2]} scale={[0.08, 0.16, 0.08]}>
                 <meshBasicMaterial color={artifact.accent} transparent opacity={0.32} />
               </mesh>
             )}
           </group>
         );
-      })}
+      }),
+    [activeId, visibleStations],
+  );
+
+  return (
+    <group name="BrunoOpenWorldNavigation local-route-lead max-two-station-promises">
+      <RouteLeadLine
+        lineWidth={quality === "high" ? 2.2 : 1.4}
+        material={ROUTE_LINE_MATERIALS.base}
+        trackRouteLead
+      />
+      <RouteLeadLine
+        lineWidth={quality === "high" ? 1.2 : 0.82}
+        material={ROUTE_LINE_MATERIALS.accent}
+        trackRouteLead
+      />
+      {dockRings}
     </group>
   );
 }
@@ -653,7 +1236,39 @@ export default function IglooScene({
   const mechanismStateRef = useRef(null);
   const mechanismRitualStateRef = useRef(null);
   const mechanismEvidenceRef = useRef(null);
-  const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.9] : [0.75, 1];
+  // High is allowed past 1:1 now that the post target tracks the real ratio
+  // instead of clamping to 1; below that ceiling the world was rendered at CSS
+  // pixels and upscaled on every retina display.
+  // Fixed per tier. A frame-time-driven ratio was built twice against two
+  // different cost models and removed twice: GPU time is genuinely fill-bound
+  // (2.9ms fixed plus 13.9ms per megapixel, measured by timer query at three
+  // viewport sizes), but dropping the ratio to 0.75 moved the presented frame
+  // from 30.4ms only to 29.3ms. Until the gap between GPU time and presented
+  // time is explained, trading the world's sharpness buys nothing a visitor
+  // can see.
+  // Medium renders at low's device-pixel ceiling on purpose, and the reason is
+  // margin rather than raw cost. 0.9 was measured twice: on a loaded machine it
+  // ran 22.9ms against the 21ms step-down ceiling and fell to low every visit,
+  // and on an idle one it held medium four times out of four at 17.4-17.6ms.
+  // Both readings are real, which is the problem — the same configuration on the
+  // same hardware moves about 5ms with nothing but background load, and 0.9
+  // leaves only 3.5ms of headroom under the ceiling.
+  //
+  // 0.75 leaves 6.5ms idle and still measured 19.0-19.5ms loaded, holding medium
+  // in both states. The asymmetry decides it: the downside of too much
+  // resolution is not a softer frame, it is falling to the low tier and losing
+  // the geography, the tunnel arch, the drift and two thirds of the masonry with
+  // it. A tier that holds everywhere beats 44% more pixels that hold only when
+  // the machine is quiet, and the camera-space sharpen recovers part of what the
+  // scale gives away. Low keeps its ladder position by shedding content, not
+  // pixels.
+  const dpr = quality === "low" ? [0.55, 0.75] : quality === "medium" ? [0.65, 0.75] : [1, 1.5];
+  // Ablation lever for the aurora, read here rather than through debugFlags so
+  // that ?no-aurora=1 keeps meaning the same thing whichever half of the site
+  // is drawing the curtain. Same window.location read the capture flag below
+  // already does.
+  const noAurora =
+    typeof window !== "undefined" && window.location.search.includes("no-aurora");
   const preserveDrawingBuffer =
     typeof window !== "undefined" &&
     (window.location.search.includes("qa=") ||
@@ -674,10 +1289,16 @@ export default function IglooScene({
       gl.domElement.dataset.renderer = "webgl";
       gl.domElement.dataset.quality = quality;
       gl.domElement.dataset.reducedMotion = reducedMotion ? "true" : "false";
-      gl.shadowMap.enabled = true;
-      gl.shadowMap.type = THREE.PCFSoftShadowMap;
+      // three's shader-error debug path calls getProgramInfoLog/getShaderInfoLog
+      // on every program at first use, and those calls block the main thread
+      // until ANGLE has finished the D3D compile. Leaving it on serialised every
+      // boot program link into one synchronous stall (measured 16.5s of a ~19s
+      // cold boot). Off, the driver links on its own worker threads.
+      gl.debug.checkShaderErrors = false;
+      gl.shadowMap.enabled = !debugFlags.noShadows;
+      gl.shadowMap.type = debugFlags.hardShadows ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
       gl.toneMapping = THREE.ACESFilmicToneMapping;
-      gl.toneMappingExposure = 1.12;
+      gl.toneMappingExposure = 0.94;
       onGpuEvent?.({
         detail: `webgl2=${gl.capabilities.isWebGL2 ? "yes" : "no"} dpr=${gl.getPixelRatio().toFixed(2)}`,
         message: `WebGL renderer ready at ${quality} quality.`,
@@ -685,8 +1306,16 @@ export default function IglooScene({
         type: "webgl-created",
       });
     },
-    [onGpuEvent, quality, reducedMotion],
+    [debugFlags.hardShadows, debugFlags.noShadows, onGpuEvent, quality, reducedMotion],
   );
+  // Staged scene admission. See lib/render-buckets.js: mounting all 76 programs
+  // in one commit put every driver link inside the first frame.
+  const staged = shouldStageRenderBuckets({ reducedMotion, renderEnabled, worldActive });
+  const [rawBucket, setRawBucket] = useState(RENDER_BUCKETS.hero);
+  const bucket = staged ? rawBucket : RENDER_BUCKET_MAX;
+  const advanceBucket = useCallback(() => {
+    setRawBucket((current) => Math.min(RENDER_BUCKET_MAX, current + 1));
+  }, []);
   const handleMechanismEvidenceReady = useCallback((stationId, state) => {
     if (state?.evidenceReady !== true) return;
     mechanismEvidenceRef.current = {
@@ -704,6 +1333,7 @@ export default function IglooScene({
   return (
     <Canvas
       className="igloo-scene"
+      data-render-bucket={bucket}
       data-seal-awake={sealAwake ? "true" : "false"}
       data-station-proximity={stationProximity.toFixed(3)}
       dpr={dpr}
@@ -712,7 +1342,7 @@ export default function IglooScene({
         position: [OBSERVATORY_WORLD.dock.x - 4.8, 2.1, OBSERVATORY_WORLD.dock.z + 3.2],
         fov: OBSERVATORY_WORLD.camera.verticalFovDegrees,
         near: 0.1,
-        far: 94,
+        far: SCENE_CAMERA_FAR,
       }}
       shadows
       gl={{
@@ -729,8 +1359,24 @@ export default function IglooScene({
       {/* Near-neutral ambient: a strongly blue ambient is the main hue-collapsing term,
           it clips the blue channel and every albedo converges on the light. Dusk mood
           comes from the sky dome and fog, not from dyeing every surface. */}
+      {/* 0.42, and raising it does not fix what looks like a lighting problem.
+          Measured across all eight stations at a pinned tier, every building
+          reads 37 to 83 luma darker than the snow it stands on. Taking ambient
+          to 0.72 — a 71% increase — moved that by 0.1 to 5 luma and flattened
+          the shading it did reach. The buildings are dark because their albedos
+          are dark, and light multiplies paint: near-black paint stays near-black
+          however much of it there is. See scripts/probe-station-contrast.mjs. */}
       <ambientLight color="#C6C8CE" intensity={0.42} />
-      <hemisphereLight color="#BCCADF" groundColor="#6E6154" intensity={1.02} />
+      {/* The ground half of the hemisphere is the bounce, and this world's ground
+          is snow. It was #6E6154 — a warm dark brown, correct for earth and
+          wrong for an ice sheet — so every downward-facing surface in the scene
+          was lit from below by dirt. The terrain never showed it because the
+          terrain is a custom ShaderMaterial that paints its own brightness and
+          takes no part in the light rig; the mascot did, and read as a black
+          silhouette everywhere the observatory's two point lights could not
+          reach it. Snow bounces almost everything back up. */}
+      <hemisphereLight color="#BCCADF" groundColor="#C6D2E0" intensity={1.02} />
+      {!debugFlags.noEnv && <SceneEnvironment />}
       <Suspense fallback={null}>
         <SceneDiagnostics
           observatoryDistance={observatoryDistance}
@@ -741,6 +1387,13 @@ export default function IglooScene({
           streamEpochMsRef={streamEpochMsRef}
         />
         <ForceCanvasResize />
+        {staged && <RenderBucketPump level={rawBucket} onAdvance={advanceBucket} />}
+        <FrozenClock enabled={Boolean(debugFlags.freezeClock)} />
+        <CheapMaterialProbe enabled={Boolean(debugFlags.cheapMaterials)} />
+        <OverdrawProbe
+          enabled={Boolean(debugFlags.overdraw || debugFlags.overdrawDepth)}
+          respectDepth={Boolean(debugFlags.overdrawDepth)}
+        />
         <CameraRig
           activeArtifact={activeArtifact}
           axisX={axisX}
@@ -752,7 +1405,23 @@ export default function IglooScene({
           sealPosition={sealRef}
           traversalPoseRef={traversalPoseRef}
         />
-        {!debugFlags.noTerrain && (
+        {/* Cold-start stand-in for the authored ground. The two biome programs
+            take ~6.6s of driver link on a first visit (measured; see
+            lib/render-buckets.js), and the hero read does not need them: it
+            needs a horizon and something for the igloo to sit on. This is one
+            plane on a stock lit material — one program, tens of milliseconds —
+            and it is gone the moment the real sheet is admitted. */}
+        {!debugFlags.noTerrain && bucket < RENDER_BUCKETS.field && (
+          <mesh
+            name="cold-start-ground-stand-in"
+            position={[axisX, -0.42, depthZ]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <planeGeometry args={[220, 220]} />
+            <meshStandardMaterial color="#E4EAF2" roughness={0.94} metalness={0} />
+          </mesh>
+        )}
+        {!debugFlags.noTerrain && bucket >= RENDER_BUCKETS.field && (
           <PolarBiomeWorld
             axisX={axisX}
             depthZ={depthZ}
@@ -761,13 +1430,30 @@ export default function IglooScene({
             reducedMotion={reducedMotion}
             safeMode={!renderEnabled}
             simulationPaused={!worldActive || !renderEnabled}
+            // The sky is held back one bucket from the terrain on purpose. Its
+            // program and the terrain's are the two most expensive links in the
+            // scene — 2,570ms and 1,608ms measured cold — and admitted together
+            // they land inside a single frame, which is what produced a 5.4s
+            // freeze at t+2.9s while the visitor was already looking at the
+            // world. A bucket apart is a frame apart.
+            skyVisible={!debugFlags.noSky && bucket >= RENDER_BUCKETS.systems}
+            terrainVisible={!debugFlags.noGround}
             travelerRef={traversalPoseRef}
             visible={worldActive}
           />
         )}
+        {/* The aurora belongs to this scene, not to a sheet over it. Admitted
+            with the sky it hangs in, and never before the terrain: the shell is
+            transparent, so it draws after every opaque pass and the depth buffer
+            rejects it wherever the world has already covered the pixel. That is
+            what puts the mountains in front of it, and it is also why it is
+            cheaper here than it was as a fullscreen quad. */}
+        {!noAurora && !debugFlags.noSky && bucket >= RENDER_BUCKETS.systems && (
+          <AuroraSkyShell quality={quality} reducedMotion={reducedMotion} />
+        )}
         <IglooTouch onTouchIgloo={onTouchIgloo} />
-        {!reducedMotion && !debugFlags.noVeil && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}
-        {!debugFlags.noTerrain && (
+        {!reducedMotion && !debugFlags.noVeil && bucket >= RENDER_BUCKETS.systems && <ActiveTheoryVeil accent={activeArtifact?.accent} quality={quality} />}
+        {!debugFlags.noTerrain && bucket >= RENDER_BUCKETS.field && (
           <WorldStreamReveal
             durationMs={WORLD_STREAM_TIMINGS.terrainRevealMs}
             fromScale={0.02}
@@ -788,7 +1474,7 @@ export default function IglooScene({
             {activeArtifact.id === "observatory-plaque" && <ForegroundExpeditionKit />}
           </WorldStreamReveal>
         )}
-        {!debugFlags.noSignals && (
+        {!debugFlags.noSignals && bucket >= RENDER_BUCKETS.field && (
           <WorldStreamReveal
             durationMs={WORLD_STREAM_TIMINGS.stationRevealMs}
             name="signal field / 200ms"
@@ -803,19 +1489,24 @@ export default function IglooScene({
                 artifacts={artifacts}
                 axisX={axisX}
                 depthZ={depthZ}
+                poseRef={traversalPoseRef}
                 quality={quality}
               />
             ) : null}
           </WorldStreamReveal>
         )}
-        {renderEnabled && moving && !debugFlags.noSmashables && (
-          <PolarTravelDebris
-            quality={quality}
-            reducedMotion={reducedMotion}
-            traversalPoseRef={traversalPoseRef}
-          />
+        {renderEnabled && !debugFlags.noSmashables && bucket >= RENDER_BUCKETS.finish && (
+          // Smashable debris stays mounted so its programs compile in the warm
+          // pre-pass and survive travel stops; it only renders while moving.
+          <group name="travel-debris-render-gate" visible={moving}>
+            <PolarTravelDebris
+              quality={quality}
+              reducedMotion={reducedMotion}
+              traversalPoseRef={traversalPoseRef}
+            />
+          </group>
         )}
-        {!debugFlags.noTopology && (
+        {!debugFlags.noTopology && bucket >= RENDER_BUCKETS.systems && (
           <WorldStreamReveal
             durationMs={WORLD_STREAM_TIMINGS.stationRevealMs}
             name="topology routes / 200ms"
@@ -868,6 +1559,21 @@ export default function IglooScene({
             />
           </WorldStreamReveal>
         )}
+        {(debugFlags.noDome || !observatoryDomeVisible) && (
+          // The dome carries the scene's three point lights. Point-light count
+          // is a program define: without these intensity-zero placeholders the
+          // dome unmount forced every lit material in the world to relink a new
+          // variant mid-travel (the measured departure hitch storm).
+          <group name="observatory-light-topology-stabilizer">
+            {!debugFlags.noPointLights && (
+              <>
+                <pointLight intensity={0} />
+                <pointLight intensity={0} />
+                <pointLight intensity={0} />
+              </>
+            )}
+          </group>
+        )}
         {!debugFlags.noDome && observatoryDomeVisible && (
           <WorldStreamReveal
             durationMs={WORLD_STREAM_TIMINGS.domeRevealMs}
@@ -896,7 +1602,7 @@ export default function IglooScene({
             />
           </WorldStreamReveal>
         )}
-        {!debugFlags.noArtifacts && (
+        {!debugFlags.noArtifacts && bucket >= RENDER_BUCKETS.field && (
           <IglooArtifacts
             activeArtifactId={activeArtifact.id}
             artifacts={artifacts}
@@ -910,7 +1616,7 @@ export default function IglooScene({
             streamEpochMsRef={streamEpochMsRef}
           />
         )}
-        {!debugFlags.noMechanisms && (
+        {!debugFlags.noMechanisms && bucket >= RENDER_BUCKETS.systems && (
           <PolarStationMechanismLayer
             traversalPoseRef={traversalPoseRef}
             activeArtifactId={activeArtifact.id}
@@ -926,7 +1632,7 @@ export default function IglooScene({
             visible={worldActive}
           />
         )}
-        {!debugFlags.noSignals && (
+        {!debugFlags.noSignals && bucket >= RENDER_BUCKETS.systems && (
           <PolarSemanticParticles
             activeStationId={dockedStationId || activeArtifact.id}
             enabled={renderEnabled && worldActive}
@@ -936,11 +1642,32 @@ export default function IglooScene({
             visible={worldActive}
           />
         )}
-        <RetroCinematicPostProcess
-          motionPoseRef={traversalPoseRef}
-          quality={quality}
-          reducedMotion={reducedMotion}
-        />
+        {!debugFlags.noPost && (
+          <RetroCinematicPostProcess
+            motionPoseRef={traversalPoseRef}
+            quality={quality}
+            reducedMotion={reducedMotion}
+          />
+        )}
+        {/* Route lead lines are unmounted while docked at spawn; this hidden
+            pair keeps their shared fat-line materials reachable by the
+            background warm so the first undock never links a program. Never
+            rendered, so it costs no draw calls. */}
+        {bucket >= RENDER_BUCKETS.finish && (
+        <group name="route-line-warm-compile-primer" visible={false}>
+          <RouteLeadLine
+            lineWidth={1}
+            material={ROUTE_LINE_MATERIALS.base}
+            points={WARMUP_LINE_POINTS}
+          />
+          <RouteLeadLine
+            lineWidth={1}
+            material={ROUTE_LINE_MATERIALS.accent}
+            points={WARMUP_LINE_POINTS}
+          />
+        </group>
+        )}
+        <BackgroundShaderWarmup enabled={renderEnabled && worldActive && bucket >= RENDER_BUCKETS.finish} />
       </Suspense>
     </Canvas>
   );

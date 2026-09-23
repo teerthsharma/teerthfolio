@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   useCallback,
@@ -12,10 +13,30 @@ import {
   isMechanismEvidenceReady,
   resolveMechanismLayerSelection,
 } from "../lib/polar-station-mechanism-layer";
+// These two tables are 40KB and 49KB, and splitting the mechanism families out of
+// this file did not take them with it — this layer still imports them, so they
+// stay on the critical path. Splitting the layer itself was tried and reverted:
+// it measured 2,019KB and 1,969KB of pre-click bytes against 2,016KB and 2,024KB
+// without it, which is noise, and check-polar-station-mechanism-layer pins the
+// static import of this component deliberately. The tables are reachable from
+// PolarStationMechanismsNE as well, so moving one importer does not free them.
 import { NE_MECHANISM_BUDGET } from "../lib/polar-station-mechanisms";
 import { SW_MECHANISM_BUDGET } from "../lib/polar-station-mechanisms-sw";
-import PolarStationMechanismsNE from "./PolarStationMechanismsNE";
-import PolarStationMechanismsSW from "./PolarStationMechanismsSW";
+// The two mechanism families are 115KB and 77KB of source and they draw only for
+// the station the traveller is docked at, which cannot happen until the world is
+// up and they have driven there. Statically imported they rode in the scene
+// chunk — the largest asset the site fetches, and the one whose arrival gates the
+// canvas — so they are split out and fetched behind it. `loading: () => null` is
+// required rather than cosmetic: this renders inside a react-three-fiber Canvas,
+// where a DOM placeholder is not a valid child.
+const PolarStationMechanismsNE = dynamic(() => import("./PolarStationMechanismsNE"), {
+  ssr: false,
+  loading: () => null,
+});
+const PolarStationMechanismsSW = dynamic(() => import("./PolarStationMechanismsSW"), {
+  ssr: false,
+  loading: () => null,
+});
 
 export const POLAR_STATION_MECHANISM_LAYER_PROFILE =
   "nearest physical family only; deterministic base-silhouette handoff; proof-gated evidence; zero textures";
@@ -224,6 +245,11 @@ export default function PolarStationMechanismLayer({
     if (
       currentFamily &&
       !sameFamily &&
+      // A null desired family keeps the faded-out family mounted (zero draws,
+      // zero alpha): its compiled programs survive open roaming, so re-entering
+      // the same family never relinks shaders. Only the opposite family taking
+      // ownership swaps the mount.
+      desiredFamily &&
       handoff.alpha <= HANDOFF_ALPHA_EPSILON
     ) {
       mountedFamilyRef.current = desiredFamily;

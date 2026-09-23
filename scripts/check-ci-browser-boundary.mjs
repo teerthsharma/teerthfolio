@@ -9,13 +9,33 @@ assert.ok(
   !/check:publication-packaging|check:ci-browser-boundary|check:release-boundaries/i.test(build),
   "production build must not depend on repository metadata gates",
 );
-assert.ok(build.includes("npm run check:browser-diagnostics"));
+// Script path, not npm key - the build chains node calls directly.
+assert.ok(build.includes("check-browser-diagnostic-contracts.mjs"));
 assert.ok(!/playwright|verify:biome-shaders|verify:ci-browser/i.test(build), "build must not launch a browser");
 assert.equal(
   packageJson.scripts["check:release-boundaries"],
   "npm run check:publication-packaging && npm run check:ci-browser-boundary",
 );
-assert.equal(packageJson.scripts["verify:ci-browser"], "npm run verify:biome-shaders");
+// The browser-side proof now has two halves: the biome shaders compile, and the
+// world they compile into still renders. The second exists because two
+// consecutive optimisations in this branch measured large wins on a silently
+// broken scene — checkShaderErrors is off by design, so a damaged shader renders
+// wrong rather than throwing, and every source-pattern contract in the build
+// chain missed it.
+assert.equal(
+  packageJson.scripts["verify:ci-browser"],
+  "npm run verify:biome-shaders && npm run verify:render-frame && npm run verify:station-frames",
+);
+assert.ok(
+  packageJson.scripts["verify:render-frame"],
+  "the render-frame proof must stay runnable on its own",
+);
+// Third half: the home frame guards the observatory and nothing else. Seven
+// other buildings can stop drawing with every repository contract still passing.
+assert.ok(
+  packageJson.scripts["verify:station-frames"],
+  "every station must be guarded, not only the one the visitor spawns at",
+);
 
 const dependencyInstall = workflow.indexOf("run: npm ci");
 const releaseBoundaries = workflow.indexOf("run: npm run check:release-boundaries");

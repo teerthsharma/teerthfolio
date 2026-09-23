@@ -37,7 +37,10 @@ function createParticleGeometry(quality) {
 function createParticleMaterial(quality) {
   const tier = POLAR_PARTICLE_QUALITY[quality];
   return new THREE.ShaderMaterial({
-    blending: THREE.AdditiveBlending,
+    // Normal blending: motes read as physical matter (snow, chips, breath)
+    // against the bright ground; hot cores get their heat from vGlow instead
+    // of additive screen-fill.
+    blending: THREE.NormalBlending,
     depthTest: true,
     depthWrite: false,
     fragmentShader: POLAR_PARTICLE_FRAGMENT_SHADER,
@@ -124,7 +127,7 @@ export default function PolarSemanticParticles({
     const morphProgress = Math.min(1, impulseAgeRef.current / 1.15);
     material.uniforms.uMorphPhase.value = reducedMotion ? 0 : Math.sin(morphProgress * Math.PI);
     material.uniforms.uPointScale.value =
-      size.height * gl.getPixelRatio() * 0.036 * POLAR_PARTICLE_QUALITY[resolvedQuality].pointScale;
+      size.height * gl.getPixelRatio() * 0.054 * POLAR_PARTICLE_QUALITY[resolvedQuality].pointScale;
     material.uniforms.uTime.value = reducedMotion ? 0 : clock.elapsedTime;
     material.uniforms.uTravelerXZ.value.set(travelerX, travelerZ);
   });

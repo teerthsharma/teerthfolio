@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { MOTION_TIMINGS } from "../lib/polar-art-direction";
 import { STATION_WORLD_SCHEMA } from "../lib/polar-station-world";
+import { polarGroundHeight } from "../lib/polar-ground";
 import { SEAL_GUIDE_STATES } from "../lib/seal-guide-state";
 
 export { SEAL_GUIDE_STATES } from "../lib/seal-guide-state";
@@ -18,8 +19,6 @@ export const SEAL_GUIDE_BEACON_PROFILE = "active station beacon makes the seal r
 export const SEAL_PREMIUM_SILHOUETTE_PROFILE = "inked SDF silhouette rim with belly contour and topology seam";
 export const SEAL_TOON_MATERIAL_PROFILE = "three-band anime seal skin with nearest-filtered palette ramp";
 export const SEAL_SKIN_TEXTURE_BUDGET = "one memoized 3x1 RGBA gradient texture and zero per-frame allocations";
-export const SEAL_LEGACY_SKIN_NORMAL_SOURCE =
-  "/assets/pbr/seal/white-quilted-diamond-bl/white-quilted-diamond_normal-ogl.png";
 
 export const SEAL_TOON_BANDS = Object.freeze({
   shadow: "#4C5C7E",
@@ -72,7 +71,6 @@ function useSealMaterial() {
     material.name = `SealSkin ${SEAL_TOON_MATERIAL_PROFILE}`;
     material.userData = {
       bands: SEAL_TOON_BANDS,
-      sourceNormalMap: SEAL_LEGACY_SKIN_NORMAL_SOURCE,
       textureBudget: SEAL_SKIN_TEXTURE_BUDGET,
     };
     material.onBeforeCompile = (shader) => {
@@ -524,7 +522,9 @@ const SealAvatar = forwardRef(function SealAvatar(
     if (!root.current) return;
     const t = clock.elapsedTime;
     const speed = Math.min(1, Math.hypot(axisVelocity, depthVelocity));
-    const targetY = 0.45 + Math.sin(axisX * 0.13) * 0.08 + Math.cos(depthZ * 0.21) * 0.05;
+    // Was a private 0.45 + sin/cos bob that described no surface anything else
+    // knew about, so the legacy seal floated over its own idea of the ground.
+    const targetY = 0.45 + polarGroundHeight(axisX, depthZ);
     target.set(axisX, targetY, depthZ);
     const rootAlpha = reducedMotion ? 1 : 1 - Math.exp(-delta * (moving ? 12 : 8));
     root.current.position.copy(target);
