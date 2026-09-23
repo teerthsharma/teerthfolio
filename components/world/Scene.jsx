@@ -8,6 +8,7 @@
 //   Props.jsx           loose things the seal can shove
 //   CameraRig.jsx       the follow camera
 //   Controller.jsx      input -> motion -> "which building am I at"
+//   Trail, Effects, Penguins, Sound   the life around the seal
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Component, Suspense, useRef } from "react";
@@ -16,10 +17,14 @@ import { live, setUi } from "../../lib/world/store";
 import { BUILDINGS } from "./buildings";
 import CameraRig from "./CameraRig";
 import Controller from "./Controller";
+import Effects from "./Effects";
 import Island from "./Island";
+import Penguins from "./Penguins";
 import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
 import Seal from "./Seal";
+import Sound from "./Sound";
+import Trail from "./Trail";
 
 // One broken building must not take the island down with it.
 class Contain extends Component {
@@ -90,10 +95,14 @@ export default function Scene() {
         <Buildings />
         <Props />
         <Seal />
+        <Trail />
+        <Effects />
+        <Penguins />
         <FirstFrame />
       </Suspense>
       <CameraRig />
       <Controller />
+      <Sound />
     </Canvas>
   );
 }

@@ -17,6 +17,13 @@ export default function CameraRig() {
   const { camera, size } = useThree();
   const focus = useRef(new Vector3(live.seal.x, 0, live.seal.z));
   const wanted = useRef(new Vector3());
+  // ?zoom=0.35 brings the camera in for close-up screenshots of the seal or a
+  // building; it is a debugging aid, not a player control.
+  const zoom = useRef(null);
+  if (zoom.current === null) {
+    const value = typeof window === "undefined" ? NaN : Number(new URLSearchParams(window.location.search).get("zoom"));
+    zoom.current = value > 0 ? value : 1;
+  }
 
   useFrame((_, delta) => {
     const seal = live.seal;
@@ -30,7 +37,7 @@ export default function CameraRig() {
     wanted.current.set(seal.x + seal.vx * LOOK_AHEAD, 0, seal.z + seal.vz * LOOK_AHEAD);
     focus.current.lerp(wanted.current, 1 - Math.exp(-4 * Math.min(delta, 0.1)));
 
-    camera.position.copy(OFFSET).multiplyScalar(pull * speedPull).add(focus.current);
+    camera.position.copy(OFFSET).multiplyScalar(pull * speedPull * zoom.current).add(focus.current);
     camera.lookAt(focus.current.x, 0.6, focus.current.z);
   });
 

@@ -1,9 +1,11 @@
+/* global window */
 // Screenshot the running island in real Chrome (Playwright's bundled chromium
 // has no GPU on this machine and renders WebGL in software, 40x slower).
 //
 //   node scripts/shot.mjs [--url http://localhost:3000/?spawn=aether]
 //                         [--out verification/shot.png] [--w 1440] [--h 900]
 //                         [--wait 1500] [--keys "KeyW:800,KeyD:400"] [--start]
+//                         [--click "Projects"]   (clicks the button/link with that name)
 //
 // Waits for window.__world.ready (set after the first real frame), then
 // optionally dismisses the intro and holds keys, then captures. Prints the
@@ -71,6 +73,9 @@ try {
       await page.waitForTimeout(Number(ms || 500));
       await page.keyboard.up(key);
     }
+  }
+  if (args.click && args.click !== true) {
+    await page.getByRole("button", { name: String(args.click) }).or(page.getByRole("link", { name: String(args.click) })).first().click();
   }
   await page.waitForTimeout(Number(args.wait || 1500));
   await page.screenshot({ path: out });
