@@ -252,63 +252,14 @@ function buildBoulders() {
   return { ice, deepIce };
 }
 
-// ---- paths and dock pads, one flat C.path mesh -----------------------------
-// The waypoints are lib/world/land.js PATHS (npm run check holds them dry,
-// or on a bridge, and clear of every place and landform).
+// ---- no trails, no dock pads -------------------------------------------------
+// The old trails (lib/world/land.js PATHS) and the pale pads at each dock are
+// no longer drawn: the river and the highway carry the island's routes now
+// (the owner: "we have river and stuff now, remove old white lines"), and the
+// bare pads read as stains on the snow. PATHS still keeps props and signposts
+// in order, and npm run check holds it dry and clear.
 
-// Lay a flat piece on the land: each vertex `lift` above the ground, or
-// above the plain's level where it crosses water (under a bridge deck).
-function drape(geometry, lift = 0.045) {
-  const pos = geometry.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const h = heightAt(pos.getX(i), pos.getZ(i));
-    pos.setY(i, (h > -0.25 ? h : 0) + lift);
-  }
-  pos.needsUpdate = true;
-  geometry.computeVertexNormals();
-  return geometry;
-}
 
-function buildRibbon(waypoints, width = 2.2, y = 0.012) {
-  const curve = new CatmullRomCurve3(waypoints.map(([x, z]) => new Vector3(x, y, z)));
-  const divisions = 63;
-  const points = curve.getPoints(divisions);
-  // Curve has getTangent(t), not a batch form; sample it at the same t
-  // values getPoints(divisions) used.
-  const tangents = points.map((_, i) => curve.getTangent(i / divisions));
-  const half = width / 2;
-  const positions = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    const t0 = tangents[i];
-    const t1 = tangents[i + 1];
-    const n0 = new Vector3(-t0.z, 0, t0.x).normalize().multiplyScalar(half);
-    const n1 = new Vector3(-t1.z, 0, t1.x).normalize().multiplyScalar(half);
-    const a = points[i].clone().add(n0);
-    const b = points[i].clone().sub(n0);
-    const c = points[i + 1].clone().add(n1);
-    const d = points[i + 1].clone().sub(n1);
-    positions.push(a.x, a.y, a.z, c.x, c.y, c.z, b.x, b.y, b.z);
-    positions.push(c.x, c.y, c.z, d.x, d.y, d.z, b.x, b.y, b.z);
-  }
-  const strip = new BufferGeometry();
-  strip.setAttribute("position", new Float32BufferAttribute(positions, 3));
-  strip.computeVertexNormals();
-
-  const cap = (p) => bare(new CircleGeometry(half, 12).toNonIndexed()).rotateX(-Math.PI / 2).translate(p.x, y, p.z);
-  return drape(mergeGeometries([strip, cap(points[0]), cap(points[points.length - 1])], false));
-}
-
-function buildPathsAndDocks() {
-  const ribbons = PATHS.map((wp) => buildRibbon(wp));
-  const docks = PLACES.map((p) => {
-    const d = dockPoint(p);
-    const geo = bare(new CircleGeometry(1.4, 16).toNonIndexed());
-    geo.rotateX(-Math.PI / 2);
-    geo.translate(d.x, 0, d.z);
-    return drape(geo, 0.05);
-  });
-  return mergeGeometries([...ribbons, ...docks], false);
-}
 
 // ---- signposts + bridges ----------------------------------------------------
 
@@ -407,7 +358,6 @@ export function buildIsland() {
 
   return {
     rockBatchGeo: buildRockBatch(),
-    pathsDocksGeo: buildPathsAndDocks(),
     woodBatchGeo: mergeGeometries([...signposts.wood, ...bridges.decks], false),
     accentBatchGeo: mergeGeometries([...signposts.tips, ...bridges.dark], false),
     boulderTemplateGeo: new IcosahedronGeometry(1, 0),

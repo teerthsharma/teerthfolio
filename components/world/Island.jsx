@@ -86,7 +86,6 @@ export default function Island() {
       <hemisphereLight args={[LIGHT.hemiSky, LIGHT.hemiGround, LIGHT.hemiIntensity]} />
       <Sun />
 
-      <mesh geometry={kit.pathsDocksGeo} material={mat(C.path, { flat: false, roughness: 0.9 })} receiveShadow />
       <mesh geometry={kit.rockBatchGeo} material={mat("#ffffff", { vertexColors: true, roughness: 0.6 })} castShadow receiveShadow />
       <mesh geometry={kit.woodBatchGeo} material={mat(C.wood)} castShadow receiveShadow />
       <mesh geometry={kit.accentBatchGeo} material={mat("#ffffff", { vertexColors: true })} castShadow />
