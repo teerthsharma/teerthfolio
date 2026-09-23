@@ -23,7 +23,7 @@ import { PLACE_BY_ID } from "../../../lib/world/places";
 import { WHIRLPOOL } from "../../../lib/world/river";
 import { live, useUi } from "../../../lib/world/store";
 import { WATER_Y } from "../../../lib/world/terrain";
-import { C, mat } from "../palette";
+import { C, glow, mat } from "../palette";
 import { FLOE, FLOES, N, PIN, PIN_R, PIN_TOP, STRANDED, THREADS } from "./parts/floes-layout";
 import { EYE_R, INNER_CHIPS, MIST, MIST_N, OUTER_CHIPS } from "./parts/floes-vortex";
 
@@ -76,6 +76,7 @@ const LOBES_N = N * 2;
 const LOBE_GEO = new IcosahedronGeometry(1, 1); // scaled per instance into an ice-chip ellipsoid
 const STICK_GEO = new CylinderGeometry(1, 1, 1, 6, 1); // unit cylinder, scaled per instance
 const EASE_RATE = 4; // near/far blend rate: k = 1 - exp(-EASE_RATE*dt)
+const HALO_GROW = 1.3; // the edge-glow shell: the same lobe, a little larger, additive and unlit behind it
 
 const UP = new Vector3(0, 1, 0);
 const qTmp = new Quaternion();
@@ -100,16 +101,22 @@ function Funnel({ near }) {
   const lobesRef = useRef(null);
   const ridgesRef = useRef(null);
   const threadsRef = useRef(null);
+  const haloRef = useRef(null);
   const nearK = useRef(0);
 
-  // Ice base, a rim glow in the district's own radiation colour, loud enough
-  // to read against pale snow and ice from a distance -- one static material
-  // shared by every instance, never a per-frame colour loop.
-  const iceMat = useMemo(() => mat(C.ice, { roughness: 0.4, emissive: RADIATION, emissiveIntensity: 0.65 }).clone(), []);
+  // Ice base -- deepIce (palette.js: "ice in depth ... floes' sides"), more
+  // saturated than the pale C.ice this used to read as, so the chain stays
+  // legible against the sky instead of smudging into it -- plus a scaled-up
+  // additive shell in the district's own radiation colour behind every lobe,
+  // the "glowing through its edges" read: it only peeks out past the ice
+  // silhouette, never washing the faces out. Both static/shared; only their
+  // intensity moves per frame.
+  const iceMat = useMemo(() => mat(C.deepIce, { roughness: 0.3, emissive: RADIATION, emissiveIntensity: 0.55 }).clone(), []);
+  const haloMat = useMemo(() => glow(RADIATION, 0.3).clone(), []);
 
   useEffect(() => {
-    const lobes = lobesRef.current, ridges = ridgesRef.current, threads = threadsRef.current;
-    if (!lobes || !ridges || !threads) return;
+    const lobes = lobesRef.current, ridges = ridgesRef.current, threads = threadsRef.current, halos = haloRef.current;
+    if (!lobes || !ridges || !threads || !halos) return;
     for (let i = 0; i < N; i++) {
       const f = FLOES[i];
       const off = FLOE.lobeOff * f.scale;
@@ -127,6 +134,14 @@ function Funnel({ near }) {
       dummy.updateMatrix();
       lobes.setMatrixAt(i * 2 + 1, dummy.matrix);
 
+      dummy.scale.multiplyScalar(HALO_GROW);
+      dummy.position.set(a[0], a[1], a[2]);
+      dummy.updateMatrix();
+      halos.setMatrixAt(i * 2, dummy.matrix);
+      dummy.position.set(b[0], b[1], b[2]);
+      dummy.updateMatrix();
+      halos.setMatrixAt(i * 2 + 1, dummy.matrix);
+
       placeStick(a, b, RIDGE_R);
       ridges.setMatrixAt(i, dummy.matrix);
 
@@ -137,6 +152,7 @@ function Funnel({ near }) {
     lobes.instanceMatrix.needsUpdate = true;
     ridges.instanceMatrix.needsUpdate = true;
     threads.instanceMatrix.needsUpdate = true;
+    halos.instanceMatrix.needsUpdate = true;
   }, []);
 
   // The last floe commits onto the pin's centre (floes-layout's COMMIT sits
@@ -148,11 +164,13 @@ function Funnel({ near }) {
     nearK.current += ((near ? 1 : 0) - nearK.current) * (1 - Math.exp(-EASE_RATE * dt));
     const whirl = live.seal.whirled > 0 ? Math.min(1, live.seal.whirled / WHIRLPOOL.hold) : 0;
     if (groupRef.current) groupRef.current.rotation.y += (0.05 + 0.1 * nearK.current + 0.18 * whirl) * dt;
-    iceMat.emissiveIntensity = 0.65 + 0.35 * nearK.current + 0.35 * whirl;
+    iceMat.emissiveIntensity = 0.55 + 0.35 * nearK.current + 0.35 * whirl;
+    haloMat.opacity = 0.3 + 0.25 * nearK.current + 0.4 * whirl;
   });
 
   return (
     <group ref={groupRef}>
+      <instancedMesh ref={haloRef} args={[LOBE_GEO, haloMat, LOBES_N]} frustumCulled={false} />
       <instancedMesh ref={lobesRef} args={[LOBE_GEO, iceMat, LOBES_N]} castShadow frustumCulled={false} />
       <instancedMesh ref={ridgesRef} args={[STICK_GEO, iceMat, N]} castShadow frustumCulled={false} />
       <instancedMesh ref={threadsRef} args={[STICK_GEO, iceMat, N]} frustumCulled={false} />
@@ -196,8 +214,8 @@ function Vortex() {
   const mistRef = useRef(null);
   const boost = useRef(0);
 
-  const foamMat = useMemo(() => mat(C.foam, { roughness: 0.35, emissive: RADIATION, emissiveIntensity: 0.14 }).clone(), []);
-  const eyeMat = useMemo(() => mat("#0b2f3d", { roughness: 0.7, emissive: RADIATION, emissiveIntensity: 0.06 }).clone(), []);
+  const foamMat = useMemo(() => mat(C.foam, { roughness: 0.3, emissive: RADIATION, emissiveIntensity: 0.22 }).clone(), []);
+  const eyeMat = useMemo(() => mat("#0b2f3d", { roughness: 0.6, emissive: RADIATION, emissiveIntensity: 0.12 }).clone(), []);
   const mistMat = useMemo(() => mat("#eaf6ff", { flat: false, roughness: 1, emissive: RADIATION, emissiveIntensity: 0.18 }), []);
 
   useEffect(() => {
@@ -212,8 +230,8 @@ function Vortex() {
     const b = boost.current;
     if (outerGroup.current) outerGroup.current.rotation.y += (0.3 + 1.1 * b) * dt;
     if (innerGroup.current) innerGroup.current.rotation.y -= (0.55 + 1.9 * b) * dt; // the eddy inside spins the other way: reads as wound tight, not just faster
-    foamMat.emissiveIntensity = 0.14 + 0.9 * b;
-    eyeMat.emissiveIntensity = 0.06 + 0.5 * b;
+    foamMat.emissiveIntensity = 0.22 + 0.9 * b;
+    eyeMat.emissiveIntensity = 0.12 + 0.5 * b;
 
     const mesh = mistRef.current;
     if (mesh) {
@@ -240,7 +258,11 @@ function Vortex() {
         <group ref={innerGroup}>
           <instancedMesh ref={innerRef} args={[LOBE_GEO, foamMat, INNER_CHIPS.length]} frustumCulled={false} />
         </group>
-        <mesh geometry={EYE_GEO} material={eyeMat} position={[0, -0.24, 0]} />
+        {/* the water surface here (River.jsx) is a flat opaque mesh at y = 0
+            in this group's own frame -- anything below it is hidden under
+            it, which is why the eye used to vanish at -0.24; it now sits a
+            hair above, flush with the foam ring instead of dipped under it */}
+        <mesh geometry={EYE_GEO} material={eyeMat} position={[0, 0.012, 0]} />
       </group>
       {/* the mist hangs off the pin itself (PIN.x/z), not the whirlpool's own
           centre a few metres out on the channel line -- "spray round the pin" */}

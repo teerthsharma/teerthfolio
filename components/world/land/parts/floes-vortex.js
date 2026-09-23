@@ -15,7 +15,7 @@
 import { WHIRLPOOL } from "../../../../lib/world/river.js";
 
 export const OUTER_R = WHIRLPOOL.radius; // the spiral's outer edge: the catch radius, shown, never told
-export const EYE_R = 0.55; // the dipped dark core
+export const EYE_R = 0.8; // the dark core
 
 const TURNS = 2.3;
 const CHIP_N = 56;
@@ -38,7 +38,14 @@ const ALL = Array.from({ length: CHIP_N }, (_, i) => {
   return {
     x: Math.cos(a) * r * wob,
     z: Math.sin(a) * r * wob,
-    y: -0.02 - 0.22 * u * u,
+    // River.jsx's water surface is an opaque mesh flat at WATER_Y here (no
+    // per-vertex dip), so a chip centred below y = 0 renders fully hidden
+    // under it -- the old -0.02 - 0.22*u*u dip put most of the inner ring
+    // (and the eye, below) beneath that surface, which is why the whirlpool
+    // barely read. Every chip now sits above the surface instead, still
+    // tallest at the rim and lowest near the eye (River's own streaks ride
+    // 0.018 above the surface the same way).
+    y: 0.02 + 0.05 * (1 - u),
     angle: a + Math.PI / 2,
     len: (0.6 + 1.2 * (1 - u)) * (0.85 + 0.3 * rand(i, 3)),
     w: 0.15 + 0.18 * (1 - u),
