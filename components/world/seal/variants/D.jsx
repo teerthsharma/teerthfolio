@@ -167,7 +167,13 @@ export default function SealD({ pose, near, drive, headRef }) {
       const toPlace = clamp(wrap(Math.atan2(arrivalPlace.x - p.x, arrivalPlace.z - p.z) - p.heading), -1.2, 1.2);
       d.lookYaw = au < 0.28 ? -0.9 * smooth(0, 0.28, au) : au < 0.6 ? -0.9 + 1.8 * smooth(0.28, 0.6, au) : 0.9 + (toPlace - 0.9) * smooth(0.6, 0.85, au);
       if (au > 0.82) d.happy = 1;
+      // and it moves: a hop as it arrives, then it sits up to take the place in
+      if (f.arrivalStart !== arrival.start) {
+        f.arrivalStart = arrival.start;
+        f.hopPending = true;
+      }
     }
+    const arrivalSit = au >= 0 && au < 1 ? smooth(0.42, 0.55, au) * (1 - smooth(0.86, 0.98, au)) : 0;
 
     // The hop: crouch, leave the snow at hopAt, land at landAt with a squash.
     if (f.hopPending) {
@@ -214,8 +220,8 @@ export default function SealD({ pose, near, drive, headRef }) {
     // seal's own health, just its pose.
     const calmTarget = smooth(3.4, 4.4, d.idle);
     f.calm += (calmTarget - f.calm) * damp(calmTarget > f.calm ? 2.2 : 6, dt);
-    const sit = f.calm;
-    live.seal.calm = sit;
+    const sit = Math.max(f.calm, arrivalSit);
+    live.seal.calm = f.calm; // the showcase's sit-up is not meditation
 
     const h = hop.current;
     h.position.y = (flying ? 4 * HOP_HEIGHT * fly * (1 - fly) : 0) - 0.62 * water;

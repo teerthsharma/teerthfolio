@@ -151,6 +151,30 @@ a {
   transform: scaleY(1);
 }
 
+/* During the showcase the place's name sits in the lower cinema bar like a
+   film title, white on the black, clear of the place and the seal; the
+   rows, band and plate wait until the scene ends, and so does the prompt. */
+.hud[data-cutscene="on"] .hud-banner {
+  top: auto;
+  bottom: 1.8vh;
+  text-shadow: none;
+}
+.hud[data-cutscene="on"] .hud-banner::before,
+.hud[data-cutscene="on"] .hud-banner-band,
+.hud[data-cutscene="on"] .hud-banner-rows,
+.hud[data-cutscene="on"] .hud-banner-lab {
+  display: none;
+}
+.hud[data-cutscene="on"] .hud-banner-name {
+  color: #fbfaf7;
+  font-size: clamp(20px, 3.6vh, 36px);
+  letter-spacing: 0.14em;
+}
+.hud[data-cutscene="on"] .hud-near {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .hud-curtain {
   position: absolute;
   inset: 0;

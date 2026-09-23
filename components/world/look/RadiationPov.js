@@ -64,18 +64,32 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   // a detector's interference: faint bands rolling down the view
   col *= 1.0 - 0.05 * uStrength * smoothstep(0.4, 0.6, fract(uv.y * 90.0 - uTime * 3.0));
 
-  // glowing edges, pulsing on a Geiger beat
+  // glowing edges, pulsing on a Geiger beat, breathing toward a channel-
+  // rotated twin of the area colour for an iridescent (not flat) rim
   float geiger = 0.7 + 0.3 * sin(uTime * 17.0) * sin(uTime * 5.3);
   float edge = smoothstep(0.38, 0.95, r);
-  col += uColor * edge * (1.1 * uStrength + 0.25 * uAmbient) * geiger;
+  vec3 prism = uColor.gbr; // cheap hue-rotate: no trig, stays close to uColor
+  float shimmer = 0.5 + 0.5 * sin(uTime * 2.2 + r * 9.0);
+  vec3 edgeColor = mix(uColor, prism, 0.35 * shimmer);
+  col += edgeColor * edge * (1.25 * uStrength + 0.3 * uAmbient) * geiger;
 
-  // radiation hitting the lens: bright sparks in the area's colour
+  // radiation hitting the lens: sparks that twinkle (fade in, hold, fade
+  // out) rather than pop for a single noisy frame
   vec2 cell = floor(uv * vec2(360.0 * uAspect, 360.0));
-  float spark = step(1.0 - (0.004 * uStrength + 0.0012 * uAmbient), hash(cell + floor(uTime * 30.0)));
-  col += mix(uColor, vec3(1.0), 0.5) * spark * 3.0;
+  float sparkT = uTime * 3.0;
+  float sparkCell = floor(sparkT);
+  float twinkle = 1.0 - abs(2.0 * fract(sparkT) - 1.0);
+  float spark = step(1.0 - (0.005 * uStrength + 0.0015 * uAmbient), hash(cell + sparkCell));
+  col += mix(uColor, vec3(1.0), 0.5) * spark * twinkle * 3.5;
 
-  // the ring itself glows, and the mutation beat lands as a flash
-  col += uColor * exp(-ringD * ringD * 420.0) * (1.0 - max(uRing, 0.0)) * 2.2 * step(0.0, uRing);
+  // the ring itself glows with a thin chromatic fringe (dispersion at its
+  // rim), and the mutation beat lands as a flash
+  vec3 ringGlow = vec3(
+    exp(-(ringD - 0.006) * (ringD - 0.006) * 420.0),
+    exp(-ringD * ringD * 420.0),
+    exp(-(ringD + 0.006) * (ringD + 0.006) * 420.0)
+  ) * mix(uColor, vec3(1.0), 0.35);
+  col += ringGlow * (1.0 - max(uRing, 0.0)) * 2.4 * step(0.0, uRing);
   col = mix(col, mix(uColor, vec3(1.0), 0.55) * 1.6, pow(1.0 - clamp(uRing, 0.0, 1.0), 10.0) * 0.3 * step(0.0, uRing));
 
   outputColor = vec4(col, inputColor.a);

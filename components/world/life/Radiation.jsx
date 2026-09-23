@@ -10,6 +10,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
+  AdditiveBlending,
   BoxGeometry,
   CircleGeometry,
   Color,
@@ -72,7 +73,9 @@ function buildMotes() {
 }
 
 const MOTE_GEO = new IcosahedronGeometry(0.14, 0);
-const MOTE_MAT = new MeshBasicMaterial({ toneMapped: false });
+// Additive + no depth write: motes overlap into hot little glints instead of
+// flat solid-colour polygons, and two crossing motes flare where they cross.
+const MOTE_MAT = new MeshBasicMaterial({ toneMapped: false, blending: AdditiveBlending, transparent: true, depthWrite: false });
 
 // ---- trefoil signs: static, seeded, one merged geometry -------------------
 

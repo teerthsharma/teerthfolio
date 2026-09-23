@@ -605,7 +605,7 @@ export default function Hud() {
   }
 
   return (
-    <div className="hud" onKeyDown={onHudKeyDown}>
+    <div className="hud" data-cutscene={cutscene ? "on" : undefined} onKeyDown={onHudKeyDown}>
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
       <TopBar started={started} list={list} sound={sound} learned={learned} failed={failed} />

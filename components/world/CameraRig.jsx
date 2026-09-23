@@ -43,9 +43,15 @@ const TRAUMA_IMPACT_MIN = 0.3;
 const TRAUMA_GAIN = 1.4;
 const LANDING_TRAUMA = 0.55; // the camera's share of the seal's landing thump
 const SHAKE_AMPLITUDE = 0.25; // m
-const ARRIVAL_SWING = 0.6; // rad the view swings round a place on its showcase
+// The showcase is a slow dolly round the place from a lower, heroic angle,
+// aimed at the place's middle rather than the snow (the owner: "the
+// cutscene doesn't focus well"): at 42 degrees looking at the ground, tall
+// places were cropped and the name banner sat on top of them.
+const ARRIVAL_ORBIT = 0.7; // rad the view pans round the place over the showcase
 const ARRIVAL_PUSH = 0.35; // share of the distance it eases in by
-const ARRIVAL_LEAN = 0.8; // share of the way the focus leans onto the place: the place is the star
+const ARRIVAL_LEAN = 0.72; // the focus moves most of the way onto the place: the place is the star, the seal stays in shot
+const ARRIVAL_ELEVATION = (26 * Math.PI) / 180;
+const ARRIVAL_LOOK_Y = 2.2; // m: aim at the place's middle, not its foot
 const RAD_CREEP = 0.06; // share the view creeps in while radiation floods it
 const RAD_KICK = 0.05; // share it kicks back out at the mutation
 const RAD_TRAUMA = 0.45; // the mutation's shake
@@ -172,7 +178,8 @@ export default function CameraRig() {
     // THE ARRIVAL (moments.js): 0 -> 1 -> 0 over the moment; the view leans
     // toward the place, swings round it and eases in, then settles back.
     const arrival = live.arrival;
-    const cutK = !reduced.current && arrival.id && PLACE_BY_ID[arrival.id] ? Math.sin(Math.PI * clamp((t - arrival.start) / ARRIVAL.duration, 0, 1)) : 0;
+    const cutU = clamp((t - arrival.start) / ARRIVAL.duration, 0, 1);
+    const cutK = !reduced.current && arrival.id && PLACE_BY_ID[arrival.id] ? Math.sin(Math.PI * cutU) ** 0.6 : 0;
     // THE RADIATION beat (moments.js): the view creeps in while the area's
     // radiation floods it, then kicks back out at the mutation.
     const radSince = t - live.rad.start;
@@ -287,9 +294,10 @@ export default function CameraRig() {
       shake.current.set(0, 0, 0);
     }
 
-    orbit.current.copy(OFFSET).applyAxisAngle(UP, ARRIVAL_SWING * cutK);
+    const elevation = ELEVATION + (ARRIVAL_ELEVATION - ELEVATION) * cutK;
+    orbit.current.set(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(FOLLOW_DISTANCE).applyAxisAngle(UP, ARRIVAL_ORBIT * cutK * (cutU - 0.5));
     followPos.current.copy(orbit.current).multiplyScalar(dNow).add(focus.current).add(shake.current);
-    followLook.current.set(focus.current.x, 0.6, focus.current.z).add(shake.current);
+    followLook.current.set(focus.current.x, 0.6 + (ARRIVAL_LOOK_Y - 0.6) * cutK, focus.current.z).add(shake.current);
 
     if (!ui.started) {
       // The overview: the whole island and the sea round it.
