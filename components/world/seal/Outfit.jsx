@@ -9,7 +9,7 @@
 // life (A/B/C/D never unmount it), so a module-level cache is fine: each
 // area's look is built once and reused every time the seal returns.
 //
-// Five named places wear "friendlier gear"; the other fifteen areas share
+// Six named places wear "friendlier gear"; the other fourteen areas share
 // five anime-homage looks by an explicit table (LOOK_BY_ID), so two areas
 // with the same look are always at least 62 m apart (lib/world/looks.js). Every
 // look keeps the pup's big eyes visible, and is at most 3 meshes plus the
@@ -106,6 +106,13 @@ function straw() {
     ribbon: band(0.3, 0.06, 0.36).rotateX(-0.3),
   };
 }
+// A trucker cap worn backwards: crown, a white mesh front panel, the bill
+// out over the nape. The highway's gear.
+function truckerCap() {
+  const bill = new CylinderGeometry(0.34, 0.34, 0.045, 20, 1, false, -1.2, 2.4).scale(1, 1, 0.75).rotateY(Math.PI).rotateX(0.2).translate(0, 0.2, -0.3);
+  const panel = new SphereGeometry(0.47, 12, 8, -0.7, 1.4, 0.35, 0.9).scale(1, 0.75, 1).translate(0, 0.1, -0.02);
+  return { crown: mergeGeometries([dome(0.5, 0.62, 0.14), bill]), panel };
+}
 // A spirit flame for hair: a teardrop swept back off the crown, gold inside.
 function flame() {
   const drop = (r, h) => mergeGeometries([new SphereGeometry(r, 8, 6), new ConeGeometry(r, h, 6).translate(0, h / 2, 0)]);
@@ -140,6 +147,10 @@ const EXPLICIT = {
   moat: (radiation) => {
     const v = visor();
     return [[v.band, mat(C.charcoal)], [v.brim, mat(radiation, { emissive: radiation, emissiveIntensity: 0.4, roughness: 0.4 })]];
+  },
+  highway: (radiation) => {
+    const c = truckerCap();
+    return [[c.crown, mat(radiation, { roughness: 0.5 })], [c.panel, mat(C.snow, { roughness: 0.8 })]];
   },
   dam: (radiation) => [[mergeGeometries([dome(0.54, 0.62, 0.16), band(0.5, 0.06, 0.2)]), mat(radiation, { roughness: 0.4 })]], // a hard hat
   home: (radiation) => [[mergeGeometries([dome(0.54, 0.7, 0.14), pom(0.6)]), mat(radiation, { roughness: 0.4 })]], // a knit beanie

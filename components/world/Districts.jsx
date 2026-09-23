@@ -5,6 +5,7 @@
 
 import Floes from "./land/Floes";
 import GoogleRange from "./land/GoogleRange";
+import Highway from "./land/Highway";
 import IceDam from "./land/IceDam";
 import LabAnomalies from "./life/anomalies/LabAnomalies";
 import Moat from "./land/Moat";
@@ -19,6 +20,7 @@ export default function Districts() {
       <Moat />
       <Floes />
       <GoogleRange />
+      <Highway />
       <Triton />
       <IceDam />
       <MujoRush />

@@ -1,7 +1,7 @@
 // The rules the island has to keep, checked against the real motion code.
 // Run: npm run check
 
-import { LAND_COLLIDERS, PATHS, SIGNPOSTS } from "../lib/world/land.js";
+import { HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
@@ -150,11 +150,12 @@ for (const a of DISTRICTS) {
 
 // Geology: the river runs south between Mount MujoRush (west) and the Google
 // range (east): from its source to the reservoir, every point of its course
-// lies east of every MujoRush reading point and west of every Google one.
+// lies east of every MujoRush reading point and west of XNNPACK Peak's. (The
+// highway is a real road now, from the town to MujoRush: see its own rule.)
 {
   const west = PLACES.filter((p) => p.district.id === "mujorush");
-  const east = PLACES.filter((p) => p.district.id === "highway" || p.district.id === "xnnpack");
-  assert.ok(west.length === 3 && east.length === 2, "Mount MujoRush and the Google range are not where the river runs");
+  const east = PLACES.filter((p) => p.district.id === "xnnpack");
+  assert.ok(west.length === 3 && east.length === 1, "Mount MujoRush and the Google range are not where the river runs");
   const reservoir = RIVER.points.reduce((best, [x, z], i, all) => (Math.hypot(x - RESERVOIR.x, z - RESERVOIR.z) < Math.hypot(all[best][0] - RESERVOIR.x, all[best][1] - RESERVOIR.z) ? i : best), 0);
   for (const [x, z] of RIVER.points.slice(0, reservoir + 1)) {
     assert.ok(west.every((p) => x > p.x) && east.every((p) => x < p.x), `the river at ${x}, ${z} is not between Mount MujoRush and the Google range`);
@@ -547,10 +548,55 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   assert.equal(dryland.water, 0, "the seal is wet at spawn");
 }
 
+// The highway: every sample of its asphalt (legs, ring, car park) is on the
+// island, dry, flat (the terrain contract) and clear of every place and
+// landform except the roundabout's own island; its place sits in the ring,
+// its dock on the carriageway, the legs meet the ring, and the car park lies
+// under Mount MujoRush's three faces.
+{
+  const samples = [];
+  const half = HIGHWAY.width / 2;
+  for (const leg of HIGHWAY.legs) {
+    for (let i = 1; i < leg.length; i++) {
+      const [ax, az] = leg[i - 1];
+      const [bx, bz] = leg[i];
+      const len = Math.hypot(bx - ax, bz - az);
+      for (let d = 0; d <= len; d += 0.5) {
+        const x = ax + ((bx - ax) * d) / len;
+        const z = az + ((bz - az) * d) / len;
+        for (const o of [-half, 0, half]) samples.push([x + (-(bz - az) / len) * o, z + ((bx - ax) / len) * o]);
+      }
+    }
+  }
+  const r = HIGHWAY.roundabout;
+  for (let a = 0; a < Math.PI * 2; a += 0.1) for (const o of [-r.width / 2, 0, r.width / 2]) samples.push([r.x + Math.cos(a) * (r.radius + o), r.z + Math.sin(a) * (r.radius + o)]);
+  const c = HIGHWAY.carPark;
+  for (let x = c.x - c.w / 2; x <= c.x + c.w / 2; x += 1) for (let z = c.z - c.d / 2; z <= c.z + c.d / 2; z += 1) samples.push([x, z]);
+  const island = PLACE_BY_ID["pr-highway-3244"];
+  for (const [x, z] of samples) {
+    const at = `the highway at ${x.toFixed(1)}, ${z.toFixed(1)}`;
+    assert.ok(Math.hypot(x, z) < ISLAND_RADIUS - 4, `${at} is off the island`);
+    assert.ok(!(x > -9 - 1 && x < 9 + 1 && z > 1.5 - 1 && z < 4.5 + 1), `${at} runs over the name in the snow`);
+    assert.ok(!riverAt(x, z).inside && waterGap(x, z) > 0.5, `${at} is in the water`);
+    assert.ok(Math.abs(heightAt(x, z)) <= 0.3, `${at} is not flat ground (${heightAt(x, z).toFixed(2)} m)`);
+    for (const p of PLACES) if (p !== island) assert.ok(Math.hypot(x - p.x, z - p.z) > p.radius, `${at} runs into ${p.id}`);
+    for (const l of LAND_COLLIDERS) assert.ok(Math.hypot(x - l.x, z - l.z) > l.radius, `${at} runs into the ${l.land}`);
+  }
+  assert.ok(Math.hypot(island.x - r.x, island.z - r.z) < 0.01 && island.radius < r.radius - r.width / 2, "the highway's place is not the roundabout's island");
+  const dock = dockPoint(island);
+  assert.ok(onHighway(dock.x, dock.z), "the highway's dock is not on the road");
+  for (const leg of HIGHWAY.legs) for (const end of [leg[0], leg[leg.length - 1]]) {
+    const ring = Math.abs(Math.hypot(end[0] - r.x, end[1] - r.z) - r.radius);
+    const park = Math.abs(end[0] - c.x) <= c.w / 2 + 0.5 && Math.abs(end[1] - c.z) <= c.d / 2 + 0.5;
+    assert.ok(ring < 0.5 || park || end === HIGHWAY.legs[0][0], `the highway leg end ${end} joins nothing`);
+  }
+  for (const p of PLACES.filter((q) => q.district.id === "mujorush")) assert.ok(p.x > c.x - c.w / 2 - 12 && p.x < c.x + c.w / 2 + 12 && p.z < c.z, `the car park is not under ${p.id}`);
+}
+
 // Mutation looks: every district without named gear has a look, and two
 // areas wearing the same look are at least 62 m apart.
 {
-  const GEAR = new Set(["home", "triton", "mujorush", "dam", "moat"]);
+  const GEAR = new Set(["home", "triton", "mujorush", "dam", "moat", "highway"]);
   for (const d of DISTRICTS) if (!GEAR.has(d.id)) assert.ok(LOOK_BY_ID[d.id], `${d.id} has no mutation look`);
   const ids = Object.keys(LOOK_BY_ID);
   for (const a of ids) {
@@ -565,4 +611,4 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   }
 }
 
-console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, mutation looks`);
+console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the highway, mutation looks`);
