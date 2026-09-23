@@ -1,57 +1,28 @@
-import PortfolioPage from "../components/PortfolioPage";
-import {
-  getDomainRows,
-  getFlagshipProjects,
-  getTeerthContent,
-  getWorldStations,
-} from "../lib/teerth-data";
-import {
-  fetchLiveGitHubSummary,
-  fetchRepositoryMetrics,
-} from "../lib/github-live";
+import SealGame from "../components/world/SealGame";
+import { PLACES, PROFILE } from "../lib/world/places";
 
-export const dynamic = "force-dynamic";
-
-function hasSearchParam(searchParams, key, expectedValue) {
-  const value = searchParams?.[key];
-  const values = Array.isArray(value) ? value : [value];
-  if (expectedValue == null) return values.some((item) => item != null);
-  return values.some((item) => item === expectedValue);
-}
-
-export default async function Home({ searchParams }) {
-  const resolvedSearchParams = await searchParams;
-  const content = getTeerthContent();
-  const stations = getWorldStations();
-  const projects = getFlagshipProjects();
-  const domainRows = getDomainRows();
-  const epsilonProject = projects.find((project) => project.name === "Epsilon-Hollow");
-  const [liveSummary, epsilonMetrics] = await Promise.all([
-    fetchLiveGitHubSummary({ fallbackEvents: content.upstream }),
-    fetchRepositoryMetrics({
-      fallbackSnapshot: epsilonProject?.repositorySnapshot,
-      fullName: epsilonProject?.fullName,
-    }),
-  ]);
-  const repositoryMetrics = epsilonMetrics
-    ? { [epsilonProject.name]: epsilonMetrics }
-    : {};
-  const initialWorldQuery = {
-    initialSafeMode:
-      hasSearchParam(resolvedSearchParams, "safe", "1") ||
-      hasSearchParam(resolvedSearchParams, "safe-mode"),
-    initialQaLow: hasSearchParam(resolvedSearchParams, "qa-low"),
-  };
-
+export default function Home() {
   return (
-    <PortfolioPage
-      content={content}
-      domainRows={domainRows}
-      initialWorldQuery={initialWorldQuery}
-      liveSummary={liveSummary}
-      projects={projects}
-      repositoryMetrics={repositoryMetrics}
-      stations={stations}
-    />
+    <main>
+      <SealGame />
+      {/* The same content as the island, as plain text for search engines and
+          screen readers that never enter the canvas. */}
+      <section className="sr-only" aria-label={`${PROFILE.name}'s projects`}>
+        <h1>{PROFILE.name}: {PROFILE.title}</h1>
+        <p>{PROFILE.line}</p>
+        {PLACES.map((place) => (
+          <article key={place.id}>
+            <h2>{place.name}</h2>
+            <p>{place.hook}</p>
+            <p>{place.body}</p>
+            <ul>
+              {place.links.map((l) => (
+                <li key={l.url}><a href={l.url}>{l.label}</a></li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </section>
+    </main>
   );
 }

@@ -1,51 +1,28 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import AuroraFieldVeil from "../components/AuroraFieldVeil";
 import "./globals.css";
 
-const geistSans = Geist({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const geistDisplay = Geist({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-pixel",
-  display: "swap",
-});
+const sans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata = {
-  title: "Teerth Sharma - Seal Topology Observatory",
+  title: "Teerth Sharma — Seal's Topology Land",
   description:
-    "A polar observatory portfolio for Teerth Sharma, filmed through a cinematic shader system for topology, compilers, physics, AI systems, and upstream open-source research.",
-  metadataBase: new URL("https://teerthsharma.vercel.app"),
+    "Slide a seal around an ice island where every building is one of Teerth Sharma's projects: a Rust microkernel, a topological ML runtime, quantum verification, and eleven contributions landed upstream.",
+  metadataBase: new URL("https://teerthfolio.vercel.app"),
   openGraph: {
-    title: "Teerth Sharma - Seal Topology Observatory",
-    description:
-      "Explore Teerth Sharma's polar observatory through a dark cinematic shader world: Seal OS, Aether-Lang, field physics, QPU verification, and live GitHub radar.",
+    title: "Teerth Sharma — Seal's Topology Land",
+    description: "A seal, an island, eight buildings. Each one is something Teerth built.",
   },
+};
+
+export const viewport = {
+  themeColor: "#bcd6ee",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistDisplay.variable} ${geistMono.variable}`}
-    >
-      <body>
-        {children}
-        {/* Site-wide, so the same curtain hangs over every route rather than
-            over one section. Last in the body so it composites above the
-            world's canvas; the shader's own band layout is what keeps it off
-            the page's text. */}
-        <AuroraFieldVeil />
-      </body>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }
