@@ -65,4 +65,161 @@ assert.ok(ball.z < SPAWN.z - 3, "the snowball did not move when shoved");
 for (let t = 0; t < 8; t += 1 / 120) stepSeal(pusher, {}, 1 / 120, withProps);
 assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
 
-console.log(`world check passed: ${PLACES.length} places, motion, walls, rim, docks, props`);
+// Throttle: set while input is held, cleared shortly after release.
+const th = createSeal(SPAWN.x, SPAWN.z);
+run(th, { input: { x: 1, z: 0 } }, 0.5);
+assert.equal(th.throttle, 1, "throttle not set while held");
+run(th, {}, 0.1);
+assert.equal(th.throttle, 0, "throttle still set 0.1s after release");
+
+// Glide: released from top speed, the seal travels 4-6.5 m before it settles.
+// The weight of the ice becomes a tested number, not a feeling.
+const glider = createSeal(SPAWN.x, SPAWN.z);
+run(glider, { input: { x: 1, z: 0 } }, 3);
+let glideDist = 0;
+let steps = 0;
+while (glider.speed >= 0.1 && steps < 10000) {
+  const px = glider.x;
+  const pz = glider.z;
+  stepSeal(glider, {}, 1 / 120, world);
+  glideDist += Math.hypot(glider.x - px, glider.z - pz);
+  steps++;
+}
+assert.ok(glideDist > 4 && glideDist < 6.5, `glide distance out of range: ${glideDist}`);
+
+// Skid: reversing the stick at top speed spikes the skid read, which then
+// settles once the seal has been gliding straight for a couple of seconds.
+const skidder = createSeal(SPAWN.x, SPAWN.z);
+run(skidder, { input: { x: 1, z: 0 } }, 3);
+let peakSkid = 0;
+for (let t = 0; t < 0.25; t += 1 / 120) {
+  stepSeal(skidder, { input: { x: -1, z: 0 } }, 1 / 120, world);
+  peakSkid = Math.max(peakSkid, skidder.skid);
+}
+assert.ok(peakSkid > 0.3, `skid peak too low: ${peakSkid}`);
+run(skidder, {}, 2);
+assert.ok(skidder.skid < 0.05, `skid did not settle after gliding straight: ${skidder.skid}`);
+
+// Reaction: a heavy crate stops the seal harder than a light snowball, and
+// both register a fresh hit that fades within a couple of seconds. Approach
+// due south of spawn: the only clear lane with no building on it.
+function reactionLoss(mass, radius) {
+  const prop = { x: SPAWN.x, z: SPAWN.z + 20, vx: 0, vz: 0, radius, mass, spin: 0, hit: 0 };
+  const seal = createSeal(SPAWN.x, SPAWN.z);
+  const w = { ...world, props: [prop] };
+  // seal.speed is cached before stepProps runs each frame (a harmless one-
+  // frame lag for gameplay), so read vx/vz directly to catch the impulse the
+  // instant it lands.
+  const rawSpeed = () => Math.hypot(seal.vx, seal.vz);
+  let prevSpeed = rawSpeed();
+  let speedBefore = null;
+  let speedAtContact = null;
+  for (let t = 0; t < 6 && speedAtContact === null; t += 1 / 120) {
+    stepSeal(seal, { input: { x: 0, z: 1 } }, 1 / 120, w);
+    if (prop.hit > 0) {
+      speedAtContact = rawSpeed();
+      speedBefore = prevSpeed;
+    }
+    prevSpeed = rawSpeed();
+  }
+  assert.ok(speedAtContact !== null, `mass ${mass} prop was never reached`);
+  assert.ok(prop.hit > 0.2, `mass ${mass} prop hit too low right after contact: ${prop.hit}`);
+  for (let t = 0; t < 2; t += 1 / 120) stepSeal(seal, {}, 1 / 120, w);
+  assert.ok(prop.hit < 0.01, `mass ${mass} prop hit did not fade: ${prop.hit}`);
+  return speedBefore - speedAtContact;
+}
+const crateLoss = reactionLoss(3.5, 0.62);
+const snowballLoss = reactionLoss(1, 0.55);
+assert.ok(crateLoss > snowballLoss, `a crate should slow the seal more than a snowball: ${crateLoss} vs ${snowballLoss}`);
+
+// Bump: a full-speed hit against a wall ends facing the wall, not turned
+// round to face the knock-back. Open world (one collider standing in for
+// "the wall", island rim pushed out to 1000 so it never interferes).
+{
+  const openStretch = { colliders: [], radius: 1000 };
+  const bumpWorld = { colliders: [{ x: home.x, z: home.z, radius: home.radius }], radius: 1000 };
+  const bumper = createSeal(home.x, home.z + 30);
+  // Reach full speed on open ground, well short of the wall, so the
+  // approach itself doesn't grind the seal into it for seconds at a time.
+  for (let t = 0; t < 2; t += 1 / 120) stepSeal(bumper, { input: { x: 0, z: -1 } }, 1 / 120, openStretch);
+  assert.ok(bumper.speed > MOTION.maxSpeed * 0.9, `bump test never reached full speed: ${bumper.speed}`);
+  // Drive into the wall and stop the input the instant contact registers.
+  let hit = false;
+  for (let t = 0; t < 3 && !hit; t += 1 / 120) {
+    stepSeal(bumper, { input: { x: 0, z: -1 } }, 1 / 120, bumpWorld);
+    hit = bumper.impact > 0;
+  }
+  assert.ok(hit, "bump test never reached the wall");
+  let worstOff = 0;
+  for (let t = 0; t < 0.6; t += 1 / 120) {
+    stepSeal(bumper, {}, 1 / 120, bumpWorld);
+    const diff = Math.atan2(Math.sin(bumper.heading - Math.PI), Math.cos(bumper.heading - Math.PI));
+    worstOff = Math.max(worstOff, Math.abs(diff));
+  }
+  assert.ok(worstOff < (20 * Math.PI) / 180, `heading turned away from the wall after a bump: ${worstOff}`);
+}
+
+// Click-to-move: an 8 m straight move doesn't overshoot much, and doesn't
+// spin the body round to face the target while arriving.
+{
+  const openWorld = { colliders: [], radius: 1000 };
+  const target = { x: SPAWN.x, z: SPAWN.z - 8 };
+  const traveller = createSeal(SPAWN.x, SPAWN.z);
+  let reached = false;
+  let overshoot = 0;
+  let worstHeading = Math.PI;
+  for (let t = 0; t < 20; t += 1 / 120) {
+    stepSeal(traveller, { target }, 1 / 120, openWorld);
+    const dist = Math.hypot(traveller.x - target.x, traveller.z - target.z);
+    if (dist < 0.3) reached = true;
+    if (reached) overshoot = Math.max(overshoot, dist);
+    if (dist < 1.5) worstHeading = Math.min(worstHeading, Math.abs(traveller.heading));
+  }
+  assert.ok(reached, "8 m click-to-move never arrived");
+  assert.ok(overshoot < 0.5, `click-to-move overshot by ${overshoot} m`);
+  assert.ok(worstHeading > (160 * Math.PI) / 180, `heading turned round approaching the target: ${worstHeading}`);
+}
+
+// Drift: a 90-degree turn at top speed visibly leads with the body before
+// the path catches up, and the skid read moves with it.
+{
+  const openWorld = { colliders: [], radius: 1000 };
+  const turner = createSeal(SPAWN.x, SPAWN.z);
+  for (let t = 0; t < 3; t += 1 / 120) stepSeal(turner, { input: { x: 1, z: 0 } }, 1 / 120, openWorld);
+  let peakAngle = 0;
+  for (let t = 0; t < 1; t += 1 / 120) {
+    stepSeal(turner, { input: { x: 0, z: -1 } }, 1 / 120, openWorld);
+    const velAngle = Math.atan2(turner.vx, turner.vz);
+    const diff = Math.atan2(Math.sin(turner.heading - velAngle), Math.cos(turner.heading - velAngle));
+    peakAngle = Math.max(peakAngle, Math.abs(diff));
+  }
+  assert.ok(peakAngle > (15 * Math.PI) / 180, `drift too subtle in a 90° turn: ${peakAngle}`);
+}
+
+// Turn cap: a top-speed reversal never turns faster than maxYaw, so it reads
+// as digging in, not a sprite flip.
+{
+  const openWorld = { colliders: [], radius: 1000 };
+  const flipper = createSeal(SPAWN.x, SPAWN.z);
+  for (let t = 0; t < 3; t += 1 / 120) stepSeal(flipper, { input: { x: 1, z: 0 } }, 1 / 120, openWorld);
+  let worstRate = 0;
+  for (let t = 0; t < 1; t += 1 / 120) {
+    const before = flipper.heading;
+    stepSeal(flipper, { input: { x: -1, z: 0 } }, 1 / 120, openWorld);
+    const dh = Math.abs(Math.atan2(Math.sin(flipper.heading - before), Math.cos(flipper.heading - before)));
+    worstRate = Math.max(worstRate, dh / (1 / 120));
+  }
+  assert.ok(worstRate <= MOTION.maxYaw + 1e-6, `yaw rate exceeded the cap: ${worstRate} rad/s`);
+}
+
+// Rim: a boosted run into the rim leaves an impact spike, and the seal stays on the island.
+const rimRunner = createSeal(0, 0);
+let peakRimImpact = 0;
+for (let t = 0; t < 6; t += 1 / 120) {
+  stepSeal(rimRunner, { input: { x: 1, z: 1 }, boost: true }, 1 / 120, world);
+  peakRimImpact = Math.max(peakRimImpact, rimRunner.impact);
+}
+assert.ok(peakRimImpact > 0.2, `boosted rim run produced no impact: ${peakRimImpact}`);
+assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let the seal off the island");
+
+console.log(`world check passed: ${PLACES.length} places, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap`);

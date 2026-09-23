@@ -12,7 +12,8 @@
 // console errors and a non-blank pixel check so a broken frame cannot pass
 // as a picture.
 
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
 import sharp from "sharp";
@@ -44,6 +45,33 @@ function chrome() {
 }
 
 mkdirSync(path.dirname(out), { recursive: true });
+
+// Many agents capture at once and they all share one integrated GPU. Past
+// about three concurrent WebGL pages every capture slows to minutes, so a
+// capture takes one of SLOTS lock directories first (mkdir is atomic) and
+// waits for a free one. A slot older than 4 minutes belongs to a crashed run.
+const SLOTS = Number(process.env.SHOT_SLOTS || 3);
+const slotDir = (i) => path.join(os.tmpdir(), `teerthfolio-shot-slot-${i}`);
+async function takeSlot() {
+  for (;;) {
+    for (let i = 0; i < SLOTS; i++) {
+      try {
+        mkdirSync(slotDir(i));
+        return i;
+      } catch {
+        try {
+          if (Date.now() - statSync(slotDir(i)).mtimeMs > 240000) rmSync(slotDir(i), { recursive: true, force: true });
+        } catch {
+          /* another process released or reclaimed it first */
+        }
+      }
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+}
+const slot = await takeSlot();
+process.on("exit", () => rmSync(slotDir(slot), { recursive: true, force: true }));
+
 const browser = await chromium.launch({
   executablePath: chrome(),
   headless: true,

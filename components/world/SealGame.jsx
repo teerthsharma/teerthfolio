@@ -82,16 +82,27 @@ function useTouchStick(ref) {
       const dx = e.clientX - origin.x;
       const dy = e.clientY - origin.y;
       const len = Math.hypot(dx, dy);
-      if (len < 14) return;
+      if (len < 14) {
+        // Thumb drifted back to where it landed: stop, don't keep coasting
+        // on the last direction it had.
+        live.stick = null;
+        live.boost = false;
+        return;
+      }
       const reach = Math.min(1, len / 70);
       live.stick = { x: (dx / len) * reach, z: (dy / len) * reach };
       live.target = null;
+      // Hysteresis: past 110 px sets boost, back under 90 px clears it, so a
+      // finger hovering the threshold does not chatter the dash on and off.
+      if (len > 110) live.boost = true;
+      else if (len < 90) live.boost = false;
       if (!getUi().started) setUi({ started: true });
     };
     const up = (e) => {
       if (origin && e.pointerId === origin.id) {
         origin = null;
         live.stick = null;
+        live.boost = false;
       }
     };
     el.addEventListener("pointerdown", down);
@@ -115,6 +126,9 @@ export default function SealGame() {
 
   useEffect(() => {
     if (!hasWebGL()) setUi({ failed: true, list: true });
+    // The server-rendered copy (app/page.jsx) is for crawlers and no-JS
+    // visitors; with JS running, the HUD is the accessible route.
+    document.getElementById("crawler-copy")?.setAttribute("inert", "");
     // ?spawn=<place id> starts the seal at that building's dock, and ?play
     // skips the intro card. Both exist for screenshots and for links that
     // point at one project.
