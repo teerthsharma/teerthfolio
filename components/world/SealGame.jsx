@@ -65,19 +65,48 @@ function useKeyboard() {
   }, []);
 }
 
+// Camera distance the visitor can set with the wheel or a pinch.
+const ZOOM_MIN = 0.6;
+const ZOOM_MAX = 1.7;
+const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+
 // Touch: press and drag anywhere on the world to steer, like a joystick
-// centred where the finger landed. A tap without a drag falls through to the
-// scene's click handlers (walk there / open that building).
+// centred where the finger landed; a second finger turns it into a pinch
+// zoom. A tap without a drag falls through to the scene's click handlers
+// (walk there / open that building). The mouse wheel zooms too.
 function useTouchStick(ref) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     let origin = null;
+    let pinch = null;
+    const touches = new Map();
+    const spread = () => {
+      const [a, b] = touches.values();
+      return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    };
     const down = (e) => {
       if (e.pointerType !== "touch") return;
-      origin = { x: e.clientX, y: e.clientY, id: e.pointerId };
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2) {
+        origin = null;
+        live.stick = null;
+        live.boost = false;
+        pinch = { spread: spread(), zoom: live.zoom };
+      } else if (touches.size === 1) {
+        origin = { x: e.clientX, y: e.clientY, id: e.pointerId };
+      }
     };
     const move = (e) => {
+      const touch = touches.get(e.pointerId);
+      if (touch) {
+        touch.x = e.clientX;
+        touch.y = e.clientY;
+      }
+      if (pinch && touches.size >= 2) {
+        live.zoom = clampZoom((pinch.zoom * pinch.spread) / spread());
+        return;
+      }
       if (!origin || e.pointerId !== origin.id) return;
       const dx = e.clientX - origin.x;
       const dy = e.clientY - origin.y;
@@ -99,21 +128,30 @@ function useTouchStick(ref) {
       if (!getUi().started) setUi({ started: true });
     };
     const up = (e) => {
+      touches.delete(e.pointerId);
+      if (touches.size < 2) pinch = null;
       if (origin && e.pointerId === origin.id) {
         origin = null;
         live.stick = null;
         live.boost = false;
       }
     };
+    const wheel = (e) => {
+      e.preventDefault();
+      const px = e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+      live.zoom = clampZoom(live.zoom * Math.exp(px * 0.0012));
+    };
     el.addEventListener("pointerdown", down);
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
     el.addEventListener("pointercancel", up);
+    el.addEventListener("wheel", wheel, { passive: false });
     return () => {
       el.removeEventListener("pointerdown", down);
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
       el.removeEventListener("pointercancel", up);
+      el.removeEventListener("wheel", wheel);
     };
   }, [ref]);
 }

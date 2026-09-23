@@ -44,3 +44,23 @@ export function IconChevron(props) {
     </svg>
   );
 }
+
+// A checkmark for "How it was checked" rows. Never the "✓" glyph, same
+// reasoning as IconArrow: draw it so font coverage is never a question.
+export function IconCheck(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+// A folded map, for the minimap's collapse toggle on phones.
+export function IconMap(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+      <path d="M9 4v14M15 6v14" />
+    </svg>
+  );
+}

@@ -106,6 +106,7 @@ a {
 .hud-top,
 .hud-intro,
 .hud-near,
+.minimap,
 .sheet {
   pointer-events: auto;
 }
@@ -586,6 +587,145 @@ a {
 }
 
 /* ============================================================
+   District toast — a radioactive area announcing itself
+   ============================================================ */
+.hud-toast {
+  --from: translateY(-10px);
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  top: calc(max(var(--gutter), env(safe-area-inset-top)) + var(--bar) + 12px);
+  width: max-content;
+  max-width: min(360px, calc(100vw - 2 * var(--gutter)));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--raised);
+  border: 1px solid var(--hair2);
+  box-shadow: var(--e2);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hud-toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, var(--blue-700));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, var(--blue-700)) 25%, transparent);
+}
+
+/* ============================================================
+   Minimap
+   ============================================================ */
+.minimap {
+  /* No z-index: DOM order alone keeps it above the curtain/intro/near-prompt
+     (all earlier siblings) and below the list/panel sheets (both later),
+     so an open sheet naturally covers it instead of racing it for a layer. */
+  position: absolute;
+  right: var(--gutter);
+  bottom: max(var(--gutter), env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.minimap-toggle {
+  display: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--raised);
+  border: 1px solid var(--hair2);
+  box-shadow: var(--e2);
+}
+
+.minimap-toggle:hover {
+  background: var(--ground2);
+}
+
+.minimap-panel {
+  padding: 8px;
+  border-radius: var(--r-card);
+  background: var(--raised);
+  border: 1px solid var(--hair2);
+  box-shadow: var(--e2);
+  line-height: 0;
+}
+
+.minimap-island {
+  fill: var(--ground2);
+  stroke: var(--hair2);
+  stroke-width: 1.5;
+}
+
+.minimap-dot {
+  fill: var(--accent);
+  stroke: rgba(28, 27, 25, 0.25);
+  stroke-width: 1;
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 120ms var(--ease-out);
+}
+
+.minimap-dot:hover {
+  transform: scale(1.35);
+}
+
+.minimap-dot[data-tinted="true"] {
+  stroke: var(--ring);
+  stroke-width: 2;
+}
+
+.minimap-home {
+  fill: var(--raised);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  cursor: pointer;
+}
+
+.minimap-seal circle:last-child {
+  fill: var(--blue-700);
+}
+
+.minimap-seal-ring {
+  fill: none;
+  stroke: var(--blue-700);
+  stroke-width: 1.5;
+  opacity: 0.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: minimap-pulse 1.8s ease-out infinite;
+}
+
+@keyframes minimap-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .minimap-toggle {
+    display: flex;
+  }
+  .minimap[data-open="false"] .minimap-panel {
+    display: none;
+  }
+}
+
+/* ============================================================
    Sheets — the project panel and the all-projects list share
    this shell (components/world/ui/Sheet.jsx).
    ============================================================ */
@@ -787,6 +927,154 @@ h2[tabindex="-1"]:focus {
 }
 
 /* ---------- project panel content ---------- */
+.panel-org {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.panel-logo {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--ground2);
+  object-fit: contain;
+}
+
+.panel-org-line {
+  margin: 0;
+  padding-right: 48px; /* clears the close button, same reasoning as .panel-eyebrow */
+  font-size: 14px;
+}
+
+.panel-verb {
+  color: var(--muted);
+}
+
+.panel-repo {
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.panel-result {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--ground2);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.panel-result-label {
+  margin-right: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.panel-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.panel-tags li {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, #fff);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.panel-checks {
+  margin: 0 0 24px;
+}
+
+.checks-head {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.checks-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checks-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.checks-list svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--accent, var(--blue-700));
+}
+
+.specs-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 20px;
+}
+
+.specs-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 88px;
+  padding: 10px 14px;
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--accent) 12%, #fff);
+}
+
+.specs-stat strong {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.specs-stat span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.specs-chip {
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--ground2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .panel-eyebrow {
   margin: 0 0 8px;
   padding-right: 48px;
@@ -934,18 +1222,64 @@ h2[tabindex="-1"]:focus {
   color: var(--muted);
 }
 
+.list-home-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.list-home-link:hover {
+  background: var(--ground2);
+}
+
+.list-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 20px 0 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.list-group-head:first-of-type {
+  margin-top: 4px;
+}
+
+.list-group-count {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
 .list-rows {
   list-style: none;
-  margin: 0 0 24px;
+  margin: 0 0 8px;
   padding: 0;
   display: grid;
   gap: 2px;
 }
 
+.list-rows:last-of-type {
+  margin-bottom: 24px;
+}
+
 .list-rows button {
   width: 100%;
   display: grid;
-  grid-template-columns: 12px 1fr 16px;
+  grid-template-columns: 20px 1fr 16px;
   align-items: center;
   gap: 12px;
   min-height: 60px;
@@ -965,6 +1299,22 @@ h2[tabindex="-1"]:focus {
   background: var(--accent);
 }
 
+.list-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex: none;
+}
+
+.list-row-headline {
+  margin-top: 1px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .list-row-text {
   display: grid;
   gap: 2px;
@@ -974,7 +1324,11 @@ h2[tabindex="-1"]:focus {
 .list-row-name {
   font-size: 16px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .list-row-kind {
@@ -1098,6 +1452,13 @@ h2[tabindex="-1"]:focus {
   background: var(--accent);
 }
 
+.fallback-card-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  object-fit: contain;
+}
+
 .fallback-card-kind {
   font-family: var(--mono);
   font-size: 11px;
@@ -1115,6 +1476,10 @@ h2[tabindex="-1"]:focus {
   font-size: 14px;
   line-height: 1.4;
   color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .fallback-card-figure {
@@ -1134,25 +1499,47 @@ h2[tabindex="-1"]:focus {
 /* ============================================================
    In-world labels (components/world/PlaceLabel.jsx)
    ============================================================ */
+/* Base state: far off, a small tinted dot — 23 of these would be clutter as
+   full pills. [data-close="true"] (PlaceLabel.jsx, read from live.seal each
+   frame) expands it into the named pill below. */
 .place-label {
   position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px rgba(28, 27, 25, 0.22), 0 1px 3px rgba(28, 27, 25, 0.18);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  user-select: none;
+  transition: width 200ms var(--ease-out), height 200ms var(--ease-out), padding 200ms var(--ease-out),
+    border-radius 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+}
+
+.place-label-logo,
+.place-label-kind,
+.place-label-name {
+  display: none;
+}
+
+.place-label[data-close="true"] {
+  width: auto;
   height: 28px;
   padding: 0 10px 0 8px;
   border-radius: 999px;
   background: var(--raised);
   border: 1px solid var(--hair2);
   box-shadow: 0 2px 6px rgba(28, 27, 25, 0.12);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-  white-space: nowrap;
-  user-select: none;
 }
 
-.place-label::before {
+.place-label[data-close="true"]::before {
   content: "";
   flex: none;
   width: 8px;
@@ -1162,7 +1549,7 @@ h2[tabindex="-1"]:focus {
   box-shadow: 0 0 0 1px rgba(28, 27, 25, 0.2) inset;
 }
 
-.place-label::after {
+.place-label[data-close="true"]::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -1175,13 +1562,22 @@ h2[tabindex="-1"]:focus {
   transform: translateX(-50%) rotate(45deg);
 }
 
-.place-label-kind {
-  display: none;
+.place-label[data-close="true"] .place-label-name {
+  display: inline;
+}
+
+.place-label[data-close="true"] .place-label-logo {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  object-fit: contain;
 }
 
 .place-label.is-near {
   flex-direction: column;
   align-items: flex-start;
+  width: auto;
   height: auto;
   gap: 0;
   padding: 8px 14px;

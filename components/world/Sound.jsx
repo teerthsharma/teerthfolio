@@ -11,6 +11,7 @@
 
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { JUMP_IN, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { PLACES } from "../../lib/world/places";
 import { getUi, live, useUi } from "../../lib/world/store";
 
@@ -46,14 +47,19 @@ function createEngine() {
   let lastParamT = -1;
   let duckUntil = 0; // tonal cues (pluck/chime/discovery) ducking the swish
   let suspendTimer;
+  const bornAt = performance.now(); // for the JUMP_IN skip check below
 
   // graph nodes that later voices or the per-frame update need to reach
   let master, sparkleIn, swishFilter, swishGain, seaBaseGain;
 
-  const counts = { thump: 0, pluck: 0, chime: 0, discovery: 0, squeak: 0, gulp: 0, knock: 0, stroke: 0, whoosh: 0 };
+  const counts = {
+    thump: 0, pluck: 0, chime: 0, discovery: 0, squeak: 0, gulp: 0, knock: 0,
+    stroke: 0, whoosh: 0, jumpin: 0, zoom: 0, tick: 0,
+  };
   const openedOnce = new Set();
   const propHit = new WeakMap();
   const propKnockT = new WeakMap();
+  const pendingTimers = new Set(); // setTimeout ids for the JUMP_IN landing thump
   let prevImpact = 0;
   let prevNear = null;
   let prevOpen = null;
@@ -61,6 +67,7 @@ function createEngine() {
   let prevGulp = 0;
   let prevStroke = 0;
   let prevWhoosh = false;
+  let prevStarted = false;
 
   // ---------- primitives ----------
   function noiseSrc(rate = 1) {
@@ -473,6 +480,106 @@ function createEngine() {
     disconnectOnEnded(src, [filt, g]);
   }
 
+  // The big rising whoosh + landing thump for JUMP_IN, timed off the shared
+  // clock in lib/world/moments.js so it lands on the same beat as the
+  // camera swoop and the seal's hop: swells to a peak at hopAt, the thump
+  // (a softer version of the collision thump) fires at landAt.
+  function playJumpInWhoosh() {
+    const t0 = ctx.currentTime;
+    const peakAt = t0 + JUMP_IN.hopAt;
+    const endAt = t0 + JUMP_IN.landAt;
+    duckUntil = Math.max(duckUntil, endAt);
+
+    const src = noiseSrc();
+    const filt = biquad("bandpass", 180, 1.0);
+    filt.frequency.setValueAtTime(180, t0);
+    filt.frequency.exponentialRampToValueAtTime(2800, peakAt);
+    filt.frequency.exponentialRampToValueAtTime(1400, endAt);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.26, peakAt);
+    g.gain.exponentialRampToValueAtTime(0.0001, endAt);
+    src.connect(filt);
+    filt.connect(g);
+    g.connect(master);
+    src.stop(endAt + 0.05);
+    disconnectOnEnded(src, [filt, g]);
+
+    const osc = ctx.createOscillator(); // sub-riser for weight
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(55, t0);
+    osc.frequency.exponentialRampToValueAtTime(180, peakAt);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, t0);
+    og.gain.exponentialRampToValueAtTime(0.16, peakAt);
+    og.gain.exponentialRampToValueAtTime(0.0001, endAt);
+    osc.connect(og);
+    og.connect(master);
+    osc.start(t0);
+    osc.stop(endAt + 0.05);
+    disconnectOnEnded(osc, [og]);
+  }
+
+  function playJumpIn() {
+    if (!beginVoice(JUMP_IN.duration)) return;
+    counts.jumpin++;
+    playJumpInWhoosh();
+    const landDelayMs = (JUMP_IN.landAt - JUMP_IN.whooshAt) * 1000;
+    const id = setTimeout(() => {
+      pendingTimers.delete(id);
+      if (ctx && ctx.state === "running") playThump(0.55); // softer than a collision
+    }, landDelayMs);
+    pendingTimers.add(id);
+  }
+
+  // ZOOM_IN/ZOOM_OUT: a soft whoosh when a panel opens, and the same sound
+  // played with a reversed sweep and envelope when it closes.
+  function playZoomWhoosh(dir, duration) {
+    if (!beginVoice(duration)) return;
+    counts.zoom++;
+    const t0 = ctx.currentTime;
+    const src = noiseSrc();
+    const filt = biquad("bandpass", dir > 0 ? 400 : 2200, 1.1);
+    if (dir > 0) {
+      filt.frequency.setValueAtTime(400, t0);
+      filt.frequency.exponentialRampToValueAtTime(2200, t0 + duration);
+    } else {
+      filt.frequency.setValueAtTime(2200, t0);
+      filt.frequency.exponentialRampToValueAtTime(400, t0 + duration);
+    }
+    const g = ctx.createGain();
+    const peakAt = t0 + duration * (dir > 0 ? 0.35 : 0.75); // reversed: slow build, fast cutoff
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.09, peakAt);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    src.connect(filt);
+    filt.connect(g);
+    g.connect(master);
+    src.stop(t0 + duration + 0.05);
+    disconnectOnEnded(src, [filt, g]);
+  }
+
+  // A crisp tick for HUD buttons, fired from a capture-phase click listener
+  // in the component below (Sound.jsx owns no HUD markup to hang this off).
+  function playTick() {
+    if (!ctx || ctx.state !== "running") return;
+    if (!beginVoice(0.06)) return;
+    counts.tick++;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(1800, t0);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.05, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.045);
+    osc.connect(g);
+    g.connect(master);
+    osc.start(t0);
+    osc.stop(t0 + 0.05);
+    disconnectOnEnded(osc, [g]);
+  }
+
   // ---------- per-frame ----------
   function frame() {
     const audible = Boolean(ctx) && ctx.state === "running";
@@ -497,18 +604,32 @@ function createEngine() {
     if (audible && impact - prevImpact >= 0.12) playThump(impact);
     prevImpact = impact;
 
+    // JUMP_IN plays only when started turns true from a real button press,
+    // never from ?play/?spawn= snapping straight to the follow camera
+    // within SKIP_WINDOW of this engine's own construction (moments.js).
+    if (ui.started && !prevStarted) {
+      const elapsed = (performance.now() - bornAt) / 1000;
+      if (audible && elapsed > SKIP_WINDOW) playJumpIn();
+    }
+    prevStarted = ui.started;
+
     if (audible && ui.near && ui.near !== prevNear) playPluck(ui.near);
     prevNear = ui.near;
 
-    if (ui.open && ui.open !== prevOpen) {
-      const firstTime = !openedOnce.has(ui.open);
-      if (firstTime) openedOnce.add(ui.open);
-      if (audible) {
-        if (firstTime) playDiscovery(ui.open);
-        else playChime(ui.open);
+    if (ui.open !== prevOpen) {
+      if (ui.open) {
+        const firstTime = !openedOnce.has(ui.open);
+        if (firstTime) openedOnce.add(ui.open);
+        if (audible) {
+          if (firstTime) playDiscovery(ui.open);
+          else playChime(ui.open);
+          playZoomWhoosh(1, ZOOM_IN.duration);
+        }
+      } else if (audible) {
+        playZoomWhoosh(-1, ZOOM_OUT.duration);
       }
+      prevOpen = ui.open;
     }
-    prevOpen = ui.open;
 
     const squeak = live.squeak ?? 0;
     if (audible && squeak !== prevSqueak) playSqueak();
@@ -577,6 +698,8 @@ function createEngine() {
 
   function dispose() {
     clearTimeout(suspendTimer);
+    for (const id of pendingTimers) clearTimeout(id);
+    pendingTimers.clear();
     ctx?.close();
     ctx = null;
     unlocked = false;
@@ -600,7 +723,7 @@ function createEngine() {
     return ctx ? ctx.state : "locked";
   }
 
-  return { unlock, dispose, setSoundOn, onVisibility, frame, state, counts };
+  return { unlock, dispose, setSoundOn, onVisibility, frame, state, counts, tick: playTick };
 }
 
 export default function Sound() {
@@ -628,6 +751,13 @@ export default function Sound() {
     window.addEventListener("keydown", onGesture, opts);
     window.addEventListener("touchend", onGesture, opts);
 
+    // A crisp tick on every HUD button, capture-phase so it always fires at
+    // full volume even when the same click also mutes sound.
+    function onHudClick(e) {
+      if (e.target.closest?.(".hud button")) engine.tick();
+    }
+    window.addEventListener("click", onHudClick, opts);
+
     function onVisibility() {
       engine.onVisibility();
     }
@@ -637,6 +767,7 @@ export default function Sound() {
 
     return () => {
       removeListeners();
+      window.removeEventListener("click", onHudClick, opts);
       document.removeEventListener("visibilitychange", onVisibility);
       engine.dispose();
       delete window.__sound;

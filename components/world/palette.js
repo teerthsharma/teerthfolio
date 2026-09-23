@@ -31,12 +31,21 @@ export const C = {
   sky: "#cfe6f4", // background and fog
 };
 
-// The rig the colours above were solved for. Island.jsx applies it.
+// The rig the colours above were solved for. Island.jsx applies the lights;
+// Look.jsx the environment and, when post-processing runs, the tone map.
+// The environment is the same sky-above / snow-below split as the hemisphere
+// light (plus a sun disc and a band of sea for glossy reflections), and
+// environment intensity k lights a matte surface like a hemisphere of
+// intensity PI * k. So the hemisphere gave up PI * env of its old 2.7: matte
+// colours land where they did, glossy ones now reflect a sky.
 export const LIGHT = {
   toneMapping: NeutralToneMapping,
   hemiSky: "#d2dcff",
   hemiGround: "#eadfce",
-  hemiIntensity: 2.7,
+  hemiIntensity: 2.7 - Math.PI * 0.5,
+  env: 0.5, // scene.environmentIntensity
+  envSun: 8, // radiance of the sun disc in the environment (highlights only)
+  ao: "#98a2d6", // what full occlusion multiplies by: about the sun-to-shade ratio of snow, so creases go lavender, never grey
   sun: "#ffecd0",
   sunIntensity: 3,
 };

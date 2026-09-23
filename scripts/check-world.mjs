@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { ISLAND_RADIUS, PLACES, SPAWN, dockPoint } from "../lib/world/places.js";
+import { RIVER, riverAt } from "../lib/world/river.js";
 
 const colliders = PLACES.map(({ x, z, radius }) => ({ x, z, radius }));
 const world = { colliders, radius: ISLAND_RADIUS, props: [] };
@@ -107,9 +108,8 @@ function reactionLoss(mass, radius) {
   const prop = { x: SPAWN.x, z: SPAWN.z + 20, vx: 0, vz: 0, radius, mass, spin: 0, hit: 0 };
   const seal = createSeal(SPAWN.x, SPAWN.z);
   const w = { ...world, props: [prop] };
-  // seal.speed is cached before stepProps runs each frame (a harmless one-
-  // frame lag for gameplay), so read vx/vz directly to catch the impulse the
-  // instant it lands.
+  // stepProps runs before seal.speed is cached, so seal.speed already holds
+  // the impulse; vx/vz are read directly to stay independent of that order.
   const rawSpeed = () => Math.hypot(seal.vx, seal.vz);
   let prevSpeed = rawSpeed();
   let speedBefore = null;
@@ -222,4 +222,46 @@ for (let t = 0; t < 6; t += 1 / 120) {
 assert.ok(peakRimImpact > 0.2, `boosted rim run produced no impact: ${peakRimImpact}`);
 assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let the seal off the island");
 
-console.log(`world check passed: ${PLACES.length} places, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap`);
+// River: an idle seal dropped in near a bank at the source rides the whole
+// river to the mouth within 20 s and the current keeps it in the water round
+// every bend (without the centring drift it strands in the slack water by a
+// bank); paddling across reaches a bank in well under two seconds; on land
+// the seal is dry. Open world, so a building on the river can't hide a
+// motion bug.
+{
+  const openWorld = { colliders: [], radius: 1000 };
+  const [[x0, z0], [x1, z1]] = RIVER.points;
+  const [mx, mz] = RIVER.points.at(-1);
+  const l0 = Math.hypot(x1 - x0, z1 - z0);
+  const bank = 0.7 * (RIVER.width / 2);
+  const rider = createSeal(x0 - ((z1 - z0) / l0) * bank, z0 + ((x1 - x0) / l0) * bank);
+  let dry = 0;
+  let rode = null;
+  for (let t = 0; t < 20 && rode === null; t += 1 / 120) {
+    stepSeal(rider, {}, 1 / 120, openWorld);
+    if (!(rider.water > 0)) dry++;
+    if (Math.hypot(rider.x - mx, rider.z - mz) < 4) rode = t;
+  }
+  assert.ok(rode !== null, `an idle rider never reached the mouth: stopped at ${rider.x.toFixed(1)}, ${rider.z.toFixed(1)}`);
+  assert.equal(dry, 0, "the current beached an idle rider on a bend");
+
+  const [[ax, az], [bx, bz]] = RIVER.points.slice(2, 4);
+  const len = Math.hypot(bx - ax, bz - az);
+  for (const side of [1, -1]) {
+    const swimmer = createSeal((ax + bx) / 2, (az + bz) / 2);
+    const across = { x: (-(bz - az) / len) * side, z: ((bx - ax) / len) * side };
+    run(swimmer, {}, 0.5);
+    let t = 0;
+    for (; t < 3 && riverAt(swimmer.x, swimmer.z).inside; t += 1 / 120) stepSeal(swimmer, { input: across }, 1 / 120, openWorld);
+    assert.ok(t < 1.5, `paddling out to a bank took ${t} s`);
+    stepSeal(swimmer, { input: across }, 1 / 120, openWorld);
+    assert.equal(swimmer.water, 0, "the seal is still wet on the bank");
+  }
+}
+{
+  const dryland = createSeal(SPAWN.x, SPAWN.z);
+  run(dryland, { input: { x: 1, z: 0 } }, 0.5);
+  assert.equal(dryland.water, 0, "the seal is wet at spawn");
+}
+
+console.log(`world check passed: ${PLACES.length} places, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit`);

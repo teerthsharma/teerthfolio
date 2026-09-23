@@ -23,8 +23,9 @@ import { createDrive, stepDrive } from "./seal/drive";
 import A from "./seal/variants/A";
 import B from "./seal/variants/B";
 import C from "./seal/variants/C";
+import D from "./seal/variants/D";
 
-const VARIANTS = { A, B, C };
+const VARIANTS = { A, B, C, D };
 
 function pickVariant() {
   const id = new URLSearchParams(window.location.search).get("seal");
