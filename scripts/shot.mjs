@@ -12,7 +12,7 @@
 // console errors and a non-blank pixel check so a broken frame cannot pass
 // as a picture.
 
-import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
@@ -50,11 +50,16 @@ mkdirSync(path.dirname(out), { recursive: true });
 // about three concurrent WebGL pages every capture slows to minutes, so a
 // capture takes one of SLOTS lock directories first (mkdir is atomic) and
 // waits for a free one. A slot older than 4 minutes belongs to a crashed run.
+// Slots SLOTS.. are the land's reserved lane (see LAND below).
 const SLOTS = Number(process.env.SHOT_SLOTS || 3);
+// The land comes first (the owner's priority): captures of the terrain and
+// the landforms also get two reserved slots the building captures never take.
+const LAND = /terrain|triton|mujo|google-range|highway|xnnpack|dam|geyser|moat|floes|water|sea|sky|land|creation/i.test(out);
+const LAND_SLOTS = LAND ? 2 : 0;
 const slotDir = (i) => path.join(os.tmpdir(), `teerthfolio-shot-slot-${i}`);
 async function takeSlot() {
   for (;;) {
-    for (let i = 0; i < SLOTS; i++) {
+    for (let i = 0; i < SLOTS + LAND_SLOTS; i++) {
       try {
         mkdirSync(slotDir(i));
         return i;
@@ -66,11 +71,50 @@ async function takeSlot() {
         }
       }
     }
+    if (LAND) {
+      try {
+        utimesSync(waitingMark, new Date(), new Date());
+      } catch {
+        /* the marker is recreated on the next capture */
+      }
+    }
     await new Promise((r) => setTimeout(r, 400));
   }
 }
+// Humans bow to god (the owner's rule). While a land capture is waiting for
+// the GPU, or two are already running, a building capture does not queue: it
+// yields at once and tells its agent to spend the time on a bug hunt and lint
+// instead, then retry. Land captures announce themselves with marker files.
+const TMP = os.tmpdir();
+const fresh = (prefix, ms) =>
+  readdirSync(TMP).filter((f) => f.startsWith(prefix)).filter((f) => {
+    try {
+      return Date.now() - statSync(path.join(TMP, f)).mtimeMs < ms;
+    } catch {
+      return false;
+    }
+  }).length;
+const waitingMark = path.join(TMP, `teerthfolio-god-waiting-${process.pid}`);
+const activeMark = path.join(TMP, `teerthfolio-god-active-${process.pid}`);
+if (!LAND && (fresh("teerthfolio-god-waiting-", 15000) > 0 || fresh("teerthfolio-god-active-", 240000) >= 2)) {
+  console.log(JSON.stringify({
+    out,
+    yielded: true,
+    message: "The land (god) needs the GPU right now, so this capture yielded. Spend the next few minutes on a bug hunt instead: re-read your files for bugs, run npx eslint on them and npm run check, then retry this capture.",
+  }));
+  process.exit(3);
+}
+if (LAND) writeFileSync(waitingMark, "");
 const slot = await takeSlot();
-process.on("exit", () => rmSync(slotDir(slot), { recursive: true, force: true }));
+if (LAND) {
+  rmSync(waitingMark, { force: true });
+  writeFileSync(activeMark, "");
+}
+process.on("exit", () => {
+  rmSync(slotDir(slot), { recursive: true, force: true });
+  rmSync(waitingMark, { force: true });
+  rmSync(activeMark, { force: true });
+});
 
 const browser = await chromium.launch({
   executablePath: chrome(),
