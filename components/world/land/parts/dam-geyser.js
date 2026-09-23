@@ -15,7 +15,7 @@ export const ERUPT_PERIOD = 50; // s: the whole beat, source of truth for the sc
 export const BUILDUP_S = 3; // s of bubbling/puffs before the eruption
 export const RISE_S = 1.3; // s the column takes to climb
 export const FALL_S = 3.2; // s it takes to fall back as spray
-export const DROP_COUNT = 30;
+export const DROP_COUNT = 40;
 
 export const VENT_R = 1.8; // the sinter mound's base radius
 export const VENT_H = 1.6; // the mound's height at the vent lip
@@ -25,14 +25,14 @@ export const VENT_H = 1.6; // the mound's height at the vent lip
 // and is bit-for-bit the same shape every cycle -- the fix, shown.
 export const DROPS = Array.from({ length: DROP_COUNT }, (_, i) => ({
   angle: i * GOLDEN,
-  apex: 4.6 + 3.4 * ((i * 0.618) % 1), // m above the vent lip: a tall, spectacular column
+  apex: 6.5 + 4.5 * ((i * 0.618) % 1), // m above the vent lip: a tall, spectacular column
   delay: ((i % 8) / 8) * (RISE_S * 0.75), // staggered launch inside the rise, so the column fans out and builds
   spread: 0.4 + 0.55 * (((i * 7) % 5) / 5), // outward drift while falling
 }));
 
 // THE SPLASH RING: a skirt of spray thrown out at the base as the column
 // falls, expanding and fading with FALL.
-export const SPLASH_COUNT = 18;
+export const SPLASH_COUNT = 24;
 export const SPLASH = Array.from({ length: SPLASH_COUNT }, (_, i) => ({
   angle: i * GOLDEN,
   delay: ((i % 6) / 6) * 0.5, // staggered so the ring doesn't pop out as one rigid disc

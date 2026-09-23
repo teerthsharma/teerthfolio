@@ -29,7 +29,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Object3D } from "three";
 import { PLACE_BY_ID } from "../../../lib/world/places";
-import { useUi } from "../../../lib/world/store";
+import { live, useUi } from "../../../lib/world/store";
 import { clamp, smoothstep } from "../life/util";
 import { C, lamp, mat } from "../palette";
 import {
@@ -46,7 +46,12 @@ import {
   VENT_H,
   VENT_R,
 } from "./parts/dam-geyser";
-import { buildConcreteWall, buildIceWall, OUTLETS, SPILLWAY_W, SPILLWAYS } from "./parts/dam-wall";
+import { buildConcreteWall, buildIceWall, buildSpray, OUTLETS, POWERHOUSE, SPILLWAY_W, SPILLWAYS, TOWERS } from "./parts/dam-wall";
+
+// The sluice rhythm: gates ease open, hold, ease shut -- slow enough to
+// watch, never gated to the seal (that's `boost`'s job on top of it).
+const GATE_PERIOD = 8; // s, full open-close cycle
+const gateOpen = (t) => (Math.sin((t / GATE_PERIOD) * Math.PI * 2 - Math.PI / 2) + 1) / 2;
 
 const DAM_PLACE = PLACE_BY_ID["pr-tensorflow-124410"];
 const GEYSER_PLACE = PLACE_BY_ID["pr-openxla-46539"];
@@ -60,6 +65,7 @@ const dummy = new Object3D();
 
 const iceGeo = buildIceWall();
 const concrete = buildConcreteWall();
+const sprayGeo = buildSpray();
 
 // ---- the spillway chutes: recessed, glowing, climbing UP the face --------
 // (the anomaly). Positioned per SPILLWAYS[i]'s own crestPoint, hugging the
@@ -75,12 +81,22 @@ const faceAt = (ch, y) => ch.face * (1 - 0.45 * clamp(y / ch.h, 0, 1)) + PROUD;
 
 function Spillways({ boost }) {
   const beadRef = useRef();
+  const gateRefs = useRef([]);
   const chuteMat = useMemo(() => lamp(DAM_COLOR, 0.9).clone(), []);
   const beadMat = useMemo(() => lamp(DAM_COLOR, 1.3), []);
+  // each chute's own resting centre Y (matches the JSX below): the gate
+  // slides down from here as it opens, never recomputed per frame.
+  const gateBaseY = useMemo(() => SPILLWAYS.map((ch) => (ch.h * 0.85) / 2 + ch.h * 0.08), []);
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
-    chuteMat.emissiveIntensity = (0.7 + 0.35 * Math.sin(t * 2.1)) * (1 + boost * 0.5);
+    const open = gateOpen(t); // 0 shut, 1 open -- the radial gate's own slow rhythm
+    chuteMat.emissiveIntensity = (0.7 + 0.35 * Math.sin(t * 2.1)) * (1 + boost * 0.5) * (0.6 + 0.6 * open);
+    // the gate itself: the recessed chute box slides down as it opens, so
+    // more of the dark slot behind it shows -- a real radial gate lifting.
+    gateRefs.current.forEach((g, i) => {
+      if (g) g.position.y = gateBaseY[i] - 0.3 * open;
+    });
     const beads = beadRef.current;
     if (!beads) return;
     let n = 0;
@@ -88,7 +104,7 @@ function Spillways({ boost }) {
       const top = ch.h * 0.9;
       const base = ch.h * 0.12;
       for (let b = 0; b < BEADS_PER; b++) {
-        const speed = 0.5 + boost * 0.55;
+        const speed = (0.5 + boost * 0.55) * (0.4 + 0.9 * open); // gushes harder open
         const p = (t * speed + b / BEADS_PER + ci * 0.29) % 1;
         // climbing: y rises with p -- normal life would fall, this rises
         const y = base + (top - base) * p;
@@ -112,6 +128,7 @@ function Spillways({ boost }) {
         return (
           <mesh
             key={i}
+            ref={(el) => { gateRefs.current[i] = el; }}
             position={[ch.x + ch.nx * (off - PROUD * 1.5), h / 2 + ch.h * 0.08, ch.z + ch.nz * (off - PROUD * 1.5)]}
             rotation={[0, angle, 0]}
             geometry={chuteGeo}
@@ -147,13 +164,14 @@ function Outlets({ boost }) {
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
+    const open = gateOpen(t); // same slow rhythm as the spillway gates above: harder gush, gates open
     const beads = beadRef.current;
     if (!beads) return;
     let n = 0;
     OUTLETS.forEach((o, oi) => {
       const y0 = 0.9 + (oi % 2) * 0.3;
       for (let d = 0; d < OUTLET_DROPS; d++) {
-        const speed = 0.9 + boost * 0.7;
+        const speed = (0.9 + boost * 0.7) * (0.5 + 0.8 * open);
         const p = (t * speed + d / OUTLET_DROPS + oi * 0.4) % 1;
         const spread = 2.2 + 1.4 * ((d * 0.37) % 1);
         const jitter = ((d * 0.61) % 1) - 0.5;
@@ -212,7 +230,17 @@ function Geyser({ boost }) {
   useFrame(({ clock }) => {
     // real seconds: the fix's whole point is the beat never drifts, never
     // speeds up for the seal being near -- only the glow reacts to that.
-    const t = clock.elapsedTime % ERUPT_PERIOD;
+    // The anomaly: motion.js can also fire an off-beat burst (the seal
+    // standing too close throws it flying) at live.geyser.burstAt, a clock
+    // timestamp. Whichever eruption -- the scheduled one or that burst --
+    // started most recently plays; `regularStart` always stays within 50s of
+    // now, so `t` (below) never runs negative or past ERUPT_PERIOD even right
+    // after a burst, so the build-up tell (still tied to the real schedule
+    // only) never false-fires off a burst.
+    const regularStart = clock.elapsedTime - (clock.elapsedTime % ERUPT_PERIOD);
+    const burstAt = live.geyser?.burstAt ?? -100;
+    const erupted = burstAt > regularStart ? burstAt : regularStart;
+    const t = clock.elapsedTime - erupted;
     const eruptDur = RISE_S + FALL_S;
     const erupting = t < eruptDur;
     const buildupStart = ERUPT_PERIOD - BUILDUP_S;
@@ -347,17 +375,31 @@ export default function IceDam() {
   const geyserBoost = geyserNear ? 1 : 0;
 
   const iceMat = useMemo(() => mat(C.deepIce, { roughness: 0.42 }), []);
-  const concreteMat = useMemo(() => mat(C.warmWhite, { roughness: 0.88 }), []);
+  // Metallic, not concrete: brushed steel (Look.jsx's environment map gives
+  // it sky and snow to reflect). vertexColors: dam-wall.js still bakes the
+  // wedge's own light-to-shadow curve as a per-vertex multiplier (white
+  // elsewhere, unchanged) so the whole body -- wedge, piers, towers,
+  // powerhouse -- stays one merged, one-draw-call mesh.
+  const concreteMat = useMemo(() => mat(C.metal, { roughness: 0.32, metalness: 0.85, vertexColors: true }), []);
   const roadMat = useMemo(() => mat(C.charcoal, { roughness: 0.92 }), []);
-  const accentMat = useMemo(() => mat(TF_ORANGE, { roughness: 0.4 }), []);
+  const accentMat = useMemo(() => mat(TF_ORANGE, { roughness: 0.3, metalness: 0.3 }), []);
   const bathtubMat = useMemo(() => mat(C.snow, { roughness: 0.55 }), []);
   const lampMat = useMemo(() => lamp(DAM_COLOR, 1).clone(), []);
   const windowMat = useMemo(() => lamp(DAM_COLOR, 0.7).clone(), []);
+  const sprayMat = useMemo(() => mat(C.foam, { roughness: 0.3 }), []);
+  const beaconMat = useMemo(() => lamp(DAM_COLOR, 1).clone(), []);
+  const turbineMat = useMemo(() => mat(C.charcoal, { roughness: 0.4, metalness: 0.7 }), []);
+  const turbineRef = useRef();
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
     lampMat.emissiveIntensity = (0.85 + 0.3 * Math.sin(t * 1.6)) * (1 + damBoost * 0.6);
     windowMat.emissiveIntensity = (0.5 + 0.15 * Math.sin(t * 0.9 + 2)) * (1 + damBoost * 0.4);
+    // the powerhouse turbine: a slow, steady turn -- the dam always working.
+    if (turbineRef.current) turbineRef.current.rotation.z += delta * 0.6;
+    // the tower beacons: a slow pulse (the cheaper half of "rotating beacon
+    // or pulsing lights" -- no extra geometry, no extra draw call).
+    beaconMat.emissiveIntensity = 0.6 + 0.5 * Math.sin(t * 1.1) + damBoost * 0.3;
   });
 
   return (
@@ -369,6 +411,31 @@ export default function IceDam() {
       <mesh geometry={concrete.bathtub} material={bathtubMat} />
       <mesh geometry={concrete.lamps} material={lampMat} />
       <mesh geometry={concrete.windows} material={windowMat} />
+      <mesh geometry={sprayGeo} material={sprayMat} />
+      {/* the powerhouse turbine: a flat wheel on its downstream face, always
+          turning -- 2.23 m (the powerhouse box's own 3.6 m height * 0.62)
+          matches dam-wall.js's own accent-stripe placement on that face. */}
+      <mesh
+        ref={turbineRef}
+        position={[POWERHOUSE.x + Math.sin(POWERHOUSE.angle) * 1.35, 2.23, POWERHOUSE.z + Math.cos(POWERHOUSE.angle) * 1.35]}
+        rotation={[Math.PI / 2, POWERHOUSE.angle, 0]}
+        material={turbineMat}
+      >
+        <cylinderGeometry args={[0.85, 0.85, 0.16, 8]} />
+      </mesh>
+      {/* tower beacons: one glass globe pulsing atop each intake tower's cap */}
+      {TOWERS.map((p, i) => {
+        const towerH = p.h + 3;
+        return (
+          <mesh
+            key={i}
+            position={[p.x - p.nx * (p.face * 0.95), -1 + towerH + towerH * 0.16 + 0.12, p.z - p.nz * (p.face * 0.95)]}
+            material={beaconMat}
+          >
+            <icosahedronGeometry args={[0.22, 1]} />
+          </mesh>
+        );
+      })}
       <Spillways boost={damBoost} />
       <Outlets boost={damBoost} />
       <Geyser boost={geyserBoost} />

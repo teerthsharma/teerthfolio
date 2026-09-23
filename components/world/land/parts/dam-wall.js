@@ -19,9 +19,10 @@
 // Positions and static geometry only; IceDam.jsx supplies materials and
 // animates the moving water and lamps.
 
-import { BoxGeometry, ConeGeometry, ExtrudeGeometry, IcosahedronGeometry, Shape } from "three";
+import { BoxGeometry, BufferAttribute, ConeGeometry, ExtrudeGeometry, IcosahedronGeometry, Shape } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { LAND_COLLIDERS } from "../../../../lib/world/land";
+import { clamp, smoothstep } from "../../life/util";
 
 const DAM_COLLIDERS = LAND_COLLIDERS.filter((c) => c.land === "dam");
 
@@ -148,8 +149,10 @@ export const CREST_UP = 0.28;
 function wedgeShape(face, h) {
   const s = new Shape();
   s.moveTo(-face * 1.0, 0); // base, downstream (outer, concave) edge
-  s.lineTo(-face * 0.86, h * 0.3);
-  s.lineTo(-face * 0.58, h * 0.62); // the curve's shoulder: most of the batter happens low, so the taper reads at a glance
+  s.lineTo(-face * 0.9, h * 0.16);
+  s.lineTo(-face * 0.76, h * 0.34);
+  s.lineTo(-face * 0.58, h * 0.53); // the curve's shoulder: most of the batter happens low, so the taper reads at a glance
+  s.lineTo(-face * 0.42, h * 0.7);
   s.lineTo(-face * 0.32, h * 0.86);
   s.lineTo(-face * CREST_DOWN, h); // crest, downstream edge
   s.lineTo(face * CREST_UP, h); // crest, upstream edge
@@ -163,6 +166,35 @@ function prism(shape, len, dx, dz, mx, mz) {
   geo.translate(0, 0, -len / 2);
   geo.rotateY(Math.atan2(dx, dz));
   geo.translate(mx, 0, mz);
+  return geo;
+}
+
+// One merged, one-draw-call material needs the same attributes on every
+// piece: every non-wedge part gets a flat white vertex colour (an unchanged
+// multiplier), so only the wedge below needs to actually paint one.
+function tintWhite(geo) {
+  const n = geo.attributes.position.count;
+  geo.setAttribute("color", new BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+  return geo;
+}
+
+// The wedge's own value curve, baked as vertex colour: dark at the shadowed
+// toe where the concave curve tucks under itself, brightest across the
+// sunlit bulge, easing back toward the crest -- "bright in the sun with
+// strong shading down its curve" (the owner's words), without a second
+// material or draw call.
+function shadeWedge(geo, h) {
+  const pos = geo.attributes.position;
+  const n = pos.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const t = clamp(pos.getY(i) / h, 0, 1);
+    const v = 0.4 + 0.68 * smoothstep(0, 0.5, t) - 0.24 * smoothstep(0.78, 1, t);
+    arr[i * 3] = v;
+    arr[i * 3 + 1] = v;
+    arr[i * 3 + 2] = v;
+  }
+  geo.setAttribute("color", new BufferAttribute(arr, 3));
   return geo;
 }
 
@@ -189,8 +221,15 @@ function tower(cx, cz, baseY, h, r0) {
 // Two towers, upstream in the lake, close enough to read as part of the
 // dam (real intake towers stand right off the face); one powerhouse block
 // hugging the downstream foot, roughly under the crest's tallest run.
-const TOWERS = [0.28, 0.72].map((t) => ({ ...crestPoint(t), t }));
+export const TOWERS = [0.28, 0.72].map((t) => ({ ...crestPoint(t), t }));
 const POWERHOUSE_T = 0.48;
+// The powerhouse's own anchor, exported so IceDam.jsx can hang a turning
+// turbine wheel on its downstream face without redoing this offset maths.
+export const POWERHOUSE = (() => {
+  const p = crestPoint(POWERHOUSE_T);
+  const dist = p.face * 1.0 + 0.8;
+  return { x: p.x + p.nx * dist, z: p.z + p.nz * dist, h: p.h, angle: Math.atan2(p.nx, p.nz) };
+})();
 
 export function buildConcreteWall() {
   const body = [];
@@ -212,7 +251,7 @@ export function buildConcreteWall() {
     const mz = (a.z + b.z) / 2;
     const angle = Math.atan2(dx, dz);
 
-    body.push(prism(wedgeShape(face, h), len, dx, dz, mx, mz));
+    body.push(shadeWedge(prism(wedgeShape(face, h), len, dx, dz, mx, mz), h));
 
     // the crest road: a flat slab spanning the wedge's own crest width,
     // plus a low parapet rail on each edge -- the seal never climbs up
@@ -229,7 +268,7 @@ export function buildConcreteWall() {
       rail.translate(off, h + 0.22 + railH / 2, 0);
       rail.rotateY(angle);
       rail.translate(mx, 0, mz);
-      body.push(rail.toNonIndexed());
+      body.push(tintWhite(rail.toNonIndexed()));
     }
     // a painted stripe along the downstream parapet's outer face: TensorFlow
     // orange, a bold, funky pop against all that pale concrete.
@@ -248,14 +287,14 @@ export function buildConcreteWall() {
     const half = p.half * 1.08 + 0.35;
     const pier = new BoxGeometry(half * 2, p.h, half * 2).toNonIndexed();
     pier.translate(p.x, p.h / 2, p.z);
-    body.push(pier);
+    body.push(tintWhite(pier));
   }
 
   // the two intake towers, upstream, standing in the reservoir, their feet
   // below the waterline.
   for (const p of TOWERS) {
     const h = p.h + 3;
-    for (const g of tower(p.x - p.nx * (p.face * 0.95), p.z - p.nz * (p.face * 0.95), -1, h, p.face * 0.62)) body.push(g);
+    for (const g of tower(p.x - p.nx * (p.face * 0.95), p.z - p.nz * (p.face * 0.95), -1, h, p.face * 0.62)) body.push(tintWhite(g));
     // an art-deco chevron band, TensorFlow orange, near each tower's cap
     const band = new BoxGeometry(p.face * 0.62 * 2 * 0.72, 0.35, p.face * 0.62 * 2 * 0.72 + 0.02).toNonIndexed();
     band.translate(p.x - p.nx * (p.face * 0.95), -1 + h * 0.78, p.z - p.nz * (p.face * 0.95));
@@ -278,9 +317,9 @@ export function buildConcreteWall() {
     const d = 2.6;
     const hh = 3.6;
     const box = new BoxGeometry(w, hh, d).rotateY(angle).translate(cx, hh / 2, cz);
-    body.push(box.toNonIndexed());
+    body.push(tintWhite(box.toNonIndexed()));
     const roof = new BoxGeometry(w * 0.86, 0.5, d * 0.86).rotateY(angle).translate(cx, hh + 0.25, cz);
-    body.push(roof.toNonIndexed());
+    body.push(tintWhite(roof.toNonIndexed()));
     const stripe = new BoxGeometry(w * 0.9, 0.4, 0.03).rotateY(angle).translate(cx + Math.sin(angle) * (d / 2 + 0.02), hh * 0.62, cz + Math.cos(angle) * (d / 2 + 0.02));
     accent.push(stripe.toNonIndexed());
     // a row of window slits on the downstream face, IceDam.jsx lights them
@@ -305,7 +344,7 @@ export function buildConcreteWall() {
     const postH = 1.1;
     const post = new BoxGeometry(0.12, postH, 0.12).toNonIndexed();
     post.translate(px, p.h + 0.22 + 0.5 + postH / 2, pz);
-    body.push(post);
+    body.push(tintWhite(post));
     lamps.push(new IcosahedronGeometry(0.18, 1).translate(px, p.h + 0.22 + 0.5 + postH + 0.05, pz));
   }
 
@@ -350,3 +389,26 @@ export const OUTLETS = [0.34, 0.66].map((t) => {
   const p = crestPoint(t);
   return { x: p.x + p.nx * (p.face * 1.02), z: p.z + p.nz * (p.face * 1.02), nx: p.nx, nz: p.nz, h: p.h };
 });
+
+// A static foam burst at each outlet's mouth: always there, not animation-
+// phase-dependent, so "white water roaring out at the foot" reads in a
+// single still frame -- IceDam.jsx's animated beads (Outlets, above) add the
+// motion on top of this one merged, one-draw-call mesh.
+export function buildSpray() {
+  const parts = [];
+  for (const o of OUTLETS) {
+    for (let i = 0; i < 7; i++) {
+      const dist = 0.9 + i * 0.42;
+      const jitter = ((i * 0.61) % 1) - 0.5;
+      const r = 0.32 + 0.22 * ((i * 0.37) % 1);
+      const blob = new IcosahedronGeometry(r, 0);
+      blob.translate(
+        o.x + o.nx * dist + -o.nz * jitter * dist * 0.5,
+        0.15 + 0.22 * ((i * 0.53) % 1),
+        o.z + o.nz * dist + o.nx * jitter * dist * 0.5,
+      );
+      parts.push(blob);
+    }
+  }
+  return mergeGeometries(parts, false);
+}
