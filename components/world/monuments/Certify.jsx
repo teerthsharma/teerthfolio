@@ -78,8 +78,14 @@ const panGeo = new CylinderGeometry(0.43, 0.43, 0.11, 12).translate(0, -0.9, 0);
 const cubeGeo = new BoxGeometry(0.4, 0.4, 0.4);
 const bubbleGeo = new IcosahedronGeometry(1, 1); // scaled 0.35..0.85 as the rounding margin
 
-const armBarGeo = new BoxGeometry(ARM_LEN, 0.09, 0.09).translate(-ARM_LEN / 2, 0, 0);
-const armTipGeo = new BoxGeometry(0.16, 0.16, 0.16).translate(-ARM_LEN, 0, 0);
+// The arm reads as a barrier, not a stick: four flush bands, charcoal
+// alternating with warm white, the classic boom-gate candy stripe.
+const ARM_BANDS = 4;
+const ARM_BAND_W = ARM_LEN / ARM_BANDS;
+const armBand = (i) => new BoxGeometry(ARM_BAND_W - 0.02, 0.14, 0.14).translate(-ARM_BAND_W * (i + 0.5), 0, 0);
+const armDarkGeo = mergeGeometries([armBand(0), armBand(2)]);
+const armLightGeo = mergeGeometries([armBand(1), armBand(3)]);
+const armTipGeo = new BoxGeometry(0.18, 0.18, 0.18).translate(-ARM_LEN, 0, 0);
 const beaconGeo = new IcosahedronGeometry(0.1, 1);
 
 export default function Certify({ place, near: nearProp }) {
@@ -117,7 +123,7 @@ export default function Certify({ place, near: nearProp }) {
     const targetAngle = refused ? Math.sin(tt * 6) * 2 * DEG : side * MAX_TIP;
     const targetBubble = refused ? 0.85 : 0.28;
     const targetGate = refused ? 0 : 1;
-    const targetIce = refused ? 0.5 : 0;
+    const targetIce = refused ? 0.5 : 0.14; // a resting glimmer so the cargo reads against the pan even while settled
     const targetWindow = refused ? 0.35 : Math.max(0, 1 - tt / 0.4); // a bright flash as it settles, an ember while refused
 
     a.angle += (targetAngle - a.angle) * damp(near ? 7 : 4.5, dt);
@@ -152,7 +158,8 @@ export default function Certify({ place, near: nearProp }) {
       <mesh geometry={windowGeo} material={matWindow} position={[BOOTH_X, 1.05, BOOTH_Z + BOOTH_D / 2 + 0.03]} />
 
       <group ref={gateRef} position={[GATE_X, GATE_POST_H, GATE_Z]}>
-        <mesh geometry={armBarGeo} material={matCharcoal} castShadow />
+        <mesh geometry={armDarkGeo} material={matCharcoal} castShadow />
+        <mesh geometry={armLightGeo} material={matWarmWhite} castShadow />
         <mesh geometry={armTipGeo} material={matAccent} castShadow />
       </group>
       <mesh ref={beaconRef} geometry={beaconGeo} material={matBeacon} position={[GATE_X, GATE_POST_H + 0.24, GATE_Z]} />

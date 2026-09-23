@@ -132,20 +132,32 @@ export default function Link({ place }) {
     const byY = ANCHOR_Y - sep;
     if (ringBRef.current) ringBRef.current.position.y = byY;
 
-    const glowMul = 1 + 1.2 * boost;
-    const intensity = (0.6 + 2.1 * glowK) * glowMul;
+    // at rest the crossing is a faint pinprick, the way the landing figure's
+    // stills show no lit dot at all; it only swells into a real mark while
+    // the rings are held taut (glowK -> 1), same as the figure's own comment
+    // ("the light swells while the rings are held taut").
+    const glowMul = 1 + 0.4 * boost;
+    const intensity = (0.12 + 2.6 * glowK) * glowMul;
     markMat.emissiveIntensity = intensity;
     gaugeMat.emissiveIntensity = intensity;
     const s = 0.8 + 0.9 * glowK;
     if (markARef.current) markARef.current.scale.setScalar(s);
     if (markBRef.current) { markBRef.current.scale.setScalar(s); markBRef.current.position.y = byY + R; }
-    if (markAGlowRef.current) markAGlowRef.current.scale.setScalar(s * (2.6 + 2 * glowK));
-    if (markBGlowRef.current) { const gs = s * (2.6 + 2 * glowK); markBGlowRef.current.scale.setScalar(gs); markBGlowRef.current.position.y = byY + R; }
+    // the halo hugs the crossing itself (fig.js: "lit ... in the gap under
+    // its over strand") -- it must never grow past the tube it sits on, or
+    // it reads as the whole ring glowing instead of one certified crossing.
+    if (markAGlowRef.current) markAGlowRef.current.scale.setScalar(s * (1.1 + 0.5 * glowK));
+    if (markBGlowRef.current) { const gs = s * (1.1 + 0.5 * glowK); markBGlowRef.current.scale.setScalar(gs); markBGlowRef.current.position.y = byY + R; }
     if (gaugeGlowRef.current) gaugeGlowRef.current.scale.set(1, 1 + 0.6 * glowK, 1 + 0.6 * glowK);
 
     // the whole rig sways gently, like something genuinely hanging
     const sx = Math.sin(swing) * 0.05;
-    [ringAYawRef, markARef, markAGlowRef, ringBRef, markBRef, markBGlowRef].forEach((r) => { if (r.current) r.current.position.x = sx; });
+    if (ringAYawRef.current) ringAYawRef.current.position.x = sx;
+    if (markARef.current) markARef.current.position.x = sx;
+    if (markAGlowRef.current) markAGlowRef.current.position.x = sx;
+    if (ringBRef.current) ringBRef.current.position.x = sx;
+    if (markBRef.current) markBRef.current.position.x = sx;
+    if (markBGlowRef.current) markBGlowRef.current.position.x = sx;
   });
 
   return (

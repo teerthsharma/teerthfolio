@@ -61,6 +61,8 @@ const PILE = [0, 1.3]; // the collapse point: toward the dock, between tower and
 const BULB_R = 0.42, BULB_Y = LAMP_Y + LAMP_H / 2; // the beacon ring inside the lamp room
 const BOUND_R = 1.0, BOUND_Y = GALLERY_Y + GALLERY_H + 0.1; // the five proved-bound lamps
 const BOUND_N = 5;
+const RAIL_R = GALLERY_R * 0.97, RAIL_Y = GALLERY_Y + GALLERY_H + 0.09, RAIL_N = 10; // gallery railing: reads "lighthouse" in silhouette
+const FLARE_MAX = 1.5; // the collapse flare's tallest rise, at full pile load
 
 const HOLD = 2.4, MORPH = 1.1, STAGE_T = HOLD + MORPH, LOOP_T = STAGE_T * 4;
 const smoothstep = (x) => x * x * (3 - 2 * x);
@@ -102,6 +104,14 @@ export default function Caustic({ place }) {
     }
     return pts;
   }, []);
+  const railAt = useMemo(() => {
+    const pts = [];
+    for (let k = 0; k < RAIL_N; k++) {
+      const a = (k / RAIL_N) * TAU;
+      pts.push([Math.sin(a) * RAIL_R, Math.cos(a) * RAIL_R, a]);
+    }
+    return pts;
+  }, []);
 
   // Materials: bodies stay near-neutral, the accent carries the windows,
   // the bands and the collapse point; the threads are unlit light, additive
@@ -115,6 +125,10 @@ export default function Caustic({ place }) {
   const gaugeMat = useMemo(() => lamp(accent, 1.15), [accent]);
   const pileMat = useMemo(() => mat(accent, { emissive: accent, emissiveIntensity: 1, roughness: 0.4 }).clone(), [accent]);
   const pileHalo = useMemo(() => glow(accent, 0.3), [accent]);
+  // The climax of the whole story: when most threads collapse onto the pile,
+  // a flare rises off it so the bad state reads from as far as the good one
+  // does, not just as one brighter dot at the tower's foot.
+  const flareMat = useMemo(() => glow(accent, 0.5), [accent]);
   // Per-instance tint comes from instanceColor alone (three applies it to any
   // instancedMesh automatically): the material must NOT also set
   // vertexColors, or it looks for a per-vertex "color" attribute these plain
@@ -128,7 +142,9 @@ export default function Caustic({ place }) {
   const markerRef = useRef();
   const bulbRef = useRef();
   const boundRef = useRef();
+  const railRef = useRef();
   const pileRef = useRef();
+  const flareRef = useRef();
   const lampRoomRef = useRef();
 
   const dummy = useMemo(() => new Object3D(), []);
@@ -173,6 +189,22 @@ export default function Caustic({ place }) {
     }
     mesh.instanceMatrix.needsUpdate = true;
   }, [boundAt, dummy]);
+
+  // The gallery railing: short chunky posts round the deck's rim, standing
+  // in never changing (a real railing, not part of the story). Set once.
+  useLayoutEffect(() => {
+    const mesh = railRef.current;
+    if (!mesh) return;
+    for (let k = 0; k < RAIL_N; k++) {
+      const [x, z, a] = railAt[k];
+      dummy.position.set(x, RAIL_Y, z);
+      dummy.rotation.set(0, -a, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(k, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [railAt, dummy]);
 
   useFrame((_, dt) => {
     const speed = near ? 1.8 : 1;
@@ -237,6 +269,14 @@ export default function Caustic({ place }) {
     const pileLoad = (PILE_LOAD[prev] + (PILE_LOAD[stage] - PILE_LOAD[prev]) * morphT) / NE;
     pileMat.emissiveIntensity = 0.6 + pileLoad * 2.2 + (near ? 0.4 : 0) + Math.sin(clockRef.current * 4) * 0.12 * (0.3 + pileLoad);
     if (pileRef.current) pileRef.current.scale.setScalar(0.7 + pileLoad * 0.6);
+    // the climax flare: a column that only rises once most threads have
+    // actually collapsed (pileLoad above half), so the story's bad state is
+    // as legible from the dock as the good one's spread of distinct beams.
+    if (flareRef.current) {
+      const rise = Math.max(0, pileLoad - 0.5) * 2; // 0 below half load, 0..1 above it
+      flareRef.current.scale.set(1, FLARE_MAX * rise * (0.85 + Math.sin(clockRef.current * 5) * 0.15), 1);
+      flareRef.current.visible = rise > 0.02;
+    }
 
     if (lampRoomRef.current) lampRoomRef.current.rotation.y += dt * (near ? 1.5 : 0.7);
   });
@@ -281,6 +321,9 @@ export default function Caustic({ place }) {
       <instancedMesh ref={boundRef} args={[undefined, glowMat, BOUND_N]}>
         <sphereGeometry args={[1, 10, 8]} />
       </instancedMesh>
+      <instancedMesh ref={railRef} args={[undefined, footMat, RAIL_N]} castShadow>
+        <boxGeometry args={[0.05, 0.16, 0.05]} />
+      </instancedMesh>
 
       {/* lamp room: a slowly turning glass drum around the fixed beacon ring */}
       <group ref={lampRoomRef} position={[0, LAMP_Y + LAMP_H / 2, 0]}>
@@ -316,6 +359,9 @@ export default function Caustic({ place }) {
         </mesh>
         <mesh position={[0, 0.14, 0]} material={pileHalo} scale={1.6}>
           <sphereGeometry args={[0.28, 10, 6, 0, TAU, 0, Math.PI / 2]} />
+        </mesh>
+        <mesh ref={flareRef} position={[0, 0.16, 0]} material={flareMat} visible={false} frustumCulled={false}>
+          <coneGeometry args={[0.16, 1, 10, 1, true]} />
         </mesh>
       </group>
     </group>

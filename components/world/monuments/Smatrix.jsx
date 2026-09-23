@@ -126,11 +126,12 @@ export default function Smatrix({ place, near: nearProp }) {
   // pick up the polar daylight and read as a pale wall, not a glowing panel.
   const sumMat = useMemo(() => mat("#241636", { emissive: VIOLET_HEX, emissiveIntensity: 1, roughness: 0.5 }).clone(), []);
   const scanMat = useMemo(() => glow(VIOLET_HEX, 0.5).clone(), []);
-  const ventMat = useMemo(() => lamp(place.color, 0.8).clone(), [place.color]);
+  const ventMat = useMemo(() => lamp(place.radiation ?? place.color, 0.8).clone(), [place.radiation, place.color]);
 
+  const accent = place.radiation ?? place.color;
   const wall = mat(C.warmWhite, { roughness: 0.75 });
   const frame = mat(C.charcoal, { roughness: 0.6 });
-  const edge = mat(place.color, { roughness: 0.4 });
+  const edge = mat(accent, { roughness: 0.4 });
   // unlit, not a real dielectric: a low-roughness standard material here
   // catches the sun disc as a hard streak and washes the case out behind it.
   const glass = useMemo(

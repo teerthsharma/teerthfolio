@@ -20,12 +20,20 @@
 // the way this project does it. A scan gauge sweeps the rack left to right,
 // the same growing scale the figure sweeps through: pieces grow as rods
 // from their birth point for exactly as long as they survive the sweep, the
-// two long ones glowing radiation-colour, the four short ones staying dim
-// ice, greyed noise. Above the rack, two portholes in the wall -- the two
-// loops -- iris open on the same scale and shut when their bar ends: a hole
-// opening, not a rod extending, the way the source figure's own holes glow
-// and fill. The gauge then holds, the whole rack and both portholes shrink
-// back to nothing, and it sweeps again. Faster and brighter near the seal.
+// two long ones glowing mint, the four short ones staying dim ice, greyed
+// noise. Above the rack, two portholes in the wall -- the two loops -- iris
+// open on the same scale and glow violet, shutting when their bar ends: a
+// hole opening, not a rod extending, the way the source figure's own holes
+// glow and fill. The gauge itself is the cut, so it runs coral -- fig.js's
+// own cut() comment: "Mint is always a piece, violet always a loop, and
+// coral is only ever the cut." The gauge then holds, the whole rack and
+// both portholes shrink back to nothing, and it sweeps again. Faster and
+// brighter near the seal.
+//
+// Colours are the figure's own (site.css --mint-500 / --violet-500 /
+// --coral-500), not the radiation accent, which marks the building itself
+// instead (trim, the roof lantern) -- same split Grant.jsx and Refuse.jsx
+// use.
 //
 // No words: every claim is a number or a name, not a shape a 3D letter
 // could carry without inventing one, so the story is told in shapes only.
@@ -61,6 +69,13 @@ import {
 // 3.42 m from the local origin unscaled, so 0.83 brings that under 3 m with
 // a margin, while keeping every dimension below tuned proportionally.
 const SCALE = 0.83;
+
+// fig.js's own tokens for this figure (site.css --mint-500 / --violet-500 /
+// --coral-500), kept exact: the figure's semantic colours, not the org/
+// radiation accent, which marks the building instead (trim, lantern).
+const MINT = "#0b93ab"; // a surviving piece (H0)
+const VIOLET = "#a66cf0"; // a surviving loop (H1)
+const CORAL = "#d9376e"; // the cut, and only the cut
 
 const GABLE_X = 2.4;
 const GABLE_DEPTH = 0.3;
@@ -153,6 +168,9 @@ const TRIM_GEO = mergeGeometries(
 const SLAB_GEO = new BoxGeometry(5.4, 0.3, 3.6).translate(0, 0.15, 0);
 const GAUGE_GEO = new BoxGeometry(0.12, 2.0, 0.6);
 const GAUGE_GLOW_GEO = new BoxGeometry(0.16, 2.3, 0.75);
+// A soft halo shell round the roof lantern, the same box-glow pairing as
+// the gauge above.
+const LANTERN_GLOW_GEO = new BoxGeometry(1.6, 0.5, 0.6);
 
 // Unit-length cylinder, axis along local +X, running 0..1 -- so scale.x is
 // directly a piece's current visible length in metres, and position.x is
@@ -173,17 +191,21 @@ export default function Cut({ place }) {
   const charcoalMat = useMemo(() => mat(C.charcoal), []);
   const iceMat = useMemo(() => mat(C.ice), []);
   const trimMat = useMemo(() => mat(A, { roughness: 0.55 }), [A]);
-  const gaugeMat = useMemo(() => lamp(A, 1.5), [A]);
-  const gaugeGlowMat = useMemo(() => glow(A), [A]);
+  // The gauge is the cut itself, so it runs coral, fig.js's own colour for
+  // it -- never the radiation accent.
+  const gaugeMat = useMemo(() => lamp(CORAL, 1.5), []);
+  const gaugeGlowMat = useMemo(() => glow(CORAL), []);
   // The lantern brightens near the seal, so it needs its own clone to mutate.
   const lanternMat = useMemo(() => lamp(A, 0.9).clone(), [A]);
-  // Pieces that cross the cut glow and need their own material to brighten
-  // as they grow; noise never changes and shares one cached, unlit material.
+  const lanternGlowMat = useMemo(() => glow(A, 0.3), [A]);
+  // Pieces that cross the cut glow mint and need their own material to
+  // brighten as they grow; noise never changes and shares one cached,
+  // unlit material.
   const coreMats = useMemo(
-    () => CORES.map((c) => (c.kind === "noise" ? mat(C.ice, { roughness: 0.3 }) : lamp(A, 0.4).clone())),
-    [A],
+    () => CORES.map((c) => (c.kind === "noise" ? mat(C.ice, { roughness: 0.3 }) : lamp(MINT, 0.4).clone())),
+    [],
   );
-  const loopMats = useMemo(() => LOOPS.map(() => lamp(A, 0.8).clone()), [A]);
+  const loopMats = useMemo(() => LOOPS.map(() => lamp(VIOLET, 0.8).clone()), []);
 
   const gaugeRef = useRef(null);
   const coreRefs = useRef([]);
@@ -264,6 +286,7 @@ export default function Cut({ place }) {
       <mesh castShadow position={[0, 5.0, -0.7]} material={lanternMat}>
         <boxGeometry args={[1.4, 0.4, 0.5]} />
       </mesh>
+      <mesh position={[0, 5.0, -0.7]} geometry={LANTERN_GLOW_GEO} material={lanternGlowMat} />
 
       <group ref={gaugeRef} position={[SWEEP_X0, 1.15, 1.45]}>
         <mesh castShadow geometry={GAUGE_GEO} material={gaugeMat} />

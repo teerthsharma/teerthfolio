@@ -25,21 +25,25 @@ export const PIVOT = {
 // Skull radii (x, y, z) before the cheeks and snout swell it.
 export const SKULL = [0.52, 0.47, 0.5];
 export const EYE_R = 0.13;
-const EYE_DEPTH = 0.55; // the eye is a lens, flattened along its axis
+// The eye is a lens, flattened along its axis and sunk into the skull, so it
+// bulges only ~1.4 cm: a far eye never pokes past the head's silhouette.
+const EYE_DEPTH = 0.3;
+const EYE_SINK = 0.025;
 
-// Fore-flippers at rest (rad), Euler order YZX: (twist, back, -down).
-export const FLIPPER_REST = { back: 0.45, down: 0.32 };
+// Fore-flippers at rest (rad), Euler order YZX: (twist, back, -down). Splayed
+// out like a starfish, tips on the snow: the old pup's triangle silhouette.
+export const FLIPPER_REST = { back: 0.3, down: 0.3 };
 
 const COL = {
-  dorsal: new Color("#aac3df"), // pale ice-blue crown and saddle: the read on white snow
-  flank: new Color("#e4edf6"), // ice-white coat
+  dorsal: new Color("#86aad6"), // the old pup's blue on crown and saddle: body value against the snow
+  flank: new Color("#d3e2f1"), // ice-white coat
   belly: new Color("#f8eee0"), // warm ivory underside, face and chin
   pad: new Color("#f0d9bd"),
   freckle: new Color("#76614f"),
   ink: new Color("#20232c"),
   navy: new Color("#33456b"), // the glow low in each eye
-  flipper: new Color("#95adcb"),
-  tip: new Color("#6d8bb0"),
+  flipper: new Color("#7d9dc7"),
+  tip: new Color("#5a7aa8"),
   blush: new Color("#f7909f"),
   rose: new Color("#a3405a"),
   tongue: new Color("#ec7f8e"),
@@ -99,7 +103,7 @@ const place = (g, q, p) => g.applyQuaternion(q).translate(p.x, p.y, p.z);
 
 // The skull surface along unit direction d (head frame): an ellipsoid with
 // chubby cheeks low on each side and a snout swelling under the eyes.
-function skullPoint(d, out) {
+export function skullPoint(d, out) {
   const cheeks = gauss(d, 0.55, -0.55, 0.63, 0.4) + gauss(d, -0.55, -0.55, 0.63, 0.4);
   const snout = gauss(d, 0, -0.42, 0.9, 0.4);
   return out.set(d.x * SKULL[0], d.y * SKULL[1], d.z * SKULL[2]).addScaledVector(d, 0.06 * cheeks + 0.07 * snout);
@@ -131,10 +135,10 @@ export const MOUTH = [0, -0.315, 0.485]; // open mouth centre, head frame
 
 function head() {
   const d = new Vector3();
-  const parts = [paint(blob(48, 36, (q) => skullPoint(d.copy(q).normalize(), q)), headCoat)];
+  const parts = [paint(blob(44, 30, (q) => skullPoint(d.copy(q).normalize(), q)), headCoat)];
   for (const [i, s] of [1, -1].entries()) {
     const pad = PAD[i];
-    parts.push(paint(blob(16, 10, (q) => q.multiplyScalar(PAD_R).add(pad)), solid(COL.pad)));
+    parts.push(paint(blob(14, 9, (q) => q.multiplyScalar(PAD_R).add(pad)), solid(COL.pad)));
     // Freckles, the whisker spots, on the front of each pad.
     const base = new Vector3(s * 0.45, -0.2, 0.87).normalize();
     const u = new Vector3(0, 1, 0).cross(base).normalize();
@@ -153,7 +157,7 @@ function head() {
     const cheek = surface(new Vector3(s * 0.6, -0.42, 0.68));
     const rim = new Color();
     headCoat(null, cheek.normal, rim);
-    const blush = paint(blob(16, 10, (q) => q.set(q.x * 0.1, q.y * 0.062, q.z * 0.012)), (p, q, out) =>
+    const blush = paint(blob(12, 6, (q) => q.set(q.x * 0.1, q.y * 0.062, q.z * 0.012)), (p, q, out) =>
       out.copy(rim).lerp(COL.blush, 0.8 * (1 - smooth(0.35, 1, Math.hypot(p.x / 0.1, p.y / 0.062)))));
     parts.push(place(blush, frameOn(cheek.normal), cheek.p.addScaledVector(cheek.normal, 0.003)));
   }
@@ -172,7 +176,7 @@ function head() {
 function eyeFrames() {
   return EYE_DIR.map((dir, i) => {
     const { p, normal } = surface(dir);
-    return { side: i ? -1 : 1, surface: p, normal, quaternion: frameOn(normal), center: p.clone().addScaledVector(normal, -0.035) };
+    return { side: i ? -1 : 1, surface: p, normal, quaternion: frameOn(normal), center: p.clone().addScaledVector(normal, -EYE_SINK) };
   });
 }
 
@@ -190,19 +194,23 @@ function lens(e) {
 function glints(e) {
   return [[0.042, -0.046, 0.048], [0.02, 0.052, -0.05]].map(([r, x, y]) => {
     const z = EYE_DEPTH * Math.sqrt(EYE_R * EYE_R - x * x - y * y);
-    const g = blob(10, 7, (q) => q.set(q.x * r + x, q.y * r + y, q.z * r * 0.35 + z));
+    const g = blob(10, 7, (q) => q.set(q.x * r + x, q.y * r + y, q.z * r * 0.2 + z));
     return place(g, e.quaternion, e.center);
   });
 }
 
-// ^^ eyes for happy: a bold ink arch over where each eye sits.
-function happyEye(e) {
-  const g = new TorusGeometry(0.085, 0.027, 8, 18, Math.PI - 0.5);
+// Ink arcs lying on the face where each eye sits: ^^ for happy (an arch),
+// and the softly closed eye (a shallow curve, lower, like a smile) for a
+// blink, a hard bump and the meditation.
+function eyeArc(e, radius, arc, spin, y) {
+  const g = new TorusGeometry(radius, 0.025, 8, 18, arc);
   g.deleteAttribute("uv");
-  g.rotateZ(0.25).translate(0, -0.03, 0);
+  g.rotateZ(spin).translate(0, y, 0);
   paint(g, solid(COL.ink));
   return place(g, e.quaternion, e.surface.clone().addScaledVector(e.normal, 0.012));
 }
+const happyEye = (e) => eyeArc(e, 0.085, Math.PI - 0.5, 0.25, -0.03);
+const shutEye = (e) => eyeArc(e, 0.14, 1.5, -Math.PI / 2 - 0.75, 0.1);
 
 // ---------------------------------------------------------------- the body
 
@@ -236,7 +244,7 @@ function profile(z) {
 function coat(p, q, out) {
   const [, top, bottom] = profile(p.z);
   const up = (2 * p.y - top - bottom) / (top - bottom);
-  out.copy(COL.flank).lerp(COL.dorsal, smooth(0.25, 0.9, up));
+  out.copy(COL.flank).lerp(COL.dorsal, smooth(0.05, 0.8, up));
   out.lerp(COL.belly, smooth(-0.1, -0.6, up));
 }
 
@@ -254,12 +262,12 @@ function body(z0, z1) {
 }
 
 // Left fore-flipper in its own frame: root at the origin, reaching along +x,
-// short and wide, the tip curling up a little so it lies on the snow.
+// a long broad paddle, the tip curling up a little so it lies on the snow.
 function flipper() {
-  return paint(blob(20, 12, (q) => {
+  return paint(blob(22, 12, (q) => {
     const t = (q.x + 1) * 0.5;
-    return q.set(-0.06 + t * 0.52, q.y * (0.075 - 0.02 * t) + 0.06 * t * t, q.z * (0.165 - 0.035 * t));
-  }), (p, q, out) => out.copy(COL.flipper).lerp(COL.tip, smooth(0.12, 0.42, p.x)));
+    return q.set(-0.06 + t * 0.74, q.y * (0.075 - 0.02 * t) + 0.06 * t * t, q.z * (0.2 - 0.07 * t));
+  }), (p, q, out) => out.copy(COL.flipper).lerp(COL.tip, smooth(0.2, 0.6, p.x)));
 }
 
 // Hind flippers: two little lobes in a 50-degree V, in the tail's frame,
@@ -295,6 +303,7 @@ export function buildSealD() {
     lenses: back(mergeGeometries(eyes.map(lens))),
     glints: back(mergeGeometries(eyes.flatMap(glints))),
     happyEyes: mergeGeometries(eyes.map(happyEye)),
+    shutEyes: mergeGeometries(eyes.map(shutEye)),
     mouth: mouth(),
     eyePivot,
   };

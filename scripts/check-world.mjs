@@ -1,8 +1,9 @@
 // The rules the island has to keep, checked against the real motion code.
 // Run: npm run check
 
-import { LAND_COLLIDERS } from "../lib/world/land.js";
+import { LAND_COLLIDERS, PATHS, SIGNPOSTS } from "../lib/world/land.js";
 import assert from "node:assert/strict";
+import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, riverAt, waterGap } from "../lib/world/river.js";
@@ -115,6 +116,98 @@ for (const a of DISTRICTS) {
   for (const b of DISTRICTS) {
     if (a === b) continue;
     assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= a.radius + b.radius, `${a.name}'s radioactive area overlaps ${b.name}`);
+  }
+}
+
+// Radiation: every place on the island is radioactive, the igloo and the
+// landforms as much as the lab buildings. Every area has a radiation colour
+// that reads as a glow on warm-white snow (saturated, and darker than the
+// snow), hot spots on the island, and a hue its neighbours (areas within
+// 25 m, edge to edge) do not share; a place glows in its own area's colour.
+{
+  const hsl = {};
+  const hueOf = (hex) => new Color(hex).getHSL(hsl, SRGBColorSpace).h * 360;
+  const luminance = (hex) => {
+    const c = new Color(hex); // three converts sRGB hex to linear, which is what luminance weighs
+    return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  };
+  for (const d of DISTRICTS) {
+    assert.match(d.radiation ?? "", /^#[0-9a-f]{6}$/i, `${d.name} is not radioactive`);
+    new Color(d.radiation).getHSL(hsl, SRGBColorSpace);
+    assert.ok(hsl.s >= 0.5 && luminance(d.radiation) <= 0.6, `${d.name}'s radiation ${d.radiation} does not read on the snow`);
+    assert.ok(d.hot?.length > 0, `${d.name} has no hot spot`);
+    for (const [x, z] of d.hot) assert.ok(Math.hypot(x, z) < ISLAND_RADIUS, `${d.name}'s hot spot ${x}, ${z} is off the island`);
+    for (const e of DISTRICTS) {
+      if (e === d || Math.hypot(d.x - e.x, d.z - e.z) - d.radius - e.radius >= 25) continue;
+      const gap = Math.abs(hueOf(d.radiation) - hueOf(e.radiation));
+      assert.ok(Math.min(gap, 360 - gap) >= 20, `${d.name} and its neighbour ${e.name} glow in the same hue`);
+    }
+  }
+  for (const p of PLACES) assert.equal(p.radiation, p.district.radiation, `${p.id} does not glow in its area's colour`);
+}
+
+// Geology: the river runs south between Mount MujoRush (west) and the Google
+// range (east): from its source to the reservoir, every point of its course
+// lies east of every MujoRush reading point and west of every Google one.
+{
+  const west = PLACES.filter((p) => p.district.id === "mujorush");
+  const east = PLACES.filter((p) => p.district.id === "highway" || p.district.id === "xnnpack");
+  assert.ok(west.length === 3 && east.length === 2, "Mount MujoRush and the Google range are not where the river runs");
+  const reservoir = RIVER.points.reduce((best, [x, z], i, all) => (Math.hypot(x - RESERVOIR.x, z - RESERVOIR.z) < Math.hypot(all[best][0] - RESERVOIR.x, all[best][1] - RESERVOIR.z) ? i : best), 0);
+  for (const [x, z] of RIVER.points.slice(0, reservoir + 1)) {
+    assert.ok(west.every((p) => x > p.x) && east.every((p) => x < p.x), `the river at ${x}, ${z} is not between Mount MujoRush and the Google range`);
+  }
+}
+
+// Trails: every path (lib/world/land.js PATHS, drawn 2.2 m wide along the
+// same curve) stays on the island, off the name in the snow, clear of every
+// place and landform, and dry, except on a bridge deck; every dock is on a
+// path; every bridge carries a path over water; every signpost stands dry,
+// beside a path, off every place and dock, pointing at real places.
+{
+  const HALF = 1.1;
+  const flowHere = {};
+  const onDeck = (b, x, z) => {
+    riverAt(b.x, b.z, flowHere);
+    const f = Math.hypot(flowHere.flowX, flowHere.flowZ) || 1;
+    const dx = x - b.x;
+    const dz = z - b.z;
+    const along = Math.abs((dx * flowHere.flowX + dz * flowHere.flowZ) / f);
+    const across = Math.abs((-dx * flowHere.flowZ + dz * flowHere.flowX) / f);
+    return along <= b.width / 2 - 0.3 && across <= flowHere.half + 1.5;
+  };
+  const samples = [];
+  PATHS.forEach((wp, i) => {
+    const curve = new CatmullRomCurve3(wp.map(([x, z]) => new Vector3(x, 0, z)));
+    for (const { x, z } of curve.getPoints(63)) {
+      const at = `path ${i} at ${x.toFixed(1)}, ${z.toFixed(1)}`;
+      samples.push({ x, z });
+      assert.ok(Math.hypot(x, z) < ISLAND_RADIUS - 3, `${at} runs off the island`);
+      assert.ok(!(x > -9 - HALF && x < 9 + HALF && z > 1.5 - HALF && z < 4.5 + HALF), `${at} runs over the name in the snow`);
+      for (const p of PLACES) assert.ok(Math.hypot(x - p.x, z - p.z) >= p.radius + HALF, `${at} runs into ${p.id}`);
+      for (const c of LAND_COLLIDERS) assert.ok(Math.hypot(x - c.x, z - c.z) >= c.radius + HALF, `${at} runs into ${c.land}'s bulk at ${c.x}, ${c.z}`);
+      assert.ok(waterGap(x, z) >= HALF + 0.3 || RIVER.bridges.some((b) => onDeck(b, x, z)), `${at} runs into the water off any bridge`);
+    }
+  });
+  const nearest = (x, z) => Math.min(...samples.map((s) => Math.hypot(s.x - x, s.z - z)));
+  for (const p of PLACES) {
+    const dock = dockPoint(p);
+    assert.ok(nearest(dock.x, dock.z) <= 1.5, `${p.id}'s dock is on no path`);
+  }
+  for (const b of RIVER.bridges) {
+    assert.ok(riverAt(b.x, b.z).inside, `${b.name} does not stand over water`);
+    assert.ok(samples.some((s) => waterGap(s.x, s.z) < 0 && onDeck(b, s.x, s.z)), `no path crosses ${b.name}`);
+  }
+  for (const s of SIGNPOSTS) {
+    const at = `the signpost at ${s.x}, ${s.z}`;
+    for (const id of s.to) assert.ok(PLACE_BY_ID[id], `${at} points at ${id}, which is not a place`);
+    assert.ok(waterGap(s.x, s.z) > 1, `${at} stands in the water`);
+    const d = nearest(s.x, s.z);
+    assert.ok(d >= HALF + 0.3 && d <= 4, `${at} is ${d.toFixed(1)} m from its path`);
+    for (const p of PLACES) {
+      const dock = dockPoint(p);
+      assert.ok(Math.hypot(s.x - p.x, s.z - p.z) >= p.radius + 1.5 && Math.hypot(s.x - dock.x, s.z - dock.z) >= 2, `${at} stands on ${p.id}`);
+    }
   }
 }
 
@@ -395,4 +488,4 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   assert.equal(dryland.water, 0, "the seal is wet at spawn");
 }
 
-console.log(`world check passed: ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride`);
+console.log(`world check passed: ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride`);

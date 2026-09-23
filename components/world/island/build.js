@@ -19,29 +19,49 @@ import {
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { LAND_COLLIDERS, PATHS, SIGNPOSTS } from "../../../lib/world/land";
 import { dockPoint, ISLAND_RADIUS, PLACE_BY_ID, PLACES, SPAWN } from "../../../lib/world/places";
+import { RIVER, riverAt, waterGap } from "../../../lib/world/river";
 import { mulberry32 } from "../life/spawn";
 import { C } from "../palette";
 
 const SEED = 20260923;
 const R = ISLAND_RADIUS;
 
-// Same off-limits rule life/spawn.js's forbidden() enforces for props: clear
-// of every place (+4 m), every dock (+3 m), spawn (+6 m) and the letters.
-function offLimits(x, z) {
-  for (const place of PLACES) {
-    if (Math.hypot(x - place.x, z - place.z) < place.radius + 4) return true;
-    const dock = dockPoint(place);
-    if (Math.hypot(x - dock.x, z - dock.z) < 3) return true;
+// Every sample point along every path (lib/world/land.js PATHS), the same
+// curve buildRibbon draws.
+export function pathSamples() {
+  const out = [];
+  for (const wp of PATHS) {
+    const curve = new CatmullRomCurve3(wp.map(([x, z]) => new Vector3(x, 0, z)));
+    for (const p of curve.getPoints(63)) out.push({ x: p.x, z: p.z });
   }
-  if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 6) return true;
-  if (x > -9 && x < 9 && z > 1.5 && z < 4.5) return true;
+  return out;
+}
+let PATH_SAMPLES = null;
+
+// Decor stays on open snow: clear of every place (+4 m), every dock (+3 m),
+// spawn (+6 m), the letters, every landform's bulk (+2 m), the water (+2 m)
+// and the paths (+2.2 m). `pad` (a decor piece's own radius) widens them all.
+function offLimits(x, z, pad = 0) {
+  for (const place of PLACES) {
+    if (Math.hypot(x - place.x, z - place.z) < place.radius + 4 + pad) return true;
+    const dock = dockPoint(place);
+    if (Math.hypot(x - dock.x, z - dock.z) < 3 + pad) return true;
+  }
+  if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 6 + pad) return true;
+  if (x > -9 - pad && x < 9 + pad && z > 1.5 - pad && z < 4.5 + pad) return true;
+  for (const c of LAND_COLLIDERS) if (Math.hypot(x - c.x, z - c.z) < c.radius + 2 + pad) return true;
+  if (waterGap(x, z) < 2 + pad) return true;
+  PATH_SAMPLES ??= pathSamples();
+  for (const p of PATH_SAMPLES) if (Math.hypot(x - p.x, z - p.z) < 2.2 + pad) return true;
   return false;
 }
 
-// Seeded points in an annulus [rMin, rMax], clear of offLimits() and of each
-// other by `gap`. Used for decor that should scatter on open snow.
-function annulusPoints(count, seed, rMin, rMax, gap, avoid = []) {
+// Seeded points in an annulus [rMin, rMax], clear of offLimits() (widened
+// by `pad`) and of each other by `gap`. Used for decor that should scatter
+// on open snow.
+function annulusPoints(count, seed, rMin, rMax, gap, avoid = [], pad = 0) {
   const rand = mulberry32(seed);
   const taken = avoid.slice();
   const points = [];
@@ -54,8 +74,9 @@ function annulusPoints(count, seed, rMin, rMax, gap, avoid = []) {
       const a = rand() * Math.PI * 2;
       x = Math.cos(a) * r;
       z = Math.sin(a) * r;
-      ok = !offLimits(x, z) && taken.every((t) => Math.hypot(x - t.x, z - t.z) >= gap);
+      ok = !offLimits(x, z, pad) && taken.every((t) => Math.hypot(x - t.x, z - t.z) >= gap);
     }
+    if (!ok) continue; // no room left: one piece fewer, never one in the water or on a path
     points.push({ x, z });
     taken.push({ x, z });
   }
@@ -88,9 +109,11 @@ function paint(geometry, hex) {
 function buildSnowSmooth() {
   const rand = mulberry32(SEED + 1);
   const drifts = [];
-  // 5 in the rim band, 3 in the open gaps between neighbourhoods.
-  for (const [n, rMin, rMax] of [[5, 34, 41], [3, 15, 30]]) {
-    for (const { x, z } of annulusPoints(n, SEED + 1 + rMin, rMin, rMax, 7, drifts)) {
+  // 6 in the rim band, 5 in the open snow between the areas.
+  const taken = [];
+  for (const [n, rMin, rMax] of [[6, 62, 78], [5, 16, 58]]) {
+    for (const { x, z } of annulusPoints(n, SEED + 1 + rMin, rMin, rMax, 9, taken, 4)) {
+      taken.push({ x, z });
       const radius = 3 + rand() * 3;
       const geo = new SphereGeometry(radius, 14, 10).toNonIndexed();
       geo.scale(1, 0.1, 1);
@@ -171,14 +194,16 @@ function buildIceberg(cx, cz, radius, height) {
 }
 
 function buildRockBatch() {
+  // Out in the south and west sea: the north coast is Triton's and the
+  // Google range's, rising out of the water there.
   const icebergs = [
-    buildIceberg(-48, -72, 7, 10),
-    buildIceberg(62, -66, 9, 12),
-    buildIceberg(-82, -12, 5, 7),
+    buildIceberg(-88, 22, 5, 7),
+    buildIceberg(60, 72, 7, 10),
+    buildIceberg(-44, 82, 6, 8),
   ];
 
   const rand = mulberry32(SEED + 3);
-  const rockPts = annulusPoints(5, SEED + 3, 38, 42, 3.5);
+  const rockPts = annulusPoints(8, SEED + 3, 70, 79, 6, [], 1.6);
   const rocks = rockPts.map(({ x, z }) => {
     const radius = 0.8 + rand() * 0.8;
     const geo = new IcosahedronGeometry(radius, 0).toNonIndexed();
@@ -254,7 +279,7 @@ function buildFoam() {
 
 function buildBoulders() {
   const rand = mulberry32(SEED + 5);
-  const points = annulusPoints(14, SEED + 5, 8, 40, 3);
+  const points = annulusPoints(24, SEED + 5, 10, 78, 5, [], 1.4);
   const ice = [];
   const deepIce = [];
   points.forEach(({ x, z }, i) => {
@@ -268,34 +293,8 @@ function buildBoulders() {
 }
 
 // ---- paths and dock pads, one flat C.path mesh -----------------------------
-
-// Every waypoint list below passed verification/W-path-check.mjs (every
-// sample stays outside place.radius + 0.5 and off the letters). Where the
-// spec's own waypoints cut a corner into a place, a waypoint was added
-// (never a place moved) to swing the Catmull-Rom curve wide of it.
-const CENTRE_PATH = [[0, 7.2], [-10, 7], [-10.5, 0.5], [0, -2.2]];
-const PATHS = [
-  CENTRE_PATH,
-  [[-5, -2.5], [-9, -11], [-17, -17]], // systems west -> kernel
-  [[5, -2.5], [9, -12], [16, -19], [12.28, -21.85], [11, -28], [6, -31.2]], // systems east -> aether -> upstream
-  [[-6, 8], [-14, 6.5], [-22, 3], [-26, 0.8], [-30, -3], [-31, -8], [-33, -13.4]], // physics -> field -> emfield
-  [[-22, 3], [-27, 11], [-27.85, 13.8], [-30, 15.4]], // physics branch -> nerve
-  [[6, 8], [14, 6.5], [21, 3.5], [24, 2], [31, 0], [37, -2.4]], // proof -> qpu -> sigmoid
-  [[31, 0], [30, -9], [31, -15.4]], // proof branch -> separatrix
-  [[21, 3.5], [28, 11], [32, 13.8]], // proof branch -> caustic
-  [[-3, 12], [-10, 20], [-16, 23], [-10, 29], [-10.8, 31], [-8, 34.4]], // shape west -> archive -> tangle
-  [[3, 12], [10, 20], [16, 23], [10, 29], [12, 31], [8, 34.5]], // shape east -> workshop -> monodromy
-];
-
-// Every sample point along every path, for the clearance check.
-export function pathSamples() {
-  const out = [];
-  for (const wp of PATHS) {
-    const curve = new CatmullRomCurve3(wp.map(([x, z]) => new Vector3(x, 0, z)));
-    for (const p of curve.getPoints(63)) out.push({ x: p.x, z: p.z });
-  }
-  return out;
-}
+// The waypoints are lib/world/land.js PATHS (npm run check holds them dry,
+// or on a bridge, and clear of every place and landform).
 
 function buildRibbon(waypoints, width = 2.2, y = 0.012) {
   const curve = new CatmullRomCurve3(waypoints.map(([x, z]) => new Vector3(x, y, z)));
@@ -338,9 +337,10 @@ function buildPathsAndDocks() {
   return mergeGeometries([...ribbons, ...docks], false);
 }
 
-// ---- signposts + harbour jetty ---------------------------------------------
+// ---- signposts + bridges ----------------------------------------------------
 
-// An arm pointing from (x, z) toward a place, tipped with that place's accent.
+// An arm pointing from (x, z) toward a place, tipped with its area's
+// radiation colour.
 function signArm(x, z, y, placeId) {
   const place = PLACE_BY_ID[placeId];
   const dx = place.x - x;
@@ -356,7 +356,7 @@ function signArm(x, z, y, placeId) {
 
   const tip = new BoxGeometry(0.28, 0.28, 0.28).toNonIndexed();
   tip.translate(x + ux * 1.24, y, z + uz * 1.24);
-  paint(tip, place.color);
+  paint(tip, place.radiation ?? place.color);
 
   return { arm, tip };
 }
@@ -374,49 +374,43 @@ function buildSignpost(x, z, placeIds) {
   return { wood, tips };
 }
 
-// Each post names the first place reached down every path that forks there.
+// Each post (lib/world/land.js SIGNPOSTS) points down every path that forks
+// there, at the first reading point or building that way.
 function buildSignposts() {
-  const posts = [
-    buildSignpost(-6.5, 9.5, ["p-resolvent", "p-aether-lang"]), // lab, west wing
-    buildSignpost(6.5, 9.5, ["p-epsilon-hollow", "p-caustic"]), // lab, east wing
-    buildSignpost(0, -3.5, ["pr-mujoco-3396", "pr-mujoco-warp-1541"]), // upstream, north
-    buildSignpost(0, 13.5, ["p-planimeter", "p-tangle"]), // lab, south
-  ];
+  const posts = SIGNPOSTS.map((s) => buildSignpost(s.x, s.z, s.to));
   return {
     wood: posts.flatMap((p) => p.wood),
     tips: posts.flatMap((p) => p.tips),
   };
 }
 
-function buildJetty() {
-  const base = new Vector3(13, 0, -40);
-  const tip = new Vector3(15.5, 0, -46);
-  const dir = tip.clone().sub(base).normalize();
-  const angle = Math.atan2(-dir.z, dir.x);
-  const mid = base.clone().add(tip).multiplyScalar(0.5);
-  const length = base.distanceTo(tip);
-
-  const deck = new BoxGeometry(length, 0.25, 1.4).toNonIndexed();
-  deck.rotateY(angle);
-  deck.translate(mid.x, 0.025, mid.z);
-
-  const piles = [];
-  const bollards = [];
-  for (let i = 0; i < 4; i++) {
-    const t = 0.15 + (i / 3) * 0.7;
-    const p = base.clone().lerp(tip, t);
-    const pile = new BoxGeometry(0.3, 1.3, 0.3).toNonIndexed();
-    pile.translate(p.x, -0.55, p.z);
-    piles.push(paint(pile, C.charcoal));
+// A plank deck across the water at each of RIVER.bridges, square to the
+// flow, bank to bank plus 1.2 m of landing each side, with charcoal kerbs
+// along both edges and a pier under each end.
+function buildBridges() {
+  const decks = [];
+  const dark = [];
+  const here = {};
+  for (const b of RIVER.bridges) {
+    riverAt(b.x, b.z, here);
+    const flow = Math.hypot(here.flowX, here.flowZ) || 1;
+    // local X runs across the water, local Z along the flow
+    const angle = Math.atan2(here.flowX / flow, here.flowZ / flow);
+    const span = here.half * 2 + 2.4;
+    const piece = (w, h, d, x, y, z) => {
+      const g = new BoxGeometry(w, h, d).toNonIndexed();
+      g.translate(x, y, z);
+      g.rotateY(angle);
+      g.translate(b.x, 0, b.z);
+      return g;
+    };
+    decks.push(piece(span, 0.3, b.width, 0, 0.2, 0));
+    for (const side of [-1, 1]) {
+      dark.push(paint(piece(span, 0.34, 0.22, 0, 0.52, side * (b.width / 2 - 0.11)), C.charcoal));
+      dark.push(paint(piece(0.5, 1.2, b.width + 0.3, side * (span / 2 - 0.5), -0.4, 0), C.charcoal));
+    }
   }
-  for (let i = 0; i < 3; i++) {
-    const t = 0.25 + (i / 2) * 0.55;
-    const p = base.clone().lerp(tip, t);
-    const bollard = new CylinderGeometry(0.18, 0.18, 0.45, 8).toNonIndexed();
-    bollard.translate(p.x, 0.15 + 0.225, p.z);
-    bollards.push(paint(bollard, C.charcoal));
-  }
-  return { deck, dark: [...piles, ...bollards] };
+  return { decks, dark };
 }
 
 // ---- assembled result -------------------------------------------------------
@@ -433,15 +427,15 @@ export function buildSea() {
 
 export function buildIsland() {
   const signposts = buildSignposts();
-  const jetty = buildJetty();
+  const bridges = buildBridges();
   const boulders = buildBoulders();
 
   return {
     snowSmoothGeo: buildSnowSmooth(),
     rockBatchGeo: buildRockBatch(),
     pathsDocksGeo: buildPathsAndDocks(),
-    woodBatchGeo: mergeGeometries([...signposts.wood, jetty.deck], false),
-    accentBatchGeo: mergeGeometries([...signposts.tips, ...jetty.dark], false),
+    woodBatchGeo: mergeGeometries([...signposts.wood, ...bridges.decks], false),
+    accentBatchGeo: mergeGeometries([...signposts.tips, ...bridges.dark], false),
     boulderTemplateGeo: new IcosahedronGeometry(1, 0),
     boulders,
   };

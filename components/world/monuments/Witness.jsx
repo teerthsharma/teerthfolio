@@ -155,7 +155,7 @@ export default function Witness({ place, near: nearProp }) {
   const near = nearProp ?? nearAuto;
   const RAD = place.radiation ?? place.color;
 
-  const wallMat = useMemo(() => mat(C.ice, { roughness: 0.2, metalness: 0.05, emissive: RAD, emissiveIntensity: 0.55, opacity: 0.55 }).clone(), [RAD]);
+  const wallMat = useMemo(() => mat(C.ice, { roughness: 0.2, metalness: 0.05, emissive: RAD, emissiveIntensity: 0.95, opacity: 0.55 }).clone(), [RAD]);
   const roofMat = useMemo(() => mat(C.charcoal, { roughness: 0.6 }), []);
   const postMat = useMemo(() => mat(C.charcoal, { roughness: 0.55 }), []);
   const deckMat = useMemo(() => mat(C.wood, { roughness: 0.8 }), []);
@@ -269,7 +269,7 @@ export default function Witness({ place, near: nearProp }) {
     witnessRingMat.emissiveIntensity = (0.5 + wPulse * 0.35 + heroFlash * 1.6) * bright;
     if (witnessRingRef.current) witnessRingRef.current.scale.setScalar(1 + heroFlash * 0.3);
     if (witnessHaloRef.current) witnessHaloRef.current.scale.setScalar(1 + heroFlash * 0.6);
-    wallMat.emissiveIntensity = (0.45 + wPulse * 0.1) * bright;
+    wallMat.emissiveIntensity = (0.85 + wPulse * 0.3) * bright;
 
     const grain = grainRef.current;
     const marker = markerRef.current;

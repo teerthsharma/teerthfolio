@@ -23,7 +23,7 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import {
   AdditiveBlending, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry,
   DoubleSide, Float32BufferAttribute, IcosahedronGeometry, LineBasicMaterial, MeshBasicMaterial,
-  Object3D, TorusGeometry,
+  Object3D, Quaternion, TorusGeometry, Vector3,
 } from "three";
 import { C, glow, lamp, mat } from "../palette";
 import { buildAetherLoop, N, NP } from "./parts/aether-loop";
@@ -45,20 +45,30 @@ const EDGE_CAP = (N * (N - 1)) / 2; // every pair — the most that could ever s
 const RING_CAP = N; // a cycle visits at most every point once
 
 const POLE_TOP_R = 0.17; // the pole's radius at platform height, where the spokes start
+const PLATFORM_TOP = 0.35; // the drum's top, where the support cage starts
+const RIM_Y = 3.95; // the canopy rim, where the support cage ends
+const CAGE_H = RIM_Y - PLATFORM_TOP;
+const SUPPORT_COUNT = 8; // the cage: real poles a carousel actually stands on
+const SUPPORT_R = 1.93;
 const FOOT_GEO = new CylinderGeometry(1.9, 2.05, 0.35, 10);
 const POLE_GEO = new CylinderGeometry(0.14, POLE_TOP_R, 3.6, 8);
-const RAIL_GEO = new TorusGeometry(RING_SCALE, 0.08, 8, 20);
+const SUPPORT_GEO = new CylinderGeometry(0.09, 0.09, CAGE_H, 8);
+const RAIL_GEO = new TorusGeometry(RING_SCALE, 0.045, 8, 20);
 const SPOKE_LEN = RING_SCALE - POLE_TOP_R;
 const SPOKE_GEO = new BoxGeometry(0.12, 0.12, SPOKE_LEN);
 const CANOPY_GEO = new ConeGeometry(1.95, 1.3, 10);
 const RIM_GEO = new TorusGeometry(1.95, 0.07, 6, 10);
 const WINDOW_GEO = new BoxGeometry(0.34, 0.42, 0.1);
 const FINIAL_GEO = new IcosahedronGeometry(0.17, 0);
-const ORB_GEO = new IcosahedronGeometry(0.06, 0);
+const ORB_GEO = new IcosahedronGeometry(0.15, 0); // a bead big enough to read as a point of light, not a speck
+const RING_SEG_GEO = new CylinderGeometry(0.095, 0.095, 1, 6); // the hero cycle: a real cable, not a hairline
 
 const FOOT_MAT = mat(C.warmWhite, { roughness: 0.82 });
 const POLE_MAT = mat(C.charcoal, { roughness: 0.4, metalness: 0.15 });
-const RAIL_MAT = mat(C.ice, { roughness: 0.22, metalness: 0.05, opacity: 0.88 });
+// A faint guide track, not a second ring: it sits almost on top of the
+// story's own closing circle, so it has to stay out of that circle's way or
+// the animated cycle lighting up reads as nothing happening at all.
+const RAIL_MAT = mat(C.ice, { roughness: 0.3, metalness: 0.05, opacity: 0.3 });
 const SPOKE_MAT = mat(C.charcoal, { roughness: 0.5 });
 const RIM_MAT = mat(C.charcoal, { roughness: 0.45 });
 
@@ -68,6 +78,10 @@ const ptX = new Float64Array(N);
 const ptZ = new Float64Array(N);
 const edgeColor = new Color();
 const iceColor = new Color(C.ice);
+const segMid = new Vector3();
+const segDir = new Vector3();
+const segQuat = new Quaternion();
+const UP_AXIS = new Vector3(0, 1, 0);
 
 const clamp01 = (u) => (u < 0 ? 0 : u > 1 ? 1 : u);
 const ease = (u) => { const c = clamp01(u); return c * c * (3 - 2 * c); };
@@ -81,9 +95,10 @@ export default function Aether({ place, near }) {
   const orbRef = useRef();
   const spokeRef = useRef();
   const windowRef = useRef();
+  const supportRef = useRef();
   const spinRef = useRef();
   const edgeGeoRef = useRef();
-  const ringGeoRef = useRef();
+  const ringSegRef = useRef();
   const triRef = useRef();
   const clock = useRef(0);
   const pop = useRef(0);
@@ -94,7 +109,7 @@ export default function Aether({ place, near }) {
   const windowMat = useMemo(() => lamp(glowColor), [glowColor]);
   const finialMat = useMemo(() => mat(glowColor, { emissive: glowColor, emissiveIntensity: 1.1, roughness: 0.3 }).clone(), [glowColor]);
   const edgeMat = useMemo(() => new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, toneMapped: false }), []);
-  const ringMat = useMemo(() => new LineBasicMaterial({
+  const ringMat = useMemo(() => new MeshBasicMaterial({
     color: glowColor, transparent: true, opacity: 0, toneMapped: false, blending: AdditiveBlending, depthWrite: false,
   }), [glowColor]);
   const triMat = useMemo(() => new MeshBasicMaterial({
@@ -105,12 +120,6 @@ export default function Aether({ place, near }) {
     const g = new BufferGeometry();
     g.setAttribute("position", new Float32BufferAttribute(new Float32Array(EDGE_CAP * 6), 3));
     g.setAttribute("color", new Float32BufferAttribute(new Float32Array(EDGE_CAP * 6), 3));
-    g.setDrawRange(0, 0);
-    return g;
-  }, []);
-  const ringGeo = useMemo(() => {
-    const g = new BufferGeometry();
-    g.setAttribute("position", new Float32BufferAttribute(new Float32Array(RING_CAP * 6), 3));
     g.setDrawRange(0, 0);
     return g;
   }, []);
@@ -146,6 +155,20 @@ export default function Aether({ place, near }) {
         wm.setMatrixAt(i, dummy.matrix);
       }
       wm.instanceMatrix.needsUpdate = true;
+    }
+    // the cage: real poles from the drum to the canopy rim, so the ride
+    // reads as a standing carousel and not a parasol on a stick
+    const cm = supportRef.current;
+    if (cm) {
+      for (let i = 0; i < SUPPORT_COUNT; i++) {
+        const a = (i * Math.PI * 2) / SUPPORT_COUNT;
+        dummy.position.set(Math.sin(a) * SUPPORT_R, PLATFORM_TOP + CAGE_H / 2, Math.cos(a) * SUPPORT_R);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.setScalar(1);
+        dummy.updateMatrix();
+        cm.setMatrixAt(i, dummy.matrix);
+      }
+      cm.instanceMatrix.needsUpdate = true;
     }
   }, []);
 
@@ -237,27 +260,39 @@ export default function Aether({ place, near }) {
     edgeMat.opacity = 0.85 * sceneFade;
 
     // the ring: the one cycle that survives longest, lit once its closing
-    // edge has grown in
+    // edge has grown in — a real rod chain, not a hairline, so the story's
+    // one beat that must read at a glance actually does
     const ringGlow = smooth(topo.bFrac, topo.bFrac + 0.1, rFrac);
-    const rg = ringGeoRef.current?.geometry;
-    if (rg) {
-      const pos = rg.attributes.position.array;
+    const rm = ringSegRef.current;
+    if (rm) {
       const cyc = topo.cyc;
       const m = cyc.length;
-      for (let q = 0; q < m; q++) {
-        const a = cyc[q], b2 = cyc[(q + 1) % m];
-        const b = q * 6;
-        pos[b] = ptX[a]; pos[b + 1] = 0.01; pos[b + 2] = ptZ[a];
-        pos[b + 3] = ptX[b2]; pos[b + 4] = 0.01; pos[b + 5] = ptZ[b2];
+      for (let q = 0; q < RING_CAP; q++) {
+        if (q < m) {
+          const a = cyc[q], b2 = cyc[(q + 1) % m];
+          segMid.set((ptX[a] + ptX[b2]) / 2, 0.02, (ptZ[a] + ptZ[b2]) / 2);
+          segDir.set(ptX[b2] - ptX[a], 0, ptZ[b2] - ptZ[a]);
+          const len = segDir.length() || 1e-4;
+          segDir.normalize();
+          segQuat.setFromUnitVectors(UP_AXIS, segDir);
+          dummy.position.copy(segMid);
+          dummy.quaternion.copy(segQuat);
+          dummy.scale.set(1, len, 1);
+        } else {
+          dummy.position.set(0, -5, 0);
+          dummy.quaternion.identity();
+          dummy.scale.set(0.0001, 0.0001, 0.0001);
+        }
+        dummy.updateMatrix();
+        rm.setMatrixAt(q, dummy.matrix);
       }
-      rg.attributes.position.needsUpdate = true;
-      rg.setDrawRange(0, m * 2);
+      rm.instanceMatrix.needsUpdate = true;
     }
     ringMat.opacity = ringGlow * sceneFade * (near ? 1 : 0.8);
 
     // the triangle that finally spans the hole
     const triFade = smooth(topo.dFrac, topo.dFrac + 0.15, rFrac);
-    triMat.opacity = triFade * 0.6 * sceneFade;
+    triMat.opacity = triFade * 0.85 * sceneFade;
     if (triRef.current) {
       const [a, b2, c2] = topo.best.tri;
       const posAttr = triRef.current.geometry.attributes.position;
@@ -279,6 +314,11 @@ export default function Aether({ place, near }) {
       {/* windows: the drum's own light, in the project's colour */}
       <instancedMesh ref={windowRef} args={[WINDOW_GEO, windowMat, WINDOW_COUNT]} frustumCulled={false} />
 
+      {/* the cage: real poles from the drum to the canopy rim, so the ride
+          reads as a standing carousel and not a parasol on a stick — the
+          loop's ghostly ring turns inside it */}
+      <instancedMesh ref={supportRef} args={[SUPPORT_GEO, POLE_MAT, SUPPORT_COUNT]} castShadow frustumCulled={false} />
+
       <mesh position={[0, 3.95, 0]} rotation={[Math.PI / 2, 0, 0]} material={RIM_MAT} geometry={RIM_GEO} />
       <mesh position={[0, 4.6, 0]} castShadow material={canopyMat} geometry={CANOPY_GEO} />
       <group position={[0, 5.42, 0]}>
@@ -296,7 +336,7 @@ export default function Aether({ place, near }) {
 
         <instancedMesh ref={orbRef} args={[ORB_GEO, orbMat, N]} frustumCulled={false} />
         <lineSegments ref={edgeGeoRef} geometry={edgeGeo} material={edgeMat} frustumCulled={false} />
-        <lineSegments ref={ringGeoRef} geometry={ringGeo} material={ringMat} frustumCulled={false} />
+        <instancedMesh ref={ringSegRef} args={[RING_SEG_GEO, ringMat, RING_CAP]} frustumCulled={false} />
         <mesh ref={triRef} geometry={triGeo} material={triMat} frustumCulled={false} />
       </group>
     </group>

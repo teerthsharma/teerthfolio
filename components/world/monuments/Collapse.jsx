@@ -51,7 +51,7 @@ const MINT = "#0b93ab"; // the scheduler
 const CORAL = "#d9376e"; // eviction
 
 const OUTER_R = 1.5;
-const INNER_R = 0.6;
+const INNER_R = 0.72; // big enough to spill its glow through the outer shell's gaps: Epsilon must read from outside, the camera never gets inside the hollow
 const CORE_Y = 2.65; // height of the globe's own centre above the snow
 const STRUT_R = 0.065;
 const INNER_STRUT_R = 0.075; // a shade chunkier than the outer shell: Epsilon reads as the important mechanism, not a fourth territory
@@ -184,7 +184,7 @@ export default function Collapse({ place, near }) {
   // Epsilon reads as light, not as a fourth territory: a strong emissive
   // floor keeps it legible even when the accent colour is itself a blue,
   // close to the outer shell's own "memory" territory.
-  const innerMat = useMemo(() => mat(accent, { roughness: 0.2, metalness: 0.1, emissive: accent, emissiveIntensity: 1.1 }).clone(), [accent]);
+  const innerMat = useMemo(() => mat(accent, { roughness: 0.2, metalness: 0.1, emissive: accent, emissiveIntensity: 1.4 }).clone(), [accent]);
   const legMat = useMemo(() => mat(C.charcoal, { roughness: 0.55, metalness: 0.1 }), []);
   const platformMat = useMemo(() => mat(C.warmWhite, { roughness: 0.85 }), []);
   const moteMat = useMemo(() => mat("#ffffff", { roughness: 0.4, emissive: "#ffffff", emissiveIntensity: 0.3 }), []);
@@ -317,8 +317,8 @@ export default function Collapse({ place, near }) {
     threadMat.opacity = (0.22 + pop * 0.35) * bright;
 
     // the bare metal core: burning, steady.
-    coreMat.emissiveIntensity = (1.1 + 0.25 * Math.sin(t * 2.3)) * bright;
-    innerMat.emissiveIntensity = (1.05 + 0.35 * Math.sin(t * 1.7)) * bright;
+    coreMat.emissiveIntensity = (1.2 + 0.3 * Math.sin(t * 2.3)) * bright;
+    innerMat.emissiveIntensity = (1.35 + 0.4 * Math.sin(t * 1.7)) * bright;
     rimLampMat.emissiveIntensity = (0.9 + 0.2 * Math.sin(t * 1.3 + 1)) * bright;
   });
 
@@ -344,7 +344,7 @@ export default function Collapse({ place, near }) {
             the bare metal at the centre */}
         <group ref={innerSpin}>
           <instancedMesh ref={innerMesh} args={[innerStrutGeo, innerMat, SCENE.inner.positions.length / 6]} castShadow />
-          <mesh geometry={innerGlowGeo} material={glow(accent, 0.22)} />
+          <mesh geometry={innerGlowGeo} material={glow(accent, 0.34)} />
         </group>
         <mesh geometry={coreGeo} material={coreMat} />
 

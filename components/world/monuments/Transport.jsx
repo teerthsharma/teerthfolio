@@ -76,7 +76,7 @@ const SEAM_X = 0; // the start-line beacon: flush against the tower's own +z fac
 const SEAM_Z = LAMP_MOUNT_R + 0.03;
 const SEAM_Y0 = BASE_H;
 const SEAM_Y1 = TOWER_H - 0.05; // stops below the cap, never pokes through the spire
-const SEAM_R = 0.05;
+const SEAM_R = 0.06; // 0.12 m across: the amber gap is a story beat, not a fitting -- meets the chunky-silhouette floor
 
 const MARBLE_R = 0.28;
 const MARBLE_TRACK_R = 1.18;
