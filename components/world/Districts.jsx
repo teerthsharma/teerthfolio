@@ -7,7 +7,6 @@ import Floes from "./land/Floes";
 import GoogleRange from "./land/GoogleRange";
 import Highway from "./land/Highway";
 import HeroMove from "./HeroMove";
-import MapBoard from "./MapBoard";
 import IceDam from "./land/IceDam";
 import LabAnomalies from "./life/anomalies/LabAnomalies";
 import Moat from "./land/Moat";
@@ -25,7 +24,6 @@ export default function Districts() {
       <GoogleRange />
       <Highway />
       <HeroMove />
-      <MapBoard />
       <Triton />
       <IceDam />
       <MujoRush />
