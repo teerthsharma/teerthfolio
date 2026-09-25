@@ -9,7 +9,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { AdditiveBlending, BackSide, Color, CylinderGeometry, MeshBasicMaterial, RingGeometry, SphereGeometry, TorusGeometry } from "three";
-import { heroMoveFor, heroPose } from "../../lib/world/heroMoves";
+import { aimFor, heroMoveFor, heroPose } from "../../lib/world/heroMoves";
 import { ARRIVAL } from "../../lib/world/moments";
 import { PLACE_BY_ID } from "../../lib/world/places";
 import { live } from "../../lib/world/store";
@@ -118,9 +118,10 @@ export default function HeroMove() {
     } else if (move === "beam") {
       const charge = smooth(0.2, 0.45, u) * (1 - smooth(0.45, 0.5, u));
       const fire = smooth(0.45, 0.5, u) * (1 - smooth(0.75, 0.85, u));
-      const toX = place.x - pose.x;
-      const toZ = place.z - pose.z;
-      const dist = Math.max(0.1, Math.hypot(toX, toZ) - place.radius * 0.5);
+      const aim = aimFor(place);
+      const toX = aim.x - pose.x;
+      const toZ = aim.z - pose.z;
+      const dist = Math.max(0.1, Math.hypot(toX, toZ) - aim.r * 0.6);
       if (charge > 0.01 || fire > 0.01) {
         ball.current.visible = true;
         ball.current.position.set(pose.x + (toX / dist) * 0.9, 0.7, pose.z + (toZ / dist) * 0.9);
