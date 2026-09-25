@@ -9,7 +9,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { AdditiveBlending, BackSide, Color, CylinderGeometry, MeshBasicMaterial, RingGeometry, SphereGeometry, TorusGeometry } from "three";
-import { aimFor, heroMoveFor, heroPose } from "../../lib/world/heroMoves";
+import { heroMoveFor, heroPose } from "../../lib/world/heroMoves";
 import { ARRIVAL } from "../../lib/world/moments";
 import { PLACE_BY_ID } from "../../lib/world/places";
 import { live } from "../../lib/world/store";
@@ -101,13 +101,14 @@ export default function HeroMove() {
       const fly = smooth(0.62, 0.86, u);
       const grow = smooth(0.56, 0.64, u) * (1 - smooth(0.9, 0.97, u));
       if (grow > 0.01) {
-        const toX = place.x - pose.x;
-        const toZ = place.z - pose.z;
-        const dist = Math.hypot(toX, toZ) + place.radius + 4; // it passes through and beyond
+        // it flies at the viewer and bursts on the lens
+        const cam = state.camera.position;
+        const sx0 = pose.x + fx * 1.2;
+        const sz0 = pose.z + fz * 1.2;
+        const reach = 0.85 * fly;
         ball.current.visible = rim.current.visible = true;
-        const px = pose.x + fx * 1.2 + (toX / Math.max(0.1, Math.hypot(toX, toZ))) * dist * fly;
-        const pz = pose.z + fz * 1.2 + (toZ / Math.max(0.1, Math.hypot(toX, toZ))) * dist * fly;
-        ball.current.position.set(px, y + 0.4 * fly, pz);
+        ball.current.position.set(sx0 + (cam.x - sx0) * reach, y + (cam.y - y) * reach, sz0 + (cam.z - sz0) * reach);
+        if (u >= 0.84 && u < 0.87) s.impact = Math.max(s.impact, 0.9);
         ball.current.scale.setScalar((0.5 + 1.4 * fly) * grow);
         rim.current.position.copy(ball.current.position);
         rim.current.scale.setScalar((0.8 + 2.2 * fly) * grow);
@@ -116,25 +117,28 @@ export default function HeroMove() {
         parts.rimMat.opacity = 0.8 * grow;
       }
     } else if (move === "beam") {
+      // charged in front of the seal, fired straight at the viewer
+      const cam = state.camera.position;
       const charge = smooth(0.2, 0.45, u) * (1 - smooth(0.45, 0.5, u));
       const fire = smooth(0.45, 0.5, u) * (1 - smooth(0.75, 0.85, u));
-      const aim = aimFor(place);
-      const toX = aim.x - pose.x;
-      const toZ = aim.z - pose.z;
-      const dist = Math.max(0.1, Math.hypot(toX, toZ) - aim.r * 0.6);
+      const ox = pose.x;
+      const oy = pose.y + 0.8;
+      const oz = pose.z + 0.9;
       if (charge > 0.01 || fire > 0.01) {
         ball.current.visible = true;
-        ball.current.position.set(pose.x + (toX / dist) * 0.9, 0.7, pose.z + (toZ / dist) * 0.9);
-        ball.current.scale.setScalar(0.15 + 0.45 * Math.max(charge, fire) + 0.05 * Math.sin(u * 80));
+        ball.current.position.set(ox, oy, oz);
+        ball.current.scale.setScalar(0.2 + 0.55 * Math.max(charge, fire) + 0.05 * Math.sin(u * 80));
       }
       if (fire > 0.01) {
+        const dist = Math.hypot(cam.x - ox, cam.y - oy, cam.z - oz) * 0.9;
         beam.current.visible = true;
-        beam.current.position.set(pose.x, 0.8, pose.z);
-        beam.current.rotation.set(0, Math.atan2(toX, toZ), 0);
-        const width = 0.35 * fire * (1 + 0.15 * Math.sin(u * 120));
-        beam.current.scale.set(width, width, dist);
+        beam.current.position.set(ox, oy, oz);
+        beam.current.lookAt(cam);
+        const width = 0.45 * fire * (1 + 0.15 * Math.sin(u * 120));
+        beam.current.scale.set(width, width, dist * smooth(0.45, 0.55, u));
         parts.beamMat.opacity = 0.9 * fire;
       }
+      if (u >= 0.55 && u < 0.58) s.impact = Math.max(s.impact, 0.9); // it hits the lens
     } else if (move === "orbit" && pose.k > 0.01) {
       trail.current.visible = true;
       trail.current.position.set(place.x, 0.1, place.z);
