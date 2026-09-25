@@ -118,7 +118,7 @@ export default function MapBoard() {
       ))}
       <group position={[0, 1.15, 0]} rotation={[TILT, 0, 0]}>
         <mesh geometry={FRAME} material={mat("#8a5a36", { roughness: 0.8 })} castShadow />
-        <mesh geometry={FACE} material={face} position={[0, 0, 0.051]} />
+        <mesh geometry={FACE} material={face} position={[0, 0, 0.09]} />
         <group position={[here[0], here[1], 0]}>
           <mesh ref={marker} geometry={PIN} material={lamp("#ff4d6a", 1.4)} rotation={[-Math.PI / 2, 0, 0]} />
         </group>

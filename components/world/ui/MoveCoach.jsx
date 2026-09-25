@@ -26,7 +26,9 @@ export default function MoveCoach() {
 
   // Start from the device, then follow whatever the visitor last used.
   useEffect(() => {
-    if (window.matchMedia("(pointer: coarse)").matches) setMode("touch");
+    // iPad Safari asks for desktop sites by default and reports a fine
+    // pointer, so the touch-point count is the signal that holds.
+    if (window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0) setMode("touch");
     const onPointer = (e) => setMode(e.pointerType === "touch" || e.pointerType === "pen" ? "touch" : (m) => (m === "keys" ? "keys" : "mouse"));
     const onKey = () => setMode("keys");
     window.addEventListener("pointerdown", onPointer, { passive: true });
