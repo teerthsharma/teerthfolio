@@ -10,6 +10,7 @@
 // to get the map out of the way, is itself a real control.
 
 import { useEffect, useRef, useState } from "react";
+import { HIGHWAY } from "../../../lib/world/land";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID } from "../../../lib/world/places";
 import { WATERS } from "../../../lib/world/river";
 import { live } from "../../../lib/world/store";
@@ -19,7 +20,7 @@ import { IconMap } from "./icons";
 // stays this, so the seal dot and strokes scale with it, not separately).
 const SIZE = 168;
 const CENTER = SIZE / 2;
-const RIM = 72; // px, the island's rim on the map
+const RIM = 80; // px, the island's rim on the map: a square game map, sea to its edges
 const SCALE = RIM / ISLAND_RADIUS;
 const MOVE_EPS = 0.05; // m: skip the DOM write below this — the seal is still
 const project = (x, z) => [CENTER + x * SCALE, CENTER + z * SCALE];
@@ -68,6 +69,7 @@ export default function Minimap({ onSelect }) {
       </button>
       <div className="minimap-panel">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE} aria-hidden="true">
+          <rect width={SIZE} height={SIZE} className="minimap-sea" />
           <circle cx={CENTER} cy={CENTER} r={RIM} className="minimap-island" />
           {DISTRICTS.map((d) => {
             const [x, y] = project(d.x, d.z);
@@ -90,6 +92,10 @@ export default function Minimap({ onSelect }) {
               style={{ strokeWidth: (line.width ?? 8) * SCALE }}
             />
           ))}
+          {HIGHWAY.legs.map((leg, i) => (
+            <polyline key={`hw${i}`} points={waterPoints(leg)} className="minimap-road" style={{ strokeWidth: HIGHWAY.width * SCALE }} />
+          ))}
+          <circle cx={project(HIGHWAY.roundabout.x, 0)[0]} cy={project(0, HIGHWAY.roundabout.z)[1]} r={HIGHWAY.roundabout.radius * SCALE} className="minimap-road" style={{ strokeWidth: HIGHWAY.roundabout.width * SCALE }} />
           {PLACES.filter((p) => p.id !== "home").map((place) => {
             const [x, y] = project(place.x, place.z);
             const tint = place.district?.radiation ?? place.district?.color;

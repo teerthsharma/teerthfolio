@@ -56,26 +56,27 @@ export default function MoveCoach() {
     <div className="coach" data-visible={visible} data-mode={mode} aria-live="polite">
       {mode === "touch" && (
         <>
-          <div className="coach-pad" aria-hidden="true">
-            <span className="coach-finger" />
+          <div className="coach-swipe" aria-hidden="true">
+            <span className="coach-trail" />
+            <svg className="coach-hand" viewBox="0 0 48 56">
+              <path d="M18 4a4 4 0 0 1 8 0v20l2-1a4 4 0 0 1 5 2l1 1 2-1a4 4 0 0 1 5 2l1 2 1-.5a4 4 0 0 1 5 3.5v9c0 8-6 14-14 14h-5c-5 0-8-2-11-6L7 39a4 4 0 0 1 6-5l5 5V4z" />
+            </svg>
           </div>
           <p>
-            <strong>Drag anywhere</strong> to slide
+            <strong>Swipe</strong> to slide
             <span> · tap a place to go there</span>
           </p>
         </>
       )}
       {mode === "keys" && (
         <>
-          <div className="coach-keys" aria-hidden="true">
-            <kbd className="k-w">W</kbd>
-            <kbd className="k-a">A</kbd>
-            <kbd className="k-s">S</kbd>
-            <kbd className="k-d">D</kbd>
+          <div className="coach-key" aria-hidden="true">
+            <span className="coach-arrow">▲</span>
+            <kbd>W</kbd>
           </div>
           <p>
-            <strong>WASD</strong> or arrows to slide
-            <span> · Shift to dash · E to open</span>
+            Hold <strong>W</strong> to slide
+            <span> · A D to turn · S back · Shift dash · E open</span>
           </p>
         </>
       )}

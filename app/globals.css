@@ -756,12 +756,25 @@ a {
 }
 
 .minimap-panel {
-  padding: 8px;
-  border-radius: var(--r-card);
+  padding: 4px;
+  border-radius: 10px;
   background: var(--raised);
   border: 1px solid var(--hair2);
   box-shadow: var(--e2);
   line-height: 0;
+}
+
+.minimap-panel svg {
+  border-radius: 6px;
+}
+.minimap-sea {
+  fill: #2a9fc4;
+}
+.minimap-road {
+  fill: none;
+  stroke: #3d3b4a;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .minimap-island {
@@ -1944,4 +1957,80 @@ h2[tabindex="-1"]:focus {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: clamp(10px, 1.5vh, 13px);
   opacity: 0.75;
+}
+
+/* Game-style coach: a hand that swipes, a big W that presses. */
+.coach-swipe {
+  position: relative;
+  width: 170px;
+  height: 78px;
+}
+.coach-trail {
+  position: absolute;
+  left: 24px;
+  right: 30px;
+  top: 30px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(58, 130, 246, 0), rgba(58, 130, 246, 0.6));
+  transform-origin: left center;
+  animation: coach-trail2 2s var(--ease-out) infinite;
+}
+.coach-hand {
+  position: absolute;
+  left: 10px;
+  top: 16px;
+  width: 44px;
+  height: 52px;
+  fill: #fbfaf7;
+  stroke: #1c1b19;
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 4px 6px rgba(28, 27, 25, 0.25));
+  animation: coach-hand 2s var(--ease-out) infinite;
+}
+@keyframes coach-hand {
+  0% { transform: translateX(0) scale(1.08); opacity: 0; }
+  12% { transform: translateX(0) scale(1); opacity: 1; }
+  70% { transform: translateX(104px) scale(1); opacity: 1; }
+  85%, 100% { transform: translateX(104px) scale(1.08); opacity: 0; }
+}
+@keyframes coach-trail2 {
+  0%, 12% { transform: scaleX(0); opacity: 1; }
+  70% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+.coach-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.coach-arrow {
+  font-size: 14px;
+  color: #3a82f6;
+  animation: coach-arrow 1.2s ease-in-out infinite;
+}
+.coach-key kbd {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 64px;
+  border-radius: 14px;
+  font-size: 30px;
+  font-weight: 700;
+  background: linear-gradient(#fff, #eceae4);
+  box-shadow: 0 6px 0 #b9b5ab, 0 10px 18px rgba(28, 27, 25, 0.18);
+  animation: coach-wkey 1.2s ease-in-out infinite;
+}
+@keyframes coach-wkey {
+  0%, 55%, 100% { transform: translateY(0); box-shadow: 0 6px 0 #b9b5ab, 0 10px 18px rgba(28, 27, 25, 0.18); background: linear-gradient(#fff, #eceae4); }
+  20%, 40% { transform: translateY(5px); box-shadow: 0 1px 0 #b9b5ab, 0 4px 8px rgba(28, 27, 25, 0.18); background: linear-gradient(#e3edff, #cfe0ff); }
+}
+@keyframes coach-arrow {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-hand, .coach-trail, .coach-key kbd, .coach-arrow { animation: none; }
 }
