@@ -19,6 +19,7 @@ import showcase from "../../data/showcase.json" with { type: "json" };
 import { PLACE_BY_ID, PLACES, PROFILE, districtAt, dockPoint } from "../../lib/world/places";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import Minimap from "./ui/Minimap";
+import MoveCoach from "./ui/MoveCoach";
 import Sheet from "./ui/Sheet";
 import { IconArrow, IconCheck, IconChevron, IconSoundOff, IconSoundOn, IconTrefoil } from "./ui/icons";
 
@@ -152,7 +153,7 @@ function DistrictBanner({ district: current, open, list }) {
   );
 }
 
-function TopBar({ started, list, sound, learned, failed }) {
+function TopBar({ list, sound, failed }) {
   function toggleSound() {
     const next = !sound;
     setUi({ sound: next });
@@ -172,20 +173,6 @@ function TopBar({ started, list, sound, learned, failed }) {
             <span className="hud-mark-sub">{PROFILE.title}</span>
           </span>
         </a>
-        <div className={`hud-hint${started && !learned && !failed ? " is-visible" : ""}`} aria-hidden="true">
-          <span>
-            <kbd>W</kbd>
-            <kbd>A</kbd>
-            <kbd>S</kbd>
-            <kbd>D</kbd> slide
-          </span>
-          <span>
-            <kbd>Shift</kbd> dash
-          </span>
-          <span>
-            <kbd>E</kbd> open
-          </span>
-        </div>
       </div>
       <nav className="hud-nav">
         <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
@@ -573,11 +560,6 @@ export default function Hud() {
   const failed = useUi((s) => s.failed);
   const cutscene = useUi((s) => s.cutscene);
 
-  const [learned, setLearned] = useState(false);
-  useEffect(() => {
-    if (open) setLearned(true);
-  }, [open]);
-
   useEffect(() => {
     try {
       const stored = localStorage.getItem("seal:sound");
@@ -608,9 +590,10 @@ export default function Hud() {
     <div className="hud" data-cutscene={cutscene ? "on" : undefined} onKeyDown={onHudKeyDown}>
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
-      <TopBar started={started} list={list} sound={sound} learned={learned} failed={failed} />
+      <TopBar list={list} sound={sound} failed={failed} />
       <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />
+      {!failed && <MoveCoach />}
       <NearPrompt near={near} open={open} list={list} failed={failed} />
       {started && !failed && <Minimap onSelect={sendTo} />}
       <List list={list} failed={failed} titleRef={listTitleRef} />

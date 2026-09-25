@@ -1808,3 +1808,120 @@ h2[tabindex="-1"]:focus {
     opacity: 0.4;
   }
 }
+
+/* How to move (components/world/ui/MoveCoach.jsx): big, centred low, in the
+   input the visitor is actually using; leaves once the seal has moved. */
+.coach {
+  position: absolute;
+  left: 50%;
+  bottom: calc(18vh + env(safe-area-inset-bottom));
+  transform: translate(-50%, 12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 22px 14px;
+  border-radius: 22px;
+  background: rgba(251, 250, 247, 0.9);
+  box-shadow: 0 12px 40px rgba(28, 27, 25, 0.18);
+  backdrop-filter: blur(8px);
+  color: var(--ink);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
+  max-width: calc(100vw - 2 * var(--gutter));
+}
+.coach[data-visible="true"] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.coach p {
+  margin: 0;
+  font-size: 17px;
+}
+.coach p span {
+  color: rgba(28, 27, 25, 0.6);
+  font-size: 14px;
+}
+.coach-pad {
+  position: relative;
+  width: 150px;
+  height: 64px;
+}
+.coach-pad::before {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 50%;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(58, 130, 246, 0.5));
+  animation: coach-trail 1.8s var(--ease-out) infinite;
+}
+.coach-finger,
+.coach-click {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: rgba(58, 130, 246, 0.9);
+  box-shadow: 0 0 0 8px rgba(58, 130, 246, 0.22);
+  animation: coach-drag 1.8s var(--ease-out) infinite;
+}
+.coach-click {
+  left: 50%;
+  animation: coach-tap 1.4s var(--ease-out) infinite;
+}
+.coach[data-mode="mouse"] .coach-pad::before {
+  display: none;
+}
+@keyframes coach-drag {
+  0% { transform: translateX(0) scale(0.8); opacity: 0; }
+  15% { transform: translateX(0) scale(1); opacity: 1; }
+  75% { transform: translateX(110px) scale(1); opacity: 1; }
+  100% { transform: translateX(110px) scale(0.8); opacity: 0; }
+}
+@keyframes coach-trail {
+  0%, 15% { clip-path: inset(0 100% 0 0); }
+  75% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 0 0); opacity: 0; }
+}
+@keyframes coach-tap {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(58, 130, 246, 0.4); }
+  40% { transform: scale(0.82); box-shadow: 0 0 0 18px rgba(58, 130, 246, 0); }
+}
+.coach-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  grid-template-rows: 40px 40px;
+  gap: 6px;
+}
+.coach-keys kbd {
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: 600;
+  background: #fff;
+  box-shadow: 0 3px 0 rgba(28, 27, 25, 0.25);
+  animation: coach-key 2.4s infinite;
+}
+.coach-keys .k-w { grid-column: 2; grid-row: 1; }
+.coach-keys .k-a { grid-column: 1; grid-row: 2; animation-delay: 0.6s; }
+.coach-keys .k-s { grid-column: 2; grid-row: 2; animation-delay: 1.2s; }
+.coach-keys .k-d { grid-column: 3; grid-row: 2; animation-delay: 1.8s; }
+@keyframes coach-key {
+  0%, 30%, 100% { transform: translateY(0); background: #fff; box-shadow: 0 3px 0 rgba(28, 27, 25, 0.25); }
+  10%, 20% { transform: translateY(3px); background: #dbe8ff; box-shadow: 0 0 0 rgba(28, 27, 25, 0.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach *, .coach-pad::before { animation: none !important; }
+}
+@media (max-width: 520px) {
+  .coach p span { display: block; }
+}
