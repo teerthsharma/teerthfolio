@@ -1,8 +1,8 @@
 "use client";
 
 // The effects of the showcase's hero move (lib/world/heroMoves.js), in the
-// place's radiation colour: the smash's shockwave, the domain's void and
-// rim, the beam and its charge, the orbit's glowing trail. A handful of
+// place's radiation colour: the smash's shockwave, the hollow purple's
+// orbs and sphere, the beam and its charge, the orbit's glowing trail. A handful of
 // meshes built once, shown only during a showcase; nothing allocates per
 // frame.
 
@@ -36,6 +36,8 @@ export default function HeroMove() {
       ball: new SphereGeometry(1, 16, 12),
       beam: new CylinderGeometry(1, 1, 1, 12, 1, true).rotateX(Math.PI / 2).translate(0, 0, 0.5),
       trail: new TorusGeometry(1, 0.06, 6, 96).rotateX(-Math.PI / 2),
+      redMat: new MeshBasicMaterial({ color: "#ff2b3a", toneMapped: false }),
+      blueMat: new MeshBasicMaterial({ color: "#2f7dff", toneMapped: false }),
       color: new Color(),
     };
   }, []);
@@ -45,10 +47,12 @@ export default function HeroMove() {
   const ball = useRef();
   const beam = useRef();
   const trail = useRef();
+  const red = useRef();
+  const blue = useRef();
   const last = useRef(null);
 
   useFrame((state) => {
-    const all = [ring.current, voidRef.current, rim.current, ball.current, beam.current, trail.current];
+    const all = [ring.current, voidRef.current, rim.current, ball.current, beam.current, trail.current, red.current, blue.current];
     for (const m of all) if (m) m.visible = false;
     const arrival = live.arrival;
     const place = arrival.id ? PLACE_BY_ID[arrival.id] : null;
@@ -60,6 +64,10 @@ export default function HeroMove() {
       last.current = place.id;
       parts.color.set(place.radiation ?? place.color ?? "#ffffff");
       for (const m of [parts.ringMat, parts.rimMat, parts.beamMat, parts.trailMat]) m.color.copy(parts.color);
+      if (move === "purple") {
+        parts.beamMat.color.set("#a63bff");
+        parts.rimMat.color.set("#e2b8ff");
+      }
     }
     const s = live.seal;
     heroPose(move, u, place, s.x, s.z, pose);
@@ -72,18 +80,40 @@ export default function HeroMove() {
         ring.current.scale.setScalar(0.5 + 8 * smooth(0, 1, w));
         parts.ringMat.opacity = 0.9 * (1 - w);
       }
-    } else if (move === "domain") {
-      const k = smooth(0.18, 0.4, u) * (1 - smooth(0.82, 0.97, u));
-      if (k > 0.01) {
-        const r = 1 + 5.5 * k;
-        voidRef.current.visible = rim.current.visible = true;
-        voidRef.current.position.set(pose.x, pose.y + 0.6, pose.z);
-        voidRef.current.scale.setScalar(r);
-        parts.voidMat.opacity = 0.55 * k;
-        rim.current.position.set(pose.x, pose.y + 0.6, pose.z);
-        rim.current.scale.setScalar(r);
-        rim.current.rotation.set(0.35 * Math.sin(u * 9), u * 8, 0.3);
-        parts.rimMat.opacity = k;
+    } else if (move === "purple") {
+      // red on its left, blue on its right, drawn together in front of it,
+      // merging into purple, then the purple fires through the building
+      const fx = Math.sin(pose.yaw ?? 0);
+      const fz = Math.cos(pose.yaw ?? 0);
+      const form = smooth(0.18, 0.4, u);
+      const meet = smooth(0.42, 0.58, u);
+      const y = pose.y + 0.8;
+      if (form > 0.01 && meet < 1) {
+        const side = 1.4 * (1 - meet);
+        const ahead = 0.4 + 0.8 * meet;
+        red.current.visible = blue.current.visible = true;
+        red.current.position.set(pose.x + fz * side + fx * ahead, y, pose.z - fx * side + fz * ahead);
+        blue.current.position.set(pose.x - fz * side + fx * ahead, y, pose.z + fx * side + fz * ahead);
+        const r = 0.5 * form + 0.05 * Math.sin(u * 90);
+        red.current.scale.setScalar(r);
+        blue.current.scale.setScalar(r);
+      }
+      const fly = smooth(0.62, 0.86, u);
+      const grow = smooth(0.56, 0.64, u) * (1 - smooth(0.9, 0.97, u));
+      if (grow > 0.01) {
+        const toX = place.x - pose.x;
+        const toZ = place.z - pose.z;
+        const dist = Math.hypot(toX, toZ) + place.radius + 4; // it passes through and beyond
+        ball.current.visible = rim.current.visible = true;
+        const px = pose.x + fx * 1.2 + (toX / Math.max(0.1, Math.hypot(toX, toZ))) * dist * fly;
+        const pz = pose.z + fz * 1.2 + (toZ / Math.max(0.1, Math.hypot(toX, toZ))) * dist * fly;
+        ball.current.position.set(px, y + 0.4 * fly, pz);
+        ball.current.scale.setScalar((0.5 + 1.4 * fly) * grow);
+        rim.current.position.copy(ball.current.position);
+        rim.current.scale.setScalar((0.8 + 2.2 * fly) * grow);
+        rim.current.rotation.set(u * 12, u * 9, 0);
+        parts.beamMat.opacity = 0.95 * grow;
+        parts.rimMat.opacity = 0.8 * grow;
       }
     } else if (move === "beam") {
       const charge = smooth(0.2, 0.45, u) * (1 - smooth(0.45, 0.5, u));
@@ -121,6 +151,8 @@ export default function HeroMove() {
       <mesh ref={ball} geometry={parts.ball} material={parts.beamMat} visible={false} frustumCulled={false} />
       <mesh ref={beam} geometry={parts.beam} material={parts.beamMat} visible={false} frustumCulled={false} />
       <mesh ref={trail} geometry={parts.trail} material={parts.trailMat} visible={false} frustumCulled={false} />
+      <mesh ref={red} geometry={parts.ball} material={parts.redMat} visible={false} frustumCulled={false} />
+      <mesh ref={blue} geometry={parts.ball} material={parts.blueMat} visible={false} frustumCulled={false} />
     </group>
   );
 }
