@@ -112,7 +112,7 @@ The on-screen coach shows whichever input you are using and switches live:
 | Mouse | click the snow to slide there | click the place |
 | Touch | drag anywhere to steer, tap a place to go there | tap the prompt |
 
-A map board stands at the start point; a minimap sits bottom-right; **Projects**
+A square minimap sits bottom-right (tap a place to go there); **Projects**
 lists everything without playing.
 
 ## 6. Layout
