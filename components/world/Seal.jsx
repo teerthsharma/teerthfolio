@@ -20,6 +20,9 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CustomBlending, ShaderMaterial, SrcColorFactor, ZeroFactor } from "three";
+import { heroMoveFor, heroPose } from "../../lib/world/heroMoves";
+import { ARRIVAL } from "../../lib/world/moments";
+import { PLACE_BY_ID } from "../../lib/world/places";
 import { live, useUi } from "../../lib/world/store";
 import { createDrive, stepDrive } from "./seal/drive";
 // The judge picked D (verification/J-seal-sheet.jpg): cutest of the four
@@ -29,6 +32,10 @@ import Variant from "./seal/variants/D";
 // Soft occlusion under the body. It multiplies the snow toward the lavender
 // of snow in shade (never black): a tight core where the belly touches and a
 // wider skirt, so it reads as contact, not as a painted oval.
+// The showcase's hero move (lib/world/heroMoves.js) redraws the seal along
+// its path; the physics seal stays at the dock.
+const HERO = {};
+
 function contactShadow() {
   return new ShaderMaterial({
     transparent: true,
@@ -73,6 +80,19 @@ export default function Seal() {
     stepDrive(drive, s, near, state.clock.elapsedTime, delta);
     root.current.position.set(s.x, (s.air || 0) * (s.airHeight || 3.2), s.z); // air: a whirlpool or geyser throw (motion.js)
     root.current.rotation.y = s.heading + drive.bodyYaw;
+    const arrival = live.arrival;
+    const place = arrival.id ? PLACE_BY_ID[arrival.id] : null;
+    if (place) {
+      const move = heroMoveFor(place);
+      const u = (state.clock.elapsedTime - arrival.start) / ARRIVAL.duration;
+      heroPose(move, u, place, s.x, s.z, HERO);
+      if (HERO.k > 0) {
+        root.current.position.set(HERO.x, HERO.y, HERO.z);
+        if (HERO.yaw !== null) root.current.rotation.y = HERO.yaw;
+      }
+      // the smash lands: the camera takes the thump (CameraRig reads impact)
+      if (move === "smash" && u >= 0.6 && u < 0.64) s.impact = Math.max(s.impact, 0.95);
+    }
     // The chest lifting off the snow thins the contact under it.
     shadow.uniforms.strength.value = 1 - drive.hump * 0.35;
   }, -1);

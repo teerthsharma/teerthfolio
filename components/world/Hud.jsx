@@ -88,6 +88,26 @@ function useDistrictBanner(active) {
   return district;
 }
 
+// The showcase's title (moments.js ARRIVAL), in the lower cinema bar at
+// every place: the area banner only fires on entering an area and waits 20 s
+// before it repeats, so places sharing an area showed no name.
+function CutsceneTitle({ id }) {
+  const place = id ? PLACE_BY_ID[id] : null;
+  const [shown, setShown] = useState(place);
+  useEffect(() => {
+    if (place) setShown(place);
+  }, [place]);
+  if (!shown) return null;
+  const title = shown.section === "upstream" ? shown.district?.name ?? shown.name : shown.name;
+  const sub = shown.section === "upstream" ? `${shown.repo} #${shown.pr}` : shown.section === "lab" ? shown.kind : null;
+  return (
+    <div className="cut-title" data-on={!!place} aria-live="polite">
+      <strong>{title}</strong>
+      {sub && <span>{sub}</span>}
+    </div>
+  );
+}
+
 function Curtain({ ready }) {
   return <div className="hud-curtain" data-ready={ready} aria-hidden="true" />;
 }
@@ -590,6 +610,7 @@ export default function Hud() {
     <div className="hud" data-cutscene={cutscene ? "on" : undefined} onKeyDown={onHudKeyDown}>
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
+      <CutsceneTitle id={cutscene} />
       <TopBar list={list} sound={sound} failed={failed} />
       <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />

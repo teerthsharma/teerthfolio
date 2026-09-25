@@ -155,20 +155,7 @@ a {
    film title, white on the black, clear of the place and the seal; the
    rows, band and plate wait until the scene ends, and so does the prompt. */
 .hud[data-cutscene="on"] .hud-banner {
-  top: auto;
-  bottom: 1.8vh;
-  text-shadow: none;
-}
-.hud[data-cutscene="on"] .hud-banner::before,
-.hud[data-cutscene="on"] .hud-banner-band,
-.hud[data-cutscene="on"] .hud-banner-rows,
-.hud[data-cutscene="on"] .hud-banner-lab {
   display: none;
-}
-.hud[data-cutscene="on"] .hud-banner-name {
-  color: #fbfaf7;
-  font-size: clamp(20px, 3.6vh, 36px);
-  letter-spacing: 0.14em;
 }
 .hud[data-cutscene="on"] .hud-near {
   opacity: 0;
@@ -1924,4 +1911,37 @@ h2[tabindex="-1"]:focus {
 }
 @media (max-width: 520px) {
   .coach p span { display: block; }
+}
+
+/* The showcase's own title, white in the lower cinema bar. */
+.cut-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1.2vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #fbfaf7;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 450ms var(--ease-out), transform 450ms var(--ease-out);
+}
+.cut-title[data-on="true"] {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 250ms;
+}
+.cut-title strong {
+  font-size: clamp(18px, 3.4vh, 34px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.cut-title span {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: clamp(10px, 1.5vh, 13px);
+  opacity: 0.75;
 }
