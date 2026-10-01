@@ -89,7 +89,8 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
           type="button"
           className="sheet-handle"
           aria-expanded={full}
-          aria-label="Sheet size"
+          aria-label={full ? "Collapse sheet" : "Expand sheet"}
+          title={full ? "Collapse sheet" : "Expand sheet"}
           onClick={onHandleClick}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -100,7 +101,7 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
         </button>
       )}
       {!failed && (
-        <button type="button" className="sheet-close" onClick={onClose} aria-label="Close">
+        <button type="button" className="sheet-close" onClick={onClose} aria-label="Close" title="Close">
           <IconClose />
         </button>
       )}

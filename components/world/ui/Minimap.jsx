@@ -63,6 +63,7 @@ export default function Minimap({ onSelect }) {
         className="minimap-toggle"
         aria-expanded={open}
         aria-label={open ? "Hide map" : "Show map"}
+        title={open ? "Hide map" : "Show map"}
         onClick={() => setOpen((o) => !o)}
       >
         <IconMap />
