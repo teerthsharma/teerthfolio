@@ -70,6 +70,13 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
     if (!full && e.target !== titleRef.current && !e.target.closest(".sheet-handle, .sheet-close")) setFull(true);
   }
 
+  function onKeyDown(e) {
+    if (on && e.key === "Escape" && onClose) {
+      e.stopPropagation();
+      onClose();
+    }
+  }
+
   return (
     <section
       ref={sheetRef}
@@ -83,6 +90,7 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
       inert={!on}
       style={accent ? { "--accent": accent } : undefined}
       onFocusCapture={onFocusCapture}
+      onKeyDown={onKeyDown}
     >
       {!failed && (
         <button
