@@ -11,10 +11,10 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BackSide, Color, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, MeshBasicMaterial, Quaternion, ShaderMaterial, BoxGeometry, Vector3 } from "three";
+import { BackSide, Color, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, MeshBasicMaterial, Quaternion, ShaderMaterial, BoxGeometry, TorusGeometry, Vector3 } from "three";
 import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { paletteFor } from "../../../lib/world/cutscene/look";
-import { BUILDS, figureAt, figureScale, onTwos } from "../../../lib/world/cutscene/timeline";
+import { BUILDS, figureAt, figureScale, onTwos, speakersOf } from "../../../lib/world/cutscene/timeline";
 import { live } from "../../../lib/world/store";
 import { HALFTONE } from "./Stage";
 
@@ -134,6 +134,15 @@ function hairParts(hair, head, k) {
     // long and heavy down the back, ragged at the crown
     for (const x of [-0.7, -0.35, 0, 0.35, 0.7]) spike(new Vector3(x * 0.5, -0.9, -0.55), 0.62, 0.1);
     for (const deg of [-50, -20, 10, 40]) spike(new Vector3(Math.sin((deg * Math.PI) / 180), 0.9, -0.2), 0.18);
+  } else if (hair === "crest") {
+    // swept up into one tall shape, a lean crest with a low tail behind
+    spike(new Vector3(0, 1, -0.25), 0.5, 0.1);
+    spike(new Vector3(0.2, 0.9, -0.5), 0.34, 0.08);
+    spike(new Vector3(-0.2, 0.9, -0.5), 0.34, 0.08);
+    spike(new Vector3(0, 0.3, -1), 0.3, 0.07);
+  } else if (hair === "catears") {
+    // two tall pointed ears, a god's: allowed on an ink figure, never on the pup
+    for (const sd of [-1, 1]) spike(new Vector3(sd * 0.42, 1, -0.05), 0.4, 0.085);
   } else if (hair === "ears") {
     // two long ears out to the sides, tipped up: a small sage's outline
     for (const s of [-1, 1]) spike(new Vector3(s, 0.5, -0.15), 0.3, 0.05);
@@ -167,6 +176,16 @@ function propGeometry(prop, head, r, b) {
     for (const s of [-1, 1]) add(new IcosahedronGeometry(0.026, 0).scale(1.3, 0.8, 0.6).translate(hx + s * r * 0.36, hy + 0.03, hz + r * 0.95));
   } else if (prop === "earring") {
     for (const s of [-1, 1]) add(new IcosahedronGeometry(0.035, 0).translate(hx + s * r * 1.02, hy - r * 0.55, hz));
+  }
+  if (prop === "staff") {
+    // a staff in the near hand with an orb on top, and the ringed halo at the neck (part of the silhouette)
+    add(new CylinderGeometry(0.026 * b.w, 0.026 * b.w, 2.15 * b.h, 6).translate(-0.05 * b.w, 1.07 * b.h, 0.34));
+    add(new IcosahedronGeometry(0.1 * b.w, 1).translate(-0.05 * b.w, 2.22 * b.h, 0.34));
+    add(new TorusGeometry(0.3 * b.w, 0.022, 5, 20).rotateX(Math.PI / 2 - 0.35).translate(0, 1.64 * b.h, 0.02));
+  } else if (prop === "pudding") {
+    // a pudding cup held out in the near hand: a little frustum with a dome of custard
+    add(new CylinderGeometry(0.085, 0.06, 0.11, 8).translate(-0.66 * b.w, 1.34 * b.h + 0.02, 0.62));
+    add(new IcosahedronGeometry(0.075, 1).scale(1, 0.7, 1).translate(-0.66 * b.w, 1.34 * b.h + 0.1, 0.62));
   }
   if (!parts.length) return null;
   const g = parts.length === 1 ? parts[0] : mergeGeometries(parts.map(prep));
@@ -219,9 +238,12 @@ const ENTER = [
 
 // The move's props ({ card, tl, mode }). `lean` (rad) tips the figure in
 // toward the pup on line B, the way Aether-Lang's leans into the koan.
-export default function Speaker({ card, tl, mode, lean = 0.035 }) {
-  const sp = card.speaker;
-  const fig = useMemo(() => (sp && sp !== "land" ? figureFor(sp) : null), [sp]);
+export default function Speaker(props) {
+  return speakersOf(props.card).map((sp, i) => <Figure key={i} {...props} sp={sp} index={i} />);
+}
+
+function Figure({ card, tl, mode, lean = 0.035, sp, index }) {
+  const fig = useMemo(() => figureFor(sp), [sp]);
   const m = mats();
   const root = useRef();
   useEffect(() => {
@@ -241,8 +263,8 @@ export default function Speaker({ card, tl, mode, lean = 0.035 }) {
     }
     const t = state.clock.elapsedTime - arrival.start;
     const s = live.seal;
-    const at = figureAt(card);
-    const scale = figureScale(card);
+    const at = figureAt(card, index);
+    const scale = figureScale(card, index);
     f.position.set(s.x + at[0], at[1], s.z + at[2]);
     m.ink.uniforms.uCell.value = (card.stage?.halftone ?? 6) * 0.6 * state.gl.getPixelRatio(); // a finer screen on the figure
     const inF = Math.floor((t - tl.enter) * 12);

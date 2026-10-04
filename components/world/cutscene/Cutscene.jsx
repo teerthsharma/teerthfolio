@@ -14,12 +14,14 @@ import { MOVES } from "./moves";
 
 export default function Cutscene() {
   const gl = useThree((s) => s.gl);
+  const clock = useThree((s) => s.clock);
+  const scene = useThree((s) => s.scene);
   // For capture probes: draw calls and triangles (gl.info) during the scene,
   // the cards (a probe may swap a card's move.pose to read each hook) and
   // the live state (where the seal is).
   useEffect(() => {
-    window.__world = { ...(window.__world || {}), gl, cards: CARDS, live };
-  }, [gl]);
+    window.__world = { ...(window.__world || {}), gl, clock, scene, cards: CARDS, live };
+  }, [gl, clock, scene]);
   const id = useUi((s) => s.cutscene);
   const mode = cutsceneMode(id);
   const cut = mode ? cutFor(id) : null;

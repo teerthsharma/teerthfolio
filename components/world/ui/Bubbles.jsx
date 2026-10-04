@@ -50,10 +50,13 @@ function place(el, mx, my, slot, still) {
   const floor = 0.12 * H; // clear of the lower cinema bar
   let left;
   let bottom = floor;
-  if (still && W >= 900) left = slot === "a" ? 0.04 * W : W - 0.04 * W - w;
-  else {
+  if (still && W >= 900) {
+    left = slot === "a" ? 0.04 * W : W - 0.04 * W - w;
+    if (slot === "c") bottom = floor + el.previousElementSibling.offsetHeight + 0.02 * H; // stacked over line B
+  } else {
     left = mx - w * (slot === "a" ? 0.3 : 0.4);
     if (still && slot === "a") bottom = floor + el.nextElementSibling.offsetHeight + 0.02 * H;
+    if (still && slot === "c") bottom = floor + el.previousElementSibling.offsetHeight + el.previousElementSibling.previousElementSibling.offsetHeight + 0.04 * H;
   }
   left = clamp(left, 0.03 * W, W - 0.03 * W - w);
   bottom = Math.min(bottom, H * 0.5 - h); // the lower half, always
@@ -174,6 +177,8 @@ export default function Bubbles() {
   const ink = paletteFor(card);
   const showA = still ? beat > 0 && beat < BEAT.out : beat === BEAT.lineA || beat === BEAT.move;
   const showB = still ? beat > 0 && beat < BEAT.out : beat === BEAT.lineB;
+  const showC = Boolean(card.c) && (still ? beat > 0 && beat < BEAT.out : beat === BEAT.lineC);
+  const showCredit = Boolean(card.credit) && (still ? beat > 0 && beat < BEAT.out : beat === BEAT.credit);
   const impact = !still && (beat === BEAT.impact || beat === BEAT.collapse);
   const sfx = card.stage?.sfx;
   const line = (slot, l, fallback) => <Bubble slot={slot} who={l.who} kind={l.kind ?? fallback} line={l.text} bold={card.bold} sub={slot === "b" ? card.sub : null} />;
@@ -191,6 +196,13 @@ export default function Bubbles() {
       ) : null}
       {showA ? line("a", card.a, "oval") : null}
       {showB ? line("b", card.b, "burst") : null}
+      {showC ? line("c", card.c, "burst") : null}
+      {showCredit ? (
+        <div className="comic-credit" data-still={still ? "" : undefined}>
+          <strong>{card.credit.title}</strong>
+          {card.credit.sub ? <span>{card.credit.sub}</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

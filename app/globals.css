@@ -2225,6 +2225,40 @@ html[data-cutscene] .minimap {
   67% { scale: 0.98; translate: 0 0; }
   100% { scale: 1; }
 }
+/* the credit card (card.credit): the real work the scene honours, a small
+   cream card in the site's HUD style, held about 1.2 s before the collapse */
+.comic-credit {
+  position: absolute;
+  left: 50%;
+  bottom: 17vh;
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(92vw, 40em);
+  padding: 0.7em 1.1em;
+  display: grid;
+  gap: 0.2em;
+  text-align: center;
+  background: var(--cream);
+  color: #1c1b19;
+  border: 1.5px solid #1c1b19;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(12, 8, 30, 0.28);
+  font-family: var(--font);
+  animation: bubble-in 250ms steps(1, end) both;
+}
+.comic-credit strong {
+  font-size: clamp(14px, calc(0.5vw + 10px), 18px);
+  font-weight: 700;
+  line-height: 1.25;
+}
+.comic-credit span {
+  font-size: clamp(12px, calc(0.35vw + 9px), 14px);
+  opacity: 0.72;
+}
+html[data-cutscene="still"] .comic-credit {
+  animation: none;
+  bottom: 3vh;
+}
 html[data-cutscene="still"] .bubble {
   animation: none;
 }

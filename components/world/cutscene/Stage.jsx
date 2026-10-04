@@ -198,7 +198,9 @@ function isLand(o, at, camera) {
 
 // cut: { card, place, tl, mode } (the move's props). `at`: where the speaker's
 // pool of light falls, from the pup (default under a figure speaker).
-export default function Stage({ card, place, tl, mode, pool: poolAt = [0.8, 0.01, -1.5] }) {
+// bare: the move draws its own sky and ground (moves/_g1.jsx Dome), so no night sphere, pool or glow here;
+// skip: a landform the stage keeps lit only if this says no (props and particles that sit by it).
+export default function Stage({ card, place, tl, mode, bare = false, skip, pool: poolAt = [0.8, 0.01, -1.5] }) {
   const scene = useThree((s) => s.scene);
   const k = kit();
   const style = card.stage?.stars ?? "sparkle";
@@ -241,7 +243,7 @@ export default function Stage({ card, place, tl, mode, pool: poolAt = [0.8, 0.01
       }
       for (const o of scene.children) {
         if (o.name === "cutscene" || o.name === "seal" || o.isLight || !o.visible) continue;
-        if (land && isLand(o, AT, camera)) continue;
+        if (land && !skip?.(o) && isLand(o, AT, camera)) continue;
         o.visible = false;
         h.list.push(o);
       }
@@ -271,7 +273,7 @@ export default function Stage({ card, place, tl, mode, pool: poolAt = [0.8, 0.01
     k.voidMat.uniforms.uCell.value = k.poolMat.uniforms.uCell.value = cell;
     k.voidMat.uniforms.uCore.value.set(s.x, CORE_Y, s.z);
     const inside = r > state.camera.position.distanceTo(k.voidMat.uniforms.uCore.value) + 0.3;
-    sphere.current.visible = r > 0.02;
+    sphere.current.visible = r > 0.02 && !bare;
     // From inside the night shades by direction alone, so when the land
     // speaks its wall stands far off and the landform draws in front of it.
     sphere.current.scale.setScalar(inside && land ? LAND_WALL : Math.max(r, 0.02));
@@ -282,8 +284,8 @@ export default function Stage({ card, place, tl, mode, pool: poolAt = [0.8, 0.01
       stars.scale.setScalar(r);
       stars.rotation.y = 0.04 * t;
     }
-    pool.current.visible = inside && !land;
-    disc.current.visible = inside;
+    pool.current.visible = inside && !land && !bare;
+    disc.current.visible = inside && !bare;
   });
 
   return (

@@ -32,7 +32,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CapsuleGeometry, Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, RingGeometry } from "three";
+import { CapsuleGeometry, Color, DoubleSide, Vector3, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, RingGeometry } from "three";
 import { JUMP_IN, RADIATION, SKIP_WINDOW } from "../../../../lib/world/moments";
 import { cutsceneMode } from "../../../../lib/world/cutscene/timeline";
 import { PLACE_BY_ID, districtAt } from "../../../../lib/world/places";
@@ -41,6 +41,10 @@ import { glow } from "../../palette";
 import Outfit, { HEAD_RADIUS } from "../Outfit";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { buildSealD, FLIPPER_REST, MOUTH, PIVOT, SKULL } from "./D-parts";
+import { CutLook, CutNails } from "./CutLook";
+
+// where the cutscene moves read the pup mouth and nose, world space (written every frame of a scene)
+live.anchors ??= { mouth: new Vector3(), nose: new Vector3() };
 
 const TAU = Math.PI * 2;
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -205,6 +209,7 @@ export default function SealD({ pose, near, drive, headRef }) {
   const mouth = useRef();
   const halo = useRef();
   const digits = useRef();
+  const nose = useRef();
   const outfit = useRef();
   const haloSoft = useRef();
   const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0, sign: 0, fist: 0, raise: 0, point: 0 }), []);
@@ -401,7 +406,9 @@ export default function SealD({ pose, near, drive, headRef }) {
     // smile; so does landing on this district or a mote's touch.
     const slow = d.idle > 2 && d.idle < 3.3 && d.blinks % 4 === 3;
     if (slow && d.blink > 0) f.hold = t + 0.4;
-    let target = force === "blink" ? 1 : Math.max(d.blink, smooth(0.4, 0.6, sq), sit);
+    // a scene that holds the eyes open in a sit (live.pose.eyes) blinks only when its move says so (live.pose.blink)
+    const sitShut = cut && P.eyes > 0.5 ? P.blink : sit;
+    let target = force === "blink" ? 1 : Math.max(d.blink, smooth(0.4, 0.6, sq), sitShut);
     if (t < f.hold) target = 1;
     f.shut += (target - f.shut) * damp(target > f.shut ? (slow ? 14 : 45) : slow ? 4 : 11, dt);
     const squint = force === "happy" ? 1 : Math.max(smooth(0.3, 0.55, d.happy), smooth(0.1, 0.25, squish), smooth(0.3, 0.55, f.districtFlash), flying ? 1 : 0);
@@ -412,8 +419,27 @@ export default function SealD({ pose, near, drive, headRef }) {
     glints.current.visible = eyes.current.visible && f.shut < 0.35;
     shutEyes.current.visible = closed;
     happyEyes.current.visible = happy;
-    mouth.current.visible = squint > 0.01;
-    mouth.current.scale.setScalar(Math.max(squint, 0.01));
+    const open = cut ? P.mouth : 0; // a move's open mouth (cutscene/kit.jsx)
+    mouth.current.visible = squint > 0.01 || open > 0.01;
+    mouth.current.scale.setScalar(Math.max(squint, open, 0.01));
+    if (cut) {
+      mouth.current.updateWorldMatrix(true, false);
+      mouth.current.getWorldPosition(live.anchors.mouth);
+      nose.current.updateWorldMatrix(true, false);
+      nose.current.getWorldPosition(live.anchors.nose);
+    }
+    // THE DEMON LOOK (CutLook): the coat tints to ash with a crimson rim, then goes back
+    const demon = cut ? P.demon : 0;
+    if (demon > 0 || f.demonOn) {
+      f.demonOn = demon > 0;
+      mats.coat.color.setRGB(1 - 0.32 * demon, 1 - 0.42 * demon, 1 - 0.42 * demon);
+      if (f.demonOn) {
+        mats.coat.emissive.set("#a3101c");
+        mats.coat.emissiveIntensity = Math.max(mats.coat.emissiveIntensity, 0.2 * demon);
+      } else {
+        mats.coat.emissive.set(hereDistrict ? hereDistrict.radiation ?? hereDistrict.color : "#000000");
+      }
+    }
 
     // The halo: fades and grows in behind the head, tinted to whichever
     // radioactive area the seal is meditating in, and turns slowly. Off
@@ -463,11 +489,13 @@ export default function SealD({ pose, near, drive, headRef }) {
           <mesh geometry={parts.body} material={coat} castShadow receiveShadow />
           <group ref={flipL} position={shoulder}>
             <mesh geometry={parts.flipper} material={coat} castShadow receiveShadow />
+            <CutNails />
           </group>
           <group scale={[-1, 1, 1]}>
             <group ref={flipR} position={shoulder}>
               <mesh geometry={parts.flipper} material={coat} castShadow receiveShadow />
               <mesh ref={digits} geometry={digitsGeo} material={digitsMat} position={DIGITS_AT} visible={false} castShadow />
+              <CutNails />
             </group>
           </group>
           <group ref={tail} position={rel(PIVOT.tail, PIVOT.rear)}>
@@ -483,6 +511,8 @@ export default function SealD({ pose, near, drive, headRef }) {
               <mesh ref={happyEyes} geometry={parts.happyEyes} material={mats.eye} visible={false} />
               <mesh ref={shutEyes} geometry={parts.shutEyes} material={mats.eye} visible={false} />
               <mesh ref={mouth} geometry={parts.mouth} material={mats.mouth} position={MOUTH} visible={false} />
+              <object3D ref={nose} position={[0, -0.06, 0.6]} />
+              <CutLook />
               <group ref={outfit} scale={OUTFIT_SCALE}>
                 <Outfit placeId={near} />
               </group>
