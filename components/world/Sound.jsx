@@ -11,6 +11,7 @@
 
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { AWAKENING } from "../../lib/world/loop";
 import { JUMP_IN, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { districtAt, PLACES } from "../../lib/world/places";
 import { getUi, live, useUi } from "../../lib/world/store";
@@ -731,7 +732,8 @@ function createEngine() {
       lastParamT = now;
       const glide = throttle === 0 ? 0.85 : 1;
       const duck = now < duckUntil ? 0.5 : 1;
-      const hush = 1 - 0.5 * calm; // the world quiets while the seal meditates
+      // the world quiets while the seal meditates, and all but stops for the awakening
+      const hush = (1 - 0.5 * calm) * (live.arrival.id === AWAKENING.id ? 0.15 : 1);
       swishFilter.frequency.setTargetAtTime((500 + 90 * seal.speed + 900 * skid) * glide, now, 0.06);
       swishGain.gain.setTargetAtTime((0.14 * smoothstep(0.4, 9, seal.speed) + 0.12 * skid) * duck * hush, now, 0.06);
       windGain.gain.setTargetAtTime(0.035 * hush, now, 0.06);

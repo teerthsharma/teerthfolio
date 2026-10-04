@@ -14,6 +14,8 @@ import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { cutFor, cutView, cutsceneMode, viewAt } from "../../lib/world/cutscene/timeline";
+import { awakeFov, awakeMode, awakeView } from "../../lib/world/awakening";
+import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { MOTION } from "../../lib/world/motion";
 import { PLACE_BY_ID, SPAWN } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
@@ -126,6 +128,7 @@ export default function CameraRig() {
   const radKicked = useRef(-100);
   const prevImpact = useRef(live.seal.impact);
   const boomSeen = useRef(live.boom.n);
+  const baseFov = useRef(null); // the lens the awakening's flight widens
 
   // The open building's panel: looked up by class each time `open` changes
   // (it mounts after the state change) and again on resize, retried for a
@@ -365,6 +368,25 @@ export default function CameraRig() {
       camera.position.lerp(CUT_EYE, k);
       lookAt.current.lerp(CUT_LOOK, k);
     }
+    // THE AWAKENING (awakening.js): the calm close-up, the low angle under
+    // the circles, the take-off and the flight high over the island; it
+    // hands back to the follow as the pup floats down. A skip cuts straight
+    // back to the follow (nothing here is smoothed).
+    let high = 0;
+    const awake = awakeMode(arrival.id) === "full";
+    baseFov.current ??= camera.fov;
+    const fov = awake ? awakeFov(t - arrival.start, baseFov.current) : baseFov.current;
+    if (camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+    if (awake) {
+      const k = awakeView(t - arrival.start, seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y), seal.z, camera.aspect, CUT_EYE, CUT_LOOK);
+      camera.position.lerp(CUT_EYE, k);
+      lookAt.current.lerp(CUT_LOOK, k);
+      camera.position.addScaledVector(shake.current, 2 * k);
+      high = Math.max(0, camera.position.y);
+    }
     camera.lookAt(lookAt.current);
 
     // Fog is tuned for the follow distance; push it back by however much
@@ -378,7 +400,8 @@ export default function CameraRig() {
         f.near = sceneFog.near;
         f.far = sceneFog.far;
       }
-      const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull);
+      // high over the island (the awakening's flight) the whole island must stay clear of the fog
+      const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull, high * 0.45);
       sceneFog.near = f.near + extra;
       sceneFog.far = f.far + extra;
       // Set, not ratcheted: a far plane that only grew (after one pulled-back

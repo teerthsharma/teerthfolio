@@ -10,6 +10,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo } from "react";
 import { BufferGeometry, Float32BufferAttribute, ShaderMaterial } from "three";
+import { awakeMode } from "../../../lib/world/awakening";
 import { TIERS } from "../../../lib/world/quality";
 import { useUi } from "../../../lib/world/store";
 import { mulberry32 } from "../life/spawn";
@@ -95,5 +96,8 @@ export default function Snowfall() {
   const snow = TIERS[useUi((s) => s.tier) ?? 0].snow;
   geometry.setDrawRange(0, Math.min(COUNT, snow));
 
-  return <points geometry={geometry} material={material} frustumCulled={false} />;
+  // the awakening (lib/world/awakening.js) hushes the world: the snow stops
+  const hushed = useUi((s) => awakeMode(s.cutscene) === "full");
+
+  return <points geometry={geometry} material={material} frustumCulled={false} visible={!hushed} />;
 }

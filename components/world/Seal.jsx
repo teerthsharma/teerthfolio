@@ -21,6 +21,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CustomBlending, ShaderMaterial, SrcColorFactor, ZeroFactor } from "three";
 import { PUP_YAW, cutFor, cutsceneMode, smooth, turnFor } from "../../lib/world/cutscene/timeline";
+import { awakeMode, awakeYaw, flyAt, liftAt } from "../../lib/world/awakening";
 import { live, useUi } from "../../lib/world/store";
 import { createDrive, stepDrive } from "./seal/drive";
 // The judge picked D (verification/J-seal-sheet.jpg): cutest of the four
@@ -90,6 +91,19 @@ export default function Seal() {
       const k = smooth(0, 0.06, u) * (1 - smooth(0.95, 1, u));
       const yaw = PUP_YAW + turnFor(cut.card, cut.place, s.x, s.z);
       if (k > 0) root.current.rotation.y += Math.atan2(Math.sin(yaw - root.current.rotation.y), Math.cos(yaw - root.current.rotation.y)) * k;
+    }
+    // THE AWAKENING (lib/world/awakening.js): the pup rises out of the water
+    // or off the snow, flies, and floats back down, turned three-quarters to
+    // the lens; the physics seal stays where it stopped.
+    if (awakeMode(arrival.id) === "full") {
+      const t = state.clock.elapsedTime - arrival.start;
+      const lift = liftAt(t);
+      root.current.position.y += lift + 0.27 * (s.water || 0) * Math.min(1, lift / 0.55);
+      const { yaw, k } = awakeYaw(t, s.x, s.z);
+      const y0 = root.current.rotation.y;
+      root.current.rotation.y = y0 + Math.atan2(Math.sin(yaw - y0), Math.cos(yaw - y0)) * k;
+      if (shadowRef.current) shadowRef.current.visible = lift < 0.3;
+      root.current.rotation.x = -0.35 * flyAt(t); // nose up in flight
     }
     // The chest lifting off the snow thins the contact under it.
     shadow.uniforms.strength.value = 1 - drive.hump * 0.35;

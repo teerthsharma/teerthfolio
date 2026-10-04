@@ -9,7 +9,8 @@ import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { CARDS, cardFor } from "../lib/world/cutscene/cards/index.js";
 import { BUILDS, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
 import { TIERS, classify, dprFor } from "../lib/world/quality.js";
-import { CLEAN, ENTRY, LOOP, RIDE_LENGTH } from "../lib/world/loop.js";
+import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH } from "../lib/world/loop.js";
+import { AWAKE, LINE, auraAt, awakeBeat, awakeCredit, liftAt, skyAt } from "../lib/world/awakening.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
@@ -1198,6 +1199,37 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   assert.ok(koan.a.text.includes("Gojeal Satarou") && koan.b.text.includes("Gojeal Fishtarou"), "the Gojeal koan keeps its spellings");
   const T = timelineFor(koan);
   assert.ok(T.duration === 8.2 && T.lineA === 2.3 && T.lineB === 5 && T.collapse[0] === 7.4 && T.hold === 7.8, "Aether-Lang keeps its approved 8.2 s domain");
+  // THE AWAKENING (awakening.js): its beats in order, the line on screen long
+  // enough to read, the pup back down and the sky clear by the end, and the
+  // credit card's every number taken from showcase.json.
+  {
+    const A = AWAKE;
+    const marks = [A.impact, A.erupt[1], ...A.circles, A.impactB, A.rise[0], A.reveal, A.rise[1], A.line[0], A.card[0], A.card[1], A.descend[1], A.duration];
+    assert.ok(marks.every((v, i) => i === 0 || v > marks[i - 1]), "awakening beats are in order");
+    assert.ok(A.duration === AWAKENING.duration && AWAKENING.hold >= A.descend[0] && AWAKENING.hold < A.duration, "the awakening holds input through the flight");
+    let last = 0;
+    const seen = new Map();
+    for (let t = 0; t < A.duration; t += 0.005) {
+      const b = awakeBeat(t);
+      assert.ok(b >= last, `awakening beat goes back at ${t.toFixed(2)} s`);
+      last = b;
+      seen.set(b, (seen.get(b) ?? 0) + 0.005);
+    }
+    assert.deepEqual([...seen.keys()], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "every awakening beat plays, in order");
+    assert.ok(seen.get(9) >= 2.4, `the bubble gets ${seen.get(9).toFixed(2)} s, under 2.4 s`);
+    assert.ok(seen.get(10) >= 1.2, "the credit card holds at least 1.2 s");
+    assert.ok(awakeBeat(A.duration) === 0 && liftAt(A.duration) < 1e-6 && skyAt(A.duration) < 1e-6 && auraAt(A.duration) < 1e-3, "the awakening ends with the pup down and the sky clear");
+    assert.ok(liftAt(A.line[0]) > 40 && liftAt(A.circles[0]) < 1, "the pup flies high for the line and stays down for the eruption");
+    const show = JSON.parse(json);
+    const c = awakeCredit();
+    assert.ok(c.upstream === show.upstream.length && c.lab === show.lab.length && c.results.length >= 2, "the credit counts the showcase");
+    for (const r of c.results) {
+      const u = show.upstream.find((p) => `${p.repo} #${p.pr}` === r.repo);
+      assert.ok(u && u.result.includes(r.quote), `the credit quotes ${r.repo} as "${r.quote}", which showcase.json does not say`);
+    }
+    for (const n of `${c.upstream} ${c.lab} ${c.orgs} ${c.results.map((r) => `${r.repo} ${r.quote}`).join(" ")}`.match(/\d[\d,]*(?:\.\d+)?/g)) assert.ok(json.includes(n), `the credit says ${n}, which showcase.json does not`);
+    assert.ok(/honoured one/.test(LINE.text) && LINE.bold.every((b) => LINE.text.includes(b)), "the line and its bold words");
+  }
 }
 
 // Quality ladder: the renderer string picks the right first rung, and a rung
