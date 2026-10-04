@@ -8,7 +8,7 @@ import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
 import { PEAK_WORLD } from "../../lib/world/peak";
 import { FOUNTAIN_TRAVEL, GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
 import { arrivalHold, arrivalLength, beatAt, cutFor, cutsceneMode } from "../../lib/world/cutscene/timeline";
-import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
+import { ISLAND_RADIUS, NORTH_RIM, PLACES, districtAt } from "../../lib/world/places";
 import { AWAKENING, mustFinish } from "../../lib/world/loop";
 import { awakeBeat, awakeMode } from "../../lib/world/awakening";
 import { WHIRLPOOL } from "../../lib/world/river";
@@ -19,7 +19,7 @@ import { warmTick } from "./cutscene/prewarm";
 const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 // live.props is created once and never reassigned (store.js), so the world
 // object can be built once too instead of every frame.
-export const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, fountain: FOUNTAIN_TRAVEL, peak: PEAK_WORLD, fountainSeen: false, places: PLACES, time: 0 };
+export const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, northRim: NORTH_RIM, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, fountain: FOUNTAIN_TRAVEL, peak: PEAK_WORLD, fountainSeen: false, places: PLACES, time: 0 };
 let seenBursts = 0;
 let lastWarm = 0;
 let seenWins = 0;

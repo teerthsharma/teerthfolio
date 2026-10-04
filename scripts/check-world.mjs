@@ -14,7 +14,7 @@ import { DISPLAY, TIERS, classify, dprFor, displayTier, gpuName } from "../lib/w
 import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH, mustFinish } from "../lib/world/loop.js";
 import { AWAKE, LINE, auraAt, awakeBeat, awakeCredit, liftAt, skyAt } from "../lib/world/awakening.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
-import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
+import { DISTRICTS, ISLAND_RADIUS, NORTH_RIM, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, GLACIER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { tickSnack } from "../components/world/life/snack.js";
 import { TOYS, blastAt, makeBowling, makeCone, makeStack, makeTnt, tickToys } from "../lib/world/toys.js";
@@ -23,11 +23,11 @@ import { forbidden, samplePoints } from "../components/world/life/spawn.js";
 import { CAR_BAYS, CAR_R, ROAD_Y, createCar, onDrawnAsphalt, stepCar, stepCars } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { buildConcreteWall } from "../components/world/land/parts/dam-wall.js";
-import { PEAK, WATER_Y, heightAt } from "../lib/world/terrain.js";
+import { PEAK, WATER_Y, groundAt, heightAt } from "../lib/world/terrain.js";
 import { PEAK_PATH, PEAK_WORLD, peakBlocked } from "../lib/world/peak.js";
 
 const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
-const world = { colliders, radius: ISLAND_RADIUS, props: [] };
+const world = { colliders, radius: ISLAND_RADIUS, northRim: NORTH_RIM, props: [] };
 const run = (seal, controls, seconds) => {
   for (let t = 0; t < seconds; t += 1 / 120) stepSeal(seal, controls, 1 / 120, world);
   return seal;
@@ -245,6 +245,7 @@ for (const a of DISTRICTS) {
       if (solid.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius)) continue;
       if (Math.hypot(x - PEAK.x, z - PEAK.z) < PEAK.edge) continue; // the Fountain Peak, held below
       const h = heightAt(x, z);
+      if (groundAt(x, z).mount > 0 && Math.hypot(x, z) > 84) continue; // a hand-sculpted mountain's skirt in the bigger rim's new ring
       assert.ok(Math.abs(h) <= 0.3, `the ground at ${x.toFixed(1)}, ${z.toFixed(1)} is ${h.toFixed(2)} m off the plain where the seal walks`);
     }
   }
@@ -279,7 +280,7 @@ assert.ok(Math.hypot(rammer.x - home.x, rammer.z - home.z) >= home.radius + MOTI
 // Rim: the seal cannot leave the island.
 const swimmer = createSeal(0, 0);
 run(swimmer, { input: { x: 1, z: 1 }, boost: true }, 12);
-assert.ok(Math.hypot(swimmer.x, swimmer.z) <= ISLAND_RADIUS, "slid off the island");
+assert.ok(Math.hypot(swimmer.x, swimmer.z) <= ISLAND_RADIUS, `slid off the island ${swimmer.x} ${swimmer.z}`);
 
 // Click-to-move: sending the seal to a dock arrives and reports that building.
 for (const place of PLACES) {
@@ -830,7 +831,7 @@ for (const b of RIVER.bridges) {
 // Rim: a boosted run into the rim leaves an impact spike, and the seal stays on the island.
 const rimRunner = createSeal(0, 0);
 let peakRimImpact = 0;
-for (let t = 0; t < 6; t += 1 / 120) {
+for (let t = 0; t < (6 * ISLAND_RADIUS) / 84; t += 1 / 120) {
   stepSeal(rimRunner, { input: { x: 1, z: 1 }, boost: true }, 1 / 120, world);
   peakRimImpact = Math.max(peakRimImpact, rimRunner.impact);
 }
@@ -1563,7 +1564,7 @@ for (const [k, g] of Object.entries(buildConcreteWall())) assert.ok(g, `dam-wall
     const a = (k / 64) * Math.PI * 2;
     const sx = -36 + Math.cos(a) * 30;
     const sz = -60 + Math.sin(a) * 30;
-    if (Math.hypot(sx, sz) > ISLAND_RADIUS - 2) continue;
+    if (Math.hypot(sx, sz) > NORTH_RIM - 2) continue;
     for (const boost of [false, true]) {
       drive(`heading ${k}/64${boost ? " boosting" : ""}`, createSeal(sx, sz), { input: { x: -Math.cos(a), z: -Math.sin(a) }, boost }, 8);
     }
