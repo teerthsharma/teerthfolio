@@ -87,7 +87,7 @@ export default function Seal() {
     const place = arrival.id ? PLACE_BY_ID[arrival.id] : null;
     if (place) {
       const move = heroMoveFor(place);
-      const u = Math.min((state.clock.elapsedTime - arrival.start) / ARRIVAL.duration, POP_2D.smash / ARRIVAL.duration); // the hero move freezes at the pop
+      const u = Math.min((state.clock.elapsedTime - arrival.start) / ARRIVAL.duration, 1);
       heroPose(move, u, place, s.x, s.z, HERO);
       if (HERO.k > 0) {
         root.current.position.set(HERO.x, HERO.y, HERO.z);

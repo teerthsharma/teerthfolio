@@ -57,7 +57,7 @@ export default function HeroMove() {
     const arrival = live.arrival;
     const place = arrival.id ? PLACE_BY_ID[arrival.id] : null;
     if (!place || !ring.current) return;
-    const u = Math.min((state.clock.elapsedTime - arrival.start) / ARRIVAL.duration, POP_2D.smash / ARRIVAL.duration); // frozen once the pop begins
+    const u = Math.min((state.clock.elapsedTime - arrival.start) / ARRIVAL.duration, 1);
     if (u < 0 || u >= 1) return;
     const move = heroMoveFor(place);
     if (last.current !== place.id) {
