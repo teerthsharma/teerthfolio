@@ -1037,12 +1037,12 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   };
   const perfect = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1 }]);
   assert.deepEqual(perfect.seen, [[1, 1, 0], [1, 2, 0], [1, 0, 1]], `three perfect loops: ${JSON.stringify(perfect.seen)}`);
-  assert.equal(verdicts([{ gap: 0 }, { gap: 11 }, { gap: 11 }]).s.wins, 1, "three clean loops 11 s apart (inside the window) did not win");
+  assert.equal(verdicts([{ gap: 0 }, { gap: CLEAN.gap - 1 }, { gap: CLEAN.gap - 1 }]).s.wins, 1, "three clean loops just inside the re-entry window did not win");
   assert.equal(perfect.s.wins, 1);
   const two = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1, vx: 6, at: ENTRY.x0 - 0.1 }]);
   assert.deepEqual(two.seen.at(-1), [0, 0, 0], `two clean loops and a too-slow third won or kept a streak: ${JSON.stringify(two.seen)}`);
-  const slow = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 13 }]);
-  assert.equal(slow.s.wins, 0, "three clean loops with a 13 s gap won");
+  const slow = verdicts([{ gap: 0 }, { gap: 1 }, { gap: CLEAN.gap + 1 }]);
+  assert.equal(slow.s.wins, 0, "three clean loops with a gap past the re-entry window won");
   assert.deepEqual(slow.seen.at(-1), [1, 1, 0], `a clean loop after a long gap should start a fresh streak at 1: ${JSON.stringify(slow.seen)}`);
   const reset = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1, vx: 6, at: ENTRY.x0 - 0.1 }, { gap: 1 }, { gap: 1 }]);
   assert.equal(reset.s.wins, 0, "a failed loop did not reset the streak");
@@ -1175,8 +1175,10 @@ for (const kind of ["kb", "stick", "tap"]) {
   }
   const good = table[`${kind} skilled`];
   const bad = table[`${kind} sloppy`];
-  assert.ok(good.win >= 0.6, `${kind}: a skilled player wins only ${(good.win * 100).toFixed(0)}% of sessions (needs 60%+)`);
-  assert.ok(bad.win <= 0.2, `${kind}: a sloppy player wins ${(bad.win * 100).toFixed(0)}% of sessions (must stay 20% or less)`);
+  // the owner asked for an easier loop (2026-10-04): skilled players nearly always win,
+  // a sloppy one still loses a fair share
+  assert.ok(good.win >= 0.85, `${kind}: a skilled player wins only ${(good.win * 100).toFixed(0)}% of sessions (needs 85%+)`);
+  assert.ok(bad.win <= 0.75, `${kind}: a sloppy player wins ${(bad.win * 100).toFixed(0)}% of sessions (must stay 75% or less)`);
   assert.ok(good.tWin < 60, `${kind}: a skilled win takes ${good.tWin.toFixed(0)} s`);
 }
 if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row within 8 loops):\n" + Object.entries(table).map(([k, v]) => `${k.padEnd(14)} win ${(v.win * 100).toFixed(0).padStart(3)}%  clean/loop ${(v.cleanPerLoop * 100).toFixed(0).padStart(3)}%  loops ${v.loops.toFixed(1)}  missed lane ${v.miss.toFixed(2)}  win at ${v.tWin.toFixed(0)} s`).join("\n"));
