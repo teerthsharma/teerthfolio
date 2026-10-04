@@ -20,7 +20,9 @@
 // few meshes, instanced particles, halftone in the material, no post pass.
 
 import { sceneT } from "../../../lib/world/cutscene/clock";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useMemo } from "react";
+import { flashQuad, holdFlash } from "./moves/p-caustic/parts";
 import { moveAt, signAt, smooth } from "../../../lib/world/cutscene/timeline";
 export { POSES } from "../../../lib/world/cutscene/timeline";
 import { live } from "../../../lib/world/store";
@@ -57,4 +59,16 @@ export function DefaultMove(cut) {
       <Speaker {...cut} />
     </>
   );
+}
+
+// THE RETURN WIPE: the anime world gives way to the dock in the place's colour, not a hard cut. A fullscreen
+// quad rises to opaque over 0.6 s ending at the credit beat, then clears over 0.4 s so the card reads over the island.
+export function ReturnWipe({ tl, color, mode }) {
+  const camera = useThree((s) => s.camera);
+  const quad = useMemo(() => flashQuad(color), [color]);
+  useCutFrame((t) => {
+    if (mode !== "full" || tl.credit == null) return;
+    holdFlash(quad, camera, smooth(tl.credit - 0.6, tl.credit, t) * (1 - smooth(tl.credit, tl.credit + 0.4, t)));
+  });
+  return <primitive object={quad} />;
 }

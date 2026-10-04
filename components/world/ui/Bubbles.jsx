@@ -202,6 +202,7 @@ export default function Bubbles() {
         <div className="comic-credit" data-still={still ? "" : undefined}>
           <strong>{card.credit.title}</strong>
           {card.credit.sub ? <span>{card.credit.sub}</span> : null}
+          {card.credit.ret ? <em>{card.credit.ret}</em> : null}
         </div>
       ) : null}
     </div>
