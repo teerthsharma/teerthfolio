@@ -2,7 +2,7 @@
 // towering silhouette, the void maw that eats reality, MEGIDDO's water lenses and sunbeams, the Great Sage's holographic panel and 
 // One opaque material (rimMaterial: flat toon bands, cyan/gold rim, emissive "glow" kinds) plus a few additive glow shaders.
 // Everything is built once at mount; nothing is allocated per frame.
-import { AdditiveBlending, BackSide, CanvasTexture, Color, ConeGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry, ShaderMaterial, SphereGeometry, SRGBColorSpace, TorusGeometry } from "three";
+import { AdditiveBlending, CanvasTexture, Color, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry, ShaderMaterial, SphereGeometry, SRGBColorSpace, TorusGeometry } from "three";
 import { KIND, layer } from "./paper";
 
 export const hash = (i, k = 0) => (((Math.sin(i * 127.1 + k * 311.7) * 43758.5453) % 1) + 1) % 1;
@@ -24,8 +24,9 @@ export function makeRim() {
     uniforms: { uTime: { value: 0 }, uGlow: { value: 1 } },
     vertexShader: /* glsl */ `
       attribute vec4 aMeta;
-      varying vec3 vWorld; varying vec3 vN; varying vec3 vCol; varying vec4 vMeta;
+      varying vec3 vWorld; varying vec3 vN; varying vec3 vCol; varying vec4 vMeta; varying vec3 vLocal;
       void main() {
+        vLocal = position;
         vec4 p = vec4(position, 1.0);
         vec3 n = normal;
         vCol = vec3(1.0);
@@ -47,12 +48,26 @@ export function makeRim() {
       }`,
     fragmentShader: /* glsl */ `
       uniform float uTime, uGlow;
-      varying vec3 vWorld; varying vec3 vN; varying vec3 vCol; varying vec4 vMeta;
+      varying vec3 vWorld; varying vec3 vN; varying vec3 vCol; varying vec4 vMeta; varying vec3 vLocal;
       void main() {
         vec3 n = normalize(vN + vec3(0.0, 0.0001, 0.0));
         if (!gl_FrontFacing) n = -n;
         vec3 base = pow(vCol, vec3(1.0 / 2.2));
         if (vMeta.x > 5.5) { gl_FragColor = vec4(base * (1.1 + 0.25 * uGlow), 1.0); return; }
+        if (vMeta.y > 0.5 && vMeta.y < 1.5) {
+          // scales: staggered round plates, dark in the seams
+          vec3 q = vLocal * 13.0;
+          vec2 uv = vec2(q.x + q.z, q.y * 1.25);
+          uv.x += 0.5 * mod(floor(uv.y), 2.0);
+          vec2 f = fract(uv) - 0.5;
+          float sc = smoothstep(0.52, 0.18, length(f * vec2(1.0, 1.25)));
+          base *= 0.5 + 0.62 * sc;
+        } else if (vMeta.y > 1.5 && vMeta.y < 2.5) {
+          // woven cloth: fine weave and long soft folds
+          float wv = 0.5 + 0.5 * sin(vLocal.x * 70.0 + sin(vLocal.y * 9.0) * 2.0) * sin(vLocal.y * 90.0);
+          float fold = 0.5 + 0.5 * sin(atan(vLocal.x, vLocal.z + 0.001) * 11.0 + vLocal.y * 2.0);
+          base *= 0.7 + 0.12 * wv + 0.12 * fold;
+        }
         float d = dot(n, normalize(vec3(-0.45, 0.7, 0.55))) * 0.5 + 0.5;
         float shade = 0.7 + 0.18 * step(0.4, d) + 0.16 * step(0.72, d);
         vec3 v = normalize(cameraPosition - vWorld + vec3(0.0, 0.0001, 0.0));
@@ -62,63 +77,6 @@ export function makeRim() {
         gl_FragColor = vec4(base * shade + rc * rim * 1.1, 1.0);
       }`,
   });
-}
-
-// ---------------------------------------------------------------- the cave
-export function caveSky() {
-  const m = new ShaderMaterial({
-    side: BackSide,
-    depthWrite: false,
-    uniforms: { uEat: { value: 0 } },
-    vertexShader: /* glsl */ `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: /* glsl */ `
-      uniform float uEat; varying vec3 vW;
-      float h(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
-      void main() {
-        vec3 dir = normalize(vW - cameraPosition + vec3(0.0, 0.0001, 0.0));
-        float y = clamp(dir.y, -0.2, 1.0);
-        vec3 c = mix(vec3(0.1, 0.75, 0.95), vec3(0.22, 0.38, 0.95), smoothstep(0.0, 0.25, y));
-        c = mix(c, vec3(0.55, 0.2, 0.85), smoothstep(0.22, 0.6, y));
-        c = mix(c, vec3(0.2, 0.08, 0.48), smoothstep(0.55, 1.0, y));
-        float az = atan(dir.x, dir.z + 0.0001);
-        vec3 cell = floor(vec3(az * 14.0, y * 22.0, 0.0));
-        float s = step(0.965, h(cell)) * (0.6 + 0.4 * h(cell + 3.0));
-        c += mix(vec3(0.5, 1.0, 1.0), vec3(1.0, 0.6, 1.0), h(cell + 7.0)) * s;
-        float d = acos(clamp(dot(dir, normalize(vec3(0.0, 0.25, -1.0))), -1.0, 1.0));
-        float rr = uEat * 3.6;
-        float ang = atan(dir.y - 0.25, dir.x + 0.0001);
-        float arms = 0.5 + 0.5 * sin(ang * 3.0 + d * 9.0 - uEat * 14.0);
-        float inside = 1.0 - smoothstep(rr - 0.5, rr, d);
-        float edge = smoothstep(rr - 0.9, rr - 0.3, d) * inside;
-        c = mix(c, vec3(0.03, 0.0, 0.07) + vec3(0.7, 0.1, 0.9) * arms * edge * 0.8, inside);
-        gl_FragColor = vec4(c, 1.0);
-      }`,
-  });
-  const m3 = mesh(m, new SphereGeometry(150, 24, 16));
-  m3.renderOrder = -10;
-  return { mesh: m3, dispose: () => (m3.geometry.dispose(), m.dispose()) };
-}
-
-// the floor: concentric bands of purple and teal crystal stone, and a rim of tall glowing crystals
-export function floor(mat) {
-  const L = layer();
-  const bands = ["#6a2fd0", "#3b3fe0", "#8a3fe0", "#2a7ae6", "#a040e0", "#2f58d8"];
-  for (let i = 0; i < 6; i++) {
-    const r1 = 30 - i * 5;
-    L.add(new CylinderGeometry(r1, r1, 0.1, 40).translate(0, 0.05 + i * 0.004, 0), bands[i], {});
-  }
-  const cols = ["#3ff0ff", "#ff5ad8", "#9a6bff", "#46ffc8", "#6aa8ff"];
-  for (let k = 0; k < 34; k++) {
-    const a = (k / 34) * Math.PI * 2 + hash(k, 1) * 0.2;
-    const near = k % 3 === 0;
-    const ring = near ? 11 + 4 * hash(k, 2) : 24 + 7 * hash(k, 2);
-    const h = near ? 1.6 + 1.6 * hash(k, 3) : 6 + 11 * hash(k, 3);
-    const r = (near ? 0.5 : 1.2) * (0.7 + hash(k, 4));
-    if (near && Math.cos(a) > 0.2 && Math.sin(a) > 0.2) continue; // keep the camera side open
-    const c = cols[k % cols.length];
-    L.add(new ConeGeometry(r, h, 6).translate(0, h / 2, 0), c, k % 2 ? GLOW : {}, Math.cos(a) * ring, 0, Math.sin(a) * ring, 0, hash(k, 5) * 0.2 - 0.1, hash(k, 6) * 0.2 - 0.1);
-  }
-  return mesh(mat, L.build());
 }
 
 // ripples: one additive disc (the cave pool, the return portal). colours a/b, swirl false = plain rings
@@ -148,114 +106,6 @@ export function ripple(a, b, swirl) {
   o.position.y = 0.16;
   o.visible = false;
   return { mesh: o, mat: m, dispose: () => (g.dispose(), m.dispose()) };
-}
-
-// ---------------------------------------------------------------- Veldora sealed: a black and gold Storm Dragon coiled in a glowing seal sphere
-const aura = (c, rim) =>
-  new ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-    uniforms: { uC: { value: new Color(c) }, uT: { value: 0 }, uK: { value: 1 } },
-    vertexShader: /* glsl */ `varying vec3 vN; varying vec3 vP; varying vec3 vW; void main(){ vP = position; vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal + vec3(0.0,0.0001,0.0)); gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: /* glsl */ `
-      uniform vec3 uC; uniform float uT, uK; varying vec3 vN; varying vec3 vP; varying vec3 vW;
-      void main() {
-        vec3 v = normalize(cameraPosition - vW + vec3(0.0, 0.0001, 0.0));
-        float f = pow(1.0 - abs(dot(normalize(vN + vec3(0.0, 0.0001, 0.0)), v)), ${rim});
-        float s = 0.55 + 0.45 * sin(vP.y * 9.0 + vP.x * 5.0 - uT * 5.0) * sin(vP.z * 7.0 + uT * 3.0);
-        gl_FragColor = vec4(uC * (f * 1.3 + 0.12) * s * uK, 1.0);
-      }`,
-  });
-
-export function veldora(mat) {
-  const L = layer();
-  const BLACK = "#15102e";
-  const GOLD = "#ffc83a";
-  // the body: a coil of black segments narrowing to the tail, a gold ridge along the back
-  const N = 15;
-  const pt = (i) => {
-    const a = i * 0.62;
-    const r = 0.62 * (1 - i / 26);
-    return [Math.cos(a) * r, -0.72 + i * 0.075, Math.sin(a) * r];
-  };
-  for (let i = 0; i < N; i++) {
-    const [x, y, z] = pt(i);
-    const s = 0.3 * (1 - i * 0.045) + 0.06;
-    L.add(new SphereGeometry(s, 10, 8), BLACK, {}, x, y, z);
-    L.add(new ConeGeometry(s * 0.45, s * 1.1, 4), GOLD, i % 2 ? GLOW : {}, x, y + s * 1.0, z);
-    L.add(new SphereGeometry(s * 0.55, 8, 6), GOLD, {}, x, y - s * 0.35, z - s * 0.2, 0, 0, 0, 1.3, 0.5, 0.9);
-  }
-  // the head, facing the camera: jaw, snout, golden horns and eyes
-  const [hx, hy] = pt(N - 1);
-  const H = [hx * 0.4, hy + 0.5, 0.22];
-  L.add(new SphereGeometry(0.34, 12, 10), BLACK, {}, H[0], H[1], H[2], 0, 0, 0, 1.1, 0.9, 1.15);
-  L.add(new SphereGeometry(0.2, 10, 8), BLACK, {}, H[0], H[1] - 0.12, H[2] + 0.34, 0, 0, 0, 1.2, 0.7, 1.3);
-  for (const sx of [-1, 1]) {
-    L.add(new ConeGeometry(0.07, 0.7, 6), GOLD, GLOW, H[0] + sx * 0.22, H[1] + 0.38, H[2] - 0.05, 0, -0.5, sx * -0.55);
-    L.add(new SphereGeometry(0.075, 8, 6), "#fff1a8", GLOW, H[0] + sx * 0.16, H[1] + 0.06, H[2] + 0.28);
-    L.add(new ConeGeometry(0.1, 0.28, 4), GOLD, {}, H[0] + sx * 0.3, H[1] - 0.2, H[2] + 0.1, 0, 0, sx * 1.1);
-  }
-  // wings: two black blades edged in gold
-  for (const sx of [-1, 1]) {
-    L.add(new ConeGeometry(0.34, 1.6, 4), BLACK, {}, sx * 0.62, -0.02, -0.1, 0, 0, sx * -1.15, 0.5, 1, 0.45);
-    L.add(new ConeGeometry(0.1, 1.55, 4), GOLD, GLOW, sx * 0.64, 0.03, -0.1, 0, 0, sx * -1.15, 0.4, 1, 0.4);
-  }
-  const g = new Group();
-  const body = mesh(mat, L.build());
-  body.scale.setScalar(1.15);
-  g.add(body);
-  // the seal: an outer gold shell and an inner stormy blue one, rimlit
-  const shellMat = aura("#ffd25a", "2.2");
-  const stormMat = aura("#3aa6ff", "1.4");
-  const shell = mesh(shellMat, new SphereGeometry(1.8, 28, 20));
-  const storm = mesh(stormMat, new SphereGeometry(1.3, 24, 16));
-  shell.renderOrder = 4;
-  storm.renderOrder = 3;
-  g.add(shell, storm);
-  g.visible = false;
-  return {
-    root: g,
-    update(t, k) {
-      shellMat.uniforms.uT.value = t;
-      stormMat.uniforms.uT.value = t;
-      shellMat.uniforms.uK.value = k;
-      stormMat.uniforms.uK.value = k * (0.8 + 0.4 * Math.sin(t * 11));
-      body.rotation.y = Math.sin(t * 0.9) * 0.35;
-    },
-    dispose() {
-      body.geometry.dispose();
-      shell.geometry.dispose();
-      storm.geometry.dispose();
-      shellMat.dispose();
-      stormMat.dispose();
-    },
-  };
-}
-
-// ---------------------------------------------------------------- Demon Lord Rimuru: long black hair, golden eyes, a black coat with gold trim
-export function human(mat) {
-  const L = layer();
-  const HAIR = "#0d0a1c";
-  const COAT = "#14101f";
-  L.add(new ConeGeometry(0.55, 1.7, 10).translate(0, 0.85, 0), COAT, {}, 0, 0.5, 0, 0, 0, 0, 1, 1, 0.7);
-  L.add(new CylinderGeometry(0.62, 0.62, 0.12, 10), "#d4a63a", {}, 0, 1.05, 0, 0, 0, 0, 1, 1, 0.7);
-  L.add(new SphereGeometry(0.34, 14, 12), "#ffe9d8", {}, 0, 2.4, 0);
-  L.add(new SphereGeometry(0.4, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), HAIR, {}, 0, 2.47, -0.04);
-  // the long hair falls behind the shoulders in blue-silver ribbons
-  for (let i = 0; i < 7; i++) {
-    const x = (i - 3) * 0.14;
-    L.add(new ConeGeometry(0.16, 1.9 - Math.abs(i - 3) * 0.12, 6).translate(0, -0.95, 0), i % 2 ? HAIR : "#2b2060", {}, x, 2.38, -0.22, 0, 0, 0, 1, 1, 0.8);
-  }
-  for (const sx of [-1, 1]) {
-    L.add(new SphereGeometry(0.055, 8, 6), "#ffd23a", GLOW, sx * 0.13, 2.43, 0.32);
-    L.add(new ConeGeometry(0.1, 0.7, 6).translate(0, -0.35, 0), COAT, {}, sx * 0.62, 1.95, 0, 0, 0, sx * 0.25);
-  }
-  const g = new Group();
-  const body = mesh(mat, L.build());
-  g.add(body);
-  g.visible = false;
-  return { root: g, dispose: () => body.geometry.dispose() };
 }
 
 // ---------------------------------------------------------------- MEGIDDO: floating water lenses focus the sun into beams
