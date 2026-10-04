@@ -157,6 +157,13 @@ export default function Bubbles() {
       const at = cut.card.bubbleAt?.[el.dataset.slot];
       place(el, (V.x * 0.5 + 0.5) * innerWidth, (0.5 - V.y * 0.5) * innerHeight, el.dataset.slot, still, at ? at[innerWidth < innerHeight ? 1 : 0] : null);
     }
+    const cr = wrap.current.querySelector(".comic-credit");
+    if (cr) {
+      const b = cr.getBoundingClientRect();
+      const F = live.frame;
+      F.r.set([b.left, b.top, b.right, b.bottom], 12);
+      F.at[3] = performance.now();
+    }
     if (ring.current) {
       V.set(s.x, 0.8, s.z).project(cam);
       ring.current.style.setProperty("--x", `${((V.x * 0.5 + 0.5) * 100).toFixed(1)}%`);

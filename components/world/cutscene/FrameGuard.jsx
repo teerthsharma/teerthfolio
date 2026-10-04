@@ -227,7 +227,7 @@ export default function FrameGuard() {
       // bubbles: lift the pup over them, or flip them to the other side
       const t = performance.now();
       let lift = 0;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         if (t - live.frame.at[i] > 250) continue;
         const r = live.frame.r;
         const bx0 = (r[i * 4] / W) * 2 - 1;
