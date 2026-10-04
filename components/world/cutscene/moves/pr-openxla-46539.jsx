@@ -20,7 +20,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Box3, Vector3 } from "three";
+import { Box3, Group, Matrix4, Vector3 } from "three";
 import { radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, smooth, useCutFrame } from "../kit";
@@ -32,6 +32,15 @@ import { applyPunch } from "./pr-openxla-46539/punch";
 import { makeWorld } from "./pr-openxla-46539/world";
 
 const FIST_REST = [0.9, 2.2, 0.4];
+const RM = new Matrix4();
+
+// `rig` (a child of the pup's root) takes the place of `src` (a part somewhere inside the pup) every frame, in the root's space
+function follow(rig, src, root) {
+  src.updateWorldMatrix(true, false);
+  root.updateWorldMatrix(true, false);
+  rig.matrix.copy(RM.copy(root.matrixWorld).invert()).multiply(src.matrixWorld);
+  rig.matrixWorldNeedsUpdate = true;
+}
 
 export default function Move(cut) {
   const { tl, mode } = cut;
@@ -61,14 +70,22 @@ export default function Move(cut) {
     const p = pupParts(scene);
     pup.current = p;
     paint.current = p?.root ? pupPrint(p.root) : null;
-    const h = { cape: null, aura: null };
+    // All Might's cape and V of light are children of the pup's own root rig (the "seal" group), each in a rig that
+    // follows the body and the head, added here and removed on exit
+    const h = { cape: null, aura: null, capeRig: null, auraRig: null, rear: p?.rear, head: p?.head };
     if (p?.head && p.rear) {
       const body = p.rear.children.find((o) => o.isMesh);
       h.cape = cape(body);
-      p.rear.add(h.cape.mesh);
+      h.capeRig = new Group();
+      h.capeRig.matrixAutoUpdate = false;
+      h.capeRig.add(h.cape.mesh);
+      p.root.add(h.capeRig);
       h.aura = vAura();
       h.aura.mesh.position.set(0, 0.4, 0.3);
-      p.head.add(h.aura.mesh);
+      h.auraRig = new Group();
+      h.auraRig.matrixAutoUpdate = false;
+      h.auraRig.add(h.aura.mesh);
+      p.root.add(h.auraRig);
     }
     hero.current = h;
     // BUILD NOW, DRAW LATER: every program and texture the scene will use is made while the seal is still walking
@@ -87,6 +104,8 @@ export default function Move(cut) {
     pr.done = false;
     pr.shown = 0;
     return () => {
+      h.capeRig?.removeFromParent();
+      h.auraRig?.removeFromParent();
       for (const x of [h.cape, h.aura]) {
         if (!x) continue;
         x.mesh.removeFromParent();
@@ -134,6 +153,11 @@ export default function Move(cut) {
     applyPunch(r.flipR, w.punch ?? 0);
     const p = flipperAt(r.flipR, w.root, [0.75, 0.1, 0]);
     fist.current = [p.x, p.y, p.z];
+    const h = hero.current;
+    if (h?.capeRig && pup.current?.root) {
+      follow(h.capeRig, h.rear, pup.current.root);
+      follow(h.auraRig, h.head, pup.current.root);
+    }
   });
 
   useCutFrame((t0, state) => {

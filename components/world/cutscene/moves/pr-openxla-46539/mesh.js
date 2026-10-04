@@ -149,7 +149,9 @@ const WORLD_FRAG = /* glsl */ `
       t = nl > 0.5 ? vec4(0.4, 0.32, 0.05, 0.1) : (nl > 0.0 ? vec4(0.55, 0.45, 0.08, 0.26) : vec4(0.72, 0.6, 0.1, 0.5));
       t = mix(t, vec4(0.95, 0.12, 0.0, 0.0), smoothstep(0.35, 0.6, rim));
     }
-    t.w += (1.0 - t.w) * shade * 0.5;
+    t.w += (1.0 - t.w) * shade * 0.34;
+    t.w *= 0.7; // less black ink, more of the four colours: a vivid print
+    t.z += 0.1 * (1.0 - unlit) * (1.0 - t.z) * (1.0 - shade); // a warm golden key on every lit face
     float lite = sunMask * (1.0 - shade * 0.6) * (1.0 - unlit);
     t.w *= 1.0 - 0.45 * lite;
     t.x *= 1.0 - 0.3 * lite;

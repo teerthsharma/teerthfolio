@@ -42,7 +42,7 @@ function burst(w, h) {
 
 // Lay a bubble out (left, bottom in px) and draw its tail toward the speaker
 // (mx, my in px). Its body is the ellipse inscribed in its box.
-export function place(el, mx, my, slot, still) {
+export function place(el, mx, my, slot, still, fixed) {
   const W = innerWidth;
   const H = innerHeight;
   const w = el.offsetWidth;
@@ -54,7 +54,7 @@ export function place(el, mx, my, slot, still) {
     left = slot === "a" ? 0.04 * W : W - 0.04 * W - w;
     if (slot === "c") bottom = floor + el.previousElementSibling.offsetHeight + 0.02 * H; // stacked over line B
   } else {
-    left = mx - w * (slot === "a" ? 0.3 : 0.4);
+    left = fixed != null ? fixed * W : mx - w * (slot === "a" ? 0.3 : 0.4); // a card may set a bubble beside the speaker, not under it
     if (still && slot === "a") bottom = floor + el.nextElementSibling.offsetHeight + 0.02 * H;
     if (still && slot === "c") bottom = floor + el.previousElementSibling.offsetHeight + el.previousElementSibling.previousElementSibling.offsetHeight + 0.04 * H;
   }
@@ -146,7 +146,8 @@ export default function Bubbles() {
     const s = live.seal;
     for (const el of wrap.current.querySelectorAll(".bubble")) {
       anchorFor(el.dataset.who, cut.card, cut.place, s.x, s.z, V, el.dataset.slot, live.pupAt).project(cam);
-      place(el, (V.x * 0.5 + 0.5) * innerWidth, (0.5 - V.y * 0.5) * innerHeight, el.dataset.slot, still);
+      const at = cut.card.bubbleAt?.[el.dataset.slot];
+      place(el, (V.x * 0.5 + 0.5) * innerWidth, (0.5 - V.y * 0.5) * innerHeight, el.dataset.slot, still, at ? at[innerWidth < innerHeight ? 1 : 0] : null);
     }
     if (ring.current) {
       V.set(s.x, 0.8, s.z).project(cam);

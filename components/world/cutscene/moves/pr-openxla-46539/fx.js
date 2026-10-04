@@ -5,7 +5,7 @@
 // column. Each factory returns { obj, tick(ctx) }; the move calls tick once a
 // frame with the clock. Nothing is allocated per frame.
 
-import { CircleGeometry, Color, CylinderGeometry, DoubleSide, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, SphereGeometry } from "three";
+import { CircleGeometry, RingGeometry, Color, CylinderGeometry, DoubleSide, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, SphereGeometry } from "three";
 import { hash } from "../p-caustic/parts";
 import { PRINT, SH, u } from "./print";
 
@@ -462,3 +462,57 @@ export function geyserFx() {
   return { g, m };
 }
 
+
+// ---- the vortex: a flat ring of storm wedges over the avenue, wound round the hole the punch opens ----
+// Each wedge is a billow of four-colour ink with a scalloped, ink-edged rim; the ring turns (uSpin, turns) and its
+// clear centre widens (uOpen) as the clouds are thrown outward.
+export function vortexFx() {
+  const g = new RingGeometry(0.16, 1, 96, 1);
+  const m = new ShaderMaterial({
+    uniforms: { ...SH, uK: u(0), uSpin: u(0), uOpen: u(0) },
+    transparent: true,
+    depthTest: false, // drawn over the towers, but only in the top of the frame (fy), where the sky is
+    depthWrite: false,
+    side: DoubleSide,
+    vertexShader: /* glsl */ `
+      varying vec2 vP;
+      void main() {
+        vP = position.xy;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform float uK, uSpin, uOpen, uH;
+      varying vec2 vP;
+      ${PRINT}
+      void main() {
+        float r = length(vP);
+        float rn = clamp((r - 0.16) / 0.84, 0.0, 1.0);
+        float a = atan(vP.y, vP.x);
+        float hole = 0.12 + 0.5 * uOpen;       // the clear centre, widening
+        if (rn < hole) discard;
+        float q = (rn - hole) / (1.0 - hole);   // 0 at the wall of the hole, 1 at the outer rim
+        // wedges: 9 arms, wound by the spin and sheared outward with the radius
+        float ph = a * 9.0 / 6.2832 + q * 1.8 - uSpin * 3.0;
+        float idx = floor(ph);
+        float cell = fract(ph);
+        float h = h21(vec2(idx, 3.0));
+        float billow = 0.09 * sin(q * 22.0 + idx * 2.0) + 0.05 * sin(q * 47.0 + idx);
+        float lo = 0.1 + 0.06 * h;
+        float hi = 0.7 + 0.2 * h + billow;
+        float body = smoothstep(lo - 0.02, lo, cell) * (1.0 - smoothstep(hi - 0.02, hi, cell));
+        float edge = min(cell - lo, hi - cell);
+        float ink = (1.0 - smoothstep(0.0, 0.035, edge)) * body;
+        float fade = (1.0 - smoothstep(0.82, 1.0, q)) * smoothstep(0.0, 0.05, q);
+        // dark storm ink, dotted lighter toward the wedge's lit edge and gold along the wall of the hole
+        vec4 t = vec4(1.0 - 0.3 * cell, 0.6 - 0.2 * cell, 0.0, 0.16 - 0.14 * cell); // saturated storm blue-violet, never grey
+        t = mix(t, vec4(0.0, 0.25, 1.0, 0.0), (1.0 - smoothstep(0.0, 0.22, q)) * 0.95); // All Might gold along the wall of the hole
+        float cv;
+        vec3 col = inkPrint(t, cv);
+        col = mix(col, INK_K, ink);
+        float al = body * fade * uK * smoothstep(-0.45, 0.0, vP.y); // the wheel's upper half only, over the top of the frame
+        if (al < 0.03) discard;
+        gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(2.2)), al);
+      }`,
+  });
+  return { g, m };
+}
