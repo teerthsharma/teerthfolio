@@ -17,14 +17,15 @@ import { buildCity } from "./city";
 import { beamFx, burstFx, domeFx, geyserFx, halosFx, panelFx, pillarFx, rainFx, smokeFx } from "./fx";
 import { hullMaterial, worldMaterial } from "./mesh";
 import { NOMU_H, SHOULDER, nomu } from "./nomu";
+import { gloveGeo } from "./punch";
 import { SH, tickShared } from "./print";
 import { cardFx, crowdFx, flagsFx, rocksFx } from "./props";
 import { sky } from "./sky";
 
 const CORE_Y = 0.9;
-export const NOMU_AT = [3.3, -11];
+export const NOMU_AT = [1.7, -12.5];
 const PILLAR = [-0.4, -26, 8];
-const STRIKES = [0.9, 2.45, 4.15, 5.7, 6.55]; // the lightning, before the punch
+const STRIKES = [0.9, 2.45, 4.15, 5.7, 6.55, 7.9, 9.0]; // the lightning, before the punch
 const V = new Vector3();
 const PQ = new Vector3();
 const A_AT = [0, 0, 0];
@@ -50,13 +51,30 @@ function holdPanel(mesh, camera, mat, k) {
   mat.uniforms.uAsp.value = camera.aspect;
 }
 
+// a flat-to-the-lens quad pinned at normalised screen (nx, ny) d metres out, `frac` of the screen wide, in the root's space
+const HP = new Vector3();
+const HQ = new Vector3();
+function pin(mesh, root, cam, nx, ny, d, frac) {
+  const h = 2 * d * Math.tan((cam.fov * Math.PI) / 360);
+  const w = h * cam.aspect;
+  cam.getWorldDirection(HP).multiplyScalar(d).add(cam.position);
+  HQ.set(1, 0, 0).applyQuaternion(cam.quaternion);
+  HP.addScaledVector(HQ, (nx * w) / 2);
+  HQ.set(0, 1, 0).applyQuaternion(cam.quaternion);
+  HP.addScaledVector(HQ, (ny * h) / 2);
+  root.worldToLocal(HP);
+  mesh.position.copy(HP);
+  mesh.quaternion.copy(cam.quaternion);
+  mesh.scale.set(frac * w, frac * w, 1);
+}
+
 export function makeWorld({ tl, KN }) {
   SH.uCrater.value.set(-3.0 * KN, -6.4, 3.0);
   SH.uPillar.value.set(PILLAR[0], PILLAR[1], PILLAR[2]);
   const city = buildCity(KN);
   const crater = SH.uCrater.value.toArray();
   const sk = sky();
-  sk.m.uniforms.uMaxR.value = KN < 1 ? 0.16 : 0.28;
+  sk.m.uniforms.uMaxR.value = KN < 1 ? 0.24 : 0.36;
   const wMat = worldMaterial();
   const hMat = hullMaterial();
   const nm = nomu();
@@ -76,6 +94,7 @@ export function makeWorld({ tl, KN }) {
   const smash = lettering("SMASH!", "#ec2a8a", -0.1);
   const rip = lettering("RIIIP!", "#d6282b", 0.06);
   const flash = flashQuad("#fff4e4");
+  smash.renderOrder = rip.renderOrder = 40; // the words ride over the falling tiles
 
   // the meshes
   const mk = (g, m, order = 0) => {
@@ -91,7 +110,7 @@ export function makeWorld({ tl, KN }) {
   const world = new Group();
   const nomuRoot = new Group();
   nomuRoot.position.set(NOMU_AT[0], -NOMU_H, NOMU_AT[1]);
-  nomuRoot.scale.setScalar(KN < 1 ? 0.62 : 0.76);
+  nomuRoot.scale.setScalar(KN < 1 ? 0.7 : 0.9);
   const armL = new Group();
   armL.position.set(...SHOULDER);
   const armR = new Group();
@@ -99,6 +118,10 @@ export function makeWorld({ tl, KN }) {
   armL.add(mk(nm.armL, wMat), mk(nm.armL, hMat));
   armR.add(mk(nm.armR, wMat), mk(nm.armR, hMat));
   nomuRoot.add(mk(nm.body, wMat), mk(nm.body, hMat), armL, armR);
+  const gloveGeom = gloveGeo();
+  const glove = new Group();
+  glove.add(mk(gloveGeom, wMat), mk(gloveGeom, hMat));
+  glove.visible = false;
   const inst = new Group();
   const geyser = mk(gy.g, gy.m);
   geyser.visible = false;
@@ -109,7 +132,7 @@ export function makeWorld({ tl, KN }) {
   const dome = mk(dm.g, dm.m, 18);
   const panel = mk(pn.g, pn.m, 35);
   for (const x of [burst, beam, dome, panel]) x.visible = false;
-  root.add(shell, world, burst, beam, dome, panel, smash, rip);
+  root.add(shell, world, glove, burst, beam, dome, panel, smash, rip);
 
   const o = { shakeX: 0, shakeY: 0, pupY: 0, pose: { sign: 0, fist: 0, raise: 0, crouch: 0 }, capeOn: false, wind: 0, billow: 0, auraOn: false, auraK: 0, paint: false, reveal: false, held: false, flash };
   const odd = { v: 1 };
@@ -119,6 +142,7 @@ export function makeWorld({ tl, KN }) {
     const t = c.t;
     const tt = onTwos(t);
     const hit = tl.lineB; // the punch
+    const D = hit - 7.2; // the wind-up times below were set for a punch at 7.2 s
     const BRK = tl.lineC - 0.6; // the page tears
     const brk = tt - BRK;
     const broken = brk > 0;
@@ -166,7 +190,7 @@ export function makeWorld({ tl, KN }) {
     const rise = smooth(tl.enter, tl.enter + 1.15, tt);
     const stag = smooth(hit, hit + 0.35, tt) * (1 - smooth(hit + 2.4, hit + 3.4, tt) * 0.35);
     nomuRoot.position.set(NOMU_AT[0] - 0.6 * stag, -(NOMU_H - 0.4) * (1 - rise) ** 2 + (rise < 1 && rise > 0 ? 0.05 * Math.sin(tt * 40) : 0), NOMU_AT[1] - 1.4 * stag);
-    nomuRoot.rotation.set(-0.28 * stag + 0.015 * Math.sin(tt * 2.1), -0.18 + 0.05 * Math.sin(tt * 0.9), 0);
+    nomuRoot.rotation.set(-0.28 * stag + 0.015 * Math.sin(tt * 2.1), -0.8 + 0.05 * Math.sin(tt * 0.9), 0); // three-quarter on, so the beak is in profile
     const thrA = smooth(3.1, 3.55, tt) * (1 - smooth(3.55, 4.4, tt));
     const thrB = smooth(3.55, 4.0, tt) * (1 - smooth(4.0, 4.9, tt));
     const guard = smooth(hit, hit + 0.25, tt);
@@ -210,8 +234,8 @@ export function makeWorld({ tl, KN }) {
     if (M.visible) {
       const pop = 1 + 0.5 * Math.exp(-mg * 6) * Math.cos(mg * 22);
       const e2 = smooth(0, 0.7, mg); // from the smash point to its hover beside the pup
-      const hx = -1.55 * nk + 0.15 * Math.sin(tt * 2);
-      const hy = 2.5 + 0.18 * Math.sin(tt * 2.4) + 0.25 * smooth(0, 2.5, mg);
+      const hx = -2.6 * nk + 0.15 * Math.sin(tt * 2);
+      const hy = 3.0 + 0.18 * Math.sin(tt * 2.4) + 0.25 * smooth(0, 2.5, mg);
       M.position.set(fist[0] + 0.3 + (hx - fist[0] - 0.3) * e2, fist[1] + 0.6 + (hy - fist[1] - 0.6) * e2, fist[2] + 0.3 + (0.8 - fist[2] - 0.3) * e2);
       M.rotation.set(0, 0.1 * Math.sin(tt * 1.5), -0.1 + 0.03 * Math.sin(tt * 3));
       M.scale.setScalar(Math.min(1.0, smooth(0, 0.18, mg) * 1.0) * pop * (wide ? 1 : 0.8));
@@ -219,18 +243,21 @@ export function makeWorld({ tl, KN }) {
 
     // THE HERO: the sign, the raised fist, the crouch, the spring, the punch
     o.pose.sign = signAt(tl, t) * (1 - smooth(1.4, 1.8, tt));
-    o.pose.fist = smooth(4.9, 5.7, tt) * (1 - smooth(hit - 0.15, hit, tt)) * out;
+    o.pose.fist = smooth(4.9 + D, 5.7 + D, tt) * (1 - smooth(hit - 0.15, hit, tt)) * out;
     o.pose.raise = smooth(hit - 0.05, hit + 0.1, tt) * (1 - smooth(hit + 2.4, hit + 3.0, tt));
-    o.pose.crouch = (smooth(6.3, 6.95, tt) * (1 - smooth(hit - 0.15, hit, tt)) * 0.9 + smooth(BRK, BRK + 0.1, tt) * (1 - smooth(BRK + 0.5, BRK + 0.9, tt)) * 0.5) * out;
+    o.pose.crouch = (smooth(6.3 + D, 6.95 + D, tt) * (1 - smooth(hit - 0.15, hit, tt)) * 0.9 + smooth(BRK, BRK + 0.1, tt) * (1 - smooth(BRK + 0.5, BRK + 0.9, tt)) * 0.5) * out;
     o.pupY = 0.7 * smooth(hit - 0.12, hit + 0.1, tt) * (1 - smooth(hit + 0.5, hit + 1.0, tt)) * out;
     o.held = brk > 0.2; // the printed pup holds a beat into the tear, then snaps back with the island
     o.paint = (inside || tt > tl.bloom[1]) && !o.held;
     o.capeOn = !o.held && tt > 1.3;
     o.wind = Math.min(1.5, 0.28 + (wind - 0.3) * 0.6);
-    o.billow = smooth(5.4, 6.6, tt) * 0.35 + smooth(hit - 0.05, hit + 0.18, tt) * 0.65 - smooth(hit + 1.6, hit + 3.0, tt) * 0.45;
-    o.auraOn = !o.held && tt > 5.3;
-    o.auraK = smooth(5.3, 6.4, tt) * (1 + (age > 0 ? 0.5 * Math.exp(-age * 4) : 0)) * (1 - smooth(hit + 2.2, hit + 3.0, tt));
-    o.punch = smooth(hit - 0.05, hit + 0.12, tt) * (1 - smooth(hit + 2.4, hit + 3.0, tt));
+    o.billow = smooth(5.4 + D, 6.6 + D, tt) * 0.35 + smooth(hit - 0.05, hit + 0.18, tt) * 0.65 - smooth(hit + 1.6, hit + 3.0, tt) * 0.45;
+    o.auraOn = !o.held && tt > 5.3 + D;
+    o.auraK = smooth(5.3 + D, 6.4 + D, tt) * (1 + (age > 0 ? 0.5 * Math.exp(-age * 4) : 0)) * (1 - smooth(hit + 2.2, hit + 3.0, tt));
+    o.punch = Math.max(smooth(5.9 + D, 6.9 + D, tt) * 0.9, smooth(hit - 0.05, hit + 0.12, tt)) * (1 - smooth(hit + 2.4, hit + 3.0, tt)) * out; // the fist stands above the head before the blow
+    glove.visible = o.punch > 0.05 && !broken;
+    glove.position.set(fist[0], fist[1], fist[2]);
+    glove.scale.setScalar(0.6 + 0.4 * o.punch);
 
     // THE PUNCH: the starburst at the fist, the beam into the clouds, the dome, the crater's geyser, the panel, the word
     const [fx, fy, fz] = fist;
@@ -273,18 +300,14 @@ export function makeWorld({ tl, KN }) {
     smash.visible = age > 0.04 && age < 0.9;
     if (smash.visible) {
       const pop = Math.min(1, (age - 0.04) / 0.08) * (1 + 0.25 * Math.max(0, 1 - (age - 0.04) / 0.2));
-      const w3 = (wide ? 3.8 : 2.7) * pop;
-      smash.position.set((wide ? -2.7 : -1.2) + 0.05 * odd.v, wide ? 3.7 : 4.4, 0.8);
-      smash.scale.set(w3, w3, 1);
-      smash.quaternion.copy(cam.quaternion);
+      pin(smash, root, cam, wide ? -0.52 : -0.3, wide ? 0.5 : 0.62, 8, (wide ? 0.34 : 0.62) * pop);
+      smash.position.x += 0.05 * odd.v;
     }
     rip.visible = brk > -0.02 && brk < 1.15;
     if (rip.visible) {
       const pop = Math.min(1, (brk + 0.02) / 0.09) * (1 + 0.25 * Math.max(0, 1 - brk / 0.25));
-      const w4 = (wide ? 4.6 : 3.2) * pop;
-      rip.position.set((wide ? 0.4 : 0.2) + 0.05 * odd.v, wide ? 2.6 : 3.2, 1.6);
-      rip.scale.set(w4, w4, 1);
-      rip.quaternion.copy(cam.quaternion);
+      pin(rip, root, cam, 0, wide ? 0.3 : 0.25, 8, (wide ? 0.36 : 0.7) * pop);
+      rip.position.x += 0.05 * odd.v;
     }
     // a little warm flash on the punch and a paler one on the tear (never a white-out)
     holdFlash(flash, cam, Math.max(0, 1 - Math.abs(age - 0.04) / 0.09) * 0.16 + Math.max(0, 1 - Math.abs(brk) / 0.1) * 0.14);
@@ -295,7 +318,7 @@ export function makeWorld({ tl, KN }) {
   }
 
   function dispose() {
-    const geoms = [city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
+    const geoms = [city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
     for (const g of [...geoms, ...cards.geoms, ...crowd.geoms, ...flags.geoms, ...rocks.geoms, ...pillar.geoms, smoke.obj.geometry, halos.obj.geometry, rain.obj.geometry]) g.dispose();
     const mats = [sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
     for (const x of [...mats, ...cards.mats, ...crowd.mats, ...flags.mats, ...rocks.mats, ...pillar.mats]) x.dispose();

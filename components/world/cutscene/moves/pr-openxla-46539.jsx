@@ -20,13 +20,15 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Vector3 } from "three";
+import { Box3, Vector3 } from "three";
 import { radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, smooth, useCutFrame } from "../kit";
 import { islandList, pupParts } from "./p-caustic/parts";
 import { flipperAt, usePupFront, usePupPost } from "./g3/common";
 import { cape, pupPrint, vAura } from "./pr-openxla-46539/hero";
+import { nearMovers } from "./pr-openxla-46539/island";
+import { applyPunch } from "./pr-openxla-46539/punch";
 import { makeWorld } from "./pr-openxla-46539/world";
 
 const FIST_REST = [0.9, 2.2, 0.4];
@@ -37,6 +39,10 @@ export default function Move(cut) {
   const pup = useRef(null);
   const paint = useRef(null);
   const island = useRef([]);
+  const cleared = useRef(null);
+  const bx = useRef(new Box3()).current;
+  useEffect(() => () => { for (const x of cleared.current || []) x.visible = true; }, []);
+  const movers = useRef(null); // the island's cars and flakes held out of sight from the tear to the end
   const hero = useRef(null);
   const shake = useRef(new Vector3());
   const fist = useRef(FIST_REST);
@@ -71,6 +77,8 @@ export default function Move(cut) {
         x.m.dispose();
       }
       hero.current = null;
+      for (const m of movers.current ?? []) m.visible = true;
+      movers.current = null;
       paint.current?.dispose();
       paint.current = null;
       pup.current = null;
@@ -83,6 +91,7 @@ export default function Move(cut) {
   useFrame(() => {
     const p = pup.current;
     if (!live.arrival.id) {
+      for (const m of movers.current ?? []) m.visible = true;
       w.root.visible = false;
       paint.current?.set(false);
       const h = hero.current;
@@ -100,12 +109,7 @@ export default function Move(cut) {
 
   // the fist: where the right flipper's tip is, in the rig's space; the punch thrusts it straight up
   usePupPost(cut, (t, r) => {
-    const k = w.punch ?? 0;
-    if (k > 0) {
-      const e = r.flipR.rotation;
-      r.flipR.rotation.set(e.x + (0 - e.x) * k, e.y + (-0.55 - e.y) * k, e.z + (1.75 - e.z) * k, "YZX");
-      r.flipR.scale.setScalar(1 + 0.45 * k);
-    }
+    applyPunch(r.flipR, w.punch ?? 0);
     const p = flipperAt(r.flipR, w.root, [0.75, 0.1, 0]);
     fist.current = [p.x, p.y, p.z];
   });
@@ -141,7 +145,20 @@ export default function Move(cut) {
       h.aura.mesh.visible = o.auraOn;
       h.aura.m.uniforms.uK.value = o.auraK;
     }
-    if (o.reveal) for (const x of island.current) x.visible = true;
+    if (o.reveal) {
+      for (const x of island.current) x.visible = true;
+      movers.current ??= nearMovers(island.current, live.seal.x, live.seal.z);
+      // the stage lens stands where an island wall may be: hold any top-level piece the lens is inside or against out of sight until the end
+      if (!cleared.current) {
+        cleared.current = [];
+        for (const x of island.current) {
+          if (x.isInstancedMesh) continue;
+          bx.setFromObject(x);
+          if (!bx.isEmpty() && bx.distanceToPoint(state.camera.position) < 5 && bx.max.y - bx.min.y > 3) { x.visible = false; cleared.current.push(x); }
+        }
+      }
+    }
+    if (movers.current && t > tl.lineC - 0.7) for (const m of movers.current) m.visible = false;
   });
 
   return (

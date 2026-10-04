@@ -378,6 +378,7 @@ export function panelFx() {
       void main() {
         vec2 p = (vUv - 0.5) * 2.0 * vec2(uAsp, 1.0);
         // after the break the tiles of the page drop away, each its own pace
+        vec2 p0 = p;
         vec2 tile = floor(p * vec2(2.2, 3.0) + 20.0);
         float th = h21(tile);
         p.y += uFall * uFall * 4.0 * (0.4 + th);
@@ -394,6 +395,17 @@ export function panelFx() {
           // the gutter: cream page with a loose screen of cyan and magenta
           col = inkPrint(vec4(0.16, 0.12, 0.05, 0.0));
           alpha = 1.0;
+          if (uFall > 0.0) {
+            // the torn page falls as printed paper: each piece carries its comic face (a flat four-colour field
+            // under a Ben-Day screen), a cream torn rim and an ink edge, so it reads as paper, never as a haze
+            vec2 f0 = fract(p0 * vec2(2.2, 3.0) + 20.0);
+            float e = min(min(f0.x, 1.0 - f0.x), min(f0.y, 1.0 - f0.y));
+            vec4 face = th < 0.34 ? vec4(0.0, 0.18, 0.92, 0.0) : (th < 0.68 ? vec4(0.0, 0.78, 0.15, 0.0) : vec4(0.78, 0.3, 0.0, 0.05));
+            face.w += 0.25 * step(0.5, fract((f0.x + f0.y) * 5.0 + th * 3.0));
+            col = inkPrint(face);
+            col = mix(col, PAPER, 1.0 - smoothstep(0.05, 0.09, e));
+            col = mix(col, INK_K, 1.0 - smoothstep(0.015, 0.035, e));
+          }
         } else if (d > -bw) {
           col = INK_K;
           alpha = 1.0;
@@ -407,7 +419,7 @@ export function panelFx() {
           alpha = max(alpha, line);
         }
         if (alpha < 0.01) discard;
-        gl_FragColor = vec4(pow(col, vec3(2.2)), alpha * (1.0 - smoothstep(0.0, 1.0, uFall)));
+        gl_FragColor = vec4(pow(col, vec3(2.2)), alpha * (1.0 - smoothstep(0.93, 1.0, uFall)));
       }`,
   });
   return { g, m };

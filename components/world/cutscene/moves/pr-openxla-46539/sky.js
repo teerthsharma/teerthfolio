@@ -14,7 +14,7 @@ import { PRINT, SH, u } from "./print";
 export function sky() {
   const g = shardify(new IcosahedronGeometry(1, 4), 0.035);
   const m = new ShaderMaterial({
-    uniforms: { ...SH, uPull: u(1), uOpen: u(0), uSwirl: u(0), uFlash: u(0), uInside: u(0), uVortex: u(new Vector3(0.05, 0.25, -1)), uMaxR: u(0.28) },
+    uniforms: { ...SH, uPull: u(1), uOpen: u(0), uSwirl: u(0), uFlash: u(0), uInside: u(0), uVortex: u(new Vector3(0.0, 0.42, -1)), uMaxR: u(0.28) },
     side: DoubleSide,
     transparent: true,
     depthWrite: false,

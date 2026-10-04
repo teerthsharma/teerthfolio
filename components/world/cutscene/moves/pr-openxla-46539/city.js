@@ -54,7 +54,7 @@ function grid(w, d, nx, nz, cx, cz, skip) {
 
 // k: how much the avenue is narrowed for a portrait screen (1 on a wide one)
 export function buildCity(k) {
-  const HW = 5.2 * k;
+  const HW = 4.4 * k;
   SH.uStreet.value = HW;
   const parts = [];
   const info = { roofs: [], smoke: [], lamps: [], flags: [], HW };
@@ -67,7 +67,7 @@ export function buildCity(k) {
       const i = n++;
       const w = 7 + 5 * hash(i, 1);
       const depth = 9 + 6 * hash(i, 2);
-      const inner = HW + 1.9 + (hash(i, 3) < 0.2 ? 1.6 : 0);
+      const inner = HW + 1.3 + (hash(i, 3) < 0.2 ? 1.2 : 0);
       // the near blocks are low and broken so the sky shows over them; the intact towers stand back
       const h = 2.5 + 0.34 * -z + 3 * hash(i, 4);
       const pal = walls[(i * 3 + (side > 0 ? 1 : 0)) % 4];
@@ -96,7 +96,7 @@ export function buildCity(k) {
           // a broken storey: a corner torn off the top
           parts.push(tag(box(depth * 0.45, 2.4, w * 0.45, cx - side * depth * 0.25, h - 1.0, cz + w * 0.28, 0.12, 0.2, 0), PAL.rubble));
         }
-        if (-z > 8 && -z < 48) info.roofs.push({ x: cx - side * depth * 0.38, y: h + 0.3, z: cz, w, side, i });
+        if (-z > 8 && -z < 34) info.roofs.push({ x: side * (inner + 0.6), y: h + 0.3, z: cz, w, side, i }); // the roof's street lip: the crowd stands at the front of it
         if (hash(i, 11) < 0.3 && -z < 60) {
           const fx = cx - side * depth * 0.35;
           const fz = cz + w * 0.3;

@@ -98,8 +98,10 @@ function figure(armsUp) {
 }
 export function crowdFx(roofs, groundSide) {
   const spots = [];
-  roofs.slice(0, 9).forEach((r, ri) => {
-    for (let j = 0; j < 4; j++) spots.push({ x: r.x + (hash(ri * 9 + j, 1) - 0.5) * 2.4, y: r.y, z: r.z + (j - 1.5) * r.w * 0.2, ph: hash(ri * 9 + j, 2) * 6, s: 1.0 + 0.25 * hash(ri * 9 + j, 3), up: hash(ri * 9 + j, 4) * 0.5 });
+  // both sides of the avenue, the nearest roofs first: they stand against the sky inside the wide frame
+  const near = [-1, 1].flatMap((sd) => roofs.filter((r) => r.side === sd).sort((a, b) => b.z - a.z).slice(0, 5));
+  near.forEach((r, ri) => {
+    for (let j = 0; j < 4; j++) spots.push({ x: r.x + r.side * (0.2 + 1.4 * hash(ri * 9 + j, 1)), y: r.y, z: r.z + (j - 1.5) * r.w * 0.2, ph: hash(ri * 9 + j, 2) * 6, s: 1.5 + 0.3 * hash(ri * 9 + j, 3), up: hash(ri * 9 + j, 4) * 0.5 });
   });
   const gA = figure(false);
   const gB = figure(true);
@@ -222,7 +224,7 @@ export function rocksFx(groundY, crater, HW) {
     const sp = src === 1 ? 6 + 9 * hash(i, 12) : 3 + 6 * hash(i, 12);
     const up = src === 2 ? 11 + 12 * hash(i, 13) : 5 + 9 * hash(i, 13);
     const o = src === 0 ? [2.4 + Math.cos(a) * 1.5, -9.5 + Math.sin(a) * 1.0] : src === 1 ? [Math.cos(a) * 0.8, Math.sin(a) * 0.6 - 0.6] : [crater[0] + Math.cos(a) * 0.8, crater[1] + Math.sin(a) * 0.8];
-    return { src, o, v: [Math.cos(a) * sp, up, Math.sin(a) * sp * (src === 1 ? 0.55 : 1)], s: 0.14 + 0.5 * hash(i, 14) ** 2 * (src === 1 ? 1.4 : 1), sp: 2 + 6 * hash(i, 15), r: hash(i, 16) };
+    return { src, o, v: [Math.cos(a) * sp, up, src === 1 ? -(1 + Math.abs(Math.sin(a)) * sp * 0.6) : Math.sin(a) * sp], s: 0.14 + 0.5 * hash(i, 14) ** 2 * (src === 1 ? 0.8 : 1), sp: 2 + 6 * hash(i, 15), r: hash(i, 16) };
   });
   return {
     rubble,

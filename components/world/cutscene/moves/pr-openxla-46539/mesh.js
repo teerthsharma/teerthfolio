@@ -146,8 +146,8 @@ const WORLD_FRAG = /* glsl */ `
       // the nomu: ink black with a cyan rim of light along the edge
       // three flat tones by the light, then the rim of cyan
       float rim = pow(1.0 - max(dot(n, normalize(toCam)), 0.0), 2.0);
-      t = nl > 0.5 ? vec4(0.6, 0.35, 0.0, 0.08) : (nl > 0.0 ? vec4(0.78, 0.55, 0.0, 0.28) : vec4(0.85, 0.7, 0.0, 0.5));
-      t = mix(t, vec4(0.95, 0.12, 0.0, 0.0), smoothstep(0.5, 0.75, rim));
+      t = nl > 0.5 ? vec4(0.4, 0.32, 0.05, 0.1) : (nl > 0.0 ? vec4(0.55, 0.45, 0.08, 0.26) : vec4(0.72, 0.6, 0.1, 0.5));
+      t = mix(t, vec4(0.95, 0.12, 0.0, 0.0), smoothstep(0.35, 0.6, rim));
     }
     t.w += (1.0 - t.w) * shade * 0.5;
     float lite = sunMask * (1.0 - shade * 0.6) * (1.0 - unlit);

@@ -3,23 +3,24 @@
 // that hang past the knees, and the head the series gives it: a bare brain
 // dome over a skull, and a beak-like jaw, two prongs, no eyes or teeth.
 // Three meshes: the body, and the two arms (their origin the shoulder, so the
-// move can swing them to throw). Feet at y 0, facing +z, 7.4 m to the crown.
+// move can swing them to throw). Feet at y 0, facing +z, 11.5 m to the top of the brain.
 
-import { ConeGeometry, CylinderGeometry, IcosahedronGeometry, SphereGeometry } from "three";
+import { ConeGeometry, CylinderGeometry, IcosahedronGeometry, SphereGeometry, TorusGeometry } from "three";
 import { PAL } from "./print";
 import { box, build, limb, tag } from "./mesh";
 
-export const NOMU_H = 7.4;
+export const NOMU_H = 11.5;
 export const SHOULDER = [2.3, 5.5, -0.1]; // from the feet
 
-function lumpy(g, amp) {
+// swell a sphere's surface in lobes, about its own centre (cx, cy, cz)
+function lumpy(g, amp, cx, cy, cz) {
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i);
-    const y = p.getY(i);
-    const z = p.getZ(i);
-    const k = 1 + amp * (Math.sin(x * 7.1 + z * 3.3) * Math.cos(y * 6.3 - x * 2.1) + 0.5 * Math.sin(z * 9.7 + y * 4.1));
-    p.setXYZ(i, x * k, y * k, z * k);
+    const x = p.getX(i) - cx;
+    const y = p.getY(i) - cy;
+    const z = p.getZ(i) - cz;
+    const k = 1 + amp * (Math.sin(x * 4.1 + z * 2.3) * Math.cos(y * 3.6 - x * 1.7) + 0.5 * Math.sin(z * 5.7 + y * 3.1));
+    p.setXYZ(i, cx + x * k, cy + y * k, cz + z * k);
   }
   return g;
 }
@@ -30,18 +31,21 @@ export function nomu() {
   for (const s of [-1, 1]) {
     body.push(tag(limb([s * 1.0, 3.2, 0], [s * 1.15, 0.35, 0.1], 0.85, 0.6, 7), N)); // legs
     body.push(tag(box(1.4, 0.55, 2.0, s * 1.15, 0.28, 0.55), N)); // feet
-    body.push(tag(new SphereGeometry(1.25, 8, 6).translate(s * 2.3, 5.6, -0.1), N)); // shoulder masses
+    body.push(tag(new SphereGeometry(1.05, 8, 6).translate(s * 2.15, 5.5, -0.1), N)); // shoulder masses
   }
   body.push(tag(new SphereGeometry(1.6, 8, 6).scale(1.2, 0.8, 0.95).translate(0, 3.3, 0), N)); // pelvis
   body.push(tag(new CylinderGeometry(2.05, 1.3, 3.1, 9).scale(1, 1, 0.82).rotateX(0.2).translate(0, 4.6, 0.1), N)); // the chest, hunched
-  body.push(tag(new CylinderGeometry(0.8, 1.0, 0.9, 7).translate(0, 6.15, 0.4), N)); // neck
-  body.push(tag(new IcosahedronGeometry(1.0, 1).scale(1.05, 0.88, 1.15).translate(0, 6.55, 0.65), N)); // the skull
-  // the brain: a lumpy dome standing proud of the crown
-  const dome = lumpy(new SphereGeometry(1.02, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.55).scale(1.05, 0.95, 1.12).translate(0, 6.78, 0.6), 0.07);
-  body.push(tag(dome, PAL.brain));
-  // the beak: two prongs, the upper hooked, the lower dropped open
-  body.push(tag(new ConeGeometry(0.66, 1.9, 6).rotateX(Math.PI / 2 - 0.22).translate(0, 6.3, 1.75), N));
-  body.push(tag(new ConeGeometry(0.5, 1.5, 6).rotateX(Math.PI / 2 + 0.55).translate(0, 5.82, 1.5), N));
+  body.push(tag(new CylinderGeometry(0.95, 1.15, 0.9, 7).translate(0, 6.15, 0.4), N)); // neck
+  // the head, built about the neck's top and swelled: the brain and the beak must read from the far end of the street
+  const hd = (g) => g.translate(0, -6.0, -0.5).scale(1.5, 1.5, 1.5).translate(0, 6.3, 0.5);
+  body.push(tag(hd(new IcosahedronGeometry(1.0, 1).scale(1.0, 0.82, 1.12).translate(0, 6.6, 0.7)), N)); // the skull, low and wide
+  body.push(tag(hd(new TorusGeometry(1.0, 0.24, 6, 12).rotateX(Math.PI / 2).translate(0, 7.05, 0.65)), N)); // the cut skull: a rim of bone round the brain
+  // the brain: a big lumpy pink sphere standing proud of the crown, wider than the neck
+  body.push(tag(hd(lumpy(new SphereGeometry(1.3, 14, 10).scale(1.1, 0.95, 1.1).translate(0, 7.85, 0.6), 0.12, 0, 7.85, 0.6)), PAL.brain));
+  // the beak: a heavy wedge jutting forward, hooked at the tip, over a dropped lower jaw
+  body.push(tag(hd(new ConeGeometry(0.85, 2.9, 6).scale(1, 1, 0.65).rotateX(Math.PI / 2 - 0.12).translate(0, 6.35, 2.3)), PAL.sinter));
+  body.push(tag(hd(new ConeGeometry(0.35, 1.0, 5).rotateX(Math.PI / 2 + 1.0).translate(0, 6.0, 3.65)), PAL.sinter)); // the hook
+  body.push(tag(hd(new ConeGeometry(0.62, 2.3, 6).scale(1, 1, 0.6).rotateX(Math.PI / 2 + 0.5).translate(0, 5.5, 2.0)), PAL.sinter));
   // spine ridges down the back
   for (let i = 0; i < 5; i++) body.push(tag(new ConeGeometry(0.28, 0.9, 4).rotateX(-0.5).translate(0, 5.5 - i * 0.55, -1.2 - 0.05 * i), N));
 
