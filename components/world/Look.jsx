@@ -12,7 +12,7 @@
 //          (look/RadiationPov.js: crossing into an area floods and warps the
 //          view, then clears), then the Neutral tone map the palette was
 //          solved for, applied once at the very end.
-//   Tier   2 = AO + bloom, 1 = bloom, 0 = no post (native tone mapping).
+//   Tier   2 = AO + bloom, 1 = bloom, 0 = the tone map alone.
 //          PerformanceMonitor steps down when a device cannot hold ~50 fps:
 //          AO goes first, then bloom. ?look=0|1|2 pins a tier (captures).
 //          Resolution is never touched: crispness is not traded for effects.
@@ -108,14 +108,26 @@ function useRadiationPov() {
   return pov;
 }
 
-function Post({ tier }) {
+function Glow() {
   const bloom = useLampBloom();
   const pov = useRadiationPov();
   return (
-    <EffectComposer multisampling={4}>
-      {tier >= 2 ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
+    <>
       <primitive object={bloom} dispose={null} />
       <primitive object={pov} dispose={null} />
+    </>
+  );
+}
+
+// Tier 0 keeps the composer with the tone map alone. Dropping the composer
+// moved drawing from its render target to the screen, which changes every
+// material's program key (tone mapping, colour space) and recompiled every
+// shader in one frame: 5.5-5.9 s frozen on Intel UHD (scripts/perf-frames.mjs).
+function Post({ tier }) {
+  return (
+    <EffectComposer multisampling={4}>
+      {tier >= 2 ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
+      {tier >= 1 ? <Glow /> : null}
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
     </EffectComposer>
   );
@@ -124,7 +136,6 @@ function Post({ tier }) {
 export default function Look() {
   const [pin] = useState(pinned);
   const [tier, setTier] = useState(pin ?? 2);
-  const gl = useThree((s) => s.gl);
   const ready = useUi((s) => s.ready);
   const [watching, setWatching] = useState(false);
 
@@ -136,16 +147,14 @@ export default function Look() {
     return () => clearTimeout(t);
   }, [ready, pin]);
 
-  // Without the composer the renderer tone maps again, as Island.jsx set it.
   useEffect(() => {
-    if (tier === 0) gl.toneMapping = LIGHT.toneMapping;
     window.__world = { ...(window.__world || {}), look: tier };
-  }, [tier, gl]);
+  }, [tier]);
 
   return (
     <>
       <Sky />
-      {tier > 0 ? <Post tier={tier} /> : null}
+      <Post tier={tier} />
       {watching && tier > 0 ? (
         <PerformanceMonitor bounds={() => [50, Infinity]} onDecline={() => setTier((t) => Math.max(0, t - 1))} />
       ) : null}
