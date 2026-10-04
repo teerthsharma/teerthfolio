@@ -86,7 +86,7 @@ export const INK = /* glsl */ `
 // instance colours, if any, are kept colours. rim: the low sun's rim on the silhouette.
 // rib: the seal-titans' glowing ribs (object space). skin: the titans' bare-muscle striations.
 // march: the horizon column marches in the vertex shader (aPhase per instance).
-export function charcoal({ tone = 0.7, wash = 0.12, keep = "#ffffff", keepK = 0, rim = 0.35, edge = 1, rib = 0, skin = 0, march = false, side, transparent = false, opacity = 1, haze = 1, glow, vertexColors = false, shard = false, extra = {} } = {}) {
+export function charcoal({ tone = 0.7, wash = 0.42, keep = "#ffffff", keepK = 0, rim = 0.35, edge = 1, rib = 0, skin = 0, march = false, side, transparent = false, opacity = 1, haze = 1, glow, vertexColors = false, shard = false, extra = {} } = {}) {
   const uniforms = {
     ...U,
     uTone: { value: tone },
@@ -256,11 +256,12 @@ function pupMaterial(color, vertexColors) {
 }
 
 // The pup's charcoal twins, swapped in and out (the contact shadow and anything already a shader keeps its own).
-export function pupCharcoal(root) {
+export function pupCharcoal(root, head) {
   const list = [];
   const twins = new Map();
   root.traverse((o) => {
     if (!o.isMesh || Array.isArray(o.material) || o.material.isShaderMaterial || o.material.transparent) return;
+    for (let a = o; head && a; a = a.parent) if (a === head) return; // the face keeps its own white and dark eyes
     const m = o.material;
     let p = twins.get(m);
     if (!p) {
@@ -286,9 +287,9 @@ export function pupCharcoal(root) {
 
 // A soft charcoal smudge (steam, dust, ash), billboarded in the vertex shader from per-instance data:
 // aSrc (where it rises from; kind 1 rides the pup), aLife (x: when it starts, y: its period, z: its seed, w: kind).
-export function smudgeMaterial({ dark = 0.0, size = 1 } = {}) {
+export function smudgeMaterial({ dark = 0.0, size = 1, tint, opacity = 0.85 } = {}) {
   return new ShaderMaterial({
-    uniforms: { ...U, uPup: { value: new Vector3() }, uPupK: { value: 1 }, uSize: { value: size }, uDark: { value: dark }, uOn: { value: 1 }, uClock: { value: 0 } },
+    uniforms: { ...U, uPup: { value: new Vector3() }, uPupK: { value: 1 }, uSize: { value: size }, uDark: { value: dark }, uOn: { value: 1 }, uClock: { value: 0 }, uTint: { value: new Color(tint ?? "#ffffff") }, uTintK: { value: tint ? 1 : 0 }, uAlpha: { value: opacity } },
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
@@ -329,7 +330,8 @@ export function smudgeMaterial({ dark = 0.0, size = 1 } = {}) {
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `
-      uniform float uDark;
+      uniform float uDark, uTintK, uAlpha;
+      uniform vec3 uTint;
       varying vec2 vUv;
       varying float vA;
       varying float vSeed;
@@ -344,7 +346,8 @@ export function smudgeMaterial({ dark = 0.0, size = 1 } = {}) {
         // soft smudged charcoal: paper-light in the middle, a grey rubbed edge
         float tone = mix(0.92, 0.55, smoothstep(0.1, 0.9, r)) - uDark;
         vec3 c = drawn(tone, 0.18, vec3(1.0), 0.0);
-        gl_FragColor = outColor(c, a * 0.85);
+        c = mix(c, uTint, uTintK);
+        gl_FragColor = outColor(c, a * uAlpha);
       }`,
   });
 }

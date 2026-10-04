@@ -76,19 +76,20 @@ const TITAN = 6; // the pup's titan scale
 
 // THE LENS: key frames in the scene's frame [t, eye, look, k], wide; a tall screen stands back by k
 const KEYS = [
-  [1.25, [1.2, 1.6, 9], [0, -2, -30], 1.15], // the pup whole on the cobbles, the faces and the Wall over it
-  [3.2, [1.0, 1.6, 8], [0, -2, -30], 1.15],
-  [4.4, [1.4, 2.0, 9.5], [0, -0.5, -30], 1.15], // the skin falls behind the pup
+  [1.25, [1.2, 1.1, 9], [0, 7, -30], 1.15], // the pup whole on the cobbles, the faces and the Wall over it
+  [3.2, [1.0, 1.1, 8], [0, 7, -30], 1.15],
+  [4.4, [1.4, 1.1, 9.5], [0, 8, -30], 1.15], // the skin falls behind the pup
+  [4.9, [2, 21.5, -14], [3, 23, -24], 1.0], // holds on Eren's back before the fly-along
   [5.3, [-22, 24.5, -23], [20, 110, -400], 1.0], // the fly-along: along the crest, past Eren, over the penguin titans' march
   [6.4, [4, 24.5, -23], [40, 115, -400], 1.0],
   [6.8, [3, 2.4, 16], [0, 3.5, -10], 1.2], // the strike
   [7.7, [20, 9, 34], [-1, 7, -14], 1.25], // the titan pup whole, three-quarter on, the block beside it
   [10.3, [18, 8.5, 32], [-1, 6.5, -14], 1.25],
-  [11.0, [1.4, 1.6, 7.2], [0, -3.5, -30], 1.3], // the flex: the pup whole above the bubbles, the gap and the sea behind it
-  [16.0, [1.1, 1.6, 6.6], [0, -3.5, -30], 1.3],
-  [19.8, [1.0, 1.6, 6.4], [0, -3.5, -30], 1.3],
+  [11.0, [1.4, 1.1, 7.2], [0, 4.5, -30], 1.3], // the flex: the pup whole above the bubbles, the gap and the sea behind it
+  [16.0, [1.1, 1.1, 6.6], [0, 4.5, -30], 1.3],
+  [19.8, [1.0, 1.1, 6.4], [0, 4.5, -30], 1.3],
 ];
-const FOV = [50, 62]; // wide, tall: the dimension's own lens, wider than the island's 35
+const FOV = [44, 58]; // wide, tall: the dimension's own lens, wider than the island's 35
 const EYE = new Vector3();
 const LOOK = new Vector3();
 const A = new Vector3();
@@ -165,7 +166,7 @@ export default function Move(cut) {
     const p = pupParts(scene);
     s.pup = p;
     if (p?.root) {
-      s.paint = pupCharcoal(p.root);
+      s.paint = pupCharcoal(p.root, p.head);
       p.root.traverse((o) => {
         if (o.isMesh) s.orders.push([o, o.renderOrder]);
       });
@@ -404,6 +405,7 @@ export default function Move(cut) {
     sm.uPup.value.set(live.seal.x, 0, live.seal.z);
     sm.uPupK.value = sc;
     k.ash.material.uniforms.uClock.value = tt;
+    k.cols.material.uniforms.uClock.value = t;
 
     // THE BLOCK: eaten top course first, each cube spiralling into the open mouth
     const ea = t - T.eat[0];
