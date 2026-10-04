@@ -317,6 +317,7 @@ export default function Move(cut) {
   const island = useRef([]);
   const shake = useRef(new Vector3());
   const lifted = useRef(0);
+  const capRef = useRef(null);
   const last = useRef(-1);
 
   const m = useMemo(() => takeCourt() ?? buildCourt(), []);
@@ -327,7 +328,15 @@ export default function Move(cut) {
     pup.current = p;
     m.cel = m.cel ?? (p?.root ? pupCel(p.root, m.glow) : null);
     cel.current = m.cel;
+    // the return, said on screen: why the court unmakes itself and we are home
+    const cap = document.createElement("p");
+    cap.textContent = "The scale broke, so Aura's judgement is void. The court unmakes itself, and this is home.";
+    cap.style.cssText = "position:fixed;left:50%;top:13vh;transform:translateX(-50%);z-index:24;pointer-events:none;margin:0;padding:8px 18px;border-radius:999px;background:#fff4d6;color:#4a2a08;border:2px solid #e0a043;font:700 clamp(13px,2vh,18px) system-ui,sans-serif;text-align:center;max-width:calc(100vw - 32px);display:none";
+    document.body.appendChild(cap);
+    capRef.current = cap;
     return () => {
+      cap.remove();
+      capRef.current = null;
       cel.current = null;
       pup.current = null;
       disposeCourt(m);
@@ -335,7 +344,7 @@ export default function Move(cut) {
   }, [scene, m]);
 
   // the shake and the lift ride the pup after Seal.jsx has placed it; a skip clears the arrival and nothing draws a frame more
-  useFrame(() => {
+  useFrame((state) => {
     const p = pup.current;
     if (!live.arrival.id) {
       if (rig.current) rig.current.visible = false;
@@ -346,6 +355,7 @@ export default function Move(cut) {
     if (p?.root && mode === "full") {
       p.root.position.add(shake.current);
       p.root.position.y += lifted.current;
+      p.root.rotation.y += 1.7 * smooth(1.0, 2.2, state.clock.elapsedTime - live.arrival.start) * (1 - smooth(tl.collapse[0] - 0.4, tl.collapse[0], state.clock.elapsedTime - live.arrival.start)); // face Aura (profile to the lens)
     }
   }, -0.5);
 
@@ -416,11 +426,13 @@ export default function Move(cut) {
     U.uOrigin.value.set(s.x + HW.x, HW.y + FULCRUM * 0.6, s.z + HW.z);
     U.uOriginDir.value.copy(U.uOrigin.value).sub(cam.position).normalize();
     m.glow.value = glowK * 0.8 * out;
+    if (capRef.current) capRef.current.style.display = tt >= T.dis[0] + 0.4 && tt < T.dis[1] + 3.2 ? "block" : "none";
     cel.current?.set(inside && tt > tl.bloom[1] && dis < 0.2);
     const wideNow = state.size.width / state.size.height >= 1;
 
     // the pup: the sign, braced under the scale, gathering, the arms up for the release, a fist for the flex
     live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt));
+    live.pose.sit = smooth(0.4, 1.0, tt) * 1.2 * out; // upright on its tail, never lying flat
     live.pose.fist = (smooth(2.7, 3.0, tt) * (1 - smooth(T.gather - 0.1, T.gather + 0.1, tt)) + smooth(T.flex, T.flex + 0.3, tt)) * out;
     live.pose.crouch = smooth(T.gather, T.gather + 0.5, tt) * (1 - smooth(T.release - 0.1, T.release + 0.1, tt)) * 0.8;
     live.pose.raise = smooth(T.release, T.release + 0.3, tt) * (1 - smooth(T.colFade[0] + 0.3, T.colFade[1], tt));
