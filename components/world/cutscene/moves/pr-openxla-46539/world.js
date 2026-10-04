@@ -21,6 +21,7 @@ import { gloveGeo } from "./punch";
 import { SH, tickShared } from "./print";
 import { cardFx, crowdFx, flagsFx, rocksFx } from "./props";
 import { sky } from "./sky";
+import { crackFx, focusFx, ghostsFx, ringFx } from "./smash";
 
 const CORE_Y = 0.9;
 export const NOMU_AT = [1.7, -12.5];
@@ -28,6 +29,7 @@ const PILLAR = [-0.4, -26, 8];
 const STRIKES = [0.9, 2.45, 4.15, 5.7, 6.55, 7.9, 9.0]; // the lightning, before the punch
 const V = new Vector3();
 const PQ = new Vector3();
+const DASH_TO = [1.4, -7.2]; // where the Detroit Smash lands: a few metres short of the Nomu
 const A_AT = [0, 0, 0];
 const B_AT = [0, 0, 0];
 
@@ -95,6 +97,14 @@ export function makeWorld({ tl, KN }) {
   const smash = lettering("SMASH!", "#ffc800", -0.1);
   const rip = lettering("RIIIP!", "#1f5fe0", 0.06);
   const flash = flashQuad("#fff4e4");
+  const flashK = flashQuad("#000000"); // the impact frame's inverted drawing
+  flashK.renderOrder = 38;
+  const crack = crackFx();
+  const focus = focusFx();
+  const ring = ringFx();
+  const ghosts = ghostsFx();
+  const smashW = lettering("SMASH!", "#ffc800", -0.1);
+  smashW.renderOrder = 40;
   smash.renderOrder = rip.renderOrder = 40; // the words ride over the falling tiles
 
   // the meshes
@@ -134,21 +144,23 @@ export function makeWorld({ tl, KN }) {
   const panel = mk(pn.g, pn.m, 35);
   const vortex = mk(vx.g, vx.m, 12); // the storm's wedges, wound round the hole the punch opened
   for (const x of [burst, beam, dome, panel, vortex]) x.visible = false;
-  root.add(shell, world, glove, burst, beam, dome, panel, vortex, smash, rip);
+  root.add(smashW, shell, world, glove, burst, beam, dome, panel, vortex, smash, rip, flashK, crack.mesh, focus.mesh, ring.mesh, ...ghosts.meshes);
 
-  const o = { shakeX: 0, shakeY: 0, pupY: 0, pose: { sign: 0, fist: 0, raise: 0, crouch: 0 }, capeOn: false, wind: 0, billow: 0, auraOn: false, auraK: 0, paint: false, reveal: false, held: false, flash };
+  const o = { dashX: 0, dashZ: 0, dashK: 0, yaw: 0, shakeX: 0, shakeY: 0, pupY: 0, pose: { sign: 0, fist: 0, raise: 0, crouch: 0 }, capeOn: false, wind: 0, billow: 0, auraOn: false, auraK: 0, paint: false, reveal: false, held: false, flash };
   const odd = { v: 1 };
 
   function update(c) {
     const { cam, seal, fist, r, out, width, height, dpr } = c;
     const t = c.t;
     const tt = onTwos(t);
-    const hit = tl.lineB; // the punch
-    const D = hit - 7.2; // the wind-up times below were set for a punch at 7.2 s
-    const BRK = tl.lineC - 0.6; // the page tears
+    const T0 = tl.lineB; // "I am here!": the pup crouches, then dashes (the Detroit Smash), 2 s there and back
+    const hit = T0 + 0.85; // the fist lands on the Nomu
+    const hit2 = tl.lineC; // "UNITED STATES OF SMASH!": the punch at the screen
+    const BRK = tl.credit - 0.6; // the page tears
     const brk = tt - BRK;
     const broken = brk > 0;
     const age = tt - hit;
+    const age2 = tt - hit2;
     const wide = width / height >= 1;
     tickShared({ gl: { getPixelRatio: () => dpr }, size: { width, height } }, t, broken ? brk : -1);
     odd.v = Math.floor(t * 12) % 2 ? 1 : -1;
@@ -156,7 +168,7 @@ export function makeWorld({ tl, KN }) {
 
     // the impacts shake the whole frame, two drawings each
     const bump = (a, k) => (tt >= a && tt < a + 0.17 ? k : 0);
-    const amp = bump(hit, 0.2) + bump(hit + 0.17, 0.12) + bump(hit + 0.34, 0.07) + bump(2.1, 0.07) + bump(2.5, 0.06) + bump(BRK, 0.1);
+    const amp = bump(hit, 0.2) + bump(hit + 0.17, 0.12) + bump(hit + 0.34, 0.07) + bump(hit2, 0.3) + bump(hit2 + 0.17, 0.22) + bump(hit2 + 0.34, 0.16) + bump(hit2 + 0.51, 0.1) + bump(hit2 + 0.68, 0.06) + bump(2.1, 0.07) + bump(2.5, 0.06) + bump(BRK, 0.1);
     o.shakeX = amp * odd.v;
     o.shakeY = -amp * 0.6 * odd.v;
     root.position.set(seal.x + o.shakeX, o.shakeY, seal.z);
@@ -190,9 +202,11 @@ export function makeWorld({ tl, KN }) {
 
     // THE NOMU: out of the street, throws the cards, staggers back at the punch
     const rise = smooth(tl.enter, tl.enter + 1.15, tt);
-    const stag = smooth(hit, hit + 0.35, tt) * (1 - smooth(hit + 2.4, hit + 3.4, tt) * 0.35);
-    nomuRoot.position.set(NOMU_AT[0] - 0.6 * stag, -(NOMU_H - 0.4) * (1 - rise) ** 2 + (rise < 1 && rise > 0 ? 0.05 * Math.sin(tt * 40) : 0), NOMU_AT[1] - 1.4 * stag);
-    nomuRoot.rotation.set(-0.28 * stag + 0.015 * Math.sin(tt * 2.1), -0.8 + 0.05 * Math.sin(tt * 0.9), 0); // three-quarter on, so the beak is in profile
+    const stag = smooth(hit, hit + 0.1, tt);
+    const bl = Math.max(0, Math.min(1.4, age)); // the blast: back and up into the sky, tumbling
+    nomuRoot.position.set(NOMU_AT[0] + 5 * bl, -(NOMU_H - 0.4) * (1 - rise) ** 2 + (rise < 1 && rise > 0 ? 0.05 * Math.sin(tt * 40) : 0) + 24 * bl * bl, NOMU_AT[1] - 26 * bl);
+    nomuRoot.visible = age < 1.5;
+    nomuRoot.rotation.set(-0.28 * stag - 3.2 * bl + 0.015 * Math.sin(tt * 2.1), -0.8 + 0.05 * Math.sin(tt * 0.9) + 1.5 * bl, 1.2 * bl); // three-quarter on, so the beak is in profile
     const thrA = smooth(3.1, 3.55, tt) * (1 - smooth(3.55, 4.4, tt));
     const thrB = smooth(3.55, 4.0, tt) * (1 - smooth(4.0, 4.9, tt));
     const guard = smooth(hit, hit + 0.25, tt);
@@ -246,23 +260,43 @@ export function makeWorld({ tl, KN }) {
     // THE HERO: the sign, the raised fist, the crouch, the spring, the punch
     // the blow is built over 2.8 s: the fist comes up and the cape swells (wind-up), the pup sinks, then the strike
     const W0 = hit - 2.8;
-    const hold = 1 - smooth(hit + 3.4, hit + 4.2, tt); // the arm comes down well before the page tears
+    const hold = 1 - smooth(hit2 + 2.6, hit2 + 3.4, tt); // the arm comes down well before the page tears
+    // THE DASH (Detroit Smash): crouch 0.4 s, a blur out to the Nomu, the fist lands, the pup bounds back to its mark, 2 s in all
+    const du = tt - T0;
+    const e1 = smooth(0.4, 0.85, du);
+    const e2 = smooth(1.15, 1.85, du);
+    const dk = e1 - e2; // 0 at the mark, 1 at the Nomu
+    o.dashX = DASH_TO[0] * dk;
+    o.dashZ = DASH_TO[1] * dk;
+    o.dashK = dk;
+    const flying = e1 > 0.02 && e1 < 0.98 ? 1 : 0;
+    const flyingBack = e2 > 0.02 && e2 < 0.98 ? 1 : 0;
+    o.yaw = Math.min(1, smooth(0.35, 0.5, du) * (1 - smooth(1.15, 1.35, du)));
     o.pose.sign = signAt(tl, t) * (1 - smooth(1.4, 1.8, tt));
-    o.pose.fist = smooth(W0, W0 + 0.8, tt) * (1 - smooth(hit - 0.15, hit, tt)) * out;
-    o.pose.raise = smooth(hit - 0.05, hit + 0.1, tt) * hold;
-    o.pose.crouch = smooth(hit - 1.5, hit - 0.7, tt) * (1 - smooth(hit - 0.15, hit, tt)) * 0.9 * out;
-    o.pupY = 0.7 * smooth(hit - 0.12, hit + 0.1, tt) * (1 - smooth(hit + 0.5, hit + 1.0, tt)) * out;
+    o.pose.fist = Math.max(smooth(W0, W0 + 0.8, tt) * (1 - smooth(T0 - 0.2, T0, tt)), smooth(hit2 - 1.5, hit2 - 0.9, tt) * (1 - smooth(hit2 - 0.12, hit2, tt))) * out;
+    o.pose.raise = Math.max(smooth(hit - 0.05, hit + 0.1, tt) * (1 - smooth(hit + 0.8, hit + 1.1, tt)), smooth(hit2 - 0.05, hit2 + 0.1, tt) * hold);
+    o.pose.crouch = Math.max(smooth(T0, T0 + 0.35, tt) * (1 - smooth(T0 + 0.4, T0 + 0.5, tt)) * 0.95, smooth(hit2 - 1.0, hit2 - 0.3, tt) * (1 - smooth(hit2 - 0.12, hit2, tt)) * 0.7) * out;
+    o.pupY = (0.5 * Math.sin(Math.PI * Math.min(1, Math.max(0, (du - 0.4) / 0.9))) + 0.35 * Math.sin(Math.PI * Math.min(1, Math.max(0, (du - 1.15) / 0.8)))) * out;
     o.held = brk > 0.2; // the printed pup holds a beat into the tear, then snaps back with the island
     o.paint = (inside || tt > tl.bloom[1]) && !o.held;
     o.capeOn = !o.held && tt > 1.3;
-    o.wind = Math.min(1.5, 0.28 + (wind - 0.3) * 0.6);
-    o.billow = smooth(W0, hit - 0.6, tt) * 0.35 + smooth(hit - 0.05, hit + 0.18, tt) * 0.65 - smooth(hit + 2.4, hit + 4.0, tt) * 0.45;
+    o.wind = Math.min(2.4, 0.28 + (wind - 0.3) * 0.6 + 1.6 * (flying + flyingBack));
+    o.billow = Math.min(1, smooth(W0, hit - 0.6, tt) * 0.35 + smooth(hit - 0.05, hit + 0.18, tt) * 0.65 - smooth(hit + 0.9, hit + 1.6, tt) * 0.4 + smooth(hit2 - 0.1, hit2 + 0.2, tt) * 0.5 - smooth(hit2 + 2.4, hit2 + 3.4, tt) * 0.5);
     o.auraOn = !o.held && tt > W0 - 0.1;
-    o.auraK = smooth(W0, hit - 0.9, tt) * (1 + (age > 0 ? 0.5 * Math.exp(-age * 4) : 0)) * (1 - smooth(hit + 3.0, hit + 4.2, tt));
-    o.punch = Math.max(smooth(hit - 1.9, hit - 0.9, tt) * 0.5, smooth(hit - 0.05, hit + 0.12, tt)) * hold * out; // the fist stands beside the head in the wind-up, then thrusts
+    o.auraK = smooth(W0, hit - 0.9, tt) * (1 + (age > 0 ? 0.5 * Math.exp(-age * 4) : 0) + (age2 > 0 ? 0.6 * Math.exp(-age2 * 4) : 0)) * (1 - smooth(hit2 + 2.6, hit2 + 3.4, tt));
+    o.punch = Math.max(smooth(hit - 1.9, hit - 0.9, tt) * 0.5, smooth(hit - 0.05, hit + 0.12, tt) * (1 - smooth(hit + 0.8, hit + 1.2, tt)), smooth(hit2 - 0.05, hit2 + 0.1, tt)) * hold * out; // the fist stands beside the head in the wind-up, then thrusts
     glove.visible = o.punch > 0.05 && !broken;
+    // the screen punch: the fist flies at the lens and grows to fill the frame, then draws back
+    const fk = smooth(hit2 - 0.05, hit2 + 0.12, tt) * (1 - smooth(hit2 + 0.4, hit2 + 0.85, tt));
     glove.position.set(fist[0], fist[1], fist[2]);
     glove.scale.setScalar(0.6 + 0.4 * o.punch);
+    if (fk > 0.001) {
+      cam.getWorldDirection(PQ);
+      PQ.multiplyScalar(1.4).add(cam.position); // 1.4 m in front of the lens
+      root.worldToLocal(PQ);
+      glove.position.lerp(PQ, fk);
+      glove.scale.setScalar(glove.scale.x + fk * 1.25 * Math.tan((cam.fov * Math.PI) / 360) * cam.aspect * 1.4 * 2.2);
+    }
 
     // THE PUNCH: the starburst at the fist, the beam into the clouds, the dome, the crater's geyser, the panel, the word
     const [fx, fy, fz] = fist;
@@ -271,7 +305,7 @@ export function makeWorld({ tl, KN }) {
       const k = Math.min(1, age / 0.1);
       burst.position.set(fx, fy + 0.3, fz + 0.5);
       burst.quaternion.copy(cam.quaternion);
-      burst.scale.setScalar((wide ? 3.8 : 3.0) * (0.4 + 0.6 * k) * (1 + 0.25 * (Math.floor(age * 12) % 2)));
+      burst.scale.setScalar((wide ? 2.4 : 2.0) * (0.4 + 0.6 * k) * (1 + 0.25 * (Math.floor(age * 12) % 2)));
       bu.m.uniforms.uAge.value = age / 0.55;
       bu.m.uniforms.uSpin.value = 0.1 * Math.floor(age * 12);
     }
@@ -310,9 +344,14 @@ export function makeWorld({ tl, KN }) {
       pn.m.uniforms.uFall.value = broken ? Math.min(1, brk / 0.95) : 0;
     }
     // the lettering, flat to the lens: SMASH! on the punch, RIIIP! on the tear
-    smash.visible = age > 0.04 && age < 0.9;
+    smashW.visible = age > 0.17 && age < 0.9;
+    if (smashW.visible) {
+      const pop = Math.min(1, (age - 0.17) / 0.08) * (1 + 0.25 * Math.max(0, 1 - (age - 0.17) / 0.2));
+      pin(smashW, root, cam, wide ? 0.5 : 0.3, wide ? 0.5 : 0.62, 8, (wide ? 0.34 : 0.7) * pop);
+    }
+    smash.visible = age2 > 0.1 && age2 < 1.5;
     if (smash.visible) {
-      const pop = Math.min(1, (age - 0.04) / 0.08) * (1 + 0.25 * Math.max(0, 1 - (age - 0.04) / 0.2));
+      const pop = Math.min(1, (age2 - 0.1) / 0.08) * (1 + 0.25 * Math.max(0, 1 - (age2 - 0.1) / 0.2));
       pin(smash, root, cam, wide ? -0.52 : -0.3, wide ? 0.5 : 0.62, 8, (wide ? 0.46 : 0.9) * pop);
       smash.position.x += 0.05 * odd.v;
     }
@@ -323,7 +362,51 @@ export function makeWorld({ tl, KN }) {
       rip.position.x += 0.05 * odd.v;
     }
     // a little warm flash on the punch and a paler one on the tear (never a white-out)
-    holdFlash(flash, cam, Math.max(0, 1 - Math.abs(age - 0.04) / 0.09) * 0.16 + Math.max(0, 1 - Math.abs(brk) / 0.1) * 0.14);
+    // the Detroit Smash's impact frame: two drawings, white then black (inverted), then a pale ring of light
+    const ia = Math.floor(age * 12);
+    holdFlash(flash, cam, (ia === 0 && age >= 0 ? 1 : 0) + Math.max(0, 1 - Math.abs(age2 - 0.04) / 0.09) * 0.2 + Math.max(0, 1 - Math.abs(brk) / 0.1) * 0.14);
+    holdFlash(flashK, cam, ia === 1 && age >= 0 ? 0.92 : 0);
+
+    // focus lines round the dash, the afterimages, the shockwave ring
+    const asp = cam.aspect;
+    const fo = focus.mesh;
+    const fkk = Math.max(flying, flyingBack) * 0.8 + (age > 0.17 && age < 0.45 ? 0.5 : 0);
+    fo.visible = fkk > 0.01 && !broken;
+    if (fo.visible) {
+      holdPanel(fo, cam, focus.m, fkk);
+      focus.m.uniforms.uT.value = tt;
+      V.set(seal.x + o.dashX, 1.0, seal.z + o.dashZ);
+      cam.updateMatrixWorld();
+      V.project(cam);
+      focus.m.uniforms.uCen.value = [V.x * asp, V.y];
+    }
+    for (let i = 0; i < ghosts.meshes.length; i++) {
+      const gm = ghosts.meshes[i];
+      const dd = du - 0.045 * (i + 1);
+      const gk2 = smooth(0.4, 0.85, dd) - smooth(1.15, 1.85, dd);
+      gm.visible = (flying || flyingBack) && gk2 > 0.01 && gk2 < 0.99 && !broken;
+      if (gm.visible) {
+        gm.position.set(DASH_TO[0] * gk2, 0.8 + 0.5 * Math.sin(Math.PI * Math.min(1, Math.max(0, (dd - 0.4) / 0.9))), DASH_TO[1] * gk2);
+        gm.scale.set(1, 0.9, 1.5);
+        ghosts.ms[i].opacity = 0.42 - i * 0.07;
+      }
+    }
+    const rg = ring.mesh;
+    rg.visible = age > 0.0 && age < 0.75;
+    if (rg.visible) {
+      rg.position.set(fx, fy, fz + 0.6);
+      rg.quaternion.copy(cam.quaternion);
+      rg.scale.setScalar(0.4 + 9 * smooth(0, 0.75, age) ** 0.7);
+      ring.m.opacity = 1 - smooth(0.2, 0.75, age);
+    }
+    // the screen CRACK: the fist's point of impact, the glass spreading over 0.25 s, held, gone as the page tears
+    const cr = crack.mesh;
+    cr.visible = age2 > 0.05 && brk < 0.05;
+    if (cr.visible) {
+      holdPanel(cr, cam, crack.m, smooth(0.05, 0.4, age2) * (1 - smooth(0, 0.05, brk)) * 1.0);
+      crack.m.uniforms.uCen.value = [0.1, -0.05];
+      crack.m.uniforms.uT.value = smooth(0.6, 2.2, age2);
+    }
 
     // THE PAGE TEARS: the island the stage hid comes back under the falling shards
     o.reveal = tt > BRK && tt < tl.collapse[0];
@@ -331,14 +414,14 @@ export function makeWorld({ tl, KN }) {
   }
 
   function dispose() {
-    const geoms = [vx.g, city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
+    const geoms = [crack.g, focus.g, ring.g, ghosts.g, flashK.geometry, smashW.geometry, vx.g, city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
     for (const g of [...geoms, ...cards.geoms, ...crowd.geoms, ...flags.geoms, ...rocks.geoms, ...pillar.geoms, smoke.obj.geometry, halos.obj.geometry, rain.obj.geometry]) g.dispose();
-    const mats = [vx.m, sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
+    const mats = [crack.m, focus.m, ring.m, ...ghosts.ms, flashK.material, smashW.material, vx.m, sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
     for (const x of [...mats, ...cards.mats, ...crowd.mats, ...flags.mats, ...rocks.mats, ...pillar.mats]) x.dispose();
     smash.material.map?.dispose();
     rip.material.map?.dispose();
     for (const x of [smoke.obj, halos.obj, rain.obj, crowd.A, crowd.B, flags.obj, rocks.rubble, rocks.rubbleH, rocks.debris, rocks.debrisH]) x.dispose();
   }
 
-  return { root, flash, update, dispose, textures: [smash.material.map, rip.material.map].filter(Boolean) };
+  return { root, flash, update, dispose, textures: [smashW.material.map, smash.material.map, rip.material.map].filter(Boolean) };
 }
