@@ -130,6 +130,8 @@ export default function Controller() {
     }
     if (arrival.id && (t - arrival.start >= arrivalLength(arrival.id) || ui.open || freshInput(arrival))) {
       arrival.id = null;
+      live.lastArrivalEnd = t;
+      live.movedSinceArrival = false;
       setUi({ cutscene: null, beat: 0 });
     }
     if (arrival.id) {
@@ -177,6 +179,7 @@ export default function Controller() {
     }
 
     const seal = live.seal;
+    if (seal.speed > 1.2) live.movedSinceArrival = true;
     if (seal.bursts !== seenBursts) {
       seenBursts = seal.bursts;
       live.geyser.burstAt = t; // the geyser erupts as it throws the seal
@@ -230,7 +233,7 @@ export default function Controller() {
     if (approach && ui.started && !live.seen.has(approach) && t <= 1.5) {
       seeAll(approach);
       saveSeen();
-    } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id && !mustFinish(seal)) {
+    } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id && !mustFinish(seal) && t - live.lastArrivalEnd > 4 && live.movedSinceArrival) {
       seeAll(approach);
       saveSeen();
       arrival.id = approach;
