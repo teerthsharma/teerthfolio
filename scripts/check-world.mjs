@@ -1204,7 +1204,7 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   // credit card's every number taken from showcase.json.
   {
     const A = AWAKE;
-    const marks = [A.impact, A.erupt[1], ...A.circles, A.impactB, A.rise[0], A.rise[1], A.line[0], A.card[0], A.card[1], A.descend[1], A.duration];
+    const marks = [A.impact, A.erupt[1], ...A.circles, A.impactB, A.rise[0], A.reveal, A.rise[1], A.line[0], A.card[0], A.card[1], A.descend[1], A.duration];
     assert.ok(marks.every((v, i) => i === 0 || v > marks[i - 1]), "awakening beats are in order");
     assert.ok(A.duration === AWAKENING.duration && AWAKENING.hold >= A.descend[0] && AWAKENING.hold < A.duration, "the awakening holds input through the flight");
     let last = 0;

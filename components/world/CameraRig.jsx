@@ -401,7 +401,7 @@ export default function CameraRig() {
         f.far = sceneFog.far;
       }
       // high over the island (the awakening's flight) the whole island must stay clear of the fog
-      const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull, high * 0.6);
+      const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull, high * 0.45);
       sceneFog.near = f.near + extra;
       sceneFog.far = f.far + extra;
       // Set, not ratcheted: a far plane that only grew (after one pulled-back

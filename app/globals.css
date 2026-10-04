@@ -2243,9 +2243,47 @@ html[data-hud="off"] .comic {
 }
 .awake-sfx {
   left: auto;
-  right: 8vw;
-  top: 14vh;
-  rotate: 7deg;
+  right: 9vw;
+  top: 18vh;
+  width: clamp(240px, 34vw, 540px);
+  rotate: -6deg;
+}
+.awake-sfx::before,
+.awake-sfx::after {
+  content: none;
+}
+.awake-sfx-art {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+.awake-sfx-face path {
+  fill: var(--accent);
+  stroke: var(--cream);
+  stroke-width: 7;
+  stroke-linejoin: miter;
+  paint-order: stroke fill;
+}
+.awake-sfx-face .awake-sfx-crack {
+  fill: none;
+  stroke: #1c1b19;
+  stroke-width: 3.2;
+  stroke-linejoin: miter;
+}
+.awake-sfx-misreg {
+  fill: #b46bff;
+  opacity: 0.85;
+  translate: -7px 5px;
+  animation: awake-misreg 500ms steps(1, end) both;
+}
+.awake-sfx-shadow {
+  fill: #1c1b19;
+  translate: 8px 9px;
+}
+@keyframes awake-misreg {
+  0% { translate: -14px 9px; }
+  34% { translate: -7px 5px; }
+  67%, 100% { translate: -4px 3px; }
 }
 .awake-card {
   position: absolute;
@@ -2317,13 +2355,6 @@ html[data-hud="off"] .comic {
 }
 .awake-card-results span {
   font-weight: 600;
-}
-.awake-card-sign {
-  margin: 12px 0 0;
-  font-family: var(--font-comic), var(--font);
-  font-weight: 700;
-  font-size: 15px;
-  text-align: right;
 }
 html[data-cutscene="still"] .awake-card {
   animation: none;

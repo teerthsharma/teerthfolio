@@ -27,7 +27,8 @@ import {
   InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, OneMinusSrcAlphaFactor, PlaneGeometry, ShaderMaterial,
   Euler, Quaternion, SphereGeometry, SrcAlphaFactor, Vector3,
 } from "three";
-import { AWAKE, auraAt, awakeMode, circleAt, crackAt, liftAt, onStage, skyAt } from "../../lib/world/awakening";
+import { AWAKE, auraAt, awakeMode, awakeYaw, circleAt, crackAt, flyAt, liftAt, onStage, skyAt } from "../../lib/world/awakening";
+import { MOUTH, PIVOT } from "./seal/variants/D-parts";
 import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { live } from "../../lib/world/store";
 
@@ -38,6 +39,8 @@ const CRACK_R = 16; // m: the longest fissure
 const FLOOR_R = 70; // m: the stage's floor, fading into the sky's horizon
 const SKY_R = 200; // m: inside the camera's far plane
 const HORIZON = new Color("#2a1150");
+const NIGHT = new Color("#7d67ff"); // the light under the dark sky
+const NIGHT_SHADE = new Color("#24164f");
 
 const onTwos = (t) => Math.floor(t * 12) / 12;
 const smooth = (a, b, x) => {
@@ -231,7 +234,9 @@ function tongueMaterial() {
         float h = aT.y * shortK * flick * p;
         float centre = 1.0 - smoothstep(0.35, 0.8, length(aOff.xz));
         h = mix(h, (0.8 + uLen * (0.2 + 0.8 * centre) * (0.5 + 0.5 * fract(aT.z * 7.31))) * min(p, 1.0), uDown);
-        float w = aT.x * (0.55 + 0.45 * min(p, 1.0)) * mix(1.0, 0.5, uDown);
+        // the tail: thin violet streaks with gaps between them, not a column
+        float gap = step(0.45, fract(aT.z * 13.7));
+        float w = aT.x * (0.55 + 0.45 * min(p, 1.0)) * mix(1.0, 0.3 * gap, uDown);
         vec3 right = normalize(vec3(toCam.z, 0.0, -toCam.x));
         vec3 up = vec3(0.0, mix(1.0, -1.0, uDown), 0.0);
         vec3 pos = c + right * position.x * w + up * position.y * h;
@@ -241,11 +246,14 @@ function tongueMaterial() {
       }`,
     fragmentShader: /* glsl */ `
       uniform float uTime;
+      uniform float uDown;
       varying vec2 vUv;
       varying float vSeed;
       ${HALFTONE}
       void main() {
         float y = vUv.y;
+        // in flight the tail dissolves into halftone dots toward its end
+        if (uDown > 0.5 && halftone(1.0 - y * 0.95) < 0.5) discard;
         float t = floor(uTime * 12.0) / 12.0;
         // the spine sways, more toward the tip; the edge flickers
         float x = vUv.x - 0.5 - 0.16 * y * sin(y * 5.0 - t * 9.0 + vSeed * 20.0);
@@ -256,7 +264,7 @@ function tongueMaterial() {
         float aa = fwidth(d) * 1.2;
         float inside = -d;
         float cw = wv * 0.55;
-        float core = (1.0 - smoothstep(cw - aa, cw + aa, abs(x + 0.05 * sin(y * 9.0 + vSeed * 5.0)))) * (1.0 - smoothstep(0.35, 0.8, y));
+        float core = (1.0 - smoothstep(cw - aa, cw + aa, abs(x + 0.05 * sin(y * 9.0 + vSeed * 5.0)))) * (1.0 - smoothstep(0.35, 0.8, y)) * (1.0 - uDown);
         vec3 col = mix(vec3(0.36, 0.12, 0.76), vec3(0.03, 0.008, 0.06), core);
         col += halftone((1.0 - core) * 0.5) * vec3(0.32, 0.13, 0.62) * 0.5 * (1.0 - core);
         col = mix(col, vec3(0.88, 0.75, 1.0), 1.0 - smoothstep(0.035, 0.035 + aa, inside));
@@ -474,6 +482,8 @@ const CIRCLES = [
 ];
 
 const O = new Object3D();
+// the pup's mouth, body frame; +0.3 m for the head's chin-up tilt while it hovers and flies
+const MOUTH_AT = [0, PIVOT.head[1] + MOUTH[1] + 0.3, PIVOT.head[2] + MOUTH[2]];
 const E = new Euler();
 const SPIN = new Quaternion();
 const UP = new Vector3(0, 1, 0);
@@ -514,18 +524,27 @@ export default function LoopAwakening() {
       w.on = true;
       w.lights.length = 0;
       scene.traverse((o) => {
-        if (o.isLight) w.lights.push([o, o.intensity]);
+        if (o.isLight) w.lights.push([o, o.intensity, o.color.clone(), o.groundColor?.clone()]);
       });
       if (scene.fog) w.fog.copy(scene.fog.color);
     }
     if (!w.on) return;
     if (k <= 0) {
       w.on = false;
-      for (const [l, i] of w.lights) l.intensity = i;
+      for (const [l, i, c, gc] of w.lights) {
+        l.intensity = i;
+        l.color.copy(c);
+        if (gc) l.groundColor.copy(gc);
+      }
       if (scene.fog) scene.fog.color.copy(w.fog);
       return;
     }
-    for (const [l, i] of w.lights) l.intensity = i * (1 - 0.6 * k);
+    // night-lit: the light turns violet and drops, the shade goes deep indigo
+    for (const [l, i, c, gc] of w.lights) {
+      l.intensity = i * (1 - 0.45 * k);
+      l.color.copy(c).lerp(NIGHT, 0.7 * k);
+      if (gc) l.groundColor.copy(gc).lerp(NIGHT_SHADE, 0.8 * k);
+    }
     if (scene.fog) scene.fog.color.copy(w.fog).lerp(HORIZON, k);
   };
 
@@ -565,9 +584,15 @@ export default function LoopAwakening() {
     const stage = onStage(t);
     hideWorld(stage);
     live.awake.on = true;
-    live.awake.x = s.x;
-    live.awake.y = qy + 1.05; // its mouth, for the bubble's tail
-    live.awake.z = s.z;
+    // its mouth, for the bubble's tail: the head's mouth point (seal/variants/D-parts.js),
+    // pitched nose-up in flight and turned to the scene's yaw
+    const pitch = -0.35 * flyAt(t);
+    const { yaw } = awakeYaw(t, s.x, s.z);
+    const my = MOUTH_AT[1] * Math.cos(pitch) - MOUTH_AT[2] * Math.sin(pitch);
+    const mz = MOUTH_AT[1] * Math.sin(pitch) + MOUTH_AT[2] * Math.cos(pitch);
+    live.awake.x = s.x + Math.sin(yaw) * mz;
+    live.awake.y = qy + my;
+    live.awake.z = s.z + Math.cos(yaw) * mz;
     live.stageOn = true; // the radiation flood waits (look/RadiationPov.js)
     live.inStage = true;
 
