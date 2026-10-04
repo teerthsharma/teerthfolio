@@ -34,17 +34,18 @@ import { PLACE_BY_ID } from "../../../lib/world/places";
 import { live, useUi } from "../../../lib/world/store";
 import { C, lamp, mat } from "../palette";
 import { mulberry32 } from "../life/spawn";
-import { BAY_Z, CAR_BAYS, LEGS, STATIC_BAYS, along, createCar, stepCar } from "../../../lib/world/highwayCars";
+import { BAY_Z, CAR_BAYS, LEGS, ROAD_Y, STATIC_BAYS, along, createCar, stepCar } from "../../../lib/world/highwayCars";
 
 const PLACE = PLACE_BY_ID["pr-highway-3244"];
 const RADIATION = PLACE?.radiation ?? "#ff4d6a";
 const HALF = HIGHWAY.width / 2;
 const LANE = 1.6;
-const Y = 0.03; // asphalt, just over the snow (and the trail under it)
-const PAINT_Y = 0.045;
+const Y = ROAD_Y; // asphalt, just over the snow (and the trail under it)
+const PAINT_Y = Y + 0.015;
 const PERIOD = 3; // m: a 1.2 m dash every 3 m
 const CRAWL = 2.2; // m/s the paint crawls
 const TRIM = 2.2; // m of each leg's joined end kept clear of paint and cars
+const DRIVE = 1.6; // m of the park leg that is driveway, inside the lot's edge (land.js)
 const SIGN = HIGHWAY.roundabout.radius / 4.5; // the island's sign scales with the ring
 const GOOGLE = ["#4285f4", "#ea4335", "#fbbc05", "#34a853"];
 
@@ -81,7 +82,8 @@ const flat = (g, x, y, z) => {
 };
 // Which end of each leg joins the ring or the car park (and keeps clear of
 // paint); the town end of the first leg is open road.
-const trimOf = (li) => [li === 0 ? 0.5 : TRIM, TRIM];
+// The park leg's lot end is the driveway's end: its lines run right up to the lot.
+const trimOf = (li) => [li === 0 ? 0.5 : TRIM, li === 1 ? DRIVE : TRIM];
 
 // ---- static geometry ------------------------------------------------------------------
 

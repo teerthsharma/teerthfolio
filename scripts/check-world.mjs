@@ -15,7 +15,7 @@ import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { tickSnack } from "../components/world/life/snack.js";
-import { CAR_BAYS, createCar, stepCar } from "../lib/world/highwayCars.js";
+import { CAR_BAYS, ROAD_Y, createCar, onDrawnAsphalt, stepCar } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
 
@@ -354,6 +354,10 @@ assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
       const turn = Math.abs(Math.atan2(Math.sin(car.h - h), Math.cos(car.h - h)));
       assert.ok(turn < 0.3, `car ${k} spun ${turn.toFixed(2)} rad in one frame at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
       assert.ok(onHighway(car.x, car.z), `car ${k} left the asphalt at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
+      // the footprint above is the walkable capsule; the drawn mesh has square-cut
+      // leg ends, and the snow bumps (terrain.js) stand over asphalt laid too low
+      assert.ok(onDrawnAsphalt(car.x, car.z), `car ${k} left the drawn asphalt at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
+      assert.ok(heightAt(car.x, car.z) < ROAD_Y, `car ${k} is on snow: the ground is ${heightAt(car.x, car.z).toFixed(2)} m, the asphalt ${ROAD_Y} m, at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
       if (car.phase !== "drive") assert.ok(inPark(car.x, car.z), `car ${k} ${car.phase} outside the car park at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
       const l = log[k];
       if (Math.abs(Math.hypot(car.x - r.x, car.z - r.z) - r.radius) < 1.2) l.ring = true;
@@ -844,6 +848,9 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
     const park = Math.abs(end[0] - c.x) <= c.w / 2 + 0.5 && Math.abs(end[1] - c.z) <= c.d / 2 + 0.5;
     assert.ok(ring < 0.5 || park || end === HIGHWAY.legs[0][0], `the highway leg end ${end} joins nothing`);
   }
+  // the park leg runs on into the lot as a driveway: its end is well inside the lot's asphalt
+  const drive = HIGHWAY.legs[1][HIGHWAY.legs[1].length - 1];
+  assert.ok(Math.abs(drive[0] - c.x) < c.w / 2 - 1 && Math.abs(drive[1] - c.z) < c.d / 2 - 1, `the park leg ends at ${drive}, not inside the car park`);
   for (const p of PLACES.filter((q) => q.district.id === "mujorush")) assert.ok(p.x > c.x - c.w / 2 - 12 && p.x < c.x + c.w / 2 + 12 && p.z < c.z, `the car park is not under ${p.id}`);
 }
 
