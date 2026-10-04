@@ -67,6 +67,9 @@ function createEngine() {
   let prevOpen = null;
   let prevSqueak = 0;
   let prevGulp = 0;
+  let prevBoom = 0;
+  let prevFizz = 0;
+  let prevCheer = 0;
   let prevStroke = 0;
   let prevWhoosh = false;
   let prevStarted = false;
@@ -495,8 +498,37 @@ function createEngine() {
       toneBurst(t0, "sine", 150, 0.12, 0.16 * h);
       noiseBurst(t0, "lowpass", 1200, null, 0.04, 0.05 * h); // the rubber bop
     },
+    tnt: (h) => KNOCKS.crate(h),
+    cube: (h) => toneBurst(ctx.currentTime, "triangle", 330, 0.05, 0.18 * h), // a wooden tock
+    pin: (h) => toneBurst(ctx.currentTime, "triangle", 760, 0.06, 0.16 * h), // a clack
+    bowlball: (h) => KNOCKS.snowball(h),
+    cone: (h) => toneBurst(ctx.currentTime, "sine", 240, 0.07, 0.16 * h), // a hollow bonk
     fish: (h) => noiseBurst(ctx.currentTime, "bandpass", 900, 1.5, 0.06, 0.14 * h), // splat
   };
+
+  // TNT: a fizz while the fuse burns, a soft cartoon boom, and a strike's chimes.
+  function playFizz() {
+    if (!beginVoice(0.6)) return;
+    counts.knock++;
+    const t0 = ctx.currentTime;
+    for (let i = 0; i < 6; i++) noiseBurst(t0 + i * 0.18, "bandpass", 4200 + i * 300, 1.2, 0.2, 0.05);
+  }
+
+  function playBoom(near) {
+    if (!beginVoice(0.7)) return;
+    counts.thump++;
+    const t0 = ctx.currentTime;
+    const m = 0.4 + 0.6 * near;
+    noiseBurst(t0, "lowpass", 380, null, 0.5, 0.55 * m);
+    toneBurst(t0, "sine", 62, 0.4, 0.5 * m);
+    toneBurst(t0 + 0.03, "triangle", 130, 0.2, 0.22 * m);
+  }
+
+  function playCheer() {
+    pluckTone(C6);
+    pluckTone(C6 * 1.25, 0.12);
+    pluckTone(C6 * 1.5, 0.24);
+  }
 
   function playKnock(kind, h) {
     const fn = KNOCKS[kind];
@@ -784,6 +816,14 @@ function createEngine() {
     const gulp = live.gulp ?? 0;
     if (audible && gulp !== prevGulp) playGulp();
     prevGulp = gulp;
+
+    const boom = live.boom.n;
+    if (audible && boom !== prevBoom) playBoom(Math.max(0, 1 - Math.hypot(live.boom.x - live.seal.x, live.boom.z - live.seal.z) / 40));
+    prevBoom = boom;
+    if (audible && live.fizz !== prevFizz) playFizz();
+    prevFizz = live.fizz;
+    if (audible && live.cheer.n !== prevCheer) playCheer();
+    prevCheer = live.cheer.n;
 
     for (const p of live.props || []) {
       const hit = p.hit ?? 0;

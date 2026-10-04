@@ -20,9 +20,9 @@ export function buildToys() {
 
   // A free spot whose whole footprint (`shape`: [dx, dz] offsets) is open.
   let n = 0;
-  const anchor = (gap, shape, clearance = 3) => {
+  const anchor = (gap, shape, clearance = 3, near = null) => {
     for (let k = 0; k < 120; k++) {
-      const [a] = samplePoints(1, SEED + 31 * ++n, { gap, avoid: taken, clearance });
+      const [a] = samplePoints(1, SEED + 31 * ++n, { gap, avoid: taken, clearance, near, nearCount: near ? 1 : 0, nearRadius: 9 });
       if (a && shape.every(([dx, dz]) => open(a.x + dx, a.z + dz, 1))) {
         claim([a]);
         return a;
@@ -34,8 +34,10 @@ export function buildToys() {
   // 4 loose crates and 2 pairs (a pair 3.6 m apart: one blast reaches the other).
   const tnt = [];
   const rand = mulberry32(SEED);
+  // Two loose crates are near the first minute's walk (south of spawn), the rest are out to find.
+  const START = { x: SPAWN.x + 6, z: SPAWN.z + 22 };
   for (let i = 0; i < 4; i++) {
-    const a = anchor(12, [[0, 0]]);
+    const a = anchor(12, [[0, 0]], 3, i < 2 ? START : null);
     tnt.push(makeTnt(a.x, a.z));
   }
   for (let i = 0; i < 2; i++) {
