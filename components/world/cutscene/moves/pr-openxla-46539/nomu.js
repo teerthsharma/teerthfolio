@@ -46,6 +46,8 @@ export function nomu() {
   body.push(tag(hd(new ConeGeometry(0.85, 2.9, 6).scale(1, 1, 0.65).rotateX(Math.PI / 2 - 0.12).translate(0, 6.35, 2.3)), PAL.sinter));
   body.push(tag(hd(new ConeGeometry(0.35, 1.0, 5).rotateX(Math.PI / 2 + 1.0).translate(0, 6.0, 3.65)), PAL.sinter)); // the hook
   body.push(tag(hd(new ConeGeometry(0.62, 2.3, 6).scale(1, 1, 0.6).rotateX(Math.PI / 2 + 0.5).translate(0, 5.5, 2.0)), PAL.sinter));
+  // two white staring eyes under the brow
+  for (const s of [-1, 1]) body.push(tag(hd(new SphereGeometry(0.26, 8, 6).translate(s * 0.45, 6.75, 1.62)), PAL.paper));
   // spine ridges down the back
   for (let i = 0; i < 5; i++) body.push(tag(new ConeGeometry(0.28, 0.9, 4).rotateX(-0.5).translate(0, 5.5 - i * 0.55, -1.2 - 0.05 * i), N));
 

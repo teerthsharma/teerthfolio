@@ -30,6 +30,16 @@ import { cape, pupPrint, vAura } from "./pr-openxla-46539/hero";
 import { nearMovers } from "./pr-openxla-46539/island";
 import { applyPunch } from "./pr-openxla-46539/punch";
 import { makeWorld } from "./pr-openxla-46539/world";
+import { cutFor } from "../../../../lib/world/cutscene/timeline";
+import { registerWarm, takeWarm } from "../prewarm";
+
+const ID = "pr-openxla-46539";
+const narrow = () => typeof window !== "undefined" && window.innerWidth / window.innerHeight < 0.8;
+// the shared prewarm (../prewarm.js) builds the Kamino street while the seal walks up to the dock
+function buildWorld() {
+  return makeWorld({ tl: cutFor(ID).tl, KN: narrow() ? 0.62 : 1 });
+}
+registerWarm(ID, buildWorld);
 
 const FIST_REST = [0.9, 2.2, 0.4];
 const RM = new Matrix4();
@@ -63,7 +73,7 @@ export default function Move(cut) {
 
   // the screen decides how wide the street is: a portrait lens sees a narrow slice
   const KN = useMemo(() => (typeof window !== "undefined" && window.innerWidth / window.innerHeight < 0.8 ? 0.62 : 1), []);
-  const w = useMemo(() => makeWorld({ tl, KN }), [tl, KN]);
+  const w = useMemo(() => takeWarm(ID, () => makeWorld({ tl, KN })), [tl, KN]);
 
   // the pup's printed twin, the cape and the V ride its own groups; the island list is taken before the stage hides it
   useEffect(() => {
@@ -148,6 +158,25 @@ export default function Move(cut) {
   }, -0.5);
 
   usePupFront(cut, 1.5, 2.0);
+  // the lens follows the Detroit Smash (look += 0.6 toward the dashing pup) and, for the screen punch, comes to 2.2 m in front of the pup
+  const cam3 = useMemo(() => ({ look: new Vector3(), tgt: new Vector3() }), []);
+  useFrame((state) => {
+    const o = w.last;
+    if (!o || !live.arrival.id || mode !== "full") return;
+    const cam = state.camera;
+    if (o.dashK2 > 0.01) {
+      cam.getWorldDirection(cam3.look).multiplyScalar(10).add(cam.position);
+      cam3.tgt.set(o.dashPos[0], o.dashPos[1], o.dashPos[2]);
+      cam3.look.addScaledVector(cam3.tgt.sub(cam3.look), 0.6 * o.dashK2);
+      cam.lookAt(cam3.look);
+    }
+    if (o.pull > 0.001) {
+      cam3.tgt.set(live.seal.x, 1.0, live.seal.z);
+      cam3.look.copy(cam.position).sub(cam3.tgt).setLength(2.2).add(cam3.tgt);
+      cam.position.lerp(cam3.look, o.pull);
+      cam.lookAt(cam3.tgt.x, cam3.tgt.y + 0.3, cam3.tgt.z);
+    }
+  }, 0.5);
   // the dash turns the pup side-on to its path (toward the Nomu), then back to the lens
   useFrame(() => {
     if (!live.arrival.id || mode !== "full" || yaw.current <= 0.001) return;
@@ -185,6 +214,7 @@ export default function Move(cut) {
     clock.current = t;
     const o = w.update({ t, cam: state.camera, width: state.size.width, height: state.size.height, dpr: state.gl.getPixelRatio(), seal: live.seal, r: radiusAt(tl, t), fist: fist.current, out: 1 - smooth(tl.collapse[0], tl.collapse[1], onTwos(t)) });
     w.punch = o.punch;
+    w.last = o;
     shake.current.set(o.shakeX + o.dashX, o.shakeY, o.dashZ);
     yaw.current = o.yaw;
     pupY.current = o.pupY;
