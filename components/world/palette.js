@@ -11,6 +11,7 @@
 //   sea       rgb(0,128,163) teal-blue
 // Change LIGHT or the tone mapping and every one of these numbers moves.
 
+import { useFrame } from "@react-three/fiber";
 import { AdditiveBlending, MeshBasicMaterial, MeshStandardMaterial, NeutralToneMapping } from "three";
 
 export const C = {
@@ -38,6 +39,35 @@ export const C = {
 // environment intensity k lights a matte surface like a hemisphere of
 // intensity PI * k. So the hemisphere gave up PI * env of its old 2.7: matte
 // colours land where they did, glossy ones now reflect a sky.
+// Roughness and metalness per material family: the split between snow, ice,
+// metal and water is made by these and by value, never by hue.
+export const SURFACE = {
+  snow: { roughness: 0.92, metalness: 0 },
+  ice: { roughness: 0.08, metalness: 0.05 },
+  metal: { roughness: 0.28, metalness: 0.85 },
+  water: { roughness: 0.04, metalness: 0.1 },
+};
+
+// How much more of the environment (sky above, snow below, the sun disc) a
+// glossy family reflects than LIGHT.env lights matte snow (which keeps its
+// calibration). three ignores material.envMapIntensity while the scene's
+// environment is the only map, so useReflect gives each glossy material the
+// scene's map itself, and the intensity then means what it says.
+export const REFLECT = { ice: 2.2, metal: 2 };
+
+export function useReflect(k, ...materials) {
+  useFrame(({ scene }) => {
+    const env = scene.environment;
+    if (!env) return;
+    for (const m of materials) {
+      if (m.envMap === env) continue;
+      m.envMap = env;
+      m.envMapIntensity = LIGHT.env * k;
+      m.needsUpdate = true;
+    }
+  });
+}
+
 export const LIGHT = {
   toneMapping: NeutralToneMapping,
   hemiSky: "#d2dcff",
@@ -60,7 +90,7 @@ const cached = (key, make) => {
 // One shared MeshStandardMaterial per look. Never mutate the result: every
 // mesh with the same arguments holds it. To animate a material, take
 // useMemo(() => mat(...).clone(), []) once and mutate the clone.
-export function mat(color, { flat = true, roughness = 0.75, metalness = 0, emissive = null, emissiveIntensity = 1, opacity = 1, vertexColors = false, side } = {}) {
+export function mat(color, { flat = true, roughness = SURFACE.snow.roughness, metalness = 0, emissive = null, emissiveIntensity = 1, opacity = 1, vertexColors = false, side } = {}) {
   const key = `m|${color}|${flat}|${roughness}|${metalness}|${emissive}|${emissiveIntensity}|${opacity}|${vertexColors}|${side}`;
   return cached(key, () => new MeshStandardMaterial({
     color, flatShading: flat, roughness, metalness,

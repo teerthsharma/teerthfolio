@@ -23,7 +23,7 @@ import { PLACE_BY_ID } from "../../../lib/world/places";
 import { WHIRLPOOL } from "../../../lib/world/river";
 import { live, useUi } from "../../../lib/world/store";
 import { WATER_Y } from "../../../lib/world/terrain";
-import { C, glow, mat } from "../palette";
+import { C, glow, mat, SURFACE } from "../palette";
 import { FLOE, FLOES, N, PIN, PIN_R, PIN_TOP, STRANDED, THREADS } from "./parts/floes-layout";
 import { EYE_R, INNER_CHIPS, MIST, MIST_N, OUTER_CHIPS } from "./parts/floes-vortex";
 
@@ -111,7 +111,7 @@ function Funnel({ near }) {
   // the "glowing through its edges" read: it only peeks out past the ice
   // silhouette, never washing the faces out. Both static/shared; only their
   // intensity moves per frame.
-  const iceMat = useMemo(() => mat(C.deepIce, { roughness: 0.3, emissive: RADIATION, emissiveIntensity: 0.55 }).clone(), []);
+  const iceMat = useMemo(() => mat(C.deepIce, { ...SURFACE.ice, emissive: RADIATION, emissiveIntensity: 0.55 }).clone(), []);
   const haloMat = useMemo(() => glow(RADIATION, 0.3).clone(), []);
 
   useEffect(() => {

@@ -10,7 +10,7 @@ import { DoubleSide, MeshStandardMaterial } from "three";
 import { SEA_Y } from "../../lib/world/terrain";
 import Instances from "./Instances";
 import { buildSea } from "./island/build";
-import { C, mat } from "./palette";
+import { C, mat, SURFACE } from "./palette";
 import River from "./sea/River";
 import Whale from "./sea/Whale";
 
@@ -18,7 +18,7 @@ import Whale from "./sea/Whale";
 // normal so it visibly shimmers, the same onBeforeCompile trick as the
 // river's waterMaterial (sea/River.jsx).
 function seaMaterial(time) {
-  const m = new MeshStandardMaterial({ color: C.sea, roughness: 0.3, metalness: 0.05 });
+  const m = new MeshStandardMaterial({ color: C.sea, ...SURFACE.water });
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = time;
     shader.vertexShader = shader.vertexShader

@@ -19,7 +19,7 @@ import { BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } f
 import { ISLAND_RADIUS } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
 import { fbm, groundAt, KEEP_TOP } from "../../../lib/world/terrain";
-import { C } from "../palette";
+import { C, SURFACE } from "../palette";
 
 const STEP = 1;
 const X0 = -108;
@@ -236,6 +236,6 @@ function walkHere(event) {
 
 export default function Terrain() {
   const geometry = useMemo(buildTerrain, []);
-  const material = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }), []);
+  const material = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: SURFACE.snow.roughness }), []);
   return <mesh geometry={geometry} material={material} receiveShadow onClick={walkHere} />;
 }

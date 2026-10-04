@@ -31,7 +31,7 @@ import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Object3D } from "th
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { live, useUi } from "../../../lib/world/store";
 import { clamp, smoothstep } from "../life/util";
-import { C, lamp, mat } from "../palette";
+import { C, lamp, mat, REFLECT, SURFACE, useReflect } from "../palette";
 import {
   BUBBLES,
   BUILDUP_S,
@@ -374,16 +374,18 @@ export default function IceDam() {
   const damBoost = damNear ? 1 : 0;
   const geyserBoost = geyserNear ? 1 : 0;
 
-  const iceMat = useMemo(() => mat(C.deepIce, { roughness: 0.42 }), []);
+  const iceMat = useMemo(() => mat(C.deepIce, { ...SURFACE.ice }), []);
   // Metallic, not concrete: brushed steel (Look.jsx's environment map gives
   // it sky and snow to reflect). vertexColors: dam-wall.js still bakes the
   // wedge's own light-to-shadow curve as a per-vertex multiplier (white
   // elsewhere, unchanged) so the whole body -- wedge, piers, towers,
   // powerhouse -- stays one merged, one-draw-call mesh.
-  const concreteMat = useMemo(() => mat(C.metal, { roughness: 0.32, metalness: 0.85, vertexColors: true }), []);
+  const concreteMat = useMemo(() => mat(C.metal, { ...SURFACE.metal, vertexColors: true }), []);
   const roadMat = useMemo(() => mat(C.charcoal, { roughness: 0.92 }), []);
+  useReflect(REFLECT.ice, iceMat);
+  useReflect(REFLECT.metal, concreteMat);
   const accentMat = useMemo(() => mat(TF_ORANGE, { roughness: 0.3, metalness: 0.3 }), []);
-  const bathtubMat = useMemo(() => mat(C.snow, { roughness: 0.55 }), []);
+  const bathtubMat = useMemo(() => mat(C.snow, { ...SURFACE.snow }), []);
   const lampMat = useMemo(() => lamp(DAM_COLOR, 1).clone(), []);
   const windowMat = useMemo(() => lamp(DAM_COLOR, 0.7).clone(), []);
   const sprayMat = useMemo(() => mat(C.foam, { roughness: 0.3 }), []);

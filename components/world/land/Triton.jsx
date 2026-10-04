@@ -29,7 +29,7 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import { Color, DoubleSide, MeshBasicMaterial, Object3D, Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { useUi } from "../../../lib/world/store";
-import { mat } from "../palette";
+import { mat, REFLECT, SURFACE, useReflect } from "../palette";
 import { buildCalver, buildChip, buildTriton, CALVER, CALVERS } from "./parts/triton-glacier";
 
 const TRITON = PLACE_BY_ID["pr-triton-kernels-22"];
@@ -125,8 +125,8 @@ function Calving({ lively }) {
   const chips = useRef();
   const clock = useRef(0);
   const pose = useRef({});
-  const iceMat = useMemo(() => mat("#ffffff", { vertexColors: true, roughness: 0.32 }), []);
-  const chipMat = useMemo(() => mat("#ffffff", { vertexColors: true, roughness: 0.25 }), []);
+  const iceMat = useMemo(() => mat("#ffffff", { vertexColors: true, flat: false, ...SURFACE.ice }), []);
+  const chipMat = useMemo(() => mat("#ffffff", { vertexColors: true, flat: false, ...SURFACE.ice }), []);
 
   useLayoutEffect(() => {
     for (let b = 0; b < CALVERS.length; b++) blocks.current.setColorAt(b, WHITE);
@@ -195,7 +195,8 @@ function Calving({ lively }) {
 
 export default function Triton() {
   const near = useUi((s) => s.near === TRITON.id);
-  const iceMat = useMemo(() => mat("#ffffff", { vertexColors: true, roughness: 0.32 }), []);
+  const iceMat = useMemo(() => mat("#ffffff", { vertexColors: true, flat: false, ...SURFACE.ice }), []);
+  useReflect(REFLECT.ice, iceMat);
   // Unlit: the light is inside the ice. Its own instance, so it can breathe.
   const glowMat = useMemo(() => new MeshBasicMaterial({ vertexColors: true, side: DoubleSide }), []);
   const bright = useRef(1);
