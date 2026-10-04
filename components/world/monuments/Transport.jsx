@@ -32,6 +32,7 @@ import { useMemo, useRef } from "react";
 import {
   BufferGeometry,
   CatmullRomCurve3,
+  Color,
   ConeGeometry,
   CylinderGeometry,
   ExtrudeGeometry,
@@ -145,7 +146,7 @@ export default function Transport({ place }) {
   const snowMat = useMemo(() => mat(C.snow), []);
   const warmMat = useMemo(() => mat(C.warmWhite), []);
   const charcoalMat = useMemo(() => mat(C.charcoal), []);
-  const iceMat = useMemo(() => mat(C.ice), []);
+  const rampMat = useMemo(() => mat(`#${new Color(C.ice).lerp(new Color("#14b8a6"), 0.6).getHexString()}`), []); // teal 60%: the underside no longer reads grey
   const accentMat = useMemo(() => mat(A), [A]);
 
   // These pulse or breathe on their own, so each gets its own clone of the
@@ -252,7 +253,7 @@ export default function Transport({ place }) {
       <mesh castShadow receiveShadow geometry={BASE_GEO} material={snowMat} position={[0, BASE_H / 2, 0]} />
       <mesh castShadow receiveShadow geometry={TOWER_GEO} material={warmMat} position={[0, TOWER_H / 2, 0]} />
       <mesh castShadow receiveShadow geometry={CHARCOAL_GEO} material={charcoalMat} />
-      <mesh castShadow receiveShadow geometry={SHEET_A_GEO} material={iceMat} />
+      <mesh castShadow receiveShadow geometry={SHEET_A_GEO} material={rampMat} />
       <mesh castShadow receiveShadow geometry={SHEET_B_GEO} material={accentMat} />
 
       {/* the one bright point at the top of the spire, in the place's own accent */}
