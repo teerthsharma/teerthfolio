@@ -25,14 +25,13 @@ import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Quat
 import { signAt, smooth, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, useCutFrame } from "../kit";
-import { holdFlash, islandList, pupParts } from "./p-caustic/parts";
-import { CINDERS, DUST, LASH_N, SPARKS, STARS, compileAssets, disposeAssets, getAssets } from "./pr-topograph-432/assets";
+import { holdFlash, islandList } from "./p-caustic/parts";
+import { CINDERS, DUST, LASH_N, SPARKS, STARS, compileAssets, disposeAssets, getAssets, getGear } from "./pr-topograph-432/assets";
 import { gemColor, poseBalrog } from "./pr-topograph-432/balrog";
 import Banner from "./pr-topograph-432/banner";
 import { U, hash } from "./pr-topograph-432/clay";
 import { poseColony, poseWitnesses } from "./pr-topograph-432/figures";
 import { colI, hideI, lashPoint, putI, slateTexture, stickTexture } from "./pr-topograph-432/fx";
-import { buildGear, findParts, pupClay } from "./pr-topograph-432/gandalf";
 import { FLOOR_Y, PILLARS, deckY } from "./pr-topograph-432/set";
 
 const HS = 2 / 12; // the strike's hold: two poses
@@ -119,47 +118,21 @@ export default function Move(cut) {
     return { g, stickPivot, mats: [boardMat, stickMat, backMat], geos: [board.geometry, stick.geometry, back.geometry] };
   }, [full]);
 
-  // the pup's gear, the island list, the warm-up; everything freed on exit
+  // the pup's gear (built and compiled as the seal neared the dock), the island list; everything freed on exit
   useEffect(() => {
     if (!full) return undefined;
     island.current = islandList(scene);
-    const found = pupParts(scene);
-    const p = found ? findParts(found.root) : null;
-    pup.current = p;
-    if (p?.root && p.rear && p.head) {
-      gear.current = buildGear(p, A.crystalMat);
-      twin.current = pupClay(p.root);
-      rig.current?.add(gear.current.staff, gear.current.sword);
+    const G = getGear();
+    pup.current = G?.p ?? null;
+    if (G) {
+      gear.current = G.gear;
+      twin.current = G.twin;
+      rig.current?.add(G.gear.staff, G.gear.sword);
     }
     compileAssets();
-    // the gear and the plasticine twins compile now too, so the first frame they show draws without a hitch
-    const w = typeof window !== "undefined" ? window.__world : null;
-    if (w?.gl && w.camera && gear.current && twin.current) {
-      const G = gear.current;
-      const parts = [G.cloak, G.staff, G.sword];
-      const was = parts.map((o) => o.visible);
-      parts.forEach((o) => (o.visible = true));
-      const rigWas = rig.current.visible;
-      rig.current.visible = true;
-      twin.current.set(true);
-      // the programs are queued synchronously (compileAsync walks the tree at the call), then everything is put back
-      try {
-        w.gl.compileAsync?.(p.root, w.camera, w.scene)?.catch?.(() => {});
-        w.gl.compileAsync?.(rig.current, w.camera, w.scene)?.catch?.(() => {});
-      } catch {
-        /* a failed warm-up only costs the hitch it was meant to hide */
-      }
-      twin.current.set(false);
-      rig.current.visible = rigWas;
-      parts.forEach((o, i) => (o.visible = was[i]));
-    }
     return () => {
-      twin.current?.dispose();
-      twin.current = null;
-      gear.current?.dispose();
-      gear.current?.staff.removeFromParent();
-      gear.current?.sword.removeFromParent();
       gear.current = null;
+      twin.current = null;
       pup.current = null;
       for (const m of slate.mats) {
         m.map?.dispose();
@@ -192,6 +165,37 @@ export default function Move(cut) {
       if (clock.current.yaw != null) p.root.rotation.y = clock.current.yaw + clock.current.turn;
     }
   }, -0.5);
+
+  // WARM DRAW: ANGLE and Metal build some pipeline states at a program's first draw, not at compile. Twice early in
+  // the arrival (under the banner) the whole rig is drawn once at 1/10000 size with everything shown, so every
+  // material has drawn before the first frame that matters; the -2 frame puts it all back before the move runs.
+  const warm = useRef({ n: 0, at: 0.3, list: [] });
+  useFrame(() => {
+    const W = warm.current;
+    if (!W.list.length) return;
+    for (const [o, v] of W.list) o.visible = v;
+    W.list.length = 0;
+    if (rig.current) rig.current.scale.setScalar(1);
+    twin.current?.set(false);
+  }, -2);
+  useFrame((state) => {
+    const W = warm.current;
+    if (!full || W.n >= 2 || !live.arrival.id || !rig.current || !gear.current) return;
+    if (state.clock.elapsedTime - live.arrival.start < W.at) return;
+    W.n++;
+    W.at += 0.2;
+    const mark = (o) => {
+      W.list.push([o, o.visible]);
+      o.visible = true;
+    };
+    rig.current.traverse(mark);
+    mark(gear.current.cloak);
+    mark(A.flash);
+    mark(A.flashCream);
+    slate.g.traverse(mark);
+    rig.current.scale.setScalar(1e-4);
+    twin.current?.set(true);
+  }, 0);
 
   // the gear follows the flippers: after the pup is posed (priority 0, subscribed after its own)
   useFrame(() => {
@@ -230,7 +234,7 @@ export default function Move(cut) {
     const g = rig.current;
     if (!full) return;
     const camera = state.camera;
-    const t = typeof window !== "undefined" && typeof window.__topoT === "number" ? window.__topoT : t0;
+    const t = t0;
     const u = t < T.slam ? t : t < T.slam + HS ? T.slam : t - HS; // the strike holds two poses
     const step = Math.floor(u * 12 + 1e-6);
     const tt = step / 12;

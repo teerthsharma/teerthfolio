@@ -3,7 +3,7 @@
 // comes within range of the dock and compiles every material with compileAsync, so the first frames of
 // the scene do not hitch. Dispose frees all of it (and the watcher frees it again if the seal wanders off).
 
-import { Group, Mesh, OctahedronGeometry, PlaneGeometry, RingGeometry, SphereGeometry } from "three";
+import { Group, Mesh, OctahedronGeometry, PlaneGeometry, RingGeometry, SphereGeometry, WebGLRenderTarget } from "three";
 import { PLACE_BY_ID } from "../../../../../lib/world/places";
 import { live } from "../../../../../lib/world/store";
 import { buildBalrog } from "./balrog";
@@ -11,7 +11,8 @@ import { clayTexture, disposeTexture } from "./clay";
 import { buildColony, buildWitnesses } from "./figures";
 import { burstGeometry, crystalGeometry, disposeAtlas, emitMaterial, flameMesh, gateGeometry, glassMaterial, glowMaterial, hideI, instanced, skyMaterial } from "./fx";
 import { buildSet } from "./set";
-import { flashQuad, lettering } from "../p-caustic/parts";
+import { flashQuad, lettering, pupParts } from "../p-caustic/parts";
+import { buildGear, findParts, pupClay } from "./gandalf";
 
 export const LASH_N = 24;
 export const CINDERS = 150;
@@ -124,28 +125,90 @@ function sliceC() {
   A.built = 3;
 }
 
-function compile() {
-  const A = CACHE;
+// the renderer, camera and scene a probe can reach before the scene has mounted (Cutscene.jsx publishes gl and
+// scene only once it has; Look.jsx publishes the composer, which holds the renderer and a render pass with the scene)
+function context() {
   const w = typeof window !== "undefined" ? window.__world : null;
-  if (!w?.gl || !w.camera) return;
-  const wasVisible = [];
-  // programs compile for hidden objects too, but show the lot for the traversal
-  A.root.traverse((o) => {
-    wasVisible.push([o, o.visible]);
-    o.visible = true;
-  });
-  try {
-    w.gl.compileAsync?.(A.root, w.camera, w.scene)?.catch?.(() => {});
-  } catch {
-    /* a failed warm-up only costs the hitch it was meant to hide */
-  }
-  for (const [o, v] of wasVisible) o.visible = v;
-  A.built = 4;
+  const gl = w?.gl ?? w?.composer?.getRenderer?.();
+  const scene = w?.scene ?? w?.composer?.passes?.find?.((p) => p.scene)?.scene;
+  return gl && scene && w.camera ? { gl, scene, camera: w.camera, target: w.composer?.inputBuffer ?? null } : null;
 }
 
-// compile every program now (idempotent): the watcher does it near the dock, the scene again at mount
+// the pup's gear and its plasticine twins: built as the seal nears (the cloak rides the pup's body group, hidden),
+// handed to the scene at mount
+export function getGear() {
+  const A = CACHE;
+  if (!A) return null;
+  if (A.gear) return A.gear;
+  const c = context();
+  const found = c ? pupParts(c.scene) : null;
+  const p = found ? findParts(found.root) : null;
+  if (!p?.root || !p.rear || !p.head) return null;
+  if (!A.crystalMat) return null;
+  A.gear = { p, gear: buildGear(p, A.crystalMat), twin: pupClay(p.root) };
+  return A.gear;
+}
+
+// every program is queued a few at a time while the seal walks in (a program's translation is a synchronous
+// cost, so a lump of them would be a hitch of its own). The lights and fog a program is keyed on come from the
+// real scene; compileAsync walks each tree at the call and queues the programs
+function jobs(A) {
+  const list = [];
+  const seen = new Set();
+  A.root.traverse((o) => {
+    if (o.isMesh && !seen.has(o.material)) {
+      seen.add(o.material);
+      list.push((c) => c.gl.compileAsync?.(o, c.camera, c.scene));
+    }
+  });
+  list.push((c) => {
+    const G = getGear();
+    if (!G) return false;
+    const { gear, twin, p } = G;
+    const parts = [gear.cloak, gear.staff, gear.sword];
+    const was = parts.map((o) => o.visible);
+    parts.forEach((o) => (o.visible = true));
+    twin.set(true);
+    try {
+      for (const o of [gear.staff, gear.sword]) c.gl.compileAsync?.(o, c.camera, c.scene);
+      c.gl.compileAsync?.(p.root, c.camera, c.scene);
+    } finally {
+      twin.set(false);
+      parts.forEach((o, i) => (o.visible = was[i]));
+    }
+    return true;
+  });
+  return list;
+}
+
+function compileSome(n) {
+  const A = CACHE;
+  const c = context();
+  if (!c) return false;
+  A.jobs ??= jobs(A);
+  // the scene renders into the composer's buffer, which changes a program's key (linear output, no tone mapping):
+  // compile against that target or every program is built a second time at its first real draw
+  const prev = c.gl.getRenderTarget();
+  c.gl.setRenderTarget(c.target ?? (A.rt ??= new WebGLRenderTarget(1, 1)));
+  for (let k = 0; k < n && A.jobs.length; k++) {
+    try {
+      if (A.jobs[0](c)?.catch?.(() => {}) === false) {
+        c.gl.setRenderTarget(prev);
+        return false;
+      }
+    } catch {
+      /* a failed warm-up only costs the hitch it was meant to hide */
+    }
+    A.jobs.shift();
+  }
+  c.gl.setRenderTarget(prev);
+  if (!A.jobs.length) A.built = 4;
+  return true;
+}
+
+// whatever the watcher has not finished compiles now (a hitch, but only if the seal came in a rush)
 export function compileAssets() {
-  if (CACHE && CACHE.built < 4) compile();
+  if (CACHE && CACHE.built < 4) while (CACHE.built < 4 && compileSome(8));
 }
 
 // the whole build, finishing whatever the watcher has not done yet
@@ -161,6 +224,12 @@ export function disposeAssets(played = false) {
   if (!A) return;
   CACHE = null;
   STAGE = 0;
+  if (A.gear) {
+    A.gear.twin.dispose();
+    A.gear.gear.dispose();
+    A.gear.gear.staff.removeFromParent();
+    A.gear.gear.sword.removeFromParent();
+  }
   A.balrog?.dispose();
   A.wit?.dispose();
   A.colony?.dispose();
@@ -183,6 +252,7 @@ export function disposeAssets(played = false) {
   A.glass?.dispose();
   A.emit?.dispose();
   A.octa?.dispose();
+  A.rt?.dispose();
   disposeTexture();
   disposeAtlas();
 }
@@ -211,8 +281,8 @@ if (typeof window !== "undefined") {
       sliceC();
       STAGE = 3;
     } else if (STAGE === 3 && CACHE) {
-      compile();
-      STAGE = 4;
+      if (CACHE.built >= 4) STAGE = 4;
+      else compileSome(3);
     }
-  }, 600);
+  }, 250);
 }
