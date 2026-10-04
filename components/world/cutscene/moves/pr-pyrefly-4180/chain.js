@@ -36,7 +36,7 @@ function helix(out, from, to, R, Rz, turns, phase, zc, axis) {
   }
 }
 function designPath() {
-  const o = [[0.3, 0.8, -6.0], [1.8, 1.7, -5.0], [3.0, 1.0, -5.0]];
+  const o = [[0.3, 0.8, -6.0], [1.7, 0.35, -2.4], [1.9, 0.9, -4.2], [1.8, 1.7, -5.0], [3.0, 1.0, -5.0]];
   helix(o, [5.0, 0.9], [5.2, 3.6], 1.1, 1.3, 2.5, -Math.PI / 2, -8.5, "y"); // the hind leg
   helix(o, [8.0, 2.8], [8.5, 7.0], 1.3, 1.2, 2.5, -Math.PI / 2, -9.2, "y"); // the tails' root
   o.push([6.2, 6.4, -7.6]);

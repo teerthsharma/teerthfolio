@@ -82,6 +82,12 @@ export function wallCore() {
     const d = WALL.T - recess;
     const g = new BoxGeometry(step + 0.05, WALL.H, d);
     parts.push(part(at(g, mid, WALL.H / 2, zF(mid) - recess - d / 2, 0, Math.atan(mid / 450), 0), 0.78));
+    // Renaissance pilasters on the wall's face, every third step, with a capital
+    if (Math.round(x / step) % 3 === 0 && recess === 0) {
+      const a = Math.atan(mid / 450);
+      parts.push(part(at(new CylinderGeometry(0.7, 0.8, WALL.H - 1.4, 8), mid, (WALL.H - 1.4) / 2, zF(mid) + 0.35, 0, a, 0), 0.86));
+      parts.push(part(at(new BoxGeometry(2.2, 0.9, 2.2), mid, WALL.H - 0.95, zF(mid) + 0.35, 0, a, 0), 0.9));
+    }
     // the parapet along the crest: merlons every other step
     if (Math.round(x / step) % 2 === 0) parts.push(part(at(new BoxGeometry(step * 0.55, 1.4, 1.2), mid, WALL.H + 0.7, zF(mid) - 0.6, 0, Math.atan(mid / 450), 0), 0.82));
   }
@@ -213,7 +219,8 @@ export function bellTower() {
   p.push(part(new BoxGeometry(3.8, 0.6, 3.8).translate(0, 13.3, 0), 0.75));
   for (const [x, z] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) p.push(part(new BoxGeometry(0.5, 3.2, 0.5).translate(x, 15.2, z), 0.8));
   p.push(part(new BoxGeometry(3.8, 0.5, 3.8).translate(0, 17.05, 0), 0.75));
-  p.push(part(new ConeGeometry(2.9, 4.6, 4).rotateY(Math.PI / 4).translate(0, 19.6, 0), 0.6));
+  p.push(part(new SphereGeometry(2.6, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 1.15, 1).translate(0, 17.3, 0), 0.62)); // the dome
+  p.push(part(new CylinderGeometry(0.3, 0.45, 1.6, 8).translate(0, 20.9, 0), 0.8)); // the lantern
   for (const y of [3.5, 7.5]) p.push(part(new BoxGeometry(0.8, 1.6, 0.2).translate(0, y, 1.62), 0.2)); // windows
   return mergeGeometries(p);
 }

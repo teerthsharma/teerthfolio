@@ -423,6 +423,7 @@ export default function Move(cut) {
     live.pose.fist = smooth(T.clack[1] + 0.8, T.clack[1] + 1.2, t) * (1 - smooth(15.6, 16.0, t)) * lower;
     const on = (inside || tr > tl.bloom[1]) && t < T.reveal + 0.2;
     s.toon?.set(on);
+    for (const o of s.snow ?? []) o.visible = !on; // the island's snowfall stays out of the lens during the play
     if (s.haori) {
       const k = smooth(0.6, 1.2, t);
       s.haori.g.visible = on && k > 0.01;

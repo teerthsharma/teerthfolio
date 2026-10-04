@@ -112,7 +112,7 @@ function build() {
     put(block, i, x, y, z, 0.7);
     block.setColorAt(i, coral[Math.floor(hash(i, 3) * 4)]);
   });
-  add("blue", mesh(unitCube(), charcoal({ tone: 0.95, keep: "#3f86e8", keepK: 0.95, vertexColors: true, edge: 1.4 })));
+  add("blue", mesh(unitCube(), charcoal({ tone: 0.95, keep: "#2a52a8", keepK: 0.95, vertexColors: true, edge: 1.4 })));
 
   // THE DISTRICT
   const houses = add("houses", inst(unitBox(), charcoal({ tone: 0.88, wash: 0.1, vertexColors: true }), HOUSES.length));
@@ -143,7 +143,7 @@ function build() {
     const z = -41 - i * 3.3; // across the strip of plain, out to the sea
     put(prints, i, (i % 2 ? 2.2 : -2.2) + 3 * Math.sin(i * 0.4), 0.05, z, 1.9, 1, 1.9, 0, (hash(i, 3) - 0.5) * 0.4, 0);
   }
-  const marchMat = (lo) => charcoal({ tone: 0.36, wash: 0.2, keep: "#e2876b", keepK: 0.8, vertexColors: true, rib: 0, skin: 0, march: true, haze: 0.55, rim: 0.9, edge: lo ? 0.4 : 1 });
+  const marchMat = (lo) => charcoal({ tone: 0.36, wash: 0.2, keep: "#b8452a", keepK: 0.8, vertexColors: true, rib: 0, skin: 0, march: true, haze: 0.55, rim: 0.9, edge: lo ? 0.4 : 1 });
   const quad0 = new PlaneGeometry(1, 1);
   const near = add("marchNear", inst(penguinGeometry().scale(2, 2, 2), marchMat(false), N.near));
   const far = add("marchFar", inst(penguinGeometry().scale(2, 2, 2), marchMat(true), N.far));

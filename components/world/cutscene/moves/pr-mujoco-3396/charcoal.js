@@ -60,14 +60,42 @@ export const INK = /* glsl */ `
     float smudge = pow(1.0 - clamp(tone, 0.0, 1.0), 2.0) * 0.4;
     return clamp(max(ink * 0.82, smudge), 0.0, 1.0);
   }
-  // the paper, washed (burnt orange) or kept in a colour, then the graphite over it
+  // craquelure: the cracked network of old oil paint, thin dark veins on the cell edges of a jittered grid
+  float craquelure(vec2 q) {
+    vec2 p = q / 46.0;
+    vec2 i = floor(p), f = fract(p);
+    float d1 = 9.0, d2 = 9.0;
+    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+      vec2 g = vec2(float(x), float(y));
+      vec2 o = vec2(iHash(i + g), iHash(i + g + 17.0));
+      float d = length(g + o - f);
+      if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+    }
+    return 1.0 - smoothstep(0.0, 0.05, d2 - d1);
+  }
+  // THE PAINTED GROUND: warm umber canvas, a gold-leaf or vermilion wash, lapis and vermilion kept colours; chiaroscuro
+  // (deep umber shadows, a lit crown), brush strokes, a canvas weave, craquelure, and god-light pouring from above
   vec3 drawn(float tone, float wash, vec3 keep, float keepK) {
+    vec2 q = gl_FragCoord.xy / uPx;
     float t = tooth();
-    vec3 paper = vec3(0.98, 0.82, 0.62) * (0.93 + 0.1 * t);
-    paper = mix(paper, vec3(1.0, 0.45, 0.12), clamp(wash * 1.4, 0.0, 1.0));
-    paper = mix(paper, keep * (0.75 + 0.35 * clamp(tone, 0.0, 1.0)), keepK);
-    float ink = graphite(tone) * (0.78 + 0.42 * t);
-    return mix(paper, vec3(0.22, 0.04, 0.06), clamp(ink * 0.6, 0.0, 1.0));
+    vec3 gold = vec3(0.9, 0.66, 0.2);
+    vec3 vermilion = vec3(0.84, 0.27, 0.12);
+    vec3 base = vec3(0.6, 0.4, 0.22) * (0.9 + 0.2 * t);
+    base = mix(base, mix(gold, vermilion, smoothstep(0.3, 0.75, wash)), clamp(wash * 1.2, 0.0, 1.0));
+    base = mix(base, keep * (0.8 + 0.3 * clamp(tone, 0.0, 1.0)), keepK);
+    float lit = pow(clamp(tone, 0.0, 1.0), 1.35); // chiaroscuro: the shadows go deep
+    vec3 c = base * mix(0.1, 1.18, lit);
+    c = mix(c, vec3(0.05, 0.03, 0.02), (1.0 - smoothstep(0.0, 0.3, tone)) * 0.45);
+    float brush = strokes(q, 0.6, 13.0, 0.55) * 0.11 + (iNoise(q * 0.3) - 0.5) * 0.12;
+    float weave = (sin(q.x * 1.9) * sin(q.y * 1.9)) * 0.03;
+    c *= 1.0 + brush + weave;
+    c *= 1.0 - 0.38 * craquelure(q);
+    // god-light: warm, brightest at the top of the frame, falling in broad slanted shafts
+    float up = clamp(gl_FragCoord.y / uRes.y, 0.0, 1.0);
+    float shaft = smoothstep(0.6, 1.0, sin(q.x * 0.011 + q.y * 0.0045 + 1.3)) * up;
+    c *= 0.78 + 0.42 * up;
+    c += gold * shaft * 0.1 * lit;
+    return c;
   }
   // the drawing burning off: discard inside the hole, a charred band and an ember edge round it
   vec3 burn(vec3 c) {
@@ -78,7 +106,18 @@ export const INK = /* glsl */ `
     c *= mix(0.25, 1.0, smoothstep(0.012, 0.07, e));
     return mix(c, vec3(1.0, 0.52, 0.16), 1.0 - smoothstep(0.0, 0.016, e));
   }
-  vec4 outColor(vec3 c, float a) { return vec4(pow(max(burn(c), 0.0), vec3(2.2)), a); }
+  // the gilded frame: a gold bevelled border at the screen edge and a dark vignette inside it
+  vec3 framed(vec3 c) {
+    vec2 uv = gl_FragCoord.xy / uRes;
+    float edge = min(min(uv.x * uRes.x, (1.0 - uv.x) * uRes.x), min(uv.y * uRes.y, (1.0 - uv.y) * uRes.y)) / uRes.y;
+    c *= mix(0.5, 1.0, smoothstep(0.0, 0.2, edge));
+    float lift = 0.75 + 0.5 * iNoise(gl_FragCoord.xy / uPx * 0.4);
+    vec3 gilt = vec3(0.86, 0.64, 0.22) * lift;
+    float bevel = smoothstep(0.012, 0.016, edge) * 0.6 + 0.4;
+    c = mix(c, gilt * bevel, 1.0 - smoothstep(0.018, 0.022, edge));
+    return mix(c, vec3(0.1, 0.05, 0.02), (1.0 - smoothstep(0.0, 0.003, abs(edge - 0.0225))) * 0.8);
+  }
+  vec4 outColor(vec3 c, float a) { return vec4(pow(max(framed(burn(c)), 0.0), vec3(2.2)), a); }
 `;
 
 // A shaded charcoal material. tone: the surface's own value (0 black .. 1 paper);
