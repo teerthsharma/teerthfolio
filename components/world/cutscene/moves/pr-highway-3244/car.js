@@ -8,7 +8,7 @@
 // flank; wheels are x = +-1.12 at z = +-0.78.
 // Cost: guest body ~7k triangles, rival ~3k; every part is one merged geometry.
 
-import { CanvasTexture, CylinderGeometry, DoubleSide, ExtrudeGeometry, LatheGeometry, Mesh, MeshBasicMaterial, PlaneGeometry, Shape, SphereGeometry, SRGBColorSpace, TubeGeometry, CatmullRomCurve3, Vector2, Vector3, BoxGeometry, BufferGeometry, Float32BufferAttribute } from "three";
+import { ConeGeometry, TorusGeometry, CanvasTexture, CylinderGeometry, DoubleSide, ExtrudeGeometry, LatheGeometry, Mesh, MeshBasicMaterial, PlaneGeometry, Shape, SphereGeometry, SRGBColorSpace, TubeGeometry, CatmullRomCurve3, Vector2, Vector3, BoxGeometry, BufferGeometry, Float32BufferAttribute } from "three";
 import { at, jitterColour, merge, paint } from "./shade";
 
 export const WHEEL_X = 1.12;
@@ -219,4 +219,69 @@ export function doorNumber() {
     return mesh;
   });
   return { meshes, geo, m, tex };
+}
+
+// ---- THE GORDIUS WHEEL: Iskandar's bronze-and-gold chariot, two black divine bulls in harness, a crimson cape.
+// Same frame as the car: faces +x, y up; the two wheels sit at x = CH_WX, z = +-CH_WZ, radius CH_R (axis z).
+export const CH_R = 0.62;
+export const CH_WX = -0.9;
+export const CH_WZ = 0.82;
+export const CH_ROOF = [-0.85, 0.66, 0]; // where the pup stands
+const BRONZE = "#d08a2e";
+const GOLD = "#ffc926";
+const CRIMSON = "#e0102c";
+const BULL = "#15121c";
+
+export function chariotWheel() {
+  const L = [];
+  L.push(paint(new TorusGeometry(CH_R - 0.07, 0.07, 8, 28), GOLD, { gloss: 1, smooth: true }));
+  L.push(paint(new TorusGeometry(CH_R - 0.2, 0.025, 6, 24), BRONZE, { gloss: 1, smooth: true }));
+  for (let i = 0; i < 6; i++) L.push(paint(new BoxGeometry(0.07, 2 * (CH_R - 0.1), 0.07), BRONZE, { gloss: 1, m4: at(0, 0, 0, 0, 0, (i * Math.PI) / 6) }));
+  L.push(paint(new CylinderGeometry(0.13, 0.13, 0.3, 12).rotateX(Math.PI / 2), GOLD, { gloss: 1, smooth: true }));
+  // the scythe hubs: a long blade out of each axle end, curling back
+  for (const sz of [-1, 1]) {
+    L.push(paint(new ConeGeometry(0.07, 0.62, 8).rotateX(sz * Math.PI / 2).translate(0, 0, sz * 0.46), "#e8f2ff", { gloss: 1, smooth: true }));
+    L.push(paint(new ConeGeometry(0.1, 0.16, 8).rotateX(sz * Math.PI / 2).translate(0, 0, sz * 0.19), GOLD, { gloss: 1, smooth: true }));
+  }
+  return merge(L);
+}
+
+function ox(x, z) {
+  const L = [];
+  L.push(paint(new SphereGeometry(1, 14, 10), BULL, { gloss: 0.7, smooth: true, m4: at(x, 0.95, z, 0, 0, 0, [0.66, 0.44, 0.36]) }));
+  L.push(paint(new SphereGeometry(1, 12, 8), BULL, { gloss: 0.7, smooth: true, m4: at(x + 0.5, 1.22, z, 0, 0, -0.25, [0.34, 0.3, 0.27]) })); // neck hump / head
+  L.push(paint(new SphereGeometry(1, 12, 8), BULL, { gloss: 0.7, smooth: true, m4: at(x + 0.86, 1.06, z, 0, 0, -0.5, [0.3, 0.2, 0.2]) }));
+  for (const sh of [-1, 1]) {
+    L.push(paint(new ConeGeometry(0.05, 0.4, 8), GOLD, { gloss: 1, smooth: true, m4: at(x + 0.62, 1.42, z + sh * 0.2, sh * 0.9, 0, 0.35) }));
+    for (const sx of [-1, 1]) L.push(paint(new CylinderGeometry(0.1, 0.07, 0.6, 8), BULL, { gloss: 0.5, m4: at(x + sx * 0.42, 0.34, z + sh * 0.16, 0, 0, sx * 0.08) }));
+  }
+  L.push(paint(new SphereGeometry(1, 8, 6), "#ffe36a", { gloss: 1, m4: at(x + 1.02, 1.1, z + 0.13, 0, 0, 0, 0.035) })); // eyes
+  L.push(paint(new SphereGeometry(1, 8, 6), "#ffe36a", { gloss: 1, m4: at(x + 1.02, 1.1, z - 0.13, 0, 0, 0, 0.035) }));
+  L.push(paint(new TorusGeometry(0.2, 0.035, 6, 12), CRIMSON, { gloss: 0.8, smooth: true, m4: at(x + 0.34, 1.12, z, 0, Math.PI / 2, 0) })); // collar harness
+  return merge(L);
+}
+export const HOOVES = [[1.85 + 0.42, 0.06, -0.62 - 0.14], [1.85 + 0.42, 0.06, -0.62 + 0.14], [1.85 + 0.42, 0.06, 0.62 - 0.14], [1.85 - 0.42, 0.06, 0.62 + 0.14]];
+
+export function chariotGeometry() {
+  const L = [];
+  // the car: a bronze floor, a curved gold front rail, side panels, the axle
+  L.push(paint(new BoxGeometry(1.5, 0.08, 1.2), BRONZE, { gloss: 1, m4: at(-0.75 - 0.15, 0.58, 0) }));
+  L.push(paint(new BoxGeometry(0.09, 0.5, 1.24), GOLD, { gloss: 1, m4: at(-0.05, 0.88, 0) }));
+  for (const sz of [-1, 1]) {
+    L.push(paint(new BoxGeometry(1.2, 0.34, 0.07), BRONZE, { gloss: 1, m4: at(-0.65, 0.78, sz * 0.62, 0, 0, 0.0) }));
+    L.push(paint(new BoxGeometry(1.2, 0.05, 0.1), GOLD, { gloss: 1, m4: at(-0.65, 0.97, sz * 0.62) }));
+    L.push(paint(new BoxGeometry(0.1, 0.3, 0.1), CRIMSON, { gloss: 0.8, m4: at(-1.3, 0.78, sz * 0.62) }));
+  }
+  L.push(paint(new CylinderGeometry(0.05, 0.05, 2 * CH_WZ + 0.2, 8).rotateX(Math.PI / 2), BRONZE, { gloss: 1, smooth: true, m4: at(CH_WX, CH_R, 0) }));
+  // the pole and the yoke
+  L.push(paint(new BoxGeometry(2.1, 0.09, 0.1), BRONZE, { gloss: 1, m4: at(0.9, 0.7, 0, 0, 0, 0.1) }));
+  L.push(paint(new CylinderGeometry(0.05, 0.05, 1.5, 8).rotateX(Math.PI / 2), GOLD, { gloss: 1, smooth: true, m4: at(1.78, 1.28, 0) }));
+  L.push(ox(1.85, -0.62), ox(1.85, 0.62));
+  // reins
+  for (const sz of [-1, 1]) L.push(paint(new BoxGeometry(1.7, 0.02, 0.02), CRIMSON, { gloss: 0.5, m4: at(0.9, 1.1, sz * 0.2, 0, 0, 0.12) }));
+  // the cape: a crimson sheet streaming back from the pup's shoulders, with a gold hem
+  const cp = new Shape();
+  cp.moveTo(-0.9, 1.2).lineTo(-1.45, 1.38).lineTo(-2.15, 1.05).lineTo(-1.85, 0.92).lineTo(-2.25, 0.62).lineTo(-1.5, 0.74).lineTo(-0.9, 0.74);
+  L.push(paint(new ExtrudeGeometry(cp, { depth: 0.05, bevelEnabled: false }).translate(0, 0, -0.025), CRIMSON, { gloss: 0.8 }));
+  return merge(L);
 }
