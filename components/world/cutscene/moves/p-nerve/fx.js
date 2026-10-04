@@ -43,10 +43,10 @@ export function buildBeam() {
         // seen through its own thickness: bright toward the middle of the cone, soft at its skin
         float along = clamp(-vL.y / uLen, 0.0, 1.0);
         float rimv = length(vL.xz) / max(0.001, along * ${(Math.tan(Math.acos(CONE[0]))).toFixed(4)} * uLen);
-        float body = smoothstep(1.0, 0.25, rimv);
+        float body = (1.0 - smoothstep(0.25, 1.0, rimv));
         float k = body * (1.0 - along * 0.55) * smoothstep(0.0, 0.05, along) * uKeyOn * uShaft * (1.0 - smoothstep(0.0, 0.35, uBreak));
         vec3 col = vec3(1.0, 0.78, 0.46) * k * 0.115;
-        gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
+        gl_FragColor = vec4(pow(max(col, 0.0), vec3(2.2)), 1.0);
       }`,
   });
   const mesh = new Mesh(geo, mat);
@@ -102,9 +102,9 @@ function rainMaterial(mode) {
       varying vec2 vUv;
       void main() {
         if (vA < 0.01) discard;
-        float k = (1.0 - abs(vUv.x * 2.0 - 1.0)) * smoothstep(0.0, 0.3, vUv.y) * smoothstep(1.0, 0.65, vUv.y);
+        float k = (1.0 - abs(vUv.x * 2.0 - 1.0)) * smoothstep(0.0, 0.3, vUv.y) * (1.0 - smoothstep(0.65, 1.0, vUv.y));
         vec3 col = uMode < 0.5 ? vec3(1.0, 0.86, 0.62) : vec3(0.42, 0.78, 0.85);
-        gl_FragColor = vec4(pow(col * k * vA * (uMode < 0.5 ? 1.25 : 0.9), vec3(2.2)), 1.0);
+        gl_FragColor = vec4(pow(max(col * k * vA * (uMode < 0.5 ? 1.25 : 0.9), 0.0), vec3(2.2)), 1.0);
       }`,
   });
 }
