@@ -327,5 +327,5 @@ export function makeWorld({ tl, KN }) {
     for (const x of [smoke.obj, halos.obj, rain.obj, crowd.A, crowd.B, flags.obj, rocks.rubble, rocks.rubbleH, rocks.debris, rocks.debrisH]) x.dispose();
   }
 
-  return { root, flash, update, dispose };
+  return { root, flash, update, dispose, textures: [smash.material.map, rip.material.map].filter(Boolean) };
 }

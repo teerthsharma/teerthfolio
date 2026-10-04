@@ -36,11 +36,13 @@ const FIST_REST = [0.9, 2.2, 0.4];
 export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
   const pup = useRef(null);
   const paint = useRef(null);
   const island = useRef([]);
   const cleared = useRef(null);
-  const bx = useRef(new Box3()).current;
+  const prep = useRef({ boxes: [], i: 0, done: false, shown: 0 }); // the island's tall pieces and their boxes, measured a few a frame before the scene needs them
   useEffect(() => () => { for (const x of cleared.current || []) x.visible = true; }, []);
   const movers = useRef(null); // the island's cars and flakes held out of sight from the tear to the end
   const hero = useRef(null);
@@ -69,6 +71,21 @@ export default function Move(cut) {
       p.head.add(h.aura.mesh);
     }
     hero.current = h;
+    // BUILD NOW, DRAW LATER: every program and texture the scene will use is made while the seal is still walking
+    // up (the move mounts on the approach), so no frame of the scene links a shader or uploads a canvas.
+    const cut = scene.getObjectByName("cutscene");
+    if (cut) gl.compile(cut, camera, scene);
+    if (paint.current && p?.root) {
+      paint.current.set(true);
+      gl.compile(p.root, camera, scene);
+      paint.current.set(false);
+    }
+    for (const t of w.textures) gl.initTexture(t);
+    const pr = prep.current;
+    pr.boxes = island.current.filter((x) => !x.isInstancedMesh).map((x) => [x, new Box3()]);
+    pr.i = 0;
+    pr.done = false;
+    pr.shown = 0;
     return () => {
       for (const x of [h.cape, h.aura]) {
         if (!x) continue;
@@ -84,12 +101,17 @@ export default function Move(cut) {
       pup.current = null;
       w.dispose();
     };
-  }, [scene, w]);
+  }, [scene, w, gl, camera]);
 
   // impacts shake the frame two drawings each: the street and the pup together (after Seal.jsx places it)
   // a skip clears the arrival: nothing of the dimension draws for the frame before this unmounts
   useFrame(() => {
     const p = pup.current;
+    const pr = prep.current;
+    if (pr.i < pr.boxes.length) {
+      const [x, b] = pr.boxes[pr.i++];
+      b.setFromObject(x); // one piece a frame
+    } else pr.done = true;
     if (!live.arrival.id) {
       for (const m of movers.current ?? []) m.visible = true;
       w.root.visible = false;
@@ -146,17 +168,18 @@ export default function Move(cut) {
       h.aura.m.uniforms.uK.value = o.auraK;
     }
     if (o.reveal) {
-      for (const x of island.current) x.visible = true;
-      movers.current ??= nearMovers(island.current, live.seal.x, live.seal.z);
+      const pr = prep.current;
       // the stage lens stands where an island wall may be: hold any top-level piece the lens is inside or against out of sight until the end
       if (!cleared.current) {
         cleared.current = [];
-        for (const x of island.current) {
-          if (x.isInstancedMesh) continue;
-          bx.setFromObject(x);
-          if (!bx.isEmpty() && bx.distanceToPoint(state.camera.position) < 5 && bx.max.y - bx.min.y > 3) { x.visible = false; cleared.current.push(x); }
-        }
+        for (const [x, b] of pr.boxes) if (!b.isEmpty() && b.distanceToPoint(state.camera.position) < 5 && b.max.y - b.min.y > 3) cleared.current.push(x);
       }
+      // the island comes back a twelfth at a time, never in one frame
+      const list = island.current;
+      const upto = Math.min(list.length, pr.shown + Math.ceil(list.length / 12));
+      for (let i = pr.shown; i < upto; i++) list[i].visible = !cleared.current.includes(list[i]);
+      pr.shown = upto;
+      movers.current ??= nearMovers(list, live.seal.x, live.seal.z);
     }
     if (movers.current && t > tl.lineC - 0.7) for (const m of movers.current) m.visible = false;
   });
