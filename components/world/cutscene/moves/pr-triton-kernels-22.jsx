@@ -501,8 +501,7 @@ export default function Move(cut) {
     holdFlash(m.flash, cam, fl);
 
     // THE RETURN: the picture is rubbed out from the horizon in (the shaders' reveal, above); the island comes back behind it
-    // the island is held under the fading drawing from just before the rub-out, so the screen is never the ring alone
-    if (tt > T.erase[0] - 0.3 && tt < uc0) for (const o of island.current) o.visible = true;
+    if (tt > T.erase[0] && tt < uc0) for (const o of island.current) o.visible = true;
   });
 
   return (
