@@ -57,6 +57,7 @@ export default function Move(cut) {
   const island = useRef([]);
   const shake = useRef(new Vector3());
   const restored = useRef(false);
+  const shown = useRef(0);
   const full = mode === "full";
   const w = useMemo(() => (full ? takeWorld() : null), [full]);
   const flash = useMemo(() => flashQuad("#ffe0a6"), []);
@@ -239,7 +240,12 @@ export default function Move(cut) {
     // passes the middle of the picture (the rest of the sky burns off over it), never in one frame
     if (away > 70 && !restored.current) {
       restored.current = true;
-      for (const o of island.current) o.visible = true;
+    }
+    // the island comes back a slice per frame (never all at once, which hitched the return)
+    if (restored.current && shown.current < island.current.length) {
+      const step = Math.ceil(island.current.length / 14);
+      for (const o of island.current.slice(shown.current, shown.current + step)) o.visible = true;
+      shown.current += step;
     }
     holdFlash(flash, cam, Math.max(0, 1 - Math.abs(t - SHOT - STOP * 0.4) / 0.1) * 0.22);
   });

@@ -126,9 +126,13 @@ export function buildWorld() {
   // the figures and the colony
   const touma = figure(toumaGeometry());
   touma.group.position.set(TOUMA.x, DECK_Y, TOUMA.z);
+  touma.group.name = "fa-touma";
+  touma.group.scale.setScalar(1.25);
   touma.group.rotation.y = Math.atan2(-TOUMA.x, -TOUMA.z);
   const kuroko = figure(kurokoGeometry());
   kuroko.group.position.set(KUROKO.x, KUROKO.y, KUROKO.z);
+  kuroko.group.name = "fa-kuroko";
+  kuroko.group.scale.setScalar(1.15);
   kuroko.group.rotation.y = Math.atan2(-KUROKO.x, -KUROKO.z);
   add(touma.group);
   add(kuroko.group);

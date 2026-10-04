@@ -35,7 +35,7 @@ const bx = (w, h, d, x, y, z, k = 0, rz = 0) => {
 const cyl = (r, h, x, y, z, seg = 12, k = 0) => piece(new CylinderGeometry(r, r, h, seg).translate(x, y, z), k);
 
 // the lamp posts: x, z, height above the deck. The one at KUROKO_LAMP is her perch, tall.
-export const KUROKO_LAMP = { x: -3.6, z: -2.75, h: 4.2 };
+export const KUROKO_LAMP = { x: -1.5, z: -2.75, h: 4.2 };
 const LAMPS = [
   ...[-19, -13, -7, 5, 11, 17, 23].flatMap((x) => [{ x, z: 2.75, h: 3.0 }, { x: x + 1.5, z: -2.75, h: 3.0 }]),
   KUROKO_LAMP,

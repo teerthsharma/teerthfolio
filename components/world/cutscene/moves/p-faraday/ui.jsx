@@ -19,8 +19,8 @@ import { KUROKO, PHI, TOUMA } from "./world";
 export const LINES = [
   { id: "fa", t: [1.8, 6.8], who: "touma", kind: "oval", text: "Electric and magnetic? You're just assuming they couple." },
   { id: "fb", t: [6.8, 11.8], who: "seal", kind: "burst", text: "Not assumed. Found." },
-  { id: "fk", t: [13.8, 18.8], who: "kuroko", kind: "oval", text: "Onee-sama… I mean, Seal-sama!!" },
-  { id: "fc", t: [18.8, 26.5], who: "seal", kind: "burst", text: "The field coupling, found rather than assumed. Computational Faraday tensor, topology-fixed-point projection." },
+  { id: "fk", t: [12.6, 17.6], who: "kuroko", kind: "oval", text: "Onee-sama… I mean, Seal-sama!!" },
+  { id: "fc", t: [17.6, 25.3], who: "seal", kind: "burst", text: "The field coupling, found rather than assumed. Computational Faraday tensor, topology-fixed-point projection." },
 ];
 export const BOLD = ["assuming", "Found.", "Onee-sama", "Seal-sama!!", "The field coupling, found rather than assumed."];
 export const DOCK_AT = 1.6;
@@ -30,7 +30,7 @@ const cos = Math.cos(PHI);
 const sin = Math.sin(PHI);
 // bridge-local to world offset from the pup (the rig's frame): the mouths the tails aim at
 const MOUTH = {
-  touma: [TOUMA.x * cos + TOUMA.z * sin, DECK_Y + 1.74, -TOUMA.x * sin + TOUMA.z * cos],
+  touma: [TOUMA.x * cos + TOUMA.z * sin, DECK_Y + 2.2, -TOUMA.x * sin + TOUMA.z * cos],
   kuroko: [KUROKO.x * cos + KUROKO.z * sin, KUROKO.y + 0.93, -KUROKO.x * sin + KUROKO.z * cos],
   seal: [0, 1.0, 0],
 };
@@ -38,7 +38,7 @@ const MOUTH = {
 const css = /* css */ `
   html[data-cutscene="full"] .comic:not(.fb-lines) .bubble,
   html[data-fb] .cut-title,
-  html[data-fb] .comic-sfx { display: none !important; }
+  html[data-fb] .comic-sfx { visibility: hidden !important; }
   .fb-banner { position: fixed; left: 0; right: 0; top: 0; z-index: 24; pointer-events: none; }
   .fb-big { position: absolute; left: 0; right: 0; top: 16vh; margin-inline: auto; width: min(760px, calc(100vw - 32px)); text-align: center;
     text-shadow: 0 2px 24px rgba(28, 27, 25, 0.2); color: #1c1b19; transform-origin: 50% 0;
@@ -93,7 +93,7 @@ function Overlay({ still }) {
   const draw = () => {
     const cam = window.__world?.camera;
     const el = wrap.current?.querySelector(".bubble");
-    if (!cam || !el) return;
+    if (!cam || !el || el.offsetWidth < 2 || el.offsetHeight < 2) return;
     const s = live.seal;
     const who = el.dataset.who;
     const m = MOUTH[who] ?? MOUTH.seal;
