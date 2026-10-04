@@ -14,7 +14,7 @@ import { getUi, live, setUi } from "../../lib/world/store";
 const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 // live.props is created once and never reassigned (store.js), so the world
 // object can be built once too instead of every frame.
-const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, places: PLACES, time: 0 };
+export const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, places: PLACES, time: 0 };
 let seenBursts = 0;
 let seenWins = 0;
 // THE LOOP's hidden win (lib/world/loop.js AWAKENING): once per session, and
@@ -129,6 +129,7 @@ export default function Controller() {
 
     WORLD.time = t;
     WORLD.hold = Boolean(holding); // an arrival hold: penguin bumps and bites wait (snack.js)
+    WORLD.arriving = Boolean(arrival.id); // the whole arrival: TNT fuses wait (lib/world/toys.js)
     // Fixed small steps so a slow frame cannot tunnel the seal through a wall.
     let remaining = Math.min(delta, 0.1);
     while (remaining > 0) {

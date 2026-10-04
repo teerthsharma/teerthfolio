@@ -58,6 +58,8 @@ const ARRIVAL_LOOK_Y = 2.2; // m: aim at the place's middle, not its foot
 const RAD_CREEP = 0.06; // share the view creeps in while radiation floods it
 const RAD_KICK = 0.05; // share it kicks back out at the mutation
 const RAD_TRAUMA = 0.45; // the mutation's shake
+const BOOM_TRAUMA = 0.8; // a TNT blast beside the seal: a small cartoon shake
+const BOOM_EARSHOT = 30; // m: the shake fades out over this distance
 // DOCKED: while the seal is at a place the follow aims at the landform
 // (place.look, lib/world/places.js), not the snow in front of the dock.
 const LOOK_DAMP = 2.5; // 1/s
@@ -133,6 +135,7 @@ export default function CameraRig() {
   const orbit = useRef(new Vector3());
   const radKicked = useRef(-100);
   const prevImpact = useRef(live.seal.impact);
+  const boomSeen = useRef(live.boom.n);
 
   // The open building's panel: looked up by class each time `open` changes
   // (it mounts after the state change) and again on resize, retried for a
@@ -317,6 +320,11 @@ export default function CameraRig() {
       trauma.current = Math.max(0, trauma.current - TRAUMA_DECAY * dt);
       if (rise >= TRAUMA_RISE_MIN && impact >= TRAUMA_IMPACT_MIN) {
         trauma.current = Math.min(1, trauma.current + rise * TRAUMA_GAIN);
+      }
+      if (live.boom.n !== boomSeen.current) {
+        boomSeen.current = live.boom.n;
+        const away = Math.hypot(live.boom.x - seal.x, live.boom.z - seal.z);
+        if (away < BOOM_EARSHOT) trauma.current = Math.max(trauma.current, BOOM_TRAUMA * (1 - away / BOOM_EARSHOT));
       }
       if (!s.landed && since >= JUMP_IN.landAt) trauma.current = Math.max(trauma.current, LANDING_TRAUMA);
       if (live.rad.id && radSince >= RADIATION.mutateAt && radKicked.current !== live.rad.start) {
