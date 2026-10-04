@@ -85,10 +85,13 @@ export function inkPup(root, U) {
   let on = false;
   return {
     set(v) {
-      if (v === on) return;
+      if (v === on && v) return;
       on = v;
-      for (const [o, m, t] of list) o.material = v ? t : m;
+      // "off" always re-asserts every original, never trusting the flag: a missed swap-back leaves the pup half in the twin
+      for (const [o, m, t] of list) if (o.material !== (v ? t : m)) o.material = v ? t : m;
     },
+    // the pup's own materials are back on every mesh (the scene's end and a skip must both read true)
+    restored: () => list.every(([o, m]) => o.material === m),
     dispose() {
       this.set(false);
       for (const t of twins.values()) t.dispose();
