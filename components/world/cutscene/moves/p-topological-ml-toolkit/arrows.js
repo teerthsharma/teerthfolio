@@ -16,7 +16,7 @@ const P = new Vector3();
 export function arrowPool(n) {
   const shaftG = new CylinderGeometry(1, 1, 1, 8, 1).rotateX(Math.PI / 2).translate(0, 0, 0.5);
   const headG = new ConeGeometry(1, 1, 10).rotateX(Math.PI / 2).translate(0, 0, 0.5);
-  const fill = new MeshBasicMaterial({ color: "#f6fbff", toneMapped: false, fog: false });
+  const fill = new MeshBasicMaterial({ color: "#ff2a4d", toneMapped: false, fog: false });
   const hull = new MeshBasicMaterial({ color: INK, toneMapped: false, fog: false, side: BackSide });
   const mk = (g, m) => {
     const mesh = new InstancedMesh(g, m, n);
