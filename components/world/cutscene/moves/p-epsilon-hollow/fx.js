@@ -9,7 +9,7 @@
 
 import { BackSide, BoxGeometry, CanvasTexture, Color, DoubleSide, Group, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, OctahedronGeometry, PlaneGeometry, ShaderMaterial, SRGBColorSpace } from "three";
 import { BRASS, INK, KIND, brad, circlePts, cutShape, layer, prep, ringShape, slab } from "./paper";
-import { hash } from "./world";
+import { hash } from "./fma";
 
 const D = new Object3D();
 const smooth = (a, b, x) => {
