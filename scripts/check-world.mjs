@@ -430,6 +430,19 @@ assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
       assert.ok(bumped, `${where}: no bump`);
     }
   }
+  // a queue behind a car that stopped for the seal keeps its gap: no two cars
+  // ever closer than they run free (about 1 m, lanes 0.7 m apart)
+  for (const [sx, sz] of spotsOf(0, 12)) {
+    const cars = CAR_BAYS.map((_, k) => createCar(k));
+    const seal = { x: sx, z: sz };
+    let nearest = Infinity;
+    for (let i = 0; i < 60 * 150; i++) {
+      if (i === 60 * 100) seal.x = 1e4;
+      stepCars(cars, seal, dt);
+      for (let a = 0; a < cars.length; a++) for (let b = a + 1; b < cars.length; b++) nearest = Math.min(nearest, Math.hypot(cars[a].x - cars[b].x, cars[a].z - cars[b].z));
+    }
+    assert.ok(nearest >= 1, `cars bunched up to ${nearest.toFixed(2)} m behind a seal standing at ${sx.toFixed(1)}, ${sz.toFixed(1)}`);
+  }
   assert.ok(waits >= 20, `only ${waits} of the cars' waits were exercised`);
 }
 
