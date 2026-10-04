@@ -28,10 +28,12 @@ import { registerWarm, takeWarm } from "../prewarm";
 import { Speaker, Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { SHARED, pupCosmic } from "./p-aether-lang/cosmic";
 import { glintSprite, gojo } from "./p-aether-lang/gojo";
+import { jitterBolts, purpleParts } from "./p-aether-lang/purple";
 import { CORE, SHELL_R, closingRing, coreSprite, flood, galaxy, glassFloor, krackle, nebulaShell, starField } from "./p-aether-lang/world";
 import { flashQuad, holdFlash, islandList, lettering, pupParts } from "./p-caustic/parts";
 
 const CHEST = 0.9;
+const hpObjs = (h) => Object.values(h);
 // the world draws into the composer's render target, whose programs differ from the screen's (colour space, tone
 // map): compile with that target bound so the programs made here are the ones the scene draws with
 function warm(gl, obj, camera, scene) {
@@ -42,7 +44,9 @@ function warm(gl, obj, camera, scene) {
 }
 // the clock (s from the arrival). The card's beats put line A at 2.3, line B at 6.6 (the glints), the flex at 10.8,
 // the credit at 17.0: the stop and the contraction fill the 4.2 s line B is read in, the flex lands on the island.
-const T = { fade: [1.45, 2.15], freeze: 8.6, ring: [8.7, 9.5], lock: 9.5, still: [9.5, 10.4], contract: [16.0, 16.8], flex: 16.85, bite: 0.17 };
+// THE FINALE (Gojo's line is up from 10.8): Lapse Blue and Reversal Red grow at the flippers, close, collide, and Hollow Purple
+// fires past the lens; the tunnel covers the view and at RV the void is gone and the island is under the pup (the return).
+const T = { fade: [1.45, 2.15], freeze: 8.6, ring: [8.7, 9.5], lock: 9.5, still: [9.5, 10.4], form: [15.3, 17.0], close: [17.0, 17.8], fire: [17.9, 19.5], tunnel: [18.6, 19.4], rv: 19.5, clear: [19.5, 20.2] };
 const GALAXIES = [
   { at: [-40, 27, -108], size: 72, rot: [-0.7, 0, 0.5], a: [0.56, 0.36, 0.96], b: [0.92, 0.46, 0.86], arms: 2, seed: 3 },
   { at: [48, 14, -120], size: 58, rot: [-1.0, 0, -0.6], a: [0.4, 0.6, 1.0], b: [0.7, 0.5, 1.0], arms: 3, seed: 8 },
@@ -83,8 +87,7 @@ function buildVoid() {
     mesh.renderOrder = 15;
     return mesh;
   };
-  // Hollow Purple: a red and a blue sphere converge into one purple one
-  const hp = { red: basic("#ff3355", 0.35), blue: basic("#3a7bff", 0.35), purple: basic("#a64dff", 0.9, true) };
+  const hp = purpleParts();
   const eyes = [-1, 1].map((sd) => {
     const e = basic("#7fd8ff", 0.03);
     e.position.set(sd * 0.055, 1.925, 0.16);
@@ -129,9 +132,10 @@ export default function Move(cut) {
   useEffect(() => {
     const g = rig.current;
     if (!g) return;
-    for (const o of [g, voidRig.current, content.current, gojoRef.current, ...m.glints, m.still, ...m.eyes, ...Object.values(m.hp)]) o.visible = true;
+    for (const o of [g, voidRig.current, content.current, gojoRef.current, ...m.glints, m.still, ...m.eyes, ...hpObjs(m.hp)]) o.visible = true;
     warm(gl, g, camera, scene);
-    for (const o of [g, voidRig.current, gojoRef.current, ...m.glints, m.still, ...m.eyes, ...Object.values(m.hp)]) o.visible = false;
+    warm(gl, m.hp.tunnel, camera, scene);
+    for (const o of [g, voidRig.current, gojoRef.current, ...m.glints, m.still, ...m.eyes, ...hpObjs(m.hp)]) o.visible = false;
   }, [gl, camera, scene, m]);
 
   useEffect(() => {
@@ -156,8 +160,8 @@ export default function Move(cut) {
       paint.current = null;
       pup.current = null;
       // everything the scene built goes with it
-      for (const g of [m.nebula.g, m.stars.g, m.core.g, m.fl.g, m.ring.g, m.kr.g, m.floor.g, m.glint.g, m.still.geometry, ...m.eyes.map((x) => x.geometry), ...Object.values(m.hp).map((x) => x.geometry), m.flash.geometry, ...m.gal.map((x) => x.g), ...Object.values(m.gj.geo)]) g.dispose();
-      for (const x of [m.nebula.m, m.stars.m, m.core.m, m.fl.m, m.ring.m, m.kr.m, m.glint.m, m.still.material, ...m.eyes.map((x) => x.material), ...Object.values(m.hp).map((x) => x.material), m.flash.material, m.floor.floor.material, ...m.glints.map((x) => x.material), ...m.gal.map((x) => x.m), ...Object.values(m.gj.mats)]) x.dispose();
+      for (const g of [m.nebula.g, m.stars.g, m.core.g, m.fl.g, m.ring.g, m.kr.g, m.floor.g, m.glint.g, m.still.geometry, ...m.eyes.map((x) => x.geometry), ...hpObjs(m.hp).map((x) => x.geometry), m.flash.geometry, ...m.gal.map((x) => x.g), ...Object.values(m.gj.geo)]) g.dispose();
+      for (const x of [m.nebula.m, m.stars.m, m.core.m, m.fl.m, m.ring.m, m.kr.m, m.glint.m, m.still.material, ...m.eyes.map((x) => x.material), ...hpObjs(m.hp).map((x) => x.material), m.flash.material, m.floor.floor.material, ...m.glints.map((x) => x.material), ...m.gal.map((x) => x.m), ...Object.values(m.gj.mats)]) x.dispose();
       m.still.material.map?.dispose();
       m.floor.floor.getRenderTarget().dispose();
       m.kr.mesh.dispose();
@@ -186,7 +190,6 @@ export default function Move(cut) {
     const px = state.gl.getPixelRatio();
     const wide = state.size.width / state.size.height >= 1;
     const tt = onTwos(t);
-    const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
     const y0 = pup.current?.root ? pup.current.root.position.y : 0;
     g.position.set(s.x, y0, s.z);
 
@@ -200,9 +203,8 @@ export default function Move(cut) {
     const r = radiusAt(tl, t);
     V.set(s.x, y0 + CHEST, s.z);
     const inside = r > cam.position.distanceTo(V) + 0.3;
-    const e = Math.min(1, Math.max(0, (t - T.contract[0]) / (T.contract[1] - T.contract[0])));
-    const contracting = t > T.contract[0];
-    const S = Math.max(1 - e * e, 0.0005); // slow, then all at once
+    const contracting = t >= T.rv; // the purple wipe has covered the view: the void is gone
+    const S = contracting ? 0.0005 : 1;
     const vr = voidRig.current;
     vr.visible = (r > 0.02 || contracting) && S > 0.002;
     vr.scale.setScalar(S);
@@ -296,26 +298,51 @@ export default function Move(cut) {
     }
 
     // THE PUP wears the dimension from the bloom to the stop, then snaps back to its own colours with the island
-    const reveal = contracting && S < T.bite;
+    const reveal = contracting;
     paint.current?.set((inside || tt > tl.bloom[1]) && !reveal);
-    live.pose.sign = signAt(tl, t) * (1 - frozen);
-    live.pose.fist = smooth(T.flex, T.flex + 0.3, tt) * out;
+    const casting = tt >= T.form[0] && tt < T.fire[1];
+    live.pose.sign = signAt(tl, t) * (1 - frozen) * (casting ? 0 : 1);
 
     // THE REAL ISLAND is under the pup the moment the void has drawn in past the lens
     if (reveal && tt < tl.collapse[0]) for (const o of island.current) o.visible = true;
 
-    // HOLLOW PURPLE: the pup points, a red and a blue sphere close from either side into a purple one that fires at the lens
-    const hq = Math.min(1, Math.max(0, (tt - T.still[0]) / 0.6));
-    const fire = Math.min(1, Math.max(0, (tt - 10.1) / 0.5));
-    const on = tt >= T.still[0] && tt < 10.6;
-    live.pose.point = on ? 1 : 0;
-    const { red, blue, purple } = m.hp;
-    red.visible = blue.visible = on && hq < 1;
-    red.position.set(-1.1 * (1 - hq), CHEST + 0.5, 0.5);
-    blue.position.set(1.1 * (1 - hq), CHEST + 0.5, 0.5);
-    purple.visible = on && hq >= 1;
-    purple.position.set(0, CHEST + 0.5, 0.5 + 7 * fire * fire);
-    purple.scale.setScalar(1 + 0.4 * fire);
+    // HOLLOW PURPLE: Lapse Blue (one flipper) and Reversal Red (the other) swell crackling, close on each other, collide
+    // into the violet sphere, which fires toward and past the lens; the tunnel it tears is the wipe
+    const grow = smooth(T.form[0], T.form[1], tt);
+    const shut = smooth(T.close[0], T.close[1], tt);
+    const f = Math.min(1, Math.max(0, (tt - T.fire[0]) / (T.fire[1] - T.fire[0])));
+    const spheres = tt >= T.form[0] && tt < T.close[1];
+    const cast = tt >= T.form[0] && tt < T.fire[1];
+    live.pose.point = cast ? 1 : 0;
+    const { red, blue, purple, tunnel, bb, rb } = m.hp;
+    const jit = Math.floor(tt * 24);
+    const wob = 0.04 * Math.sin(tt * 40);
+    for (const [o, bolt, sd] of [[blue, bb, 1], [red, rb, -1]]) {
+      o.visible = spheres;
+      bolt.visible = spheres;
+      if (!spheres) continue;
+      const rr = (0.05 + 0.3 * grow) * (1 + 0.5 * shut + wob);
+      o.position.set(sd * 0.55 * (1 - shut), 0.65 + (CHEST + 0.4 - 0.65) * shut, 0.9 + 0.2 * shut);
+      o.scale.setScalar(rr);
+      o.material.uniforms.uT.value = tt;
+      bolt.position.copy(o.position);
+      bolt.scale.setScalar(rr);
+      jitterBolts(bolt, jit);
+    }
+    purple.visible = tt >= T.close[1] - 0.05 && f < 1 && !contracting;
+    if (purple.visible) {
+      purple.position.set(0, CHEST + 0.4 + 0.3 * f, 0.8 + 11.5 * Math.pow(f, 2.2));
+      purple.scale.setScalar(0.5 + 0.4 * smooth(T.close[1] - 0.05, T.fire[0], tt) + 5.2 * f * f);
+      purple.material.uniforms.uT.value = tt;
+    }
+    const tk = smooth(T.tunnel[0], T.tunnel[1], tt) * (1 - smooth(T.clear[0], T.clear[1], tt));
+    tunnel.visible = tk > 0.004;
+    if (tunnel.visible) {
+      tunnel.position.copy(cam.position);
+      tunnel.quaternion.copy(cam.quaternion);
+      tunnel.material.uniforms.uK.value = tk;
+      tunnel.material.uniforms.uT.value = tt;
+    }
     const st = tt - T.still[0];
     m.still.visible = st > 0 && tt < T.still[1];
     if (m.still.visible) {
@@ -327,7 +354,7 @@ export default function Move(cut) {
     }
 
     // a soft tinted pulse as the last of the void goes into the core (never a white-out)
-    holdFlash(m.flash, cam, Math.max(Math.max(0, 1 - Math.abs(t - T.contract[1]) / 0.13) * 0.34, Math.max(0, 1 - Math.abs(t - 10.5) / 0.12) * 0.8));
+    holdFlash(m.flash, cam, Math.max(Math.max(0, 1 - Math.abs(t - T.close[1]) / 0.14) * 0.8, 0.9 * smooth(T.tunnel[1] - 0.2, T.rv, t) * (1 - smooth(T.clear[0], T.clear[1], t))));
   });
 
   const body = m.gj.geo;
@@ -337,6 +364,7 @@ export default function Move(cut) {
       <Stage {...cut} bare skip={() => true} />
       {mode === "still" ? <Speaker {...cut} /> : null}
       <primitive object={m.flash} />
+      <primitive object={m.hp.tunnel} />
       <group ref={rig} visible={false}>
         <group ref={voidRig}>
           <mesh ref={shellRef} geometry={m.nebula.g} material={m.nebula.m} position={[0, CHEST, 0]} renderOrder={-3} frustumCulled={false} />
@@ -364,6 +392,9 @@ export default function Move(cut) {
             </group>
           </group>
         </group>
+        {[m.hp.red, m.hp.blue, m.hp.purple, m.hp.rb, m.hp.bb].map((x, i) => (
+          <primitive key={i} object={x} />
+        ))}
         <primitive object={m.still} />
       </group>
     </>
