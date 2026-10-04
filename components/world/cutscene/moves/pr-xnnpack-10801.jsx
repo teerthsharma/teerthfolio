@@ -1,428 +1,438 @@
-// XNNPACK: FRIEREN, the Scale of Obedience (treatments/g2.md section 4). A
-// whole new place: a mana-veil sky (one shader dome) and a pale ground, the
-// real landforms switched off. A memory tower of 14 slabs stands at the right
-// with a dark cave in it (two missing slabs: the free space below the first
-// live block, the hidden reserve), a lid on top and the amber cube snowball (the
-// value) set on the lid, raising it. The cave speaks "It was inside you all
-// along." and its three throat layers light from the back to the front; the pup
-// walks to its mouth, points (held 0.3 s), crouches and dives in as a spinning
-// streak, and pops out at full size in a column of white-gold mana. The cube
-// obeys: it tips off the lid, rolls down the face and is set into the gap, the
-// lid drops (a coral ghost line stays where the peak was), the pyrite on its brow
-// glints in turn and blue flowers open across the ground from the cave mouth.
-// Cost: sky 1, ground 1, slabs 1 (instanced), cave 1 + layers 3 + glow 1, lid 1,
-// cube 1, ghost 1, pyrite 1 (instanced), flowers 1 (instanced), column 1, dive
-// streak 1, flash 1, shards 1; no post pass.
+// xnnpack: Bleach, Aizen's throne in Las Noches, in shape and colour only, in a
+// STARK MINIMAL dimension (Kubo's negative space): near-monochrome, an endless
+// white desert under a black sky with a crescent moon, razor-thin ink lines a
+// pixel wide, a single cold blue accent. The pup signs and the island becomes
+// Las Noches: dunes drawn in contour lines, white dead trees, the dome-and-
+// towers palace on the horizon. A towering throne rises out of the sand with
+// the pup on it, reclined in Aizen's seated pose; Aizen's silhouette (swept
+// hair, the one lock, the long coat, Kyoka Suigetsu held low) stands beside it
+// and the Bleach cast stands at its foot in ink (Ichigo with the huge cleaver,
+// Gin with the narrow smile, Urahara in the striped bucket hat with his cane),
+// the island's colony pups cheering on twos among them.
+// Aizen: "Since when were you under the impression the gap was not there?"
+// Ichigo slashes; the glass of the picture cracks once, the real island shows
+// through the holes, and the illusion re-forms. Ichigo: "Where did that space
+// even come from?" The pup: "It was there all along." The truth snaps Aizen's
+// sword; the crack runs out from the blade over everything and the whole
+// dimension falls like glass (the sword broke, so Kyoka Suigetsu is over): the
+// pup drops with it to the real island. The flex line and the credit card
+// come on the snow. No post pass: the flash is one quad, the lettering a plane.
+// Card: lib/world/cutscene/cards/pr-xnnpack-10801.js. Parts: ./pr-xnnpack-10801/.
+// Cost (what the old move got wrong): every count is fixed here, all instanced
+// or merged; nothing allocates in a frame.
 
-import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { AdditiveBlending, BackSide, BoxGeometry, CircleGeometry, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, MeshLambertMaterial, Object3D, OctahedronGeometry, Path, PlaneGeometry, ShaderMaterial, Shape, ShapeGeometry, SphereGeometry, Vector3 } from "three";
-import { Stage, Speaker, onTwos, useCutFrame } from "../kit";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { AdditiveBlending, DoubleSide, InstancedMesh, Object3D, PlaneGeometry, Quaternion, RingGeometry, ShaderMaterial, Vector2, Vector3 } from "three";
+import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
-import { Flash, INK, Rig, Shards, T, clock, ease, flat, landK, nudge, rand, ramp, useHideLand, usePup } from "./g2/parts";
+import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
+import { Motes } from "./_g1";
+import { flashQuad, hide, holdFlash, islandList, lettering, mat, pupParts, put } from "./p-caustic/parts";
+import { solid } from "./pr-xnnpack-10801/geo";
+import { INK, PAPER, hullMaterial, paperMaterial, pupInk, sharedUniforms, silhouetteMaterial } from "./pr-xnnpack-10801/ink";
+import { aizen, colonyPup, gin, ichigo, urahara } from "./pr-xnnpack-10801/shapes";
+import { MOON_R, MOON_TALL, MOON_WIDE, SEAT, THRONE_Z, desert, moon, palace, skyShell, throne, throneInk, trees } from "./pr-xnnpack-10801/world";
 
-const TW = [1.6, 0, -3.0]; // the tower's foot, in the figure frame
-const ROWS = 10;
-const STEP = 0.15;
-const SLAB = 0.125;
-const GAP = [2, 4]; // the slabs that were never placed: the free space below the first live block
-const GAP_MID = 0.075 + 3 * STEP; // the cave's middle height
-const TOP = 0.075 + ROWS * STEP; // the top of the stack
-const FRONT = 0.45; // the tower's front face (z, tower frame)
-const LID_UP = 0.3; // how far the lid rises under the cube, and drops back
-const DUMMY = new Object3D();
+const CORE_Y = 0.9;
+// the clock (s from the arrival); the card puts line A at 3.0, Ichigo's line at 6.4 and the flex at 9.4
+const T = { rise: [1.5, 3.0], sit: [2.7, 3.2], hype: 3.3, slash: [4.85, 5.4], crack: 5.35, holeIn: [5.4, 5.75], holeOut: [6.0, 6.45], webOut: [6.0, 6.5], reach: [9.25, 9.6], gap: [9.3, 9.6], snap: 9.6, web: [9.65, 9.98], brk: 10.0 };
+const N_PUPS = 10;
+const AIZEN_AT = [4.0, 1.2, 0.4];
+const ICHIGO_AT = [-4.6, 0.6, 4.2];
+const GIN_AT = [-2.8, 0.6, 4.0];
+const URAHARA_AT = [4.9, 0.6, 4.1];
+const PUPS_Z = 4.6;
+const SLASH_AT = [-3.3, 3.3, 4.6];
+const CRACK1 = [-7, 11, -26]; // where the first crack opens in the sky (rig frame)
+// [look, eye] on the island (k = 0) and on the throne (k = 1); the move writes the card's view from these
+const VIEW = {
+  wide: [[[0.4, 1.15, -1.0], [-0.1, 0.0, 10.6]], [[0.5, 4.2, -1.0], [0.2, -2.4, 18.5]]],
+  tall: [[[0.3, 1.45, -1.0], [-0.1, 0.05, 13.5]], [[0.4, 5.0, -1.0], [0.2, -3.0, 34.0]]],
+};
+const TUNE = { fx: 0, fy: 0.2, fz: 0.2 };
+const UP = new Vector3(0, 1, 0);
+const V = new Vector3();
+const W = new Vector3();
+const MOON_P = new Vector3();
+const Q = new Quaternion();
+const RES = new Vector2();
+const lerp3 = (out, a, b, k) => {
+  for (let i = 0; i < 3; i++) out[i] = a[i] + (b[i] - a[i]) * k;
+};
 
-// the beats, on the scene clock
-const LIGHT = 2.7; // the cave's throat lights, back to front
-const WALK = [3.5, 4.1]; // the pup goes to the cave's mouth
-const POINT = [4.0, 4.5]; // and points, held
-const DIVE = [4.55, 4.95];
-const OUT = [5.15, 5.55];
-const ROLL = [5.3, 6.1]; // the cube obeys
-const LID = [6.0, 6.3]; // and the lid drops
-
-const TWf = new Vector3();
-const AX = new Vector3(1, 0, 0);
-const pupAt = (k) => [k * (TW[0] - 0.25), k * (TW[2] + 1.35)]; // the mouth, on the ground: x, z in the figure frame
-
-// ---- the sky: a mana veil, one dome, one shader --------------------------------
-function skyMaterial() {
+// Ichigo's slash: a thin arc of cold light that sweeps on (uK 0..1) and fades behind its head
+function slashMaterial() {
   return new ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uFade: { value: 0 } },
-    side: BackSide,
+    uniforms: { uK: { value: 0 } },
     transparent: true,
     depthWrite: false,
-    vertexShader: "varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    depthTest: false,
+    blending: AdditiveBlending,
+    side: DoubleSide,
+    vertexShader: "varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
     fragmentShader: /* glsl */ `
-      uniform float uTime; uniform float uFade; varying vec3 vP;
+      uniform float uK;
+      varying vec2 vP;
       void main() {
-        vec3 d = normalize(vP);
-        float h = clamp(d.y * 3.0 + 0.08, 0.0, 1.0);
-        vec3 low = vec3(1.0, 0.72, 0.45);   // amber at the horizon
-        vec3 mid = vec3(0.40, 0.70, 0.86);  // teal veil
-        vec3 high = vec3(0.20, 0.18, 0.52); // indigo overhead
-        vec3 c = mix(low, mid, smoothstep(0.0, 0.3, h));
-        c = mix(c, high, smoothstep(0.35, 1.0, h));
-        // veils: slow curtains of white-gold mana leaning up the sky
-        float a = atan(d.x, d.z);
-        float v1 = smoothstep(0.55, 1.0, sin(a * 5.0 + d.y * 7.0 + uTime * 0.35));
-        float v2 = smoothstep(0.6, 1.0, sin(a * 8.0 - d.y * 11.0 - uTime * 0.25 + 1.7));
-        float band = smoothstep(0.12, 0.4, h) * (1.0 - smoothstep(0.8, 1.0, h));
-        c += (v1 * 0.32 + v2 * 0.2) * band * vec3(1.0, 0.92, 0.7);
-        gl_FragColor = vec4(pow(c, vec3(2.2)), uFade);
+        float a = atan(vP.y, vP.x);
+        float t = (a - 0.15) / 2.6;
+        if (t < 0.0 || t > 1.0) discard;
+        float w = 0.012 + 0.07 * sin(3.14159 * t);
+        float d = abs(length(vP) - 1.0);
+        if (d > w) discard;
+        float head = smoothstep(uK - 0.35, uK, t) * step(t, uK);
+        float core = 1.0 - smoothstep(0.0, w, d);
+        vec3 c = mix(vec3(0.373, 0.714, 1.0), vec3(1.0), core * 0.8);
+        gl_FragColor = vec4(pow(c, vec3(2.2)) * head * (0.4 + 0.6 * core), 1.0);
       }`,
   });
 }
-function groundMaterial() {
-  return new ShaderMaterial({
-    uniforms: { uFade: { value: 0 } },
-    transparent: true,
-    depthWrite: false,
-    vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-    fragmentShader: /* glsl */ `
-      uniform float uFade; varying vec2 vUv;
-      void main() {
-        float r = length(vUv * 2.0 - 1.0);
-        vec3 c = mix(vec3(0.96, 0.88, 0.82), vec3(0.42, 0.58, 0.80), smoothstep(0.1, 0.9, r)); // warm snow to teal at the rim
-        c *= 0.94 + 0.06 * sin(r * 70.0);
-        gl_FragColor = vec4(pow(c, vec3(2.2)), uFade * (1.0 - smoothstep(0.82, 1.0, r)));
-      }`,
-  });
-}
-function Sky({ cut }) {
-  const { tl } = cut;
-  const sky = useRef();
-  const ground = useRef();
-  const skyMat = useMemo(skyMaterial, []);
-  const groundMat = useMemo(groundMaterial, []);
-  const geo = useMemo(() => new SphereGeometry(1, 32, 16), []);
-  const disc = useMemo(() => new CircleGeometry(1, 48).rotateX(-Math.PI / 2), []);
-  useFrame((state) => {
-    const t = clock(state);
-    const on = Boolean(live.arrival.id) && live.inStage;
-    sky.current.visible = ground.current.visible = on;
-    if (!on) return;
-    const fade = ramp(t, 1.5, 2.1) * (1 - ramp(t, tl.collapse[0], tl.collapse[1]));
-    skyMat.uniforms.uTime.value = onTwos(t);
-    skyMat.uniforms.uFade.value = fade;
-    groundMat.uniforms.uFade.value = fade;
-  }, -0.4);
-  return (
-    <>
-      <mesh ref={sky} geometry={geo} material={skyMat} scale={70} renderOrder={0} frustumCulled={false} visible={false} />
-      <mesh ref={ground} geometry={disc} material={groundMat} scale={16} position={[0, 0.004, 0]} renderOrder={0} frustumCulled={false} visible={false} />
-    </>
-  );
-}
 
-// ---- the tower, the cave, the lid, the cube -----------------------------------
-// A rectangular frame (a hole in a plate): the throat's nested layers.
-function frameGeometry(w, h, iw, ih) {
-  const s = new Shape();
-  s.moveTo(-w / 2, -h / 2);
-  s.lineTo(w / 2, -h / 2);
-  s.lineTo(w / 2, h / 2);
-  s.lineTo(-w / 2, h / 2);
-  s.closePath();
-  if (iw) {
-    const hole = new Path();
-    hole.moveTo(-iw / 2, -ih / 2);
-    hole.lineTo(-iw / 2, ih / 2);
-    hole.lineTo(iw / 2, ih / 2);
-    hole.lineTo(iw / 2, -ih / 2);
-    hole.closePath();
-    s.holes.push(hole);
-  }
-  return new ShapeGeometry(s);
-}
+export default function Move(cut) {
+  const { card, place, tl, mode } = cut;
+  const scene = useThree((s) => s.scene);
+  const rig = useRef();
+  const shellRef = useRef();
+  const world = useRef();
+  const dais = useRef();
+  const moonRef = useRef();
+  const dust = useRef();
+  const hullsRef = useRef([]);
+  const detailRef = useRef([]);
+  const tipRef = useRef();
+  const gapRef = useRef();
+  const slashRef = useRef();
+  const colonyRef = useRef();
+  const ichRef = useRef();
+  const pup = useRef(null);
+  const lift = useRef(0);
+  const shake = useRef(new Vector3());
+  const ink = useRef(null);
+  const island = useRef([]);
+  const islandOn = useRef(false);
 
-const COLD = new Color("#120c1c");
-const EMBER = new Color("#e0643a");
-const AMBER = new Color("#ffc25a");
-const LAYER = new Color();
-
-function Tower({ cut }) {
-  const { tl } = cut;
-  const slabs = useRef();
-  const group = useRef();
-  const cave = useRef();
-  const glow = useRef();
-  const lid = useRef();
-  const cube = useRef();
-  const ghost = useRef();
-  const spine = useRef();
-  const glints = useRef();
-  const layers = [useRef(), useRef(), useRef()];
-  const geo = useMemo(() => new BoxGeometry(1.5, SLAB, 0.9), []);
-  const mat = useMemo(() => flat("#ffffff"), []);
-  const caveGeo = useMemo(() => new BoxGeometry(1.48, 3 * STEP - 0.02, 0.86), []);
-  const caveMat = useMemo(() => flat("#0d0816", { side: BackSide }), []);
-  const layerGeo = useMemo(() => [frameGeometry(1.4, 0.43, 1.1, 0.33), frameGeometry(1.1, 0.33, 0.8, 0.23), frameGeometry(0.8, 0.23)], []);
-  const layerMat = useMemo(() => [0, 1, 2].map(() => flat("#ffffff")), []);
-  const glowMat = useMemo(() => flat(INK.amber, { transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending, side: DoubleSide }), []);
-  const glowGeo = useMemo(() => new PlaneGeometry(1.45, 0.43), []);
-  const lidGeo = useMemo(() => new BoxGeometry(1.6, 0.1, 1.0), []);
-  const lidMat = useMemo(() => flat("#fff3d6"), []);
-  const cubeGeo = useMemo(() => new BoxGeometry(0.34, 0.34, 0.34), []);
-  const cubeMat = useMemo(() => new MeshLambertMaterial({ color: "#ffbe55", emissive: "#e07a1c", emissiveIntensity: 0.55, flatShading: true }), []);
-  const ghostGeo = useMemo(() => new BoxGeometry(1.8, 0.05, 0.05), []);
-  const spineGeo = useMemo(() => new BoxGeometry(0.16, 1, 0.16), []);
-  const spineMat = useMemo(() => flat("#f2c26b"), []);
-  const ghostMat = useMemo(() => flat(INK.coral, { transparent: true, opacity: 0, depthWrite: false }), []);
-  const pyriteGeo = useMemo(() => new OctahedronGeometry(0.075, 0), []);
-  const pyriteMat = useMemo(() => flat("#ffd86a"), []);
-  const painted = useRef(false);
-  useFrame((state) => {
-    const t = clock(state);
-    const on = Boolean(live.arrival.id) && live.inStage;
-    group.current.visible = on;
-    if (!on) return;
-    const tt = onTwos(t);
-    const out = 1 - ramp(tt, tl.collapse[0], tl.collapse[1]);
-    const m = slabs.current;
-    if (!painted.current) {
-      painted.current = true;
-      const a = new Color("#f6e8cc");
-      const b = new Color("#f7c871");
-      for (let i = 0; i < ROWS; i++) m.setColorAt(i, (i % 2 ? a : b).clone().multiplyScalar(0.82 + 0.18 * (i / ROWS)));
-      m.instanceColor.needsUpdate = true;
+  const m = useMemo(() => {
+    const shared = sharedUniforms();
+    const hullPaper = hullMaterial(shared, PAPER, 1);
+    const cp = colonyPup();
+    const cpBody = solid([cp.body]);
+    const cpArms = solid([cp.arms]);
+    const inkBasic = mat({ color: INK });
+    const bodies = new InstancedMesh(cpBody.g, inkBasic, N_PUPS);
+    const bodiesLine = new InstancedMesh(cpBody.hull, hullPaper, N_PUPS);
+    bodiesLine.instanceMatrix = bodies.instanceMatrix;
+    const arms = new InstancedMesh(cpArms.g, inkBasic, N_PUPS);
+    const armsLine = new InstancedMesh(cpArms.hull, hullPaper, N_PUPS);
+    armsLine.instanceMatrix = arms.instanceMatrix;
+    for (const x of [bodies, arms]) {
+      x.frustumCulled = false;
+      for (let i = 0; i < N_PUPS; i++) hide(x, i);
     }
-    for (let i = 0; i < ROWS; i++) {
-      const up = ease(ramp(tt, 1.7 + i * 0.045, 2.15 + i * 0.045)) * out;
-      const hole = i >= GAP[0] && i <= GAP[1];
-      DUMMY.position.set(0, 0.075 + i * STEP, 0);
-      DUMMY.scale.set(hole ? 0.0001 : up + 0.0001, up + 0.0001, up + 0.0001);
-      DUMMY.updateMatrix();
-      m.setMatrixAt(i, DUMMY.matrix);
-    }
-    m.instanceMatrix.needsUpdate = true;
-    const born = ease(ramp(tt, 2.0, 2.5)) * out;
-    cave.current.scale.setScalar(born + 0.0001);
-    cave.current.position.y = GAP_MID;
-    // the throat lights from the back (layer 2) to the front (layer 0)
-    for (let j = 0; j < 3; j++) {
-      const lit = ease(ramp(tt, LIGHT + (2 - j) * 0.35, LIGHT + (2 - j) * 0.35 + 0.6));
-      const heat = j === 2 ? 1 : j === 1 ? 0.75 : 0.5; // the back is hottest
-      LAYER.copy(COLD).lerp(EMBER, Math.min(1, lit * 1.4)).lerp(AMBER, Math.max(0, lit * 1.4 - 0.4) * heat);
-      layerMat[j].color.copy(LAYER);
-      layers[j].current.scale.setScalar(born + 0.0001);
-      layers[j].current.position.set(0, GAP_MID, 0.38 - j * 0.18);
-    }
-    // the mouth glows: a slow pulse from line A, flaring as the pup goes in and comes out
-    const flare = Math.max(ramp(tt, DIVE[1] - 0.15, DIVE[1]) * (1 - ramp(tt, DIVE[1], DIVE[1] + 0.4)), ramp(tt, OUT[0] - 0.1, OUT[0]) * (1 - ramp(tt, OUT[0], OUT[0] + 0.5)));
-    const lit = ramp(tt, LIGHT + 0.5, LIGHT + 1.4) * (0.55 + 0.2 * Math.sin(tt * 5)) * (1 - 0.6 * ramp(tt, LID[1], LID[1] + 0.8)) + 0.7 * flare;
-    glow.current.visible = lit > 0.02;
-    glowMat.opacity = Math.min(1, lit) * out;
-    glow.current.scale.setScalar(born + 0.0001);
-    glow.current.position.set(0, GAP_MID, FRONT + 0.005);
-    // the lid: raised under the cube, dropped as the cube is set in; the ghost line stays at the old peak
-    const lift = ease(ramp(tt, 2.35, 2.8)) * (1 - ease(ramp(tt, LID[0], LID[1])));
-    lid.current.position.set(0, TOP + 0.05 + LID_UP * lift, 0);
-    lid.current.scale.setScalar(ease(ramp(tt, 2.2, 2.6)) * out + 0.0001);
-    // the lid's spine: it rises on a post, so the lid never floats
-    spine.current.position.set(0, TOP + (LID_UP * lift) / 2 + 0.03, 0);
-    spine.current.scale.set(1, LID_UP * lift + 0.08, 1);
-    spine.current.visible = lid.current.scale.x > 0.1;
-    ghost.current.position.set(0, TOP + 0.05 + LID_UP, FRONT + 0.1);
-    ghostMat.opacity = 0.8 * ramp(tt, LID[0] + 0.05, LID[0] + 0.3) * out;
-    ghost.current.visible = ghostMat.opacity > 0.01;
-    // the cube: dropped onto the lid, then it obeys: tips off, rolls down the face, set into the cave
-    const drop = ease(ramp(tt, 2.0, 2.4));
-    const r = ramp(tt, ROLL[0], ROLL[1]);
-    const off = ease(ramp(r, 0, 0.15)); // tipped off the lid's front edge
-    const down = ease(ramp(r, 0.1, 0.78)); // rolling down the face
-    const seat = ease(ramp(r, 0.78, 1)); // into the gap
-    const cy0 = TOP + 0.05 + LID_UP * lift + 0.22;
-    const y = cy0 + (GAP_MID + 0.02 - cy0) * down;
-    cube.current.position.set(0.3 * (1 - off) + 0.05 * off, drop < 1 ? y + (1 - drop) * 2.0 : y, 0.62 * off - 0.52 * seat);
-    cube.current.quaternion.setFromAxisAngle(AX, r * Math.PI * 3);
-    cube.current.scale.setScalar((drop * (1 - 0.9 * seat) * out) + 0.0001);
-    // the pyrite on the brow glints in turn once the lid is down
-    for (let i = 0; i < 5; i++) {
-      const g = ramp(tt, LID[1] + i * 0.12, LID[1] + i * 0.12 + 0.25);
-      const s = 0.2 + 1.3 * Math.sin(Math.PI * Math.min(1, g)) * (g > 0 && g < 1 ? 1 : 0);
-      DUMMY.position.set(-0.6 + i * 0.3, TOP + 0.13, FRONT + 0.02);
-      DUMMY.rotation.set(0, tt * 2 + i, 0);
-      DUMMY.scale.setScalar((s * ease(ramp(tt, 2.4, 2.8)) * out) + 0.0001);
-      DUMMY.updateMatrix();
-      glints.current.setMatrixAt(i, DUMMY.matrix);
-    }
-    DUMMY.rotation.set(0, 0, 0);
-    glints.current.instanceMatrix.needsUpdate = true;
-  }, -0.4);
-  return (
-    <group ref={group} position={TW} visible={false}>
-      <instancedMesh ref={slabs} args={[geo, mat, ROWS]} frustumCulled={false} />
-      <mesh ref={cave} geometry={caveGeo} material={caveMat} />
-      {layers.map((ref, j) => (
-        <mesh key={j} ref={ref} geometry={layerGeo[j]} material={layerMat[j]} />
-      ))}
-      <mesh ref={glow} geometry={glowGeo} material={glowMat} renderOrder={3} />
-      <mesh ref={lid} geometry={lidGeo} material={lidMat} />
-      <mesh ref={spine} geometry={spineGeo} material={spineMat} />
-      <mesh ref={cube} geometry={cubeGeo} material={cubeMat} />
-      <mesh ref={ghost} geometry={ghostGeo} material={ghostMat} />
-      <instancedMesh ref={glints} args={[pyriteGeo, pyriteMat, 5]} frustumCulled={false} />
-    </group>
-  );
-}
-
-// Blue flowers open across the ground from the cave's mouth, staggered outward.
-const FLOWERS = 36;
-function Flowers({ cut }) {
-  const { tl } = cut;
-  const ref = useRef();
-  const geo = useMemo(() => new IcosahedronGeometry(0.09, 0).scale(1, 0.55, 1), []);
-  const mat = useMemo(() => flat("#8fbaff"), []);
-  const spots = useMemo(() => {
-    const r = rand(41);
-    return Array.from({ length: FLOWERS }, () => {
-      const a = (r() - 0.5) * 2.6; // fanned out in front of the mouth
-      const d = 0.5 + r() * 2.8;
-      return { x: TW[0] + Math.sin(a) * d * 1.25, z: TW[2] + FRONT + 0.3 + Math.cos(a) * d, d, s: 0.8 + r() * 0.6 };
-    });
+    bodiesLine.frustumCulled = armsLine.frustumCulled = false;
+    const gi = gin();
+    const ur = urahara();
+    return {
+      shared,
+      shell: skyShell(shared),
+      ground: desert(),
+      tsuki: moon(shared),
+      paperG: paperMaterial(shared, 2),
+      paperP: paperMaterial(shared, 1),
+      paper: paperMaterial(shared, 0),
+      sil: silhouetteMaterial(shared),
+      hullInk: hullMaterial(shared, INK, 1),
+      hullPaper,
+      pal: palace(),
+      tr: trees(),
+      th: throne(),
+      thInk: throneInk(),
+      az: aizen(),
+      ic: ichigo(),
+      gi,
+      ur,
+      cpBody,
+      cpArms,
+      inkBasic,
+      bodies,
+      bodiesLine,
+      arms,
+      armsLine,
+      detail: mat({ color: PAPER, side: DoubleSide }),
+      gap: mat({ color: "#5fb6ff", transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending }),
+      gapG: new PlaneGeometry(5.2, 0.26),
+      slashM: slashMaterial(),
+      slashG: new RingGeometry(0.85, 1.15, 48, 1, 0.1, 2.7),
+      letA: lettering("KYOKA SUIGETSU", "#080a0f", -0.06),
+      letB: lettering("ILLUSION BROKEN", "#080a0f", 0.05),
+      flash: flashQuad("#d8ecff"),
+    };
   }, []);
-  useFrame((state) => {
-    const m = ref.current;
-    const t = clock(state);
-    const on = Boolean(live.arrival.id) && live.inStage;
-    m.visible = on;
-    if (!on) return;
-    const tt = onTwos(t);
-    const out = 1 - ramp(tt, tl.collapse[0], tl.collapse[1]);
-    for (let i = 0; i < FLOWERS; i++) {
-      const f = spots[i];
-      const k = ease(ramp(tt, LID[1] + 0.2 + f.d * 0.08, LID[1] + 0.5 + f.d * 0.08)) * out;
-      DUMMY.position.set(f.x, 0.05, f.z);
-      DUMMY.scale.setScalar(k * f.s + 0.0001);
-      DUMMY.updateMatrix();
-      m.setMatrixAt(i, DUMMY.matrix);
-    }
-    m.instanceMatrix.needsUpdate = true;
-  }, -0.4);
-  return <instancedMesh ref={ref} args={[geo, mat, FLOWERS]} visible={false} frustumCulled={false} />;
-}
 
-// The column of white-gold mana the pup releases when it comes out of the cave.
-const COLUMN = new CylinderGeometry(0.55, 0.7, 5, 20, 1, true);
-function Column({ cut }) {
-  const { tl } = cut;
-  const ref = useRef();
-  const m = useMemo(
-    () =>
-      new ShaderMaterial({
-        uniforms: { uA: { value: 0 } },
-        transparent: true,
-        depthWrite: false,
-        blending: AdditiveBlending,
-        side: DoubleSide,
-        vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-        fragmentShader: "uniform float uA; varying vec2 vUv; void main(){ float k = pow(1.0 - vUv.y, 1.4) * (0.55 + 0.45 * sin(vUv.x * 40.0)); gl_FragColor = vec4(pow(vec3(1.0, 0.9, 0.62) * k * uA, vec3(2.2)), 1.0); }",
-      }),
-    []
-  );
-  useFrame((state) => {
-    const g = ref.current;
-    const t = clock(state);
-    g.visible = Boolean(live.arrival.id) && live.inStage;
-    if (!g.visible) return;
-    const a = ramp(t, OUT[0] + 0.1, OUT[0] + 0.45) * (1 - ramp(t, ROLL[1] + 0.2, ROLL[1] + 1.0)) * (1 - ramp(t, tl.collapse[0], tl.collapse[1]));
-    m.uniforms.uA.value = a * 0.8;
-    const [x, z] = pupAt(1);
-    g.position.set(x, 2.4, z);
-    g.scale.set(a > 0.01 ? 1 : 0.0001, a > 0.01 ? 1 : 0.0001, a > 0.01 ? 1 : 0.0001);
-  }, -0.4);
-  return <mesh ref={ref} geometry={COLUMN} material={m} visible={false} frustumCulled={false} renderOrder={4} />;
-}
+  useEffect(() => {
+    island.current = islandList(scene);
+    const p = pupParts(scene);
+    pup.current = p;
+    ink.current = p?.root ? pupInk(p.root, m.shared) : null;
+    return () => {
+      ink.current?.dispose();
+      ink.current = null;
+      pup.current = null;
+      // everything the scene built goes with it
+      const geos = [m.shell.g, m.ground, m.tsuki.g, m.pal.g, m.pal.hull, m.tr.g, m.tr.hull, m.th.g, m.th.hull, m.thInk, m.az.body, m.az.hull, m.az.bladeLow.g, m.az.bladeLow.hull, m.az.bladeTip.g, m.az.bladeTip.hull, m.ic.g, m.ic.hull, m.gi.g, m.gi.hull, m.gi.smile, m.ur.g, m.ur.hull, m.ur.stripes, m.cpBody.g, m.cpBody.hull, m.cpArms.g, m.cpArms.hull, m.gapG, m.slashG, m.letA.geometry, m.letB.geometry, m.flash.geometry];
+      for (const g of geos) g.dispose();
+      const mats = [m.shell.m, m.tsuki.m, m.paperG, m.paperP, m.paper, m.sil, m.hullInk, m.hullPaper, m.inkBasic, m.detail, m.gap, m.slashM, m.letA.material, m.letB.material, m.flash.material];
+      for (const x of mats) x.dispose();
+      m.letA.material.map?.dispose();
+      m.letB.material.map?.dispose();
+      for (const x of [m.bodies, m.bodiesLine, m.arms, m.armsLine]) x.dispose();
+    };
+  }, [scene, m]);
 
-// A dive streak: an amber bar from the mouth to wherever the pup is.
-const BAR = new CylinderGeometry(0.06, 0.06, 1, 6);
-const UPV = new Vector3(0, 1, 0);
-const A3 = new Vector3();
-const B3 = new Vector3();
-function DiveStreak() {
-  const ref = useRef();
-  const m = useMemo(() => flat(INK.amber, { transparent: true, depthWrite: false, blending: AdditiveBlending }), []);
+  // the pup rides the throne; impacts shake the frame two drawings each (after Seal.jsx places it)
+  // a skip clears the arrival: nothing of the dimension draws for the frame before this unmounts
   useFrame(() => {
-    const g = ref.current;
-    g.visible = live.inStage;
-    if (!g.visible) return;
-    const t = T.t;
-    const u = ramp(t, DIVE[0], DIVE[1]);
-    const a = u > 0 && u < 1 ? 1 : 0;
-    const [mx, mz] = pupAt(1);
-    A3.set(mx, 0.5, mz);
-    B3.set(TW[0], GAP_MID, TW[2] + FRONT);
-    // from where the dive began to where the pup is now
-    B3.sub(A3).multiplyScalar(ease(u)).add(A3);
-    const from = A3.clone().lerp(B3, Math.max(0, ease(u) - 0.45));
-    const len = from.distanceTo(B3);
-    m.opacity = 0.8 * a;
-    g.position.copy(from).add(B3).multiplyScalar(0.5);
-    g.quaternion.setFromUnitVectors(UPV, TWf.copy(B3).sub(from).normalize());
-    g.scale.set(a ? 1 : 0.0001, a ? len + 0.001 : 0.0001, a ? 1 : 0.0001);
-  }, -0.4);
-  return <mesh ref={ref} geometry={BAR} material={m} visible={false} frustumCulled={false} renderOrder={5} />;
-}
-
-export default function Reveal(cut) {
-  const { tl, mode } = cut;
-  const A = tl.lineA;
-  const out = (t) => 1 - ramp(t, tl.collapse[0], tl.duration);
-  useHideLand();
-  useCutFrame((t) => {
-    if (mode !== "full") return;
-    const o = out(t);
-    live.pose.sign = ramp(t, tl.sign[0], tl.sign[1]) * (1 - ramp(t, tl.sign[1] + 0.2, A)) * o;
-    // point at the cave, held through the walk; a crouch, then the dive spins; arms out when it comes back
-    live.pose.point = ramp(t, POINT[0], POINT[0] + 0.25) * (1 - ramp(t, DIVE[0] - 0.12, DIVE[0] - 0.05)) * o;
-    live.pose.crouch = ramp(t, DIVE[0] - 0.15, DIVE[0]) * (1 - ramp(t, DIVE[0] + 0.05, DIVE[0] + 0.12)) * o;
-    const dive = ramp(t, DIVE[0], DIVE[1]);
-    live.pose.spin = dive > 0 && dive < 1 ? dive : 0;
-    live.pose.raise = ramp(t, OUT[1] + 0.15, OUT[1] + 0.5) * o;
-  });
-  usePup(cut, (t, p, turn) => {
-    const k = landK(cut.card, cut.place, live.seal.x, live.seal.z);
-    const o = out(t);
-    const [mx, mz] = pupAt(k);
-    const gx = k * TW[0];
-    const gy = k * GAP_MID;
-    const gz = k * (TW[2] + FRONT);
-    const walk = ease(ramp(t, WALK[0], WALK[1]));
-    const dive = ease(ramp(t, DIVE[0], DIVE[1]));
-    const out2 = ease(ramp(t, OUT[0], OUT[1]));
-    // on the ground at the mouth, then up into the dark, then back out to the mouth
-    let x = mx * walk;
-    let y = 0.25 * Math.sin(Math.PI * ramp(t, WALK[0], WALK[1])) * (1 - dive);
-    let z = mz * walk;
-    if (t >= DIVE[0] && t < OUT[0]) {
-      x = mx + (gx - mx) * dive;
-      y = gy * dive + 0.4 * Math.sin(Math.PI * dive);
-      z = mz + (gz - mz) * dive;
-    } else if (t >= OUT[0]) {
-      x = gx + (mx - gx) * out2;
-      y = gy * (1 - out2) + 0.7 * Math.sin(Math.PI * out2);
-      z = gz + (mz - gz) * out2;
+    const p = pup.current;
+    if (!live.arrival.id) {
+      rig.current.visible = false;
+      ink.current?.set(false);
+      return;
     }
-    nudge(p, turn, x * o, y * o, z * o);
-    // uniform only: spin and shrink into the dark, then pop out past full size and settle
-    const shrink = dive * (1 - out2);
-    const pop = Math.sin(Math.PI * ramp(t, OUT[0] + 0.15, OUT[1] + 0.15)) * 0.12;
-    p.scale.setScalar(Math.max(0.03, 1 - 0.97 * shrink + pop));
+    if (p?.root && mode === "full") {
+      p.root.position.x += shake.current.x;
+      p.root.position.y += lift.current + shake.current.y;
+    }
+  }, -0.5);
+
+  // Aizen's chin-on-flipper: after the pup poses itself (D.jsx, priority 0), the head cants onto the near flipper
+  useFrame(() => {
+    const p = pup.current;
+    if (!p?.head || !p.rear || mode !== "full" || !live.arrival.id) return;
+    const k = Math.min(1, live.pose.point / 0.7);
+    if (k <= 0.01) return;
+    const fr = p.rear.children.find((o) => o.type === "Group" && o.scale.x < 0)?.children[0];
+    p.head.rotation.z += -0.32 * k;
+    p.head.rotation.x += 0.12 * k;
+    if (fr) {
+      fr.position.y += TUNE.fy * k;
+      fr.position.z += TUNE.fz * k;
+      fr.position.x += TUNE.fx * k;
+    }
+  }, 1);
+
+  useCutFrame((t, state) => {
+    const s = live.seal;
+    const full = mode === "full";
+    const g = rig.current;
+    g.visible = full;
+    m.flash.visible = false;
+    if (!full) {
+      ink.current?.set(false);
+      shake.current.set(0, 0, 0);
+      lift.current = 0;
+      return;
+    }
+    const tt = onTwos(t);
+    const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
+    const cam = state.camera;
+    const brk = tt - T.brk; // seconds since the dimension broke
+    const broken = brk > 0;
+    const held = brk > 0.45; // the pup keeps its ink while it falls, and lands in full colour
+    const wide = state.size.width / state.size.height >= 1;
+    const sh = m.shared;
+
+    // the rig: the pup at the origin, turned so XNNPACK's mountain stands ahead and right when the island returns
+    const turn = turnFor(card, place, s.x, s.z);
+    const hit = (h, k) => (tt >= h && tt < h + 0.17 ? k : 0);
+    const amp = hit(T.crack, 0.07) + hit(T.snap, 0.05) + hit(T.brk, 0.16) + (tt > T.rise[0] && tt < T.rise[1] ? 0.025 : 0);
+    const odd = Math.floor(t * 12) % 2 ? 1 : -1;
+    shake.current.set(amp * odd, -amp * 0.6 * odd, 0);
+    g.position.set(s.x + shake.current.x, shake.current.y, s.z);
+    g.rotation.y = turn;
+    g.updateWorldMatrix(true, false);
+
+    // THE THRONE rises out of the sand; the pup is carried up on its seat, and drops on the break
+    const rise = smooth(T.rise[0], T.rise[1], tt);
+    const dropK = Math.min(1, Math.max(0, brk / 0.5));
+    const seatTop = SEAT - (SEAT + 2) * (1 - rise);
+    lift.current = broken ? SEAT * (1 - dropK * dropK) : Math.max(0, seatTop);
+    dais.current.position.set(0, -(SEAT + 2) * (1 - rise), 0);
+
+    // THE WORLD swells out of the pup with the stage, then holds as the backdrop until it breaks
+    const r = radiusAt(tl, t);
+    V.set(s.x, CORE_Y, s.z);
+    const inside = r > cam.position.distanceTo(V) + 0.3;
+    shellRef.current.visible = r > 0.02 && brk < 1.6;
+    shellRef.current.scale.setScalar(inside || broken ? 140 : Math.max(r, 0.02));
+    world.current.visible = (inside || broken) && brk < 1.6;
+    sh.uTime.value = t;
+    sh.uBreak.value = brk;
+    state.gl.getDrawingBufferSize(RES);
+    sh.uRes.value.copy(RES);
+    sh.uPx.value = 1.5 * state.gl.getPixelRatio();
+    MOON_P.copy(wide ? MOON_WIDE : MOON_TALL);
+    moonRef.current.position.copy(MOON_P);
+    moonRef.current.lookAt(cam.position);
+    sh.uMoon.value.copy(MOON_P).applyAxisAngle(UP, turn).add(V.set(s.x, 0, s.z));
+    for (const h of hullsRef.current) if (h) h.visible = !broken;
+
+    // THE GLASS: the first crack from Ichigo's slash (holes, then it mends), the second from the sword (it falls)
+    const hole = smooth(T.holeIn[0], T.holeIn[1], tt) * (1 - smooth(T.holeOut[0], T.holeOut[1], tt)) * 0.8;
+    const web1 = smooth(T.crack, T.crack + 0.2, tt) * (1 - smooth(T.webOut[0], T.webOut[1], tt));
+    const web2 = smooth(T.web[0], T.web[1], tt);
+    sh.uHole.value = hole;
+    sh.uCrack.value = tt >= T.web[0] ? web2 : web1;
+    if (tt >= T.web[0]) W.set(AIZEN_AT[0] - 0.65, AIZEN_AT[1] + 0.9, AIZEN_AT[2] + 0.4); // out from the snapped blade
+    else W.set(CRACK1[0], CRACK1[1], CRACK1[2]);
+    W.applyAxisAngle(UP, turn).add(V.set(s.x, 0, s.z)).sub(cam.position).normalize();
+    sh.uCrackDir.value.copy(W);
+    // the real island shows through the holes (and is put away again as the glass mends)
+    const want = hole > 0.03 || (broken && brk > 0.02);
+    if (want !== islandOn.current) {
+      islandOn.current = want;
+      for (const o of island.current) o.visible = want;
+    }
+
+    // THE PUP IN INK takes the dimension from the bloom to the landing, then snaps back to full colour
+    ink.current?.set((inside || tt > tl.bloom[1]) && !held);
+    // the pup: the sign, then up on the throne, sat back with a flipper across its chest (Aizen's pose),
+    // arms up for the truth, blown low at the break, the fist for the flex
+    const reach = smooth(T.reach[0], T.reach[0] + 0.15, tt);
+    live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt));
+    live.pose.sit = smooth(T.sit[0], T.sit[1], tt) * (1 - reach);
+    live.pose.point = 0.7 * smooth(T.sit[1], T.sit[1] + 0.4, tt) * (1 - reach);
+    live.pose.raise = smooth(T.reach[0], T.reach[1], tt) * (1 - smooth(T.brk, T.brk + 0.12, tt));
+    live.pose.crouch = smooth(T.brk + 0.4, T.brk + 0.45, tt) * (1 - smooth(T.brk + 0.6, T.brk + 0.95, tt)) * 0.8;
+    live.pose.fist = smooth(T.brk + 1.0, T.brk + 1.3, tt) * out;
+
+    // the card's view and the pup's tail follow the pup: the throne framing while it sits up there, the island's on the drop
+    const kc = broken ? 1 - smooth(0.15, 1.25, brk) : lift.current / SEAT;
+    const V0 = wide ? VIEW.wide : VIEW.tall;
+    const vw = wide ? card.view.wide : card.view.tall;
+    lerp3(vw[0], V0[0][0], V0[1][0], kc);
+    lerp3(vw[1], V0[0][1], V0[1][1], kc);
+    card.tail.c[1] = 1.05 + lift.current + 0.5 * kc;
+
+    // THE COLONY PUPS pop in at the throne's foot, a pair at a time, and cheer on twos
+    const f12 = Math.floor(t * 12);
+    for (let i = 0; i < N_PUPS; i++) {
+      const pair = i >> 1;
+      const sd = i & 1 ? 1 : -1;
+      const born0 = T.hype + pair * 0.16;
+      const born = smooth(born0, born0 + 0.2, tt);
+      const k = 0.42 * born * (1 + 0.25 * Math.sin(Math.PI * Math.min(1, Math.max(0, tt - born0) / 0.3)));
+      const up = (f12 + pair * 2 + (i & 1)) % 4 < 2;
+      const x = -1.1 + pair * 1.12 + sd * 0.27;
+      const y = 0.6 + (up ? 0.14 : 0);
+      put(m.bodies, i, x, y, PUPS_Z, k, k, k, 0, sd * -0.3, 0);
+      put(m.arms, i, x, y, PUPS_Z, k, k * (up ? 1 : 0.4), k, 0, sd * -0.3, 0);
+    }
+    m.bodies.instanceMatrix.needsUpdate = m.arms.instanceMatrix.needsUpdate = true;
+    colonyRef.current.visible = !broken;
+
+    // Ichigo leans into the slash; the arc of cold light sweeps on and the glass cracks at its end
+    const sl = smooth(T.slash[0], T.slash[1], tt);
+    ichRef.current.rotation.set(0, 0.25, -0.18 * smooth(T.slash[0], T.slash[0] + 0.15, tt) * (1 - smooth(T.slash[1] + 0.2, T.slash[1] + 0.7, tt)));
+    slashRef.current.visible = tt > T.slash[0] && tt < T.slash[1] + 0.4;
+    m.slashM.uniforms.uK.value = sl * 1.4;
+    slashRef.current.quaternion.copy(Q.setFromRotationMatrix(g.matrixWorld).invert().multiply(cam.quaternion));
+    slashRef.current.rotateZ(-0.4);
+    // Aizen's blade: the tip snaps off on the truth and tumbles away
+    const sn = Math.max(0, tt - T.snap);
+    const hand = m.az.hand;
+    tipRef.current.position.set(hand[0] - 0.6 * sn, hand[1] + 1.1 * sn - 5.5 * sn * sn, hand[2] + 0.9 * sn);
+    tipRef.current.rotation.set(0, 0, -5.5 * sn);
+    // the gap lights cold blue along the dais foot as the truth is named
+    m.gap.opacity = smooth(T.gap[0], T.gap[1], tt) * (1 - smooth(T.brk, T.brk + 0.15, tt)) * (0.75 + 0.25 * Math.sin(tt * 18));
+    gapRef.current.visible = m.gap.opacity > 0.01;
+    // details that are not shards (the smile, the hat's stripes) go with the glass
+    for (const d of detailRef.current) if (d) d.visible = !broken;
+
+    // the lettering: Aizen's sword named on the first crack; the illusion's end on the second, flat to the lens
+    const lay = (mesh, k, x, y) => {
+      mesh.visible = k > 0 && k < 1;
+      if (!mesh.visible) return;
+      const pop = Math.min(1, k / 0.1) * (1 + 0.2 * Math.max(0, 1 - k / 0.25));
+      const w = (wide ? 6.4 : 4.4) * pop;
+      mesh.position.set(x + 0.04 * odd, y, 0.4);
+      mesh.scale.set(w, w, 1);
+      mesh.quaternion.copy(Q.setFromRotationMatrix(g.matrixWorld).invert().multiply(cam.quaternion));
+    };
+    lay(m.letA, (tt - T.crack) / 0.95, wide ? -3.4 : -1.4, wide ? 6.6 : 7.6);
+    lay(m.letB, (tt - T.brk) / 1.0, wide ? 0.4 : 0.2, wide ? 6.4 : 7.4);
+
+    // the flash: cold, never a white-out
+    const fl = Math.max(0, 1 - Math.abs(tt - T.crack) / 0.1) * 0.14 + Math.max(0, 1 - Math.abs(tt - T.snap) / 0.1) * 0.2 + Math.max(0, 1 - Math.abs(tt - T.brk - 0.03) / 0.12) * 0.3;
+    holdFlash(m.flash, cam, fl);
+    dust.current.visible = !broken;
   });
+
+  const keep = (arr, i) => (el) => {
+    arr.current[i] = el;
+  };
   return (
     <>
-      <Stage {...cut} />
-      <Speaker {...cut} />
-      <Rig cut={cut}>
-        <Sky cut={cut} />
-        <Tower cut={cut} />
-        <Flowers cut={cut} />
-        <Column cut={cut} />
-        <DiveStreak />
-        <Flash color="#ffd27a" at={[TW[0], GAP_MID, TW[2] + 0.7]} fn={() => [Math.max(0.9 * ramp(T.t, DIVE[1] - 0.15, DIVE[1]) * (1 - ramp(T.t, DIVE[1], DIVE[1] + 0.5)), 0.7 * ramp(T.t, OUT[0] - 0.1, OUT[0]) * (1 - ramp(T.t, OUT[0], OUT[0] + 0.5)), 0.8 * ramp(T.t, ROLL[1] - 0.1, ROLL[1]) * (1 - ramp(T.t, ROLL[1], ROLL[1] + 0.4))), 2.4]} />
-        <Shards start={LID[0]} dur={1.2} from={[TW[0], TOP + 0.3, TW[2] + 0.4]} speed={1.3} up={1.8} gravity={5} size={0.1} count={20} colors={["#ffe3a0", INK.cream, INK.amber]} seed={4} />
-      </Rig>
+      <Stage {...cut} bare skip={() => true} />
+      <group ref={dust}>
+        <Motes mode={mode} tl={tl} n={80} span={[34, 10, 28]} center={[0, 0, -8]} dir={[0.3, 0.02, 0.1]} size={0.045} color={["#f4f4f0", "#aab1bf"]} sway={0.5} shape="round" />
+      </group>
+      <primitive object={m.flash} />
+      <group ref={rig} visible={false}>
+        <mesh ref={shellRef} geometry={m.shell.g} material={m.shell.m} position={[0, CORE_Y, 0]} renderOrder={-3} frustumCulled={false} />
+        <group ref={world}>
+          <mesh ref={moonRef} geometry={m.tsuki.g} material={m.tsuki.m} scale={MOON_R / 1.7} renderOrder={-2} frustumCulled={false} />
+          <mesh geometry={m.ground} material={m.paperG} renderOrder={-1} frustumCulled={false} />
+          <group position={[0, 0, -112]}>
+            <mesh geometry={m.pal.g} material={m.paperP} frustumCulled={false} />
+            <mesh geometry={m.pal.hull} material={m.hullInk} frustumCulled={false} ref={keep(hullsRef, 0)} />
+          </group>
+          <mesh geometry={m.tr.g} material={m.paper} frustumCulled={false} />
+          <mesh geometry={m.tr.hull} material={m.hullInk} frustumCulled={false} ref={keep(hullsRef, 1)} />
+          <group ref={dais}>
+            <group position={[0, 0, THRONE_Z]}>
+              <mesh geometry={m.th.g} material={m.paper} frustumCulled={false} />
+              <mesh geometry={m.th.hull} material={m.hullInk} frustumCulled={false} ref={keep(hullsRef, 2)} />
+              <mesh geometry={m.thInk} material={m.sil} frustumCulled={false} />
+              <mesh ref={gapRef} geometry={m.gapG} material={m.gap} position={[0, 0.3, 4.08]} renderOrder={5} visible={false} />
+            </group>
+            <group position={AIZEN_AT} scale={1.45}>
+              <mesh geometry={m.az.body} material={m.sil} frustumCulled={false} />
+              <mesh geometry={m.az.hull} material={m.hullPaper} frustumCulled={false} ref={keep(hullsRef, 3)} />
+              <mesh geometry={m.az.bladeLow.g} material={m.sil} frustumCulled={false} />
+              <mesh geometry={m.az.bladeLow.hull} material={m.hullPaper} frustumCulled={false} ref={keep(hullsRef, 4)} />
+              <group ref={tipRef}>
+                <group position={[-m.az.hand[0], -m.az.hand[1], -m.az.hand[2]]}>
+                  <mesh geometry={m.az.bladeTip.g} material={m.sil} frustumCulled={false} />
+                  <mesh geometry={m.az.bladeTip.hull} material={m.hullPaper} frustumCulled={false} ref={keep(hullsRef, 5)} />
+                </group>
+              </group>
+            </group>
+            <group position={ICHIGO_AT} scale={1.3} ref={ichRef}>
+              <mesh geometry={m.ic.g} material={m.sil} frustumCulled={false} />
+              <mesh geometry={m.ic.hull} material={m.hullPaper} frustumCulled={false} ref={keep(hullsRef, 6)} />
+            </group>
+            <group position={GIN_AT} rotation={[0, 0.12, 0]} scale={1.3}>
+              <mesh geometry={m.gi.g} material={m.sil} frustumCulled={false} />
+              <mesh geometry={m.gi.hull} material={m.hullPaper} frustumCulled={false} ref={keep(hullsRef, 7)} />
+              <mesh geometry={m.gi.smile} material={m.detail} ref={keep(detailRef, 0)} frustumCulled={false} />
+            </group>
+            <group position={URAHARA_AT} rotation={[0, -0.25, 0]} scale={1.3}>
+              <mesh geometry={m.ur.g} material={m.sil} frustumCulled={false} />
+              <mesh geometry={m.ur.hull} material={m.hullPaper} frustumCulled={false} ref={keep(hullsRef, 8)} />
+              <mesh geometry={m.ur.stripes} material={m.detail} ref={keep(detailRef, 1)} frustumCulled={false} />
+            </group>
+            <group ref={colonyRef}>
+              <primitive object={m.bodies} />
+              <primitive object={m.bodiesLine} />
+              <primitive object={m.arms} />
+              <primitive object={m.armsLine} />
+            </group>
+          </group>
+          <mesh ref={slashRef} geometry={m.slashG} material={m.slashM} position={SLASH_AT} scale={3.4} visible={false} renderOrder={20} frustumCulled={false} />
+        </group>
+        <primitive object={m.letA} />
+        <primitive object={m.letB} />
+      </group>
     </>
   );
 }
