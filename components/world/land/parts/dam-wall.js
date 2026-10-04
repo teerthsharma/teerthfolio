@@ -238,6 +238,8 @@ export function buildConcreteWall() {
   const lamps = [];
   const bathtub = [];
   const windows = [];
+  const plant = []; // the powerhouse (XLA geyser building): its own pale material
+  const plantRed = [];
 
   for (let i = 0; i < CREST.length - 1; i++) {
     const a = CREST[i];
@@ -277,6 +279,17 @@ export function buildConcreteWall() {
     stripe.rotateY(angle);
     stripe.translate(mx, 0, mz);
     accent.push(stripe.toNonIndexed());
+    // orange crenels along both parapets, every 1.6 m
+    const n = Math.max(2, Math.floor(len / 1.6));
+    for (const side of [-1, 1]) {
+      for (let k = 0; k < n; k++) {
+        const c = new BoxGeometry(0.22, 0.4, 0.55).toNonIndexed();
+        c.translate(side * (roadW / 2 - 0.08), h + 0.22 + railH + 0.2, -len / 2 + (k + 0.5) * (len / n));
+        c.rotateY(angle);
+        c.translate(mx, 0, mz);
+        accent.push(c);
+      }
+    }
   }
 
   // piers: chunky buttress blocks at every crest joint, tall enough to
@@ -317,11 +330,14 @@ export function buildConcreteWall() {
     const d = 2.6;
     const hh = 3.6;
     const box = new BoxGeometry(w, hh, d).rotateY(angle).translate(cx, hh / 2, cz);
-    body.push(tintWhite(box.toNonIndexed()));
+    plant.push(box.toNonIndexed());
     const roof = new BoxGeometry(w * 0.86, 0.5, d * 0.86).rotateY(angle).translate(cx, hh + 0.25, cz);
-    body.push(tintWhite(roof.toNonIndexed()));
+    plantRed.push(roof.toNonIndexed());
+    for (const f of [-1, 1]) {
+      plantRed.push(new BoxGeometry(0.4, hh, 0.4).rotateY(angle).translate(cx + Math.cos(angle) * f * (w / 2), hh / 2, cz - Math.sin(angle) * f * (w / 2))); // red corner piers
+    }
     const stripe = new BoxGeometry(w * 0.9, 0.4, 0.03).rotateY(angle).translate(cx + Math.sin(angle) * (d / 2 + 0.02), hh * 0.62, cz + Math.cos(angle) * (d / 2 + 0.02));
-    accent.push(stripe.toNonIndexed());
+    plantRed.push(stripe.toNonIndexed());
     // a row of window slits on the downstream face, IceDam.jsx lights them
     for (let i = 0; i < 5; i++) {
       const wx = cx + Math.cos(angle) * (i / 4 - 0.5) * (w * 0.78);
@@ -372,6 +388,8 @@ export function buildConcreteWall() {
     lamps: mergeGeometries(clean(lamps), false),
     bathtub: mergeGeometries(clean(bathtub), false),
     windows: mergeGeometries(clean(windows), false),
+    plant: mergeGeometries(clean(plant), false),
+    plantRed: mergeGeometries(clean(plantRed), false),
   };
 }
 
