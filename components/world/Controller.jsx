@@ -12,6 +12,7 @@ import { AWAKENING, mustFinish } from "../../lib/world/loop";
 import { awakeBeat, awakeMode } from "../../lib/world/awakening";
 import { WHIRLPOOL } from "../../lib/world/river";
 import { getUi, live, setUi } from "../../lib/world/store";
+import { CARDS, cardFor } from "../../lib/world/cutscene/cards";
 
 const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 // live.props is created once and never reassigned (store.js), so the world
@@ -49,6 +50,18 @@ function nearestUnseen(seal) {
     }
   }
   return best;
+}
+
+// ONE SCENE FOR A GROUP (a card's `plays`): a dock whose card says
+// plays: "<id>" arrives as that place's cutscene, and the whole group (the
+// id and every card that plays it) is seen at once, so Mount MujoRush's three
+// docks share one cinematic, once a session. Built once, at load.
+const PLAYS = new Map(CARDS.filter((c) => c.plays).map((c) => [c.id, c.plays]));
+const GROUP = new Map();
+for (const c of CARDS) GROUP.set(c.id, [c.id, ...CARDS.filter((o) => o.plays === c.id).map((o) => o.id)]);
+const playsAs = (id) => (id && cardFor(PLAYS.get(id)) ? PLAYS.get(id) : id);
+function seeAll(id) {
+  for (const g of GROUP.get(id) ?? [id]) live.seen.add(g);
 }
 
 // Places whose arrival cutscene already played this session (lib/world/cutscene/). Storage can be missing or blocked (private windows): then every
@@ -204,13 +217,18 @@ export default function Controller() {
     // place only counts as seen once its arrival has actually started, so an
     // open panel or another arrival never burns it. With no cutscene to play
     // (?hud=off, for captures) nothing fires and nothing is burnt.
-    const near0 = nearestUnseen(seal)?.id ?? null;
+    const near0 = playsAs(nearestUnseen(seal)?.id ?? null);
     const approach = near0 && cutsceneMode(near0) ? near0 : null;
     if (approach && ui.started && !live.seen.has(approach) && t <= 1.5) {
-      live.seen.add(approach);
+      seeAll(approach);
       saveSeen();
+<<<<<<< HEAD
     } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id && !mustFinish(seal)) {
       live.seen.add(approach);
+=======
+    } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id) {
+      seeAll(approach);
+>>>>>>> scene2/mujo
       saveSeen();
       arrival.id = approach;
       arrival.start = t;
