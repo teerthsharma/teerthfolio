@@ -108,7 +108,8 @@ export function paint(geo, hex, sway = 0) {
   g.setAttribute("aSway", new BufferAttribute(new Float32Array(n).fill(sway), 1));
   return g;
 }
-export const fuse = (list) => mergeGeometries(list, false);
+// mixed indexed/non-indexed parts make mergeGeometries return null (which blanked the whole world via prewarm)
+export const fuse = (list) => mergeGeometries(list.map((g) => (g.index ? g.toNonIndexed() : g)), false);
 
 // a lit mesh with its ink hull as a child: one Group, both share the transform
 export function inked(geo, { sway = false, side = false, hull: ink = true } = {}) {

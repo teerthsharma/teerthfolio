@@ -356,7 +356,7 @@ export function piece(geometry, color = "#ffffff", sway = 0) {
   g.setAttribute("aSway", new BufferAttribute(s, 1));
   return g;
 }
-export const merge = (list) => mergeGeometries(list, false);
+export const merge = (list) => mergeGeometries(list.map((g) => (g.index ? g.toNonIndexed() : g)), false);
 
 // a tinted variation of a base colour, per index (hand-painted blocks never match)
 export function varied(hex, i, spread = 0.12) {
