@@ -5,7 +5,7 @@
 // JA'FAR, the general: a tall white-robed figure with long wide sleeves, a silver ponytail, who panics.
 // Parts ride the pup's own head and body groups (pupParts, p-caustic/parts.js), built from the body mesh's bounds.
 
-import { AdditiveBlending, Box3, BoxGeometry, CylinderGeometry, DoubleSide, Euler, Group, LatheGeometry, Mesh, MeshBasicMaterial, Quaternion, ShaderMaterial, SphereGeometry, TorusGeometry, Vector2, Vector3 } from "three";
+import { AdditiveBlending, Box3, BoxGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, Euler, Group, LatheGeometry, Mesh, MeshBasicMaterial, MeshStandardMaterial, OctahedronGeometry, Quaternion, ShaderMaterial, SphereGeometry, TorusGeometry, Vector2, Vector3 } from "three";
 import { SKULL, skullPoint } from "../../../seal/variants/D-parts";
 import { limb } from "../p-caustic/susanoo";
 import { C, merge, part } from "./look";
@@ -29,37 +29,36 @@ function chain(p, r, n, color, k = 0, seg = 7) {
   return out;
 }
 
-// head frame: the skull centre, +z the nose, +y up
+// head frame: the skull centre, +z the nose, +y up. The hair sits ON TOP: a gold knot at the crown, a long purple
+// ponytail from it back and down, a fringe of five cones over the brow. Nothing at the sides.
 function ponytail() {
-  const p = (t) => [Math.sin(t * 5) * 0.08, 0.42 + 0.26 * Math.sin(Math.PI * Math.min(1, t * 1.4)) - 0.85 * t * t, -0.42 - 2.7 * t];
-  const dark = "#35206a";
-  const parts = chain(p, (t) => 0.14 * (1 - t) ** 0.8 + 0.03, 20, (t) => (t < 0.45 ? dark : t < 0.8 ? "#4a2c8a" : "#6a40b8"), 0);
-  // a second, lighter lock beside it, and the gold tie at the root
-  const p2 = (t) => [0.16 + 0.1 * t, 0.3 + 0.2 * Math.sin(Math.PI * Math.min(1, t * 1.4)) - 0.8 * t * t, -0.4 - 2.2 * t];
-  parts.push(...chain(p2, (t) => 0.1 * (1 - t) + 0.025, 12, "#6a40b8", 0, 6));
-  parts.push(part(new TorusGeometry(0.17, 0.045, 6, 12), C.gold, 2, [0, 0.33, -0.43, 0, 0, 0, 1, 1, 1.2]));
-  // the crown hair: a cap over the back of the skull so the ponytail has something to grow from
-  parts.push(part(new SphereGeometry(0.545, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.55).rotateX(-0.4), dark, 0, [0, 0.1, -0.02]));
+  const top = skullPoint(new Vector3(0, 1, 0), new Vector3());
+  const p = (t) => [Math.sin(t * 5) * 0.05, top.y + 0.06 + 0.3 * Math.sin(Math.PI * Math.min(1, t * 1.2)) - 1.3 * t * t, -0.05 - 2.0 * t];
+  const parts = chain(p, (t) => 0.11 - 0.07 * t, 9, (t) => (t < 0.5 ? "#5b2a86" : "#9b5de5"), 0);
+  parts.push(part(new CylinderGeometry(0.08, 0.08, 0.1, 10), C.gold, 2, [0, top.y + 0.02, -0.02]));
+  for (let i = 0; i < 5; i++) {
+    const x = (i - 2) * 0.1;
+    parts.push(part(new ConeGeometry(0.06, 0.24, 5).rotateX(Math.PI / 2 + 0.5), i % 2 ? "#9b5de5" : "#5b2a86", 0, [x, 0.36, 0.3 - Math.abs(i - 2) * 0.03]));
+  }
   return merge(parts);
 }
 
 function circlet() {
   // the ring runs round the head, tipped a little so it sits low on the brow: scaled to the skull's width and depth
-  const parts = [part(new TorusGeometry(0.5, 0.032, 6, 28), C.gold, 2, [0, 0.2, 0, Math.PI / 2 + 0.18, 0, 0, 1.0, 0.96, 1])];
-  parts.push(part(new SphereGeometry(0.06, 8, 6), "#7ff3e6", 5, [0, 0.14, 0.47]));
-  parts.push(part(new BoxGeometry(0.06, 0.11, 0.025).rotateZ(Math.PI / 4), C.gold, 2, [0, 0.07, 0.49]));
+  const parts = [part(new TorusGeometry(SKULL[0] * 1.02, 0.03, 6, 28), C.gold, 2, [0, 0.2, 0, Math.PI / 2 + 0.18, 0, 0, 1.0, 0.96, 1])];
+  parts.push(part(new OctahedronGeometry(0.05, 0), C.crimson, 0, [0, 0.14, 0.5]));
   for (const s of [-1, 1]) parts.push(part(new SphereGeometry(0.03, 6, 5), C.gold, 2, [s * 0.2, 0.17, 0.46]));
   return merge(parts);
 }
 
-// hoops on the cheeks, a glowing drop hanging from each
+// two gold hoops on the cheeks, a small teal drop on each
 function earrings() {
   const parts = [];
   for (const s of [-1, 1]) {
     const d = new Vector3(s * 0.9, -0.55, 0.25).normalize();
     const at = skullPoint(d, new Vector3());
-    parts.push(part(new TorusGeometry(0.075, 0.016, 6, 14), C.gold, 2, [at.x + s * 0.02, at.y - 0.06, at.z, 0, Math.PI / 2, 0]));
-    parts.push(part(new SphereGeometry(0.05, 8, 6), "#7ff3e6", 5, [at.x + s * 0.02, at.y - 0.17, at.z]));
+    parts.push(part(new TorusGeometry(0.06, 0.012, 6, 14), C.gold, 2, [at.x + s * 0.02, at.y - 0.06, at.z, 0, Math.PI / 2, 0]));
+    parts.push(part(new SphereGeometry(0.04, 8, 6), "#7ff3e6", 5, [at.x + s * 0.02, at.y - 0.15, at.z]));
   }
   return merge(parts);
 }
@@ -147,6 +146,31 @@ function hiltGeometry(bb) {
   return { g, at };
 }
 
+// the robe: an ivory cape from the shoulders to the ground, open 70 degrees at the front, a gold hem, a purple sash
+function capeGeometry(bb) {
+  const c = bb.getCenter(new Vector3());
+  const s = bb.getSize(new Vector3());
+  const top = bb.max.y - 0.05;
+  const bot = bb.min.y - 0.12;
+  const sx = (s.x / 2) * 1.25;
+  const sz = (s.z / 2) * 1.25;
+  const open = (70 * Math.PI) / 180;
+  const prof = [[0.7, top], [0.82, top - (top - bot) * 0.35], [1.0, top - (top - bot) * 0.7], [1.15, bot]].map(([r, y]) => new Vector2(r, y));
+  const hem = [[1.15, bot], [1.17, bot], [1.17, bot + 0.07], [1.15, bot + 0.07]].map(([r, y]) => new Vector2(r, y));
+  const lathe = (pr, hex, k) => part(new LatheGeometry(pr, 24, open / 2, Math.PI * 2 - open).scale(sx, 1, sz), hex, k, [c.x, 0, c.z]);
+  return merge([lathe(prof, C.marble, 0), lathe(hem, C.gold, 2), part(new TorusGeometry(1, 0.05, 6, 24).scale(sx * 0.82, s.y * 0.58, 1), "#5b2a86", 0, [c.x, c.y, c.z - s.z * 0.1])]);
+}
+
+// the seven metal vessels, with the ones already on the pup: ring on each flipper (ringOn), earring hoops, sword pommel
+// (hilt) and these: a necklace pendant, a bracelet (ringOn), a belt buckle. Gold is metal; the jewels glow.
+function ornamentGeometry(bb) {
+  const c = bb.getCenter(new Vector3());
+  const s = bb.getSize(new Vector3());
+  const gold = [part(new SphereGeometry(0.07, 8, 6).scale(1, 1, 0.5), C.gold, 2, [c.x, c.y + s.y * 0.22 - 0.2, c.z + s.z * 0.5 + 0.12]), part(new BoxGeometry(0.13, 0.1, 0.05), C.gold, 2, [c.x, c.y + s.y * 0.5 + 0.02, c.z - s.z * 0.1])];
+  const jewels = [part(new OctahedronGeometry(0.045, 0), "#2ad0c8", 5, [c.x, c.y + s.y * 0.22 - 0.2, c.z + s.z * 0.5 + 0.16]), part(new OctahedronGeometry(0.03, 0), "#2ad0c8", 5, [c.x, c.y + s.y * 0.5 + 0.05, c.z - s.z * 0.1])];
+  return { gold: merge(gold), jewels: merge(jewels) };
+}
+
 // rings on the flippers: a gold band round the wrist, glowing
 function ringOn(group, glow) {
   const mesh = group.children.find((o) => o.isMesh);
@@ -167,7 +191,9 @@ function ringOn(group, glow) {
   const halo = new Mesh(new TorusGeometry(r, 0.045, 6, 20), glow.halo);
   const cuff = new Mesh(part(new TorusGeometry(r * 1.02, 0.07, 6, 20), "#2e6bff", 14), glow.mat);
   cuff.position.copy(along(-0.2)).sub(at);
-  for (const m of [band, halo, cuff]) {
+  const bracelet = new Mesh(new TorusGeometry(r * 0.9, 0.02, 6, 20), glow.gold);
+  bracelet.position.copy(along(0.3)).sub(at);
+  for (const m of [band, halo, cuff, bracelet]) {
     m.quaternion.setFromUnitVectors(Z, dir);
     g.add(m);
   }
@@ -200,10 +226,10 @@ export function sinbad(parts, mat) {
   const crown = new Mesh(circlet(), mat);
   const ears = new Mesh(earrings(), mat);
   hair.add(crown, ears);
-  const gold = new MeshBasicMaterial({ color: "#f2b52e", toneMapped: false });
-  const haloMat = addGlow("#7fe9ff");
+  const gold = new MeshStandardMaterial({ color: "#e9b23a", metalness: 1, roughness: 0.25, emissive: "#a8741a", emissiveIntensity: 0.6 });
+  const haloMat = addGlow("#7fd8ff");
   const rings = [];
-  const tatMat = glowMat("#9fe7ff");
+  const tatMat = glowMat("#7fd8ff");
   // the two fore-flippers: a group off the body at the shoulder (the right one inside a mirrored group)
   for (const g of parts.rear.children) {
     if (g.type !== "Group") continue;
@@ -214,12 +240,17 @@ export function sinbad(parts, mat) {
   const bb = bodyBox(parts.rear);
   const hilt = hiltGeometry(bb);
   const hiltMesh = new Mesh(hilt.g, mat);
-  const hiltGlow = new Mesh(new SphereGeometry(0.1, 10, 8), addGlow("#7fe9ff"));
+  const hiltGlow = new Mesh(new SphereGeometry(0.1, 10, 8), addGlow("#7fd8ff"));
   hiltGlow.position.set(0, 0.5, 0).applyEuler(new Euler(0.45, 0, 0.35)).add(new Vector3(...hilt.at));
   const armour = new Group();
   const armourMesh = new Mesh(armourGeometry(bb), mat);
-  const tats = new Mesh(tattooGeometry(), glowMat("#9fe7ff"));
-  armour.add(armourMesh, hiltMesh, hiltGlow);
+  const tats = new Mesh(tattooGeometry(), glowMat("#7fd8ff"));
+  const capeMesh = new Mesh(capeGeometry(bb), mat);
+  const orn = ornamentGeometry(bb);
+  const ornGold = new Mesh(orn.gold, gold);
+  const jewelMat = glowMat("#2ad0c8");
+  const ornJewels = new Mesh(orn.jewels, jewelMat);
+  armour.add(armourMesh, hiltMesh, hiltGlow, capeMesh, ornGold, ornJewels);
   hair.add(tats);
   for (const g of [hair, armour]) g.visible = false;
   armourMesh.visible = false;
@@ -240,7 +271,7 @@ export function sinbad(parts, mat) {
       const on = costume > 0.01;
       hair.visible = on;
       armour.visible = on;
-      pivot.rotation.set(0.12 * Math.sin(t * 2.3) + 0.2 * equip * Math.sin(t * 7), 0.1 * Math.sin(t * 1.7), 0.06 * Math.sin(t * 3.1));
+      pivot.rotation.set(0.06 * Math.sin(t * 1.6), 0.04 * Math.sin(t * 1.1), 0.03 * Math.sin(t * 1.9));
       hair.scale.setScalar(Math.max(costume * (1 + 0.15 * Math.sin(Math.PI * Math.min(1, costume))), 0.01));
       armour.scale.setScalar(Math.max(0.6 + 0.4 * costume, 0.01));
       for (const r of flipperRings) {
@@ -248,6 +279,7 @@ export function sinbad(parts, mat) {
         r.userData.tat.visible = equip > 0.05;
       }
       tatMat.color.setRGB(0.5 + 0.5 * equip, 0.85 + 0.15 * flare, 1);
+      jewelMat.color.setRGB(0.16 + 0.34 * equip, 0.82 + 0.06 * equip, 0.78 + 0.22 * equip); // teal, then the djinn's blue-white
       haloMat.opacity = 0.35 + 0.35 * equip + 0.3 * flare;
       for (const r of flipperRings) r.scale.setScalar(1 + 0.12 * Math.sin(t * 6) * equip);
       hiltGlow.visible = on;
@@ -279,6 +311,7 @@ export function sinbad(parts, mat) {
         r.traverse((o) => o.isMesh && o.geometry.dispose());
       }
       gold.dispose();
+      jewelMat.dispose();
       haloMat.dispose();
       tatMat.dispose();
     },
@@ -311,8 +344,8 @@ export function stormColumn() {
           gl_FragColor = vec4(pow(col * a, vec3(2.2)), 1.0);
         }`,
     });
-  const a = new Mesh(new CylinderGeometry(1.15, 0.8, 3.2, 28, 1, true), mkMat(2.2, 1));
-  const b = new Mesh(new CylinderGeometry(1.45, 1.05, 3.6, 28, 1, true), mkMat(-1.3, 0.4));
+  const a = new Mesh(new CylinderGeometry(0.6, 0.42, 3.2, 28, 1, true), mkMat(2.2, 1));
+  const b = new Mesh(new CylinderGeometry(0.75, 0.55, 3.6, 28, 1, true), mkMat(-1.3, 0.4));
   a.position.y = 1.5;
   b.position.y = 1.6;
   const ground = new Mesh(
@@ -431,6 +464,54 @@ export function jafar(mat) {
     },
     dispose() {
       root.traverse((o) => o.isMesh && o.geometry.dispose());
+    },
+  };
+}
+
+// BAAL'S SIGIL: an 8-point star (two squares 45 degrees apart) in an outer circle with 16 ticks, a flat additive
+// disc of radius r (m), gold toward the rim and cyan at the points. `tick(t, k)`: k 0..1 unfolds it, it turns 20 deg/s.
+// Flat on the floor (`up`) or standing facing +z.
+export function sigil(r, up = true) {
+  const m = new ShaderMaterial({
+    uniforms: { uK: { value: 0 } },
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    side: DoubleSide,
+    vertexShader: "varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: /* glsl */ `
+      uniform float uK;
+      varying vec2 vP;
+      float sq(vec2 p, float a) { float c = cos(a), s = sin(a); vec2 q = abs(mat2(c, -s, s, c) * p); return 1.0 - smoothstep(0.0, 0.022, abs(max(q.x, q.y) - 0.6)); }
+      void main() {
+        vec2 p = vP / ${r.toFixed(3)};
+        float rr = length(p);
+        float ang = atan(p.y, p.x);
+        float star = max(sq(p, 0.0), sq(p, 0.7853982));
+        float ring = 1.0 - smoothstep(0.0, 0.02, abs(rr - 0.9));
+        float ticks = step(0.8, cos(ang * 16.0)) * step(0.92, rr) * step(rr, 0.99);
+        float disc = (1.0 - smoothstep(0.0, 0.9, rr)) * 0.12;
+        vec3 col = mix(vec3(0.914, 0.698, 0.227), vec3(0.31, 0.89, 1.0), smoothstep(0.35, 0.9, rr)) * 2.5;
+        float a = (star + ring + ticks + disc) * smoothstep(uK * 1.02, uK * 1.02 - 0.15, rr) * min(uK * 3.0, 1.0);
+        gl_FragColor = vec4(pow(col * a, vec3(2.2)), 1.0);
+      }`,
+  });
+  const mesh = new Mesh(new CircleGeometry(r, 64), m);
+  const g = new Group();
+  if (up) mesh.rotation.x = -Math.PI / 2;
+  g.add(mesh);
+  g.visible = false;
+  return {
+    g,
+    tick(t, k) {
+      g.visible = k > 0.01;
+      m.uniforms.uK.value = k;
+      g.rotation.y = up ? (t * 20 * Math.PI) / 180 : 0;
+      mesh.rotation.z = up ? 0 : (t * 20 * Math.PI) / 180;
+    },
+    dispose() {
+      mesh.geometry.dispose();
+      m.dispose();
     },
   };
 }

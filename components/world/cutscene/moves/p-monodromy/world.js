@@ -296,6 +296,9 @@ export function strings() {
     [[-10.8, 5.6, -8], [10.8, 5.6, -8], 1.3],
     [[-10.8, 6.2, -1.5], [10.8, 6.2, -1.5], 1.5],
     [[-10.8, 6.2, 6], [10.8, 6.2, 6], 1.5],
+    [[-10.8, 5.9, -4.8], [10.8, 5.9, -4.8], 1.4],
+    [[-10.8, 6.0, 2.2], [10.8, 6.0, 2.2], 1.5],
+    [[-10.8, 6.0, 9.4], [10.8, 6.0, 9.4], 1.5],
   ];
   lines.forEach(([a, b, sag], li) => {
     const pts = [];
@@ -314,10 +317,10 @@ export function strings() {
     for (let i = 1; i < n; i += 2) lamps.push({ p: pts[i], ph: hash(li * 31 + i, 1) * 6, hue: (li + i) % 3 });
   });
   // the posts the strings hang from, and the pennant poles
-  for (const x of [-10.8, 10.8]) for (const [y, z] of [[5.6, -8], [6.2, -1.5], [6.2, 6]]) rope.push(cyl(0.1, 0.14, y, x, 0, z, C.marble, 1, 6), ball(0.2, x, y + 0.1, z, C.gold, 2));
+  for (const x of [-10.8, 10.8]) for (const [y, z] of [[5.6, -8], [6.2, -1.5], [6.2, 6], [5.9, -4.8], [6.0, 2.2], [6.0, 9.4]]) rope.push(cyl(0.1, 0.14, y, x, 0, z, C.marble, 1, 6), ball(0.2, x, y + 0.1, z, C.gold, 2));
   return { rope: merge(rope), lamps };
 }
-export const LANTERN_COLORS = ["#ffb347", "#ff6a5a", "#4fe3d6"];
+export const LANTERN_COLORS = ["#ffb347", "#e9b23a", "#ff6a5a"];
 export const lanternGeometry = () => merge([part(new OctahedronGeometry(0.26, 0).scale(0.8, 1.25, 0.8), "#ffffff", 5), part(new CylinderGeometry(0.1, 0.1, 0.07, 6), C.gold, 2, [0, 0.36, 0]), part(new CylinderGeometry(0.1, 0.1, 0.07, 6), C.gold, 2, [0, -0.36, 0])]);
 
 export function landscape() {
@@ -353,9 +356,9 @@ export function skyShell() {
         vec3 v = normalize(vP - cameraPosition);
         float h = v.y;
         float st = uStorm;
-        vec3 zen = mix(vec3(0.07, 0.47, 0.82), vec3(0.07, 0.09, 0.26), st);
-        vec3 mid = mix(vec3(0.24, 0.76, 0.92), vec3(0.18, 0.2, 0.42), st);
-        vec3 hor = mix(vec3(1.0, 0.88, 0.64), vec3(0.66, 0.5, 0.52), st * 0.8);
+        vec3 zen = mix(vec3(0.165, 0.122, 0.42), vec3(0.07, 0.09, 0.26), st);
+        vec3 mid = mix(vec3(0.70, 0.07, 0.227), vec3(0.18, 0.2, 0.42), st);
+        vec3 hor = mix(vec3(1.0, 0.70, 0.28), vec3(0.66, 0.5, 0.52), st * 0.8);
         vec3 c = mix(hor, mid, smoothstep(0.0, 0.2, h));
         c = mix(c, zen, smoothstep(0.18, 0.7, h));
         if (h < 0.0) c = hor;
@@ -377,8 +380,8 @@ export function skyShell() {
         // the sun: a pale gold disc, a glow and a few long rays; the storm swallows it
         vec3 sd = normalize(vec3(0.2, 0.16, -0.96));
         float sa = 1.0 - dot(v, sd);
-        float sun = (1.0 - smoothstep(0.0015, 0.0019, sa)) + exp(-sa * 55.0) * 0.55 + exp(-sa * 9.0) * 0.18 * (0.6 + 0.4 * cos(atan(v.x - sd.x, v.y - sd.y) * 9.0 + uTime * 0.2));
-        c += vec3(1.0, 0.9, 0.55) * sun * (1.0 - st * 1.1);
+        float sun = (1.0 - smoothstep(0.006, 0.0076, sa)) + exp(-sa * 55.0) * 0.55 + exp(-sa * 9.0) * 0.18 * (0.6 + 0.4 * cos(atan(v.x - sd.x, v.y - sd.y) * 9.0 + uTime * 0.2));
+        c += vec3(1.0, 0.82, 0.48) * sun * (1.0 - st * 1.1);
         c = mix(c, vec3(0.82, 0.93, 1.0), uFlash * 0.4);
         c += (h21(gl_FragCoord.xy + fract(uTime * 7.1) * 113.0) - 0.5) * 0.025;
         float alpha = 1.0;

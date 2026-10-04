@@ -20,9 +20,9 @@ import { place as placeBubble } from "../../ui/Bubbles";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { Motes } from "./_g1";
 import { flashQuad, holdFlash, islandList, pupParts } from "./p-caustic/parts";
-import { boltMaterial, burstGeometry, megaBoltGeometry, wreathGeometry } from "./p-monodromy/bolt";
+import { boltMaterial, megaBoltGeometry } from "./p-monodromy/bolt";
 import { crackLens, foldPlane, loopRing, placeLens } from "./p-monodromy/crack";
-import { jafar, sinbad, stormColumn } from "./p-monodromy/hero";
+import { jafar, sigil, sinbad, stormColumn } from "./p-monodromy/hero";
 import { U, celMat, hash, pupCel } from "./p-monodromy/look";
 import { FLEET, LANTERN_COLORS, PALM_AT, ROBES, SEA_Y, landscape, lanternGeometry, palmGeometry, personGeometry, sea, shipGeometry, skyShell, strings } from "./p-monodromy/world";
 import { registerWarm, takeWarm } from "../prewarm";
@@ -45,7 +45,7 @@ const T = {
 };
 const FLASHES = [3.35, 3.95, 4.9, 5.35, 5.8, 6.1]; // far lightning in the clouds as the storm builds
 const CROWD = 72;
-const LAMPS = 48;
+const LAMPS = 72;
 const CRACK_AT = new Vector2(0.1, 0.06); // where the lens breaks (screen, aspect-centred units)
 const CRACK_ANG = 1.12;
 
@@ -54,16 +54,15 @@ const W = new Vector3();
 const N = new Vector3();
 const O = new Object3D();
 const COL = new Color();
-const hudVars = (x, y, r) => {
-  const s = document.documentElement.style;
-  s.setProperty("--mono-x", `${x.toFixed(1)}px`);
-  s.setProperty("--mono-y", `${y.toFixed(1)}px`);
-  s.setProperty("--mono-r", `${r.toFixed(2)}deg`);
-};
-
-// the HUD's own shudder: its frame, the cinema bars, the Skip chip, driven by CSS variables (one rule, no DOM walk)
-const SHUDDER_CSS = `html[data-mono-shake] .hud-top, html[data-mono-shake] .cut-skip, html[data-mono-shake] .cut-title { translate: var(--mono-x, 0) var(--mono-y, 0); rotate: var(--mono-r, 0deg); }
-html[data-mono-shake] .hud-letterbox::before, html[data-mono-shake] .hud-letterbox::after { translate: var(--mono-x, 0) var(--mono-y, 0); }`;
+// the illuminated-manuscript frame: a 14 px gold border, a 4 px crimson inner line, an 8-point star in each corner
+const FRAME_CSS = `.mono-frame { position: fixed; inset: 0; pointer-events: none; z-index: 5; opacity: 0; box-sizing: border-box; border: 14px solid #e9b23a; box-shadow: inset 0 0 0 4px #b3123a; }
+.mono-frame i { position: absolute; width: 38px; height: 38px; background: #e9b23a; clip-path: polygon(50% 0, 61% 20%, 85% 15%, 80% 39%, 100% 50%, 80% 61%, 85% 85%, 61% 80%, 50% 100%, 39% 80%, 15% 85%, 20% 61%, 0 50%, 20% 39%, 15% 15%, 39% 20%); }`;
+function frameEl() {
+  const el = document.createElement("div");
+  el.className = "mono-frame";
+  el.innerHTML = [["left", "top"], ["right", "top"], ["left", "bottom"], ["right", "bottom"]].map(([x, y]) => `<i style="${x}:-14px;${y}:-14px"></i>`).join("");
+  return el;
+}
 
 // Ja'far's own bubble (the shared bubbles hold three lines): the kit's markup and layout, aimed at his mouth
 function panicBubble() {
@@ -115,24 +114,23 @@ function buildWorld() {
   landMesh.frustumCulled = false;
   ropes.frustumCulled = false;
   const mega = new Mesh(megaBoltGeometry(), boltMaterial());
-  const wreath = new Mesh(wreathGeometry(), boltMaterial());
-  const burst = new Mesh(burstGeometry(), boltMaterial());
-  for (const b of [mega, wreath, burst]) {
+  for (const b of [mega]) {
     b.frustumCulled = false;
     b.renderOrder = 6;
     b.visible = false;
   }
-  mega.material.uniforms.uJit.value = 0.45;
-  wreath.material.uniforms.uJit.value = 0.05;
-  burst.material.uniforms.uJit.value = 0.12;
+  mega.material.uniforms.uJit.value = 0; // fixed: identical every play
+  mega.material.uniforms.uCore.value = 0.35;
   const storm = stormColumn();
+  const sigilFloor = sigil(1.6, true);
+  const sigilSky = sigil(2.2, false);
   const ja = jafar(cel);
   const lens = crackLens();
   lens.m.uniforms.uC.value = CRACK_AT;
   lens.m.uniforms.uAng.value = CRACK_ANG;
   const ring = loopRing();
   const flash = flashQuad("#cfe6ff");
-  return { cel, palmMat, shell, seaM, land, landMesh, palmG, palms, shipG, ships, personG, crowd, folk, str, lampList, ropes, lampG, lamps, mega, wreath, burst, storm, ja, lens, ring, flash };
+  return { cel, palmMat, shell, seaM, land, landMesh, palmG, palms, shipG, ships, personG, crowd, folk, str, lampList, ropes, lampG, lamps, mega, sigilFloor, sigilSky, storm, ja, lens, ring, flash };
 }
 registerWarm("p-monodromy", buildWorld);
 
@@ -146,7 +144,7 @@ export default function Move(cut) {
   const world = useRef();
   const dust = useRef();
   const pup = useRef(null);
-  const st = useRef({ shake: new Vector3(), step: new Vector3(), scale: 1, faceTo: 0, faceK: 0, bubble: null, lastTt: -1 });
+  const st = useRef({ step: new Vector3(), scale: 1, faceTo: 0, faceK: 0, bubble: null, frame: null });
 
   const m = useMemo(() => takeWarm("p-monodromy", buildWorld), []);
 
@@ -163,17 +161,20 @@ export default function Move(cut) {
       costume.current = sinbad(p, m.cel);
       costume.current.attach();
     }
-    // the HUD shudder's rule, and Ja'far's own bubble: only while the scene is up
+    // the manuscript frame and Ja'far's own bubble: only while the scene is up
     let style = null;
     let bubble = null;
+    let frame = null;
     if (mode === "full") {
       style = document.createElement("style");
-      style.textContent = SHUDDER_CSS;
+      style.textContent = FRAME_CSS;
       document.head.append(style);
       bubble = panicBubble();
-      document.querySelector(".hud")?.append(bubble);
+      frame = frameEl();
+      document.querySelector(".hud")?.append(bubble, frame);
     }
     state.bubble = bubble;
+    state.frame = frame;
     // pre-compile every program the scene draws, so the first frames do not stall: show it all for one compile pass
     if (mode === "full" && rig.current) {
       const hidden = [];
@@ -195,15 +196,16 @@ export default function Move(cut) {
       pup.current = null;
       style?.remove();
       bubble?.remove();
+      frame?.remove();
       state.bubble = null;
-      document.documentElement.removeAttribute("data-mono-shake");
-      const s = document.documentElement.style;
-      for (const k of ["--mono-x", "--mono-y", "--mono-r"]) s.removeProperty(k);
+      state.frame = null;
       U.uFold.value = U.uStorm.value = U.uFlash.value = 0;
-      for (const g of [m.shell.g, m.seaM.g, m.land, m.palmG, m.shipG, m.personG, m.str.rope, m.lampG, m.mega.geometry, m.wreath.geometry, m.burst.geometry, m.lens.mesh.geometry, m.ring.mesh.geometry, m.flash.geometry]) g.dispose();
-      for (const x of [m.cel, m.palmMat, m.shell.m, m.seaM.m, m.mega.material, m.wreath.material, m.burst.material, m.lens.m, m.ring.m, m.flash.material]) x.dispose();
+      for (const g of [m.shell.g, m.seaM.g, m.land, m.palmG, m.shipG, m.personG, m.str.rope, m.lampG, m.mega.geometry, m.lens.mesh.geometry, m.ring.mesh.geometry, m.flash.geometry]) g.dispose();
+      for (const x of [m.cel, m.palmMat, m.shell.m, m.seaM.m, m.mega.material, m.lens.m, m.ring.m, m.flash.material]) x.dispose();
       for (const x of [m.palms, m.ships, m.crowd, m.lamps]) x.dispose();
       m.storm.dispose();
+      m.sigilFloor.dispose();
+      m.sigilSky.dispose();
       m.ja.dispose();
     };
   }, [scene, gl, camera, m, mode]);
@@ -220,11 +222,11 @@ export default function Move(cut) {
       m.lens.mesh.visible = false;
       m.flash.visible = false;
       if (costume.current) costume.current.hair.visible = costume.current.armour.visible = false;
-      document.documentElement.removeAttribute("data-mono-shake");
+      if (S.frame) S.frame.style.opacity = 0;
       return;
     }
     if (p?.root && mode === "full") {
-      p.root.position.add(S.shake).add(S.step);
+      p.root.position.add(S.step);
       p.root.scale.setScalar(S.scale);
       if (S.faceK > 0) {
         const y = p.root.rotation.y;
@@ -245,8 +247,8 @@ export default function Move(cut) {
       m.lens.mesh.visible = false;
       if (c) c.hair.visible = c.armour.visible = false;
       skin.current?.set(false);
-      S.shake.set(0, 0, 0);
       S.step.set(0, 0, 0);
+      if (S.frame) S.frame.style.opacity = 0;
       S.scale = 1;
       return;
     }
@@ -256,13 +258,10 @@ export default function Move(cut) {
     const struck = tt - T.strike;
     const folding = tt >= T.fold[0];
     const done = tt >= T.home;
-    const odd = Math.floor(t * 12) % 2 ? 1 : -1;
 
     // the rig: the pup at the origin, turned so the landform stands where the figure would
     const turn = turnFor(card, place, s.x, s.z);
-    const amp = Math.max(0, 1 - Math.abs(struck - 0.05) / 0.5) * 0.16 + Math.max(0, 1 - Math.abs(tt - T.lens) / 0.3) * 0.1;
-    S.shake.set(amp * odd, -amp * 0.5 * odd, 0);
-    g.position.set(s.x + S.shake.x, S.shake.y, s.z);
+    g.position.set(s.x, 0, s.z);
     g.rotation.y = turn;
 
     // THE WORLD swells out of the pup with the stage, then holds as the backdrop until the fold has shut
@@ -276,8 +275,8 @@ export default function Move(cut) {
     dust.current.visible = !folding;
 
     // the shared sky and light: the storm winds up with the equip and the charge; the flashes
-    const storm = smooth(T.equip[0], 3.4, tt) * 0.45 + smooth(T.charge[0], T.charge[1], tt) * 0.55;
-    let flash = struck >= 0 ? Math.max(0, 1 - struck / 0.4) * 0.5 + (struck > 0.7 && struck < 1.6 ? 0.18 * (Math.floor(t * 12) % 2) : 0) : 0;
+    const storm = smooth(T.charge[0], T.charge[1], tt); // the sky darkens in the charge only
+    let flash = struck >= 0 ? Math.max(0, 1 - struck / 0.1) * 0.5 : 0;
     for (const f of FLASHES) if (tt >= f && tt < f + 0.17) flash = Math.max(flash, 0.22);
     flash = Math.max(flash, Math.max(0, 1 - Math.abs(tt - T.equip[0]) / 0.18) * 0.3);
     U.uTime.value = t;
@@ -298,30 +297,19 @@ export default function Move(cut) {
     const costumeK = done ? 0 : smooth(T.costume[0], T.costume[1], tt) * (1 - smooth(T.step[0] + 0.4, T.step[1], tt));
     const equipK = done ? 0 : smooth(T.equip[0], T.equip[1], tt) * (1 - smooth(T.step[0] + 0.3, T.step[1], tt));
     const flare = Math.max(0, 1 - Math.abs(struck - 0.1) / 0.5);
+    const gone = done ? 0 : 1 - smooth(T.step[0] + 0.3, T.step[1], tt);
+    m.sigilFloor.tick(t, smooth(T.equip[0], T.equip[0] + 0.5, tt) * gone);
+    m.sigilSky.tick(t, smooth(T.charge[0], T.charge[0] + 0.5, tt) * gone);
     if (c) c.tick(t, costumeK, equipK, flare);
     // the storm round the pup: the column grows with the equip and flares with the strike, gone as it steps through
     const col = done ? 0 : (equipK * 0.7 + smooth(T.charge[0], T.charge[1], tt) * 0.5 + flare * 0.6) * (1 - smooth(T.step[0] + 0.2, T.step[1], tt));
     m.storm.tick(t, Math.min(col, 1.2));
-    const wr = m.wreath.material.uniforms;
-    m.wreath.visible = equipK > 0.02 && !folding;
-    wr.uGrow.value = 2;
-    wr.uFade.value = 0.55 * equipK * (0.8 + 0.2 * odd) + 0.5 * flare;
-    wr.uStep.value = Math.floor(t * 12);
-    m.wreath.rotation.y = t * 1.5;
-
     // BAARARAQ SAIQA: the trunks and the sheets grow out of the vortex in three drawings, hold, then crawl and fade
     const mu = m.mega.material.uniforms;
     m.mega.visible = struck >= 0 && !folding;
     mu.uGrow.value = struck / 0.2;
-    mu.uFade.value = Math.min(1, 1.3 - struck * 0.55) * (0.78 + 0.22 * odd) * (1 - smooth(1.4, 2.0, struck));
-    mu.uStep.value = Math.floor(t * 12);
-    // out of the screen: the fan of bolts at the lens
-    const bs = tt - T.lens;
-    const bu = m.burst.material.uniforms;
-    m.burst.visible = bs >= 0 && bs < 1.1;
-    bu.uGrow.value = bs / 0.12;
-    bu.uFade.value = Math.min(1, 1.2 - bs * 0.9) * (0.8 + 0.2 * odd);
-    bu.uStep.value = Math.floor(t * 12);
+    mu.uFade.value = 1 - smooth(0.5, 0.9, struck); // full for 0.5 s, then gone
+    mu.uStep.value = 0;
 
     // THE LENS: the crack grows from the impact, opens into a seam as the world folds, heals from its ends
     const L = m.lens;
@@ -337,17 +325,8 @@ export default function Move(cut) {
       u.uStep.value = Math.floor(t * 12);
       u.uFlash.value = Math.max(0, 1 - (tt - T.lens) / 0.25);
     }
-    // the HUD shudders with the strike and the crack, then sags crooked until the loop closes
-    const hit = Math.max(0, 1 - Math.abs(struck - 0.05) / 0.9) + Math.max(0, 1 - Math.abs(tt - T.lens - 0.1) / 0.7);
-    const hold = smooth(T.lens, T.lens + 0.4, tt) * (1 - smooth(T.heal[0], T.heal[1], tt));
-    const root = document.documentElement;
-    if (hit > 0.01 || hold > 0.01) {
-      if (!root.hasAttribute("data-mono-shake")) root.setAttribute("data-mono-shake", "");
-      if (S.lastTt !== tt) {
-        S.lastTt = tt; // on twos: the variables change twelve times a second, not every frame
-        hudVars((hit * 9 + hold * 1.5) * odd, hit * 5 * -odd, hit * 1.6 * odd + hold * -1.4);
-      }
-    } else root.removeAttribute("data-mono-shake");
+    // the manuscript frame: on from 1.5 s to the fold
+    if (S.frame) S.frame.style.opacity = tt >= 1.5 && tt < T.fold[0] ? 1 : 0;
 
     // THE STEP THROUGH: the pup walks into the crack (its plane through the lens) and shrinks to nothing; home, it is back
     V.set(s.x, 0.6, s.z);
@@ -355,7 +334,7 @@ export default function Move(cut) {
     const dist = W.copy(V).sub(cam.position).dot(N);
     S.step.copy(N).multiplyScalar(-dist * sk);
     const pop = done ? Math.min(1, (tt - T.home) / 0.25) : 1;
-    S.scale = done ? Math.max(0.01, pop * (1 + 0.2 * Math.sin(pop * Math.PI))) : Math.max(0.02, 1 - 0.97 * sk);
+    S.scale = (done ? Math.max(0.01, pop * (1 + 0.2 * Math.sin(pop * Math.PI))) : Math.max(0.02, 1 - 0.97 * sk)) * (1 + 0.015 * Math.sin((t * Math.PI * 2) / 0.6)); // a slow breath
     S.faceTo = turn;
     S.faceK = smooth(T.strike + 0.1, T.stare[0], tt);
 
@@ -363,9 +342,10 @@ export default function Move(cut) {
     live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt));
     live.pose.fist = smooth(T.equip[0], T.equip[0] + 0.3, tt) * (1 - smooth(T.charge[0], T.charge[0] + 0.3, tt)) * out;
     const wave = done ? 0.55 * (Math.floor(t * 4) % 2) * smooth(T.home + 0.2, T.home + 0.5, tt) : 0;
-    live.pose.raise = (smooth(T.charge[0], T.charge[0] + 0.5, tt) * (1 - smooth(T.stare[0], T.stare[0] + 0.3, tt)) + wave) * out;
+    live.pose.raise = (smooth(T.strike - 0.15, T.strike, tt) * (1 - smooth(T.stare[0], T.stare[0] + 0.3, tt)) + wave) * out; // one flipper up, for the strike
     live.pose.mouth = Math.max(smooth(T.strike - 0.1, T.strike + 0.05, tt) * (1 - smooth(T.strike + 0.5, T.strike + 0.8, tt)), 0.6 * smooth(7.0, 7.2, tt) * (1 - smooth(T.step[0], T.step[0] + 0.2, tt)));
-    live.pose.crouch = (smooth(T.strike, T.strike + 0.1, tt) * (1 - smooth(T.strike + 0.5, T.strike + 0.8, tt)) * 0.7 + (done ? 0.35 * smooth(T.home, T.home + 0.3, tt) : 0)) * out;
+    live.pose.sit = 0; // upright for the whole scene, never lying on its side
+    live.pose.crouch = 0;
 
     // SINDRIA, moving: lanterns swing, ships rock, the crowd ducks, palms whip (in the shader)
     const sw = 0.12 + 0.5 * U.uStorm.value;
@@ -446,10 +426,10 @@ export default function Move(cut) {
             <primitive object={m.ja.root} />
           </group>
           <primitive object={m.mega} />
-          <primitive object={m.burst} />
         </group>
         <primitive object={m.storm.g} />
-        <primitive object={m.wreath} />
+        <primitive object={m.sigilFloor.g} />
+        <primitive object={m.sigilSky.g} position={[0, 9, 0]} />
         <primitive object={m.ring.mesh} />
       </group>
     </>
