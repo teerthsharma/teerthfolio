@@ -51,11 +51,11 @@ const T = {
   fall: 8.95,
   shout: 7.45,
   cheer: 9.4,
-  triumph: [10.4, 13.8],
-  slate: 13.7,
-  lamps: [14.2, 14.9],
-  iris: [14.7, 16.2],
-  home: 16.0,
+  triumph: [10.4, 16.2],
+  slate: 16.0,
+  lamps: [19.0, 19.7],
+  iris: [19.5, 21.0],
+  home: 20.8,
 };
 const GATE_X = [1.15, 1.72];
 const STRIKE = new Vector3(0.3, deckY(0.3), 0.25); // where the staff lands
@@ -289,7 +289,7 @@ export default function Move(cut) {
     const alive = tt < T.home ? 1 : 0;
     live.pose.raise = clamp01(up + stretch + (slamT >= 0 ? settle * (1 - trium) : 0) + trium) * alive;
     live.pose.crouch = (wind + 0.7 * smooth(T.slam, T.slam + 0.05, tt) * (1 - smooth(T.slam + 0.4, T.slam + 0.9, tt))) * alive;
-    live.pose.mouth = (tt > 3.0 && tt < 4.3) || (slamT > 0 && slamT < 0.5) || (tt > 11.0 && tt < 12.2) ? 0.8 : 0;
+    live.pose.mouth = (tt > 3.0 && tt < 4.3) || (slamT > 0 && slamT < 0.5) || (tt > 13.2 && tt < 14.6) ? 0.8 : 0;
     twin.current?.set(gearOn);
     if (G) {
       const pop = smooth(T.gear, T.gear + 0.4, tt);
@@ -336,7 +336,7 @@ export default function Move(cut) {
       camera.getWorldDirection(V);
       W.copy(camera.position).addScaledVector(V, 4.4);
       V.set(0, 1, 0).applyQuaternion(camera.quaternion);
-      W.addScaledVector(V, wide ? 0.75 : 0.65);
+      W.addScaledVector(V, wide ? 1.0 : 0.9);
       g.updateWorldMatrix(true, false);
       g.worldToLocal(W);
     }
