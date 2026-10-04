@@ -1225,7 +1225,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   // the plateau is climbable: the ramp's steepest slope stays walkable, and the future area's boundary is south of every place
   for (let a = 0; a < 6.28; a += 0.2) for (let d = PLATEAU.flat; d < PLATEAU.edge; d += 0.5) assert.ok(Math.abs(heightAt(PLATEAU.x + Math.cos(a) * (d + 0.5), PLATEAU.z + Math.sin(a) * (d + 0.5)) - heightAt(PLATEAU.x + Math.cos(a) * d, PLATEAU.z + Math.sin(a) * d)) < 3, "the plateau cliff is too steep (a stair and the glide climb it)");
   for (const q of PLACES) assert.ok(q.z + q.radius < FUTURE_Z, `${q.id} reaches the future area`);
-  assert.ok(Math.hypot(F.nodes[0].x - PLACE_BY_ID[F.seenId].x, F.nodes[0].z - PLACE_BY_ID[F.seenId].z) < 3 && Math.hypot(F.nodes[1].x - 46, F.nodes[1].z + 5) < 1, "the fountain's two ends are its basin and the moat's pad");
+  assert.ok(Math.hypot(F.nodes[0].x - PLACE_BY_ID[F.seenId].x, F.nodes[0].z - PLACE_BY_ID[F.seenId].z) < 3 && Math.hypot(F.nodes[1].x - 40, F.nodes[1].z - 4) < 1, "the fountain's two ends are its basin and the moat's pad");
   for (const n of F.nodes) {
     const [lx, lz] = n.land;
     const base = n === F.nodes[0] ? PLATEAU.top : 0; // the basin's landing is on the plateau, the pad's on the snow
