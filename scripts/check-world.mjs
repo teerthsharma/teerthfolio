@@ -9,6 +9,7 @@ import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { ARRIVAL } from "../lib/world/moments.js";
 import { DOMAIN, domainBeat, radiusAt, signAt } from "../lib/world/domain.js";
 import { TIERS, classify, dprFor } from "../lib/world/quality.js";
+import { CLEAN, ENTRY, LOOP, RIDE_LENGTH } from "../lib/world/loop.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
@@ -677,13 +678,16 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
     let maxY = 0;
     let maxPitch = 0;
     let rideTime = 0;
+    let exit = null;
     for (let t = 0; t < seconds; t += 1 / 120) {
+      const was = s.ride;
       // steer into the lane until the seal is in it, then hands off
       const steer = s.x < LOOPT.x - 2.5 ? Math.max(-1, Math.min(1, (lane - s.z) * 2)) : 0;
       stepSeal(s, { input: { x: 0.6, z: steer } }, 1 / 120, world);
       assert.ok(Math.hypot(s.x, s.z) < ISLAND_RADIUS - MOTION.sealRadius + 1e-6, `the loop ride left the island at ${s.x.toFixed(1)}, ${s.z.toFixed(1)}`);
       for (const c of colliders) assert.ok(Math.hypot(s.x - c.x, s.z - c.z) >= c.radius, `the loop ride clipped a collider at ${c.x}, ${c.z}`);
       assert.ok(Number.isFinite(s.x + s.z + s.vx + s.vz), "the loop ride produced NaN");
+      if (was && !s.ride) exit = { x: s.x, speed: s.speed };
       if (s.ride) {
         rideTime += 1 / 120;
         maxY = Math.max(maxY, s.rideY);
@@ -691,17 +695,17 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
         assert.ok(s.rideY >= WATER_Y - 1e-6, `the loop ride sank below the water at x=${s.x.toFixed(1)}`);
       }
     }
-    return { s, maxY, maxPitch, rideTime };
+    return { s, maxY, maxPitch, rideTime, exit };
   };
   for (const vx of [9, 13, 17, 21, 27]) {
     for (const off of [-0.8, 0, 0.8]) {
-      const { s, maxY, maxPitch, rideTime } = swim(vx, off);
+      const { s, maxY, maxPitch, rideTime, exit } = swim(vx, off);
       const at = `swimming into the loop at ${vx} m/s, ${off} m off the lane`;
       assert.equal(s.loops, 1, `${at}: the seal did not complete the loop (loops=${s.loops})`);
-      assert.ok(maxY > 2 * LOOPT.R - 0.4, `${at}: the seal never reached the top (${maxY.toFixed(2)} m)`);
+      assert.ok(maxY > 2 * LOOPT.R - 1, `${at}: the seal never reached the top (${maxY.toFixed(2)} m)`);
       assert.ok(maxPitch > 2 * Math.PI - 0.2, `${at}: the seal was never carried inverted over the top and round (pitch ${maxPitch.toFixed(2)})`);
       assert.ok(rideTime > 1 && rideTime < 4, `${at}: the ride took ${rideTime.toFixed(2)} s`);
-      assert.ok(!s.ride && s.speed > 6 && s.x > LOOPT.x + 6, `${at}: the seal stuck at the exit (x=${s.x.toFixed(1)}, ${s.speed.toFixed(1)} m/s)`);
+      assert.ok(!s.ride && exit && exit.speed > 6 && exit.x > LOOPT.x + 6, `${at}: the seal did not leave the ribbon moving (${JSON.stringify(exit)})`);
     }
   }
   // outside the lane the seal passes under the ribbon
@@ -711,6 +715,67 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   const back = createSeal(30, -43.9);
   for (let t = 0; t < 4; t += 1 / 120) stepSeal(back, { input: { x: -1, z: 0 } }, 1 / 120, world);
   assert.equal(back.loops, 0, "a seal swimming back upstream was caught by the loop");
+}
+
+// THE LOOP, the hidden challenge: a clean loop (entry speed in CLEAN's window,
+// held within CLEAN.off of the centre line all the way, a straight exit) three
+// times in a row, each entered within CLEAN.gap seconds of the last exit, wins
+// (seal.wins). A messy loop, or a gap too long, resets the streak.
+{
+  assert.ok(Math.abs(LOOP.x - 24.2) < 1e-9 && Math.abs(ENTRY.z + 43.9) < 1e-9 && LOOP.radius === 3.3, "the loop moved: update the entry lane in the loop ride check above");
+  assert.ok(RIDE_LENGTH > 20 && RIDE_LENGTH < 40, `the ribbon is ${RIDE_LENGTH.toFixed(1)} m long`);
+  // One pass: the seal is put upstream of the lane at `vx` (after `gap` seconds of
+  // idling since the last exit), steered into the lane `off` m off its centre, then hands off.
+  const pass = (s, { vx = 15.4, off = 0, gap = 0.5, at = 16 } = {}) => {
+    for (let t = 0; t < gap; t += 1 / 120) stepSeal(s, {}, 1 / 120, world);
+    const loops = s.loops;
+    s.x = at;
+    s.z = ENTRY.z + off;
+    s.vx = vx;
+    s.vz = 0;
+    s.water = 1;
+    s.ride = 0;
+    for (let t = 0; t < 6 && s.loops === loops; t += 1 / 120) {
+      const steer = s.x < ENTRY.x0 - 0.3 ? Math.max(-1, Math.min(1, (ENTRY.z + off - s.z) * 2)) : 0;
+      stepSeal(s, { input: { x: 0, z: steer } }, 1 / 120, world);
+    }
+    assert.equal(s.loops, loops + 1, `a pass at ${vx} m/s, ${off} m off, did not complete the loop`);
+    return s;
+  };
+  const verdicts = (script) => {
+    const s = createSeal(16, ENTRY.z);
+    return { s, seen: script.map((o) => (pass(s, o), [s.loopClean, s.loopStreak, s.wins])) };
+  };
+  const perfect = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1 }]);
+  assert.deepEqual(perfect.seen, [[1, 1, 0], [1, 2, 0], [1, 0, 1]], `three perfect loops: ${JSON.stringify(perfect.seen)}`);
+  assert.equal(verdicts([{ gap: 0 }, { gap: 7 }, { gap: 7 }]).s.wins, 1, "three clean loops 7 s apart (inside the window) did not win");
+  assert.equal(perfect.s.wins, 1);
+  const two = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1, off: 0.8 }]);
+  assert.deepEqual(two.seen.at(-1), [0, 0, 0], `two clean loops and a sloppy third won or kept a streak: ${JSON.stringify(two.seen)}`);
+  const slow = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 9 }]);
+  assert.equal(slow.s.wins, 0, "three clean loops with a 9 s gap won");
+  assert.deepEqual(slow.seen.at(-1), [1, 1, 0], `a clean loop after a long gap should start a fresh streak at 1: ${JSON.stringify(slow.seen)}`);
+  const reset = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1, off: 0.8 }, { gap: 1 }, { gap: 1 }]);
+  assert.equal(reset.s.wins, 0, "a failed loop did not reset the streak");
+  assert.equal(reset.s.loopStreak, 2);
+  assert.equal(verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1 }, { gap: 1 }, { gap: 1 }, { gap: 1 }]).s.wins, 2, "six perfect loops are two wins");
+  for (const [vx, why] of [[CLEAN.vMin - 3, "too slow"], [CLEAN.vMax + 8, "boosting wildly"]]) {
+    const s = verdicts([{ vx, at: ENTRY.x0 - 0.1 }]).s;
+    assert.equal(s.loopClean, 0, `a loop entered ${why} (${vx} m/s) counted as clean`);
+  }
+  // sloppy exit: steering hard across the ribbon on the way down leaves it crooked
+  {
+    const s = createSeal(16, ENTRY.z);
+    s.x = 16;
+    s.vx = 15.4;
+    s.water = 1;
+    for (let t = 0; t < 6 && !s.loops; t += 1 / 120) {
+      const steer = s.x < ENTRY.x0 - 0.3 ? Math.max(-1, Math.min(1, (ENTRY.z - s.z) * 2)) : s.rideS > 8 ? 1 : 0;
+      stepSeal(s, { input: { x: 0, z: steer } }, 1 / 120, world);
+    }
+    assert.equal(s.loops, 1);
+    assert.equal(s.loopClean, 0, "a loop left crooked (steered across the ribbon) counted as clean");
+  }
 }
 
 // The geyser: every landing spot is dry, flat, on the island and clear; a

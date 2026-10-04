@@ -15,6 +15,7 @@ import {
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { LOOP, loopPoint } from "../../../lib/world/loop";
 import { RIVER, WATERS, riverAt, waterGap } from "../../../lib/world/river";
 import { coastRadius, heightAt, SEA_Y, WATER_Y } from "../../../lib/world/terrain";
 
@@ -149,48 +150,13 @@ export function streakSpawn(out, rand = Math.random) {
   return out;
 }
 
-// ---- THE ANOMALY: the river loops the loop ----------------------------------------
+// ---- THE ANOMALY: the river loops the loop (geometry and ride: lib/world/loop.js) ---
 //
 // Meltwater from Triton's glacier carries its Cherenkov blue down the river.
 // Where the lake spills east through the col, part of the current peels off
 // the surface, runs UPHILL into the air, loops the loop over itself and
 // plunges back in downstream: water doing what water never does. It flows
 // east with the spill; the ribbon's inner face is the water's surface.
-
-export const LOOP = {
-  x: 24.2, // where the ribbon peels off the surface (it rejoins 2 PI c downstream)
-  z: -42,
-  radius: 3.3, // the loop's height is twice this
-  c: 0.72, // metres of advance per radian: the loop's lean
-  shift: 3.8, // lateral shift from entry (north) to exit (south), so it never crosses itself
-  width: 2.5,
-  thick: 0.34,
-  color: "#1ec8f0", // Triton's Cherenkov blue: the water's radiation, carried down from the glacier
-  lead: 2.2, // m of ribbon lying on the surface before it lifts and after it lands
-};
-
-// The loop's centre line at parameter u (0..1 over lead-in, loop, lead-out):
-// a trochoid, x = c theta + R sin theta, y = R (1 - cos theta), so it lifts
-// off the surface and lands on it tangentially.
-export function loopPoint(u, out) {
-  const { x, z, radius: R, c, shift, lead } = LOOP;
-  const loopLen = 2 * Math.PI;
-  const total = lead / (c + R) + loopLen + lead / (c + R); // theta-equivalent span
-  let th = u * total - lead / (c + R);
-  let y = 0;
-  let px;
-  if (th < 0) {
-    px = x + th * (c + R);
-  } else if (th > loopLen) {
-    px = x + c * loopLen + (th - loopLen) * (c + R);
-  } else {
-    px = x + c * th + R * Math.sin(th);
-    y = R * (1 - Math.cos(th));
-  }
-  th = Math.min(loopLen, Math.max(0, th));
-  out.set(px, WATER_Y + 0.04 + y, z - shift / 2 + shift * smooth(0.35, loopLen - 0.35, th));
-  return out;
-}
 
 // The ribbon: a flat band of water with thickness, its inner (upper, at the
 // ends) face the water's surface. aStreak: x = metres along, y = 0..1 across,
