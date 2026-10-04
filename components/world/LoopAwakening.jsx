@@ -20,6 +20,7 @@
 // dims under the dark sky, and the island's fog takes the sky's colour; all
 // of it goes back the frame live.arrival clears (Skip, any fresh key).
 
+import { sceneT } from "../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
@@ -575,7 +576,7 @@ export default function LoopAwakening() {
       return;
     }
     g.visible = true;
-    const t = state.clock.elapsedTime - arrival.start;
+    const t = sceneT(arrival.id, state.clock.elapsedTime - arrival.start);
     const tt = onTwos(t);
     const s = live.seal;
     const ground = Math.max(heightAt(s.x, s.z), WATER_Y);

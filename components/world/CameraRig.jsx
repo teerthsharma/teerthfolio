@@ -9,6 +9,7 @@
 // (JUMP_IN in lib/world/moments.js), landing as the seal lands. ?play and
 // ?spawn= (started at load) and reduced motion cut straight to the follow.
 
+import { sceneT } from "../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
@@ -363,7 +364,7 @@ export default function CameraRig() {
     // THE CUTSCENE: ease onto the two-shot of the pup and its speaker, same
     // lens, and back to the follow as the stage collapses.
     if (cutscene) {
-      const k = viewAt(cutscene.tl, t - arrival.start);
+      const k = viewAt(cutscene.tl, sceneT(arrival.id, t - arrival.start));
       cutView(cutscene.card, cutscene.place, seal.x, seal.z, camera.aspect, CUT_EYE, CUT_LOOK);
       camera.position.lerp(CUT_EYE, k);
       lookAt.current.lerp(CUT_LOOK, k);
@@ -375,13 +376,13 @@ export default function CameraRig() {
     let high = 0;
     const awake = awakeMode(arrival.id) === "full";
     baseFov.current ??= camera.fov;
-    const fov = awake ? awakeFov(t - arrival.start, baseFov.current) : baseFov.current;
+    const fov = awake ? awakeFov(sceneT(arrival.id, t - arrival.start), baseFov.current) : baseFov.current;
     if (camera.fov !== fov) {
       camera.fov = fov;
       camera.updateProjectionMatrix();
     }
     if (awake) {
-      const k = awakeView(t - arrival.start, seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y), seal.z, camera.aspect, CUT_EYE, CUT_LOOK);
+      const k = awakeView(sceneT(arrival.id, t - arrival.start), seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y), seal.z, camera.aspect, CUT_EYE, CUT_LOOK);
       camera.position.lerp(CUT_EYE, k);
       lookAt.current.lerp(CUT_LOOK, k);
       camera.position.addScaledVector(shake.current, 2 * k);

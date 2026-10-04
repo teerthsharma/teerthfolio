@@ -7,6 +7,7 @@
 // camera-facing flash, an expanding ring and an instanced shard burst. All of
 // it is one draw each, unlit, no post pass.
 
+import { sceneT } from "../../../../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { AdditiveBlending, CircleGeometry, Color, DoubleSide, MeshBasicMaterial, Object3D, OctahedronGeometry, RingGeometry, ShaderMaterial } from "three";
@@ -31,7 +32,7 @@ export function landK(card, place, x, z) {
 }
 
 export const playing = (cut) => Boolean(live.arrival.id) && cut.mode === "full" && live.inStage;
-export const clock = (state) => state.clock.elapsedTime - live.arrival.start;
+export const clock = (state) => sceneT(live.arrival.id, state.clock.elapsedTime - live.arrival.start);
 // The scene clock for Flash/Ring callbacks: the Rig writes it each frame (-1 when not playing).
 export const T = { t: -1 };
 
@@ -43,7 +44,7 @@ export function Rig({ cut, scaled = true, children }) {
   useFrame((state) => {
     const g = root.current;
     const on = playing(cut);
-    T.t = live.arrival.id ? state.clock.elapsedTime - live.arrival.start : -1;
+    T.t = live.arrival.id ? sceneT(live.arrival.id, state.clock.elapsedTime - live.arrival.start) : -1;
     g.visible = on;
     if (!on) return;
     const s = live.seal;

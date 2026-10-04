@@ -11,6 +11,7 @@
 // Any skip clears live.arrival and everything here goes back in the same
 // frame. Inks: lib/world/cutscene/look.js; clock: timeline.js.
 
+import { sceneT } from "../../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { AdditiveBlending, Box3, CircleGeometry, Ray, Color, DoubleSide, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, ShaderMaterial, SphereGeometry, Vector3 } from "three";
@@ -265,7 +266,7 @@ export default function Stage({ card, place, tl, mode, bare = false, skip, pool:
       return;
     }
     g.visible = true;
-    const t = state.clock.elapsedTime - arrival.start;
+    const t = sceneT(arrival.id, state.clock.elapsedTime - arrival.start);
     const s = live.seal;
     g.position.set(s.x, 0, s.z);
     const r = radiusAt(tl, t);

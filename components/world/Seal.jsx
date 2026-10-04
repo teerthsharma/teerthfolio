@@ -17,6 +17,7 @@
 // Local frame: origin on the snow under the middle of the body, +z the nose,
 // +y up. The belly rests at y = 0, sunk a centimetre or two, never above it.
 
+import { sceneT } from "../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CustomBlending, ShaderMaterial, SrcColorFactor, ZeroFactor } from "three";
@@ -87,7 +88,7 @@ export default function Seal() {
     const arrival = live.arrival;
     const cut = arrival.id && cutsceneMode(arrival.id) ? cutFor(arrival.id) : null;
     if (cut) {
-      const u = Math.min((state.clock.elapsedTime - arrival.start) / cut.tl.duration, 1);
+      const u = Math.min(sceneT(arrival.id, state.clock.elapsedTime - arrival.start) / cut.tl.duration, 1);
       const k = smooth(0, 0.06, u) * (1 - smooth(0.95, 1, u));
       const yaw = PUP_YAW + turnFor(cut.card, cut.place, s.x, s.z);
       if (k > 0) root.current.rotation.y += Math.atan2(Math.sin(yaw - root.current.rotation.y), Math.cos(yaw - root.current.rotation.y)) * k;
@@ -96,7 +97,7 @@ export default function Seal() {
     // or off the snow, flies, and floats back down, turned three-quarters to
     // the lens; the physics seal stays where it stopped.
     if (awakeMode(arrival.id) === "full") {
-      const t = state.clock.elapsedTime - arrival.start;
+      const t = sceneT(arrival.id, state.clock.elapsedTime - arrival.start);
       const lift = liftAt(t);
       root.current.position.y += lift + 0.27 * (s.water || 0) * Math.min(1, lift / 0.55);
       const { yaw, k } = awakeYaw(t, s.x, s.z);
