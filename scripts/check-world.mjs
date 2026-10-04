@@ -1289,19 +1289,19 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
     const { id, a, b, speaker, move } = c;
     assert.ok(c.homage && c.why && c.stage?.sfx, `${id} card is missing its homage, why or onomatopoeia`);
     const figure = speaker !== "land";
-    if (figure) assert.ok(BUILDS[speaker?.build] && typeof speaker.prop === "string" && speaker.pose, `${id}'s speaker needs a build, one prop and a pose`);
-    for (const l of [a, b]) {
-      assert.ok(l?.text && ["seal", "sil", "land"].includes(l.who), `${id} needs two voices`);
-      assert.ok(l.who !== "sil" || figure, `${id}: a line from "sil" needs a figure speaker`);
+    for (const sp of figure ? [].concat(speaker) : []) assert.ok(BUILDS[sp?.build] && typeof sp.prop === "string" && sp.pose, `${id}'s speaker needs a build, one prop and a pose`);
+    for (const l of [a, b, ...(c.c ? [c.c] : [])]) {
+      assert.ok(l?.text && ["seal", "sil", "sil2", "land"].includes(l.who), `${id} needs two voices`);
+      assert.ok(!l.who.startsWith("sil") || figure, `${id}: a line from "sil" needs a figure speaker`);
       assert.ok(l.who !== "land" || !figure, `${id}: a line from "land" needs speaker "land"`);
       assert.ok(!l.kind || ["oval", "burst", "whisper"].includes(l.kind), `${id}: bubble kind ${l.kind}`);
     }
     assert.ok(POSES.includes(move?.pose) && (!move.then || POSES.includes(move.then)), `${id}'s move pose is not a pose hook`);
-    for (const n of `${a.text} ${b.text} ${c.num ?? ""} ${c.sub ?? ""}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) assert.ok(n === "0" || json.includes(n), `${id}'s line says ${n}, which showcase.json does not`);
+    for (const n of `${a.text} ${b.text} ${c.c?.text ?? ""} ${c.credit?.title ?? ""} ${c.credit?.sub ?? ""} ${c.num ?? ""} ${c.sub ?? ""}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) assert.ok(n === "0" || json.includes(n), `${id}'s line says ${n}, which showcase.json does not`);
     const T = timelineFor(c);
     const w = [T.sign[0], T.sign[1], T.impact, T.bloom[1], T.enter, T.lineA, T.move[0], T.lineB, T.collapse[0], T.collapse[1], T.duration];
     assert.ok(w.every((v, i) => i === 0 || v > w[i - 1]) && T.move[1] > T.move[0] && T.move[1] <= T.lineB && T.hold >= T.collapse[0], `${id}'s beats are out of order`);
-    assert.ok(T.lineB - T.lineA >= READ && T.collapse[0] - T.lineB >= READ, `${id}: each line gets ${READ} s to be read`);
+    assert.ok(T.lineB - T.lineA >= READ - 1e-9 && (T.lineC ?? T.credit ?? T.collapse[0]) - T.lineB >= READ - 1e-9 && (!T.lineC || (T.credit ?? T.collapse[0]) - T.lineC >= READ - 1e-9), `${id}: each line gets ${READ} s to be read`);
     let beat = 0;
     for (let t = 0; t < T.duration; t += 0.01) {
       const k = beatAt(T, t);
