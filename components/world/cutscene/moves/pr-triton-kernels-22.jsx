@@ -24,12 +24,12 @@ import { SHOT } from "../../../../lib/world/cutscene/cards/pr-triton-kernels-22"
 import { turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { NB, ROWS } from "../../monuments/parts/schedule-layout";
+import { registerWarm, takeWarm } from "../prewarm";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { flashQuad, holdFlash, islandList, pupParts } from "./p-caustic/parts";
 import { LAMPS, buildCity, lampGeometry } from "./pr-triton-kernels-22/city";
 import { hide, inkLettering, inst, mat, put, putQ, slashMaterial } from "./pr-triton-kernels-22/fx";
 import { K, Mesher, hash, inkMaterial, inkUniforms } from "./pr-triton-kernels-22/ink";
-import { enmaHands } from "./pr-triton-kernels-22/hands";
 import { anosEyes, inkPup } from "./pr-triton-kernels-22/pup";
 import { HINGE, MOUTH, buildShrine } from "./pr-triton-kernels-22/shrine";
 import { groundGeometry, groundMaterial, skyGeometry, skyMaterial } from "./pr-triton-kernels-22/sky";
@@ -70,23 +70,6 @@ const warp = (t) => {
 
 // the sign is up from t 1.3 to 7.8 s (6.5 s; "Domain Expansion." is up from 2.7 to 8.1)
 const HANDS = [1.3, 7.8];
-const HAND_PX = 235; // the mudra's height on the screen, px of a 768-high frame (scaled with the viewport)
-const HAND_D = 2.4; // m from the lens: close to the camera
-const CHEST = new Vector3();
-const HV = new Vector3();
-// the hands hang on the camera's ray just above the pup's head (its face stays in frame), close to the lens, facing it
-function placeHands(g, k, t, cam, vh, seal) {
-  g.visible = k > 0.002;
-  if (!g.visible) return;
-  CHEST.set(seal.x, 0.42, seal.z).project(cam);
-  HV.set(CHEST.x, CHEST.y + 0.56 * (1 + 0.03 * Math.sin(t * 2.4)), 0.5).unproject(cam).sub(cam.position).normalize();
-  g.position.copy(cam.position).addScaledVector(HV, HAND_D);
-  g.quaternion.copy(cam.quaternion);
-  const world = (2 * HAND_D * Math.tan((cam.fov * Math.PI) / 360)) / vh; // m per px at the hands
-  const pop = k < 1 ? k + 0.12 * Math.sin(k * Math.PI) : 1;
-  g.scale.setScalar((world * HAND_PX * (vh / 768) * pop) / 2.4 * (1 + 0.012 * Math.sin(t * 3.1)));
-}
-
 const V = new Vector3();
 const W = new Vector3();
 const QA = new Quaternion();
@@ -130,25 +113,7 @@ function puffGeometry() {
   return M.geometry();
 }
 
-export default function Move(cut) {
-  const { card, place, tl, mode } = cut;
-  const scene = useThree((s) => s.scene);
-  const gl = useThree((s) => s.gl);
-  const camera = useThree((s) => s.camera);
-  const rig = useRef();
-  const cityG = useRef();
-  const shrineG = useRef();
-  const jawG = useRef();
-  const mouthG = useRef();
-  const triG = useRef();
-  const pupRef = useRef(null);
-  const ink = useRef(null);
-  const eyes = useRef(null);
-  const island = useRef([]);
-  SHOT.pup.x = live.seal.x;
-  SHOT.pup.z = live.seal.z;
-
-  const m = useMemo(() => {
+function buildWorld() {
     const U = inkUniforms();
     const city = buildCity();
     const sh = buildShrine();
@@ -204,7 +169,6 @@ export default function Move(cut) {
     for (let i = 0; i < FK; i++) flakes.setColorAt(i, COL.set(i % 5 ? "#0e0b0d" : "#b3081c"));
     const letters = inkLettering("DOMAIN CLOSED");
     const flash = flashQuad("#ece5d2");
-    const hands = enmaHands(U);
     // the slashes: when, how long, where on the screen (half-heights from its centre), the angle, the length, the weight
     const sl = Array.from({ length: SL }, (_, i) => {
       const cleave = i % 5 === 1;
@@ -221,8 +185,31 @@ export default function Move(cut) {
         tri,
       };
     });
-    return { U, city, sh, mats, geo, cityMesh, body, jaw, ground, skyM, skulls, bones, lamps, debris, dust, blocks, wedges, slashes, sparks, glints, flakes, letters, flash, hands, sl };
-  }, []);
+    return { U, city, sh, mats, geo, cityMesh, body, jaw, ground, skyM, skulls, bones, lamps, debris, dust, blocks, wedges, slashes, sparks, glints, flakes, letters, flash, sl };
+}
+
+// THE APPROACH: the shared prewarm (../prewarm.js) builds the world while the seal walks up; the arrival takes it.
+registerWarm("pr-triton-kernels-22", buildWorld);
+
+export default function Move(cut) {
+  const { card, place, tl, mode } = cut;
+  const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
+  const rig = useRef();
+  const cityG = useRef();
+  const shrineG = useRef();
+  const jawG = useRef();
+  const mouthG = useRef();
+  const triG = useRef();
+  const pupRef = useRef(null);
+  const ink = useRef(null);
+  const eyes = useRef(null);
+  const island = useRef([]);
+  SHOT.pup.x = live.seal.x;
+  SHOT.pup.z = live.seal.z;
+
+  const m = useMemo(() => takeWarm("pr-triton-kernels-22", buildWorld), []);
 
   // the pup's ink twin, the Anos eyes, the island list (taken before the stage hides it)
   useEffect(() => {
@@ -249,7 +236,6 @@ export default function Move(cut) {
     return () => {
       ink.current?.dispose();
       eyes.current?.dispose();
-      m.hands.dispose();
       ink.current = eyes.current = pupRef.current = null;
       const { geo, mats, sh } = m;
       for (const g of [...Object.values(geo), sh.body, sh.jaw, sh.skull, sh.bone, m.ground.geometry, m.skyM.geometry, m.letters.geometry, m.flash.geometry]) g.dispose();
@@ -265,7 +251,7 @@ export default function Move(cut) {
       rig.current.visible = false;
       ink.current?.set(false);
       if (eyes.current) eyes.current.g.visible = false;
-      for (const x of [m.slashes, m.letters, m.flash, m.hands.group]) x.visible = false;
+      for (const x of [m.slashes, m.letters, m.flash]) x.visible = false;
     }
   }, -0.5);
 
@@ -278,7 +264,7 @@ export default function Move(cut) {
     SHOT.pup.z = s.z;
     if (!full) {
       g.visible = false;
-      m.slashes.visible = m.letters.visible = m.flash.visible = m.hands.group.visible = false;
+      m.slashes.visible = m.letters.visible = m.flash.visible;
       ink.current?.set(false);
       if (eyes.current) eyes.current.g.visible = false;
       return;
@@ -331,11 +317,10 @@ export default function Move(cut) {
     // THE DEMON PUP: the shrine mudra; the flipper flick at the triangle; the sign again through the barrage; the fist on the flex
     const pupInk = tt >= tl.impact && tt < T.erase[0] + 0.1;
     ink.current?.set(pupInk);
-    // THE ENMA-TEN MUDRA: two demon hands in front of the pup's chest, close to the lens, held from the sign through
-    // the whole of "Domain Expansion." (real t HANDS[0]..HANDS[1], 6 s), then lowered before the barrage; the pup's own flipper sign gives way to them
+    // THE ENMA-TEN MUDRA: the pup presses both flippers together before its chest (live.pose.pray), held from t HANDS[0] to HANDS[1] (6.5 s)
     const hk = smooth(HANDS[0], HANDS[0] + 0.5, t) * (1 - smooth(HANDS[1] - 0.3, HANDS[1], t));
     live.pose.sign = signAt(tl, t) * (1 - smooth(4.6, 4.9, tt) * (1 - smooth(5.8, 6.0, tt))) * (1 - smooth(T.erase[0], T.erase[0] + 0.1, tt)) * (1 - hk);
-    placeHands(m.hands.group, hk, t, cam, state.size.height, s);
+    live.pose.pray = hk;
     live.pose.point = smooth(T.point[0], T.point[1], tt) * (1 - smooth(5.5, 5.8, tt)) * out;
     live.pose.fist = smooth(flex, flex + 0.3, tt) * out;
     live.pose.demon = smooth(0.5, 1.5, tt) * (1 - smooth(T.erase[0], T.erase[0] + 0.15, tt));
@@ -515,7 +500,6 @@ export default function Move(cut) {
       <primitive object={m.slashes} />
       <primitive object={m.letters} />
       <primitive object={m.flash} />
-      <primitive object={m.hands.group} />
       <group ref={rig} visible={false}>
         <primitive object={m.skyM} />
         <group ref={cityG}>
