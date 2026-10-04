@@ -25,6 +25,7 @@ import Blast from "./Blast";
 import Effects from "./Effects";
 import Harbour from "./Harbour";
 import Island from "./Island";
+import LabDecor from "./LabDecor";
 import Look from "./Look";
 import { SCULPTURES } from "./monuments";
 import Penguins from "./Penguins";
@@ -64,6 +65,8 @@ function goTo(place) {
   };
 }
 
+const LAB_SCALE = 1.7; // lab sculptures read as landmarks: scale and collider (places.js LAB_RADIUS) grow together
+
 function Buildings() {
   return PLACES.map((place) => {
     // Upstream contributions ARE the landscape (Districts.jsx draws them), so
@@ -73,7 +76,16 @@ function Buildings() {
     return (
       <group key={place.id} position={[place.x, 0, place.z]} onClick={goTo(place)}>
         <Contain name={place.id}>
-          {Building && <Building place={place} />}
+          {Building && place.section === "lab" ? (
+            <>
+              <group scale={LAB_SCALE}>
+                <Building place={place} />
+              </group>
+              <LabDecor place={place} radius={place.radius} />
+            </>
+          ) : (
+            Building && <Building place={place} />
+          )}
         </Contain>
         <PlaceLabel place={place} />
       </group>
@@ -126,7 +138,7 @@ export default function Scene() {
     <Canvas
       shadows
       dpr={1}
-      camera={{ fov: 35, near: 0.5, far: 260, position: [0, 20, 30] }}
+      camera={{ fov: 28, near: 0.5, far: 260, position: [0, 20, 30] }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       onCreated={({ gl }) => {
         gl.domElement.addEventListener("webglcontextlost", () => setUi({ failed: true }));
