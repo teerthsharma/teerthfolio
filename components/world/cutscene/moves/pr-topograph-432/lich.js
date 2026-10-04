@@ -15,9 +15,10 @@ export const smooth = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
-const BODY = "#2c1850";
+const BODY = "#1a0d2e"; // black robe
+const LINING = "#6b1fb3"; // purple inner lining
 const HORN = "#e6b43a";
-const WING = "#4a1f8a";
+const WING = "#6b1fb3";
 const FACE = "#ece4cf"; // the bare skull
 
 // the sword's blade direction in the fist's frame (see pose(): it swings with the arm)
@@ -46,21 +47,29 @@ function torso() {
     p.push(taper([s * 1.0, 1.9, 0], [s * 1.28, 2.55, -0.12], 0.2, 0.02, HORN, { seg: 6 }));
     p.push(taper([s * 0.55, 1.95, -0.1], [s * 0.7, 2.5, -0.35], 0.16, 0.02, HORN, { seg: 6 }));
   }
+  p.push(blob([0, 0.85, 0.5], [0.6, 0.95, 0.3], LINING, { seed: 16 })); // the purple inner lining at the open front
+  p.push(blob([0, 0.0, 0.3], [0.78, 0.07, 0.7], HORN, { seed: 17, w: 12, h: 4 })); // the gold hem trim
   for (let i = 0; i < 4; i++) p.push(taper([0, 0.4 + i * 0.5, -0.62], [0, 0.62 + i * 0.5, -1.0], 0.17, 0.02, HORN, { seg: 6 }));
   return merge(p);
 }
 
 function head() {
   const p = [
-    blob([0, 0.2, 0.08], [0.44, 0.5, 0.46], FACE, { seed: 21 }), // the cranium
+    blob([0, 0.2, 0.08], [0.42, 0.42 * 1.15, 0.42 * 1.05], FACE, { seed: 21 }), // the cranium: a skull, scaled [1, 1.15, 1.05]
     blob([0, -0.22, 0.3], [0.3, 0.2, 0.3], FACE, { seed: 22 }), // the jaw
+    blob([0, -0.3, 0.2], [0.27, 0.13, 0.22], FACE, { seed: 23 }), // the jaw block
     blob([0, 0.06, 0.5], [0.07, 0.1, 0.06], "#2a1a30", { seed: 24, w: 8, h: 6 }), // the nose hole
     blob([0, -0.3, 0.46], [0.26, 0.05, 0.16], "#2a1a30", { seed: 25, w: 10, h: 6 }), // the grin
     blob([0, 0.5, -0.05], [0.3, 0.07, 0.3], HORN, { seed: 27, w: 10, h: 6 }), // the gold circlet
   ];
   for (const s of [-1, 1]) {
-    p.push(blob([s * 0.19, 0.19, 0.46], [0.13, 0.15, 0.09], "#120a1e", { seed: 26 + s, w: 8, h: 6 })); // the eye sockets
+    p.push(blob([s * 0.19, 0.19, 0.46], [0.15, 0.17, 0.11], "#000000", { seed: 26 + s, w: 8, h: 6 })); // the eye sockets, inset black
     for (let k = 0; k < 3; k++) p.push(taper([s * (0.07 + 0.08 * k), -0.27, 0.58], [s * (0.07 + 0.08 * k), -0.37, 0.6], 0.03, 0.01, "#f6f0e0", { seg: 5, rows: 1 })); // teeth
+  }
+  // the high spiked gold collar: 8 cones fanned behind the head
+  for (let k = 0; k < 8; k++) {
+    const a = ((k - 3.5) / 3.5) * 1.1;
+    p.push(taper([Math.sin(a) * 0.3, -0.05, -0.1], [Math.sin(a) * 0.95, 0.6 + 0.35 * Math.cos(a), -0.35], 0.06, 0.01, HORN, { seg: 6, rows: 1 }));
   }
   // the high collar: two gold-trimmed fans standing behind and beside the skull
   for (const s of [-1, 1]) {
@@ -71,7 +80,7 @@ function head() {
 }
 
 function eyes() {
-  const g = merge([-1, 1].map((s) => piece(new SphereGeometry(1, 8, 6).scale(0.05, 0.05, 0.05).translate(s * 0.19, 0.19, 0.52), "#ff2a2a")));
+  const g = merge([-1, 1].map((s) => piece(new SphereGeometry(1, 8, 6).scale(0.09, 0.09, 0.09).translate(s * 0.19, 0.19, 0.5), "#ff2030")));
   return g;
 }
 
@@ -85,6 +94,8 @@ function sword() {
   const p = [slab([0, 0, 0], [b.x, b.y, b.z], 0.07, 0.07, "#e6b43a"), blob([b.x, b.y, b.z], [0.3, 0.3, 0.06], HORN, { w: 14, h: 4, lump: 0.01 })];
   // the head: a gold ring of seven serpents, each holding a gem
   const GEMS = ["#ff3b3b", "#ff9a2e", "#ffe14a", "#3be06a", "#35c8ff", "#7a5cff", "#ff5ad2"];
+  p.push(piece(new TorusGeometry(0.34, 0.035, 6, 24).translate(b.x, b.y, b.z), "#ffc926")); // the gold hoop
+  for (let k = 0; k < 5; k++) p.push(piece(new TorusGeometry(0.06, 0.02, 5, 10).rotateX(Math.PI / 2).translate(b.x * (0.55 + 0.09 * k), b.y * (0.55 + 0.09 * k), b.z * (0.55 + 0.09 * k)), "#ffc926")); // the snake-coil under the head
   GEMS.forEach((c, k) => {
     const a = (k / 7) * Math.PI * 2;
     p.push(blob([b.x + Math.cos(a) * 0.3, b.y + Math.sin(a) * 0.3, b.z], [0.075, 0.075, 0.075], c, { w: 6, h: 5, lump: 0.004 }));

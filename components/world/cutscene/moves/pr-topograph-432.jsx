@@ -33,6 +33,7 @@ import { U, hash } from "./pr-topograph-432/clay";
 import { poseColony, poseWitnesses } from "./pr-topograph-432/figures";
 import { colI, hideI, lashPoint, putI, slateTexture, stickTexture } from "./pr-topograph-432/fx";
 import { FLOOR_Y, PILLARS, deckY } from "./pr-topograph-432/set";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const HS = 2 / 12; // the strike's hold: two poses
 // SLOW-MOTION at the three peaks: real seconds spent per scene second (u). {a: where in u, L: u-length, d: real seconds}; L 0 is a hold.
@@ -70,7 +71,7 @@ const T = {
   iris: [19.5, 21.0],
   home: 20.8,
 };
-const GATE_X = [1.15, 1.72];
+const GATE_X = [2.35, 1.72]; // the first wall stands 1.2 m right of where it covered the pup
 const STRIKE = new Vector3(0.3, deckY(0.3), 0.25); // where the staff lands
 const CRACK_X = 1.9; // the bridge breaks from here toward Ainz
 const CORAL = new Color("#ff2f5e");
@@ -90,9 +91,15 @@ const Q = new Quaternion();
 const TMP = new Color();
 // out over the hall, across the lens: low to the pod lanterns, middle to the shafts, high to the agents on the capitals (the left rows)
 const LASH_HALL = [new Vector3(-6.2, FLOOR_Y + 2.3, -11), new Vector3(-6.4, 5.2, -17.5), new Vector3(-6.8, 10.4, -24)];
-const LASH_GATE = [new Vector3(1.5, 0.4, 0.3), new Vector3(1.5, 1.1, 0.25), new Vector3(1.5, 1.8, 0.3)];
+const LASH_GATE = [new Vector3(2.7, 0.4, 0.3), new Vector3(1.5, 1.1, 0.25), new Vector3(1.5, 1.8, 0.3)];
 const LASH_COL = [1, 0.18, 0.4];
 
+// the shared prewarm (../prewarm.js): the hall is built while the seal walks up, then compiled; the
+// assets stay in assets.js's cache (its own watcher compiles against the scene), so the held world is only a handle
+function buildWorld() {
+  return { root: getAssets().root, dispose: () => disposeAssets() };
+}
+registerWarm("pr-topograph-432", buildWorld);
 const lashR = (k, u) => smooth(2.0 + 0.35 * k, 3.0 + 0.35 * k, u) * (1 - smooth(T.lash[k] + 0.05, T.lash[k] + 0.65, u));
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const banner = () => (typeof document !== "undefined" ? document.getElementById("topo-banner") : null);
@@ -108,7 +115,11 @@ export default function Move(cut) {
   const twin = useRef(null);
   const island = useRef([]);
   const clock = useRef({ step: -1, u: 0, yaw: null, turn: 0 });
-  const A = useMemo(() => (full ? getAssets() : null), [full]);
+  const A = useMemo(() => {
+    if (!full) return null;
+    takeWarm("pr-topograph-432", buildWorld);
+    return getAssets();
+  }, [full]);
   const slate = useMemo(() => {
     if (!full) return null;
     const g = new Group();
@@ -174,6 +185,8 @@ export default function Move(cut) {
       return;
     }
     if (p?.root) {
+      // upright from the strike on: the pup never lies back
+      if (clock.current.u >= T.slam) p.root.rotation.x = p.root.rotation.z = 0;
       p.root.position.add(shake.current);
       if (clock.current.yaw != null) p.root.rotation.y = clock.current.yaw + clock.current.turn;
     }
@@ -243,6 +256,14 @@ export default function Move(cut) {
     }
   }, 0);
 
+  // the lens never enters the pup: 4.5 m clear after the rig and the close-up have written the camera
+  useFrame((state) => {
+    if (!full || !live.arrival.id) return;
+    const cam = state.camera;
+    P0.set(live.seal.x, 0.9, live.seal.z);
+    if (cam.position.distanceTo(P0) < 4.5) cam.position.sub(P0).setLength(4.5).add(P0);
+  }, 0.6);
+
   // THE CLOSE-UP INSERT: after the parry the lens pushes in on the flipper gripping the staff, holds, and eases back.
   // Priority 0.5 runs after the CameraRig (0) and before the composer (1).
   useFrame((state) => {
@@ -297,7 +318,7 @@ export default function Move(cut) {
     const inside = swell > camera.position.distanceTo(V) + 3;
     const iris = smooth(T.iris[0], T.iris[1], u);
     U.uReveal.value = u >= T.iris[0] ? 200 * (1 - iris) ** 1.4 : inside ? 1000 : swell;
-    const lampsOut = Math.round((1 - smooth(T.lamps[0], T.lamps[1], tt)) * 5) / 5;
+    const lampsOut = 0.45 + 0.55 * (Math.round((1 - smooth(T.lamps[0], T.lamps[1], tt)) * 5) / 5); // floored at 0.45 of its peak: the hall never goes black
     U.uLamps.value = lampsOut;
     const fallPulse = Math.max(0, 1 - Math.abs(tt - (T.fall + 0.3)) / 0.5);
     U.uKeyK.value = 3.4 * (0.9 + 0.1 * hash(step, 1)) * (1 + 0.45 * fallPulse + (slamT >= 0 ? 0.35 * Math.max(0, 1 - slamT / 0.4) : 0));
@@ -338,7 +359,7 @@ export default function Move(cut) {
 
     // THE CIRCLES: Ainz's great layered one (three counter-turning discs, stood up behind him) and the pup's small gold one
     const cOn = smooth(0.9, 2.5, tt) * (1 - smooth(T.lamps[0] - 0.3, T.lamps[1] + 0.8, tt));
-    const pOn = smooth(T.raise[0], T.raise[0] + 0.8, tt) * (1 - smooth(T.lamps[0] - 0.3, T.lamps[1] + 0.8, tt));
+    const pOn = smooth(T.raise[0], T.raise[0] + 0.8, tt) * (1 - smooth(T.iris[0], T.iris[1], tt)); // the gold circle stays lit until the set is struck
     const pulse = 1 + 0.12 * Math.max(0, 1 - Math.abs(slamT) / 0.6);
     A.circleBig.forEach((m, i) => {
       m.visible = cOn > 0.01 && tt < T.iris[1];
