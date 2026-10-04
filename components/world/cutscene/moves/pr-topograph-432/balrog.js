@@ -14,9 +14,10 @@ export const smooth = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
-const BODY = "#1d141b";
-const HORN = "#3a2a2c";
-const WING = "#2a1630";
+const BODY = "#2a1a22";
+const HORN = "#8a5a44";
+const WING = "#5a2a50";
+const FACE = "#7a4636"; // the face, ember-lit from below by the chasm
 
 // the sword's blade direction in the fist's frame (see pose(): it swings with the arm)
 const BLADE = new Vector3(0, -0.23, 0.97).normalize();
@@ -50,16 +51,20 @@ function torso() {
 
 function head() {
   const p = [
-    blob([0, 0.15, 0.1], [0.44, 0.52, 0.47], BODY, { seed: 21 }),
-    blob([0, -0.18, 0.32], [0.32, 0.22, 0.32], BODY, { seed: 22 }),
-    blob([0, 0.32, 0.42], [0.42, 0.11, 0.2], BODY, { seed: 23 }),
+    blob([0, 0.15, 0.1], [0.46, 0.54, 0.49], FACE, { seed: 21 }),
+    blob([0, -0.2, 0.34], [0.34, 0.24, 0.34], FACE, { seed: 22 }),
+    blob([0, 0.34, 0.42], [0.46, 0.13, 0.22], "#5a2e28", { seed: 23 }), // the heavy brow
+    blob([0, 0.06, 0.58], [0.1, 0.16, 0.12], "#9a5a42", { seed: 24, w: 8, h: 6 }), // the flat nose
+    blob([0, -0.3, 0.5], [0.3, 0.07, 0.2], "#2a1214", { seed: 25, w: 10, h: 6 }), // the dark mouth
   ];
   for (const s of [-1, 1]) {
+    p.push(blob([s * 0.3, 0.02, 0.5], [0.13, 0.17, 0.12], "#9a5a42", { seed: 26 + s, w: 8, h: 6 })); // cheekbones
+    for (let k = 0; k < 3; k++) p.push(taper([s * (0.07 + 0.08 * k), -0.27, 0.62], [s * (0.07 + 0.08 * k), -0.42, 0.64], 0.035, 0.005, "#e8d2a8", { seg: 5, rows: 1 })); // fangs
     const pts = [[0.3, 0.5, 0], [0.62, 0.85, -0.1], [0.95, 1.3, -0.2], [1.15, 1.8, -0.36], [1.08, 2.25, -0.52]];
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i];
       const b = pts[i + 1];
-      p.push(taper([s * a[0], a[1], a[2]], [s * b[0], b[1], b[2]], 0.19 - i * 0.04, 0.19 - (i + 1) * 0.04 + 0.005, HORN, { seg: 6, rows: 1 }));
+      p.push(taper([s * a[0], a[1], a[2]], [s * b[0], b[1], b[2]], 0.21 - i * 0.04, 0.21 - (i + 1) * 0.04 + 0.005, HORN, { seg: 6, rows: 1 }));
     }
   }
   return merge(p);
@@ -68,6 +73,11 @@ function head() {
 function eyes() {
   const g = merge([-1, 1].map((s) => piece(new SphereGeometry(1, 8, 6).scale(0.11, 0.045, 0.05).rotateZ(s * 0.35).translate(s * 0.2, 0.2, 0.5), "#ffb347")));
   return g;
+}
+
+// the furnace in the mouth and the ember brow-light: light only, like the eyes
+function mouthGlow() {
+  return merge([piece(new SphereGeometry(1, 8, 6).scale(0.2, 0.05, 0.1).translate(0, -0.29, 0.62), "#ff8a3a"), piece(new SphereGeometry(1, 6, 5).scale(0.07, 0.03, 0.04).translate(0, 0.03, 0.66), "#ff9a4a")]);
 }
 
 function sword() {
@@ -99,7 +109,7 @@ function wingGeo() {
   });
   const p = [];
   ribs.forEach((t, i) => {
-    p.push(taper([0, 0, 0], t, 0.1, 0.025, "#35202a", { seg: 5, rows: 2 }));
+    p.push(taper([0, 0, 0], t, 0.1, 0.025, "#7a4658", { seg: 5, rows: 2 }));
     if (i < ribs.length - 1) {
       const n = ribs[i + 1];
       const sag = (a, b, k) => [(a[0] + b[0]) / 2 - 0.15 * k, (a[1] + b[1]) / 2 - 0.2 * k, (a[2] + b[2]) / 2];
@@ -125,9 +135,10 @@ function triG(a, b, c, color) {
 }
 
 export function buildBalrog() {
-  const bodyMat = clay({ boil: 0.022, rim: 1.25, edge: 0.4, bump: 0.5, tex: 1.2 });
-  const wingMat = clay({ boil: 0.03, rim: 1.0, edge: 0.3, bump: 0.3, tex: 0.7, side: DoubleSide });
+  const bodyMat = clay({ boil: 0.022, rim: 1.9, edge: 0.55, bump: 0.5, tex: 1.2 });
+  const wingMat = clay({ boil: 0.03, rim: 1.8, edge: 0.5, bump: 0.3, tex: 0.7, side: DoubleSide });
   const eyeMat = clay({ boil: 0.004, emit: 2.4, edge: 0, bump: 0, tex: 1 });
+  const mouthMat = clay({ boil: 0.004, emit: 1.3, edge: 0, bump: 0, tex: 1 });
   const gemMat = clay({ boil: 0.004, emit: 1.7, edge: 0, bump: 0.1, tex: 3, base: new Color("#ff6b57"), vertexColors: true });
   const bladeMat = clay({ boil: 0.01, rim: 0.7, edge: 0.7, bump: 0.3 });
   const geos = [];
@@ -162,6 +173,7 @@ export function buildBalrog() {
   mk(torso(), bodyMat, chest);
   mk(head(), bodyMat, neck);
   mk(eyes(), eyeMat, neck);
+  mk(mouthGlow(), mouthMat, neck);
   mk(armGeo(true), bodyMat, armS);
   mk(armGeo(false), bodyMat, armW);
   armS.add(swordG);
@@ -191,6 +203,8 @@ export function buildBalrog() {
   }
   for (let i = 0; i < 4; i++) add(chest, 0, 0.62 + i * 0.5, -1.0, 0.55 - i * 0.04, 0); // along the spine
   add(neck, 0, 0.8, -0.2, 0.5, 0);
+  for (let i = 0; i < 5; i++) add(neck, (i - 2) * 0.28, 0.75 + 0.1 * (2 - Math.abs(i - 2)), -0.35, 0.8 - 0.08 * Math.abs(i - 2), 2); // the burning mane behind the head
+  add(neck, 0, -0.3, 0.55, 0.3, 2); // breath at the mouth
   add(armS, 0, -1.6, 0.2, 0.5, 0);
   add(armW, 0, -1.6, 0.2, 0.55, 2);
   add(armW, 0, -1.3, 0.8, 0.5, 2);
@@ -219,7 +233,7 @@ export function buildBalrog() {
     fire,
     dispose() {
       for (const g of geos) g.dispose();
-      for (const m of [bodyMat, wingMat, eyeMat, gemMat, bladeMat]) m.dispose();
+      for (const m of [bodyMat, wingMat, eyeMat, mouthMat, gemMat, bladeMat]) m.dispose();
       root.removeFromParent();
     },
   };

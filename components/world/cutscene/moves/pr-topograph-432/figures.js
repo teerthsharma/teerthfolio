@@ -194,7 +194,7 @@ export function poseColony(C, tt, T) {
     const hop = cheer * Math.max(0, Math.sin(tt * 9 + i * 1.9)) * 0.22;
     D.position.set(x, y + hop, z);
     D.rotation.set(0.3 * cheer * (hash(i, 7) - 0.5), 0.6 + hash(i, 3) * 0.8, 0);
-    D.scale.set(1 + 0.12 * duck, 1 - 0.4 * duck, 1 + 0.12 * duck);
+    D.scale.set(2.4 * (1 + 0.12 * duck), 2.4 * (1 - 0.4 * duck), 2.4 * (1 + 0.12 * duck)); // big enough to read from the lens
     D.updateMatrix();
     C.mesh.setMatrixAt(i, D.matrix);
   });

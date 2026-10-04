@@ -35,6 +35,18 @@ import { colI, hideI, lashPoint, putI, slateTexture, stickTexture } from "./pr-t
 import { FLOOR_Y, PILLARS, deckY } from "./pr-topograph-432/set";
 
 const HS = 2 / 12; // the strike's hold: two poses
+// SLOW-MOTION at the three peaks: real seconds spent per scene second (u). {a: where in u, L: u-length, d: real seconds}; L 0 is a hold.
+const WARP = [{ a: 5.1, L: 0, d: HS }, { a: 5.1, L: 0.6, d: 1.5 }, { a: 8.95, L: 0.7, d: 1.75 }, { a: 19.5, L: 0.6, d: 1.5 }];
+export function uOf(t) {
+  let off = 0;
+  for (const { a, L, d } of WARP) {
+    const ra = a + off;
+    if (t < ra) return t - off;
+    if (t < ra + d) return a + (L * (t - ra)) / d;
+    off += d - L;
+  }
+  return t - off;
+}
 // the clock (s of the scene's own time, before the hit-stop): every beat is authored here
 const T = {
   gear: 1.2,
@@ -46,6 +58,7 @@ const T = {
   slam: 5.1,
   gates: 5.25,
   lash: [5.95, 6.57, 7.19], // each lash hits its wall here, then snaps back
+  close: [3.95, 4.25, 4.65, 4.95], // the close-up on the gripped staff: in, hold, out
   gem: 7.9,
   crackStart: 7.8,
   fall: 8.95,
@@ -230,14 +243,32 @@ export default function Move(cut) {
     }
   }, 0);
 
+  // THE CLOSE-UP INSERT: after the parry the lens pushes in on the flipper gripping the staff, holds, and eases back.
+  // Priority 0.5 runs after the CameraRig (0) and before the composer (1).
+  useFrame((state) => {
+    const G = gear.current;
+    const u = clock.current.u;
+    const k = smooth(T.close[0], T.close[1], u) * (1 - smooth(T.close[2], T.close[3], u));
+    if (!full || !G || !live.arrival.id || k < 0.001 || !G.staff.visible) return;
+    const cam = state.camera;
+    G.staff.getWorldPosition(V);
+    cam.getWorldDirection(E);
+    W.copy(cam.position).sub(V).normalize().multiplyScalar(1.7).add(V);
+    W.y += 0.15;
+    H.copy(cam.position).addScaledVector(E, 10); // where it was looking
+    cam.position.lerp(W, k);
+    H.lerp(P0.copy(V).addScaledVector(UP, -0.12), k);
+    cam.lookAt(H);
+  }, 0.5);
+
   useCutFrame((t0, state) => {
     const g = rig.current;
     if (!full) return;
     const camera = state.camera;
     const t = t0;
-    const u = t < T.slam ? t : t < T.slam + HS ? T.slam : t - HS; // the strike holds two poses
-    const step = Math.floor(u * 12 + 1e-6);
-    const tt = step / 12;
+    const step = Math.floor(t * 12 + 1e-6); // S1: twelve poses a second of REAL time, so a slow-motion is still stepped
+    const u = uOf(step / 12);
+    const tt = u;
     clock.current.u = tt;
     const s = live.seal;
     const bn = banner();
@@ -365,7 +396,7 @@ export default function Move(cut) {
     B.gemMat.uniforms.uBase.value.lerpVectors(GEM_CORAL, GEM_MINT, gemColor(tt, T.gem));
     poseWitnesses(A.wit, tt, T, odd);
     poseColony(A.colony, tt, T);
-    A.flames.material.uniforms.uFlame.value = Math.floor(tt * 6);
+    A.flames.material.uniforms.uFlame.value = Math.floor(step / 2); // S5: four cut shapes, swapped on twos
 
     // the Balrog's fire cards
     let n = 0;
@@ -500,9 +531,9 @@ export default function Move(cut) {
         hideI(dst, i);
         continue;
       }
-      const sz = 0.18 + 0.2 * hash(i, 4);
+      const sz = 0.3 + 0.3 * hash(i, 4);
       putI(dst, i, -3.4 + 6.8 * hash(i, 2) + 0.2 * Math.sin(tau * 3 + i), 15 - 3.1 * tau, -9 + 10 * hash(i, 3), sz, 0.3, sz, 0, 0, 0.3 * (hash(i, 5) - 0.5));
-      colI(dst, i, 0.8, 0.62, 0.45, 0.4 * Math.min(1, tau / 0.4) * (1 - smooth(3.4, 4, tau)));
+      colI(dst, i, 0.8, 0.62, 0.45, 0.85 * Math.min(1, tau / 0.4) * (1 - smooth(3.4, 4, tau)));
     }
     dst.instanceMatrix.needsUpdate = true;
     dst.instanceColor.needsUpdate = true;

@@ -6,7 +6,7 @@
 import { Box3, BoxGeometry, BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, Group, Mesh, Vector3 } from "three";
 import { clay, hash, lump, merge, piece } from "./clay";
 import { crystalGeometry } from "./fx";
-import { slab, taper } from "./shapes";
+import { blob, slab, taper } from "./shapes";
 
 
 const sm = (a, b, x) => {
@@ -82,6 +82,15 @@ function staffGeometry() {
     piece(new CylinderGeometry(0.05, 0.05, 0.05, 8).translate(0, -0.7, 0), "#8a6a48"),
     piece(new CylinderGeometry(0.05, 0.05, 0.05, 8).translate(0, 0.15, 0), "#8a6a48"),
   ];
+  // the pup's flipper gripping the staff at its middle: a fist round the shaft, four finger lobes wrapped about it, a thumb over
+  const FL = "#aab3c8";
+  p.push(blob([0, 0, 0], [0.095, 0.085, 0.095], FL, { w: 10, h: 8, lump: 0.006 }));
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2 + 0.5;
+    p.push(blob([Math.cos(a) * 0.075, 0.015 - k * 0.02, Math.sin(a) * 0.075], [0.04, 0.032, 0.04], FL, { w: 6, h: 5, lump: 0.003 }));
+  }
+  p.push(taper([0.06, -0.06, 0.04], [0.02, 0.07, 0.07], 0.03, 0.022, FL, { seg: 6, rows: 1 }));
+  p.push(blob([0, -0.1, 0], [0.12, 0.05, 0.12], "#8d9099", { w: 8, h: 6, lump: 0.004 })); // the cloak's cuff
   // three claws cradling the crystal
   for (let k = 0; k < 3; k++) {
     const a = (k / 3) * Math.PI * 2;
