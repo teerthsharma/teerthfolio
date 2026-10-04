@@ -42,6 +42,8 @@ const PINK = "#f4707f";
 const PINK_DARK = "#e2546a";
 const CREAM = "#fff2df";
 
+const N_SLASH = 0.55;
+
 // T N T in dark pink bars on the cream band, one set per face.
 function letters() {
   const parts = [];
@@ -53,7 +55,11 @@ function letters() {
   T(-0.3);
   bar(-0.075, 0.42, 0.045, 0.2); // N: two stems and a slash
   bar(0.075, 0.42, 0.045, 0.2);
-  bar(0, 0.42, 0.045, 0.23, -0.55);
+  // The N's slash runs top-left to bottom-right: rotateZ is counter-clockwise, so +0.55.
+  // Guard: a leaning bar's top end must sit left of its bottom end, or the N reads mirrored.
+  const slash = new Vector3(0, 0.115, 0).applyAxisAngle(new Vector3(0, 0, 1), N_SLASH);
+  if (!(slash.x < 0)) throw new Error("Toys: the N in TNT is mirrored (slash leans the wrong way)");
+  bar(0, 0.42, 0.045, 0.23, N_SLASH);
   T(0.3);
   return parts;
 }
