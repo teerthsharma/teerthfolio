@@ -22,14 +22,14 @@ import { live } from "../../../../lib/world/store";
 import { Flash, INK, Rig, Shards, T, clock, ease, flat, landK, nudge, rand, ramp, useHideLand, usePup } from "./g2/parts";
 
 const TW = [1.6, 0, -3.0]; // the tower's foot, in the figure frame
-const ROWS = 14;
-const STEP = 0.2;
-const SLAB = 0.17;
-const GAP = [3, 4]; // the two slabs that were never placed
-const GAP_MID = 0.075 + 3.5 * STEP; // the cave's middle height
+const ROWS = 10;
+const STEP = 0.15;
+const SLAB = 0.125;
+const GAP = [2, 4]; // the slabs that were never placed: the free space below the first live block
+const GAP_MID = 0.075 + 3 * STEP; // the cave's middle height
 const TOP = 0.075 + ROWS * STEP; // the top of the stack
-const FRONT = 0.5; // the tower's front face (z, tower frame)
-const LID_UP = 0.4; // how far the lid rises under the cube, and drops back
+const FRONT = 0.45; // the tower's front face (z, tower frame)
+const LID_UP = 0.3; // how far the lid rises under the cube, and drops back
 const DUMMY = new Object3D();
 
 // the beats, on the scene clock
@@ -57,17 +57,17 @@ function skyMaterial() {
       uniform float uTime; uniform float uFade; varying vec3 vP;
       void main() {
         vec3 d = normalize(vP);
-        float h = clamp(d.y * 1.15 + 0.12, 0.0, 1.0);
-        vec3 low = vec3(1.0, 0.80, 0.55);   // amber at the horizon
-        vec3 mid = vec3(0.55, 0.78, 0.86);  // teal veil
-        vec3 high = vec3(0.30, 0.26, 0.62); // indigo overhead
-        vec3 c = mix(low, mid, smoothstep(0.0, 0.32, h));
-        c = mix(c, high, smoothstep(0.28, 0.95, h));
+        float h = clamp(d.y * 3.0 + 0.08, 0.0, 1.0);
+        vec3 low = vec3(1.0, 0.72, 0.45);   // amber at the horizon
+        vec3 mid = vec3(0.40, 0.70, 0.86);  // teal veil
+        vec3 high = vec3(0.20, 0.18, 0.52); // indigo overhead
+        vec3 c = mix(low, mid, smoothstep(0.0, 0.3, h));
+        c = mix(c, high, smoothstep(0.35, 1.0, h));
         // veils: slow curtains of white-gold mana leaning up the sky
         float a = atan(d.x, d.z);
         float v1 = smoothstep(0.55, 1.0, sin(a * 5.0 + d.y * 7.0 + uTime * 0.35));
         float v2 = smoothstep(0.6, 1.0, sin(a * 8.0 - d.y * 11.0 - uTime * 0.25 + 1.7));
-        float band = smoothstep(0.1, 0.35, h) * (1.0 - smoothstep(0.7, 1.0, h));
+        float band = smoothstep(0.12, 0.4, h) * (1.0 - smoothstep(0.8, 1.0, h));
         c += (v1 * 0.32 + v2 * 0.2) * band * vec3(1.0, 0.92, 0.7);
         gl_FragColor = vec4(pow(c, vec3(2.2)), uFade);
       }`,
@@ -83,7 +83,7 @@ function groundMaterial() {
       uniform float uFade; varying vec2 vUv;
       void main() {
         float r = length(vUv * 2.0 - 1.0);
-        vec3 c = mix(vec3(0.98, 0.93, 0.82), vec3(0.62, 0.74, 0.86), smoothstep(0.1, 0.9, r)); // warm snow to teal at the rim
+        vec3 c = mix(vec3(0.96, 0.88, 0.82), vec3(0.42, 0.58, 0.80), smoothstep(0.1, 0.9, r)); // warm snow to teal at the rim
         c *= 0.94 + 0.06 * sin(r * 70.0);
         gl_FragColor = vec4(pow(c, vec3(2.2)), uFade * (1.0 - smoothstep(0.82, 1.0, r)));
       }`,
@@ -150,21 +150,24 @@ function Tower({ cut }) {
   const lid = useRef();
   const cube = useRef();
   const ghost = useRef();
+  const spine = useRef();
   const glints = useRef();
   const layers = [useRef(), useRef(), useRef()];
-  const geo = useMemo(() => new BoxGeometry(2.0, SLAB, 1.0), []);
+  const geo = useMemo(() => new BoxGeometry(1.5, SLAB, 0.9), []);
   const mat = useMemo(() => flat("#ffffff"), []);
-  const caveGeo = useMemo(() => new BoxGeometry(1.98, 2 * STEP - 0.02, 0.96), []);
+  const caveGeo = useMemo(() => new BoxGeometry(1.48, 3 * STEP - 0.02, 0.86), []);
   const caveMat = useMemo(() => flat("#0d0816", { side: BackSide }), []);
-  const layerGeo = useMemo(() => [frameGeometry(1.9, 0.36, 1.5, 0.28), frameGeometry(1.5, 0.28, 1.1, 0.2), frameGeometry(1.1, 0.2)], []);
+  const layerGeo = useMemo(() => [frameGeometry(1.4, 0.43, 1.1, 0.33), frameGeometry(1.1, 0.33, 0.8, 0.23), frameGeometry(0.8, 0.23)], []);
   const layerMat = useMemo(() => [0, 1, 2].map(() => flat("#ffffff")), []);
   const glowMat = useMemo(() => flat(INK.amber, { transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending, side: DoubleSide }), []);
-  const glowGeo = useMemo(() => new PlaneGeometry(2.0, 0.42), []);
-  const lidGeo = useMemo(() => new BoxGeometry(2.1, 0.1, 1.1), []);
+  const glowGeo = useMemo(() => new PlaneGeometry(1.45, 0.43), []);
+  const lidGeo = useMemo(() => new BoxGeometry(1.6, 0.1, 1.0), []);
   const lidMat = useMemo(() => flat("#fff3d6"), []);
-  const cubeGeo = useMemo(() => new BoxGeometry(0.42, 0.42, 0.42), []);
+  const cubeGeo = useMemo(() => new BoxGeometry(0.34, 0.34, 0.34), []);
   const cubeMat = useMemo(() => new MeshLambertMaterial({ color: "#ffbe55", emissive: "#e07a1c", emissiveIntensity: 0.55, flatShading: true }), []);
-  const ghostGeo = useMemo(() => new BoxGeometry(2.3, 0.025, 0.025), []);
+  const ghostGeo = useMemo(() => new BoxGeometry(1.8, 0.05, 0.05), []);
+  const spineGeo = useMemo(() => new BoxGeometry(0.16, 1, 0.16), []);
+  const spineMat = useMemo(() => flat("#f2c26b"), []);
   const ghostMat = useMemo(() => flat(INK.coral, { transparent: true, opacity: 0, depthWrite: false }), []);
   const pyriteGeo = useMemo(() => new OctahedronGeometry(0.075, 0), []);
   const pyriteMat = useMemo(() => flat("#ffd86a"), []);
@@ -203,7 +206,7 @@ function Tower({ cut }) {
       LAYER.copy(COLD).lerp(EMBER, Math.min(1, lit * 1.4)).lerp(AMBER, Math.max(0, lit * 1.4 - 0.4) * heat);
       layerMat[j].color.copy(LAYER);
       layers[j].current.scale.setScalar(born + 0.0001);
-      layers[j].current.position.set(0, GAP_MID, 0.42 - j * 0.2);
+      layers[j].current.position.set(0, GAP_MID, 0.38 - j * 0.18);
     }
     // the mouth glows: a slow pulse from line A, flaring as the pup goes in and comes out
     const flare = Math.max(ramp(tt, DIVE[1] - 0.15, DIVE[1]) * (1 - ramp(tt, DIVE[1], DIVE[1] + 0.4)), ramp(tt, OUT[0] - 0.1, OUT[0]) * (1 - ramp(tt, OUT[0], OUT[0] + 0.5)));
@@ -216,6 +219,10 @@ function Tower({ cut }) {
     const lift = ease(ramp(tt, 2.35, 2.8)) * (1 - ease(ramp(tt, LID[0], LID[1])));
     lid.current.position.set(0, TOP + 0.05 + LID_UP * lift, 0);
     lid.current.scale.setScalar(ease(ramp(tt, 2.2, 2.6)) * out + 0.0001);
+    // the lid's spine: it rises on a post, so the lid never floats
+    spine.current.position.set(0, TOP + (LID_UP * lift) / 2 + 0.03, 0);
+    spine.current.scale.set(1, LID_UP * lift + 0.08, 1);
+    spine.current.visible = lid.current.scale.x > 0.1;
     ghost.current.position.set(0, TOP + 0.05 + LID_UP, FRONT + 0.1);
     ghostMat.opacity = 0.8 * ramp(tt, LID[0] + 0.05, LID[0] + 0.3) * out;
     ghost.current.visible = ghostMat.opacity > 0.01;
@@ -225,16 +232,16 @@ function Tower({ cut }) {
     const off = ease(ramp(r, 0, 0.15)); // tipped off the lid's front edge
     const down = ease(ramp(r, 0.1, 0.78)); // rolling down the face
     const seat = ease(ramp(r, 0.78, 1)); // into the gap
-    const cy0 = TOP + 0.05 + LID_UP * lift + 0.26;
+    const cy0 = TOP + 0.05 + LID_UP * lift + 0.22;
     const y = cy0 + (GAP_MID + 0.02 - cy0) * down;
-    cube.current.position.set(0.35 * (1 - off) + 0.05 * off, drop < 1 ? y + (1 - drop) * 2.0 : y, 0.78 * off - 0.62 * seat);
+    cube.current.position.set(0.3 * (1 - off) + 0.05 * off, drop < 1 ? y + (1 - drop) * 2.0 : y, 0.62 * off - 0.52 * seat);
     cube.current.quaternion.setFromAxisAngle(AX, r * Math.PI * 3);
     cube.current.scale.setScalar((drop * (1 - 0.9 * seat) * out) + 0.0001);
     // the pyrite on the brow glints in turn once the lid is down
     for (let i = 0; i < 5; i++) {
       const g = ramp(tt, LID[1] + i * 0.12, LID[1] + i * 0.12 + 0.25);
       const s = 0.2 + 1.3 * Math.sin(Math.PI * Math.min(1, g)) * (g > 0 && g < 1 ? 1 : 0);
-      DUMMY.position.set(-0.8 + i * 0.4, TOP + 0.13, FRONT + 0.02);
+      DUMMY.position.set(-0.6 + i * 0.3, TOP + 0.13, FRONT + 0.02);
       DUMMY.rotation.set(0, tt * 2 + i, 0);
       DUMMY.scale.setScalar((s * ease(ramp(tt, 2.4, 2.8)) * out) + 0.0001);
       DUMMY.updateMatrix();
@@ -252,6 +259,7 @@ function Tower({ cut }) {
       ))}
       <mesh ref={glow} geometry={glowGeo} material={glowMat} renderOrder={3} />
       <mesh ref={lid} geometry={lidGeo} material={lidMat} />
+      <mesh ref={spine} geometry={spineGeo} material={spineMat} />
       <mesh ref={cube} geometry={cubeGeo} material={cubeMat} />
       <mesh ref={ghost} geometry={ghostGeo} material={ghostMat} />
       <instancedMesh ref={glints} args={[pyriteGeo, pyriteMat, 5]} frustumCulled={false} />
@@ -320,7 +328,7 @@ function Column({ cut }) {
     if (!g.visible) return;
     const a = ramp(t, OUT[0] + 0.1, OUT[0] + 0.45) * (1 - ramp(t, ROLL[1] + 0.2, ROLL[1] + 1.0)) * (1 - ramp(t, tl.collapse[0], tl.collapse[1]));
     m.uniforms.uA.value = a * 0.8;
-    const [x, z] = pupAt(landK(cut.card, cut.place, live.seal.x, live.seal.z));
+    const [x, z] = pupAt(1);
     g.position.set(x, 2.4, z);
     g.scale.set(a > 0.01 ? 1 : 0.0001, a > 0.01 ? 1 : 0.0001, a > 0.01 ? 1 : 0.0001);
   }, -0.4);
@@ -332,7 +340,7 @@ const BAR = new CylinderGeometry(0.06, 0.06, 1, 6);
 const UPV = new Vector3(0, 1, 0);
 const A3 = new Vector3();
 const B3 = new Vector3();
-function DiveStreak({ cut }) {
+function DiveStreak() {
   const ref = useRef();
   const m = useMemo(() => flat(INK.amber, { transparent: true, depthWrite: false, blending: AdditiveBlending }), []);
   useFrame(() => {
@@ -340,12 +348,11 @@ function DiveStreak({ cut }) {
     g.visible = live.inStage;
     if (!g.visible) return;
     const t = T.t;
-    const k = landK(cut.card, cut.place, live.seal.x, live.seal.z);
     const u = ramp(t, DIVE[0], DIVE[1]);
     const a = u > 0 && u < 1 ? 1 : 0;
-    const [mx, mz] = pupAt(k);
-    A3.set(mx, 0.5 * k, mz);
-    B3.set(k * TW[0], k * GAP_MID, k * (TW[2] + 0.5));
+    const [mx, mz] = pupAt(1);
+    A3.set(mx, 0.5, mz);
+    B3.set(TW[0], GAP_MID, TW[2] + FRONT);
     // from where the dive began to where the pup is now
     B3.sub(A3).multiplyScalar(ease(u)).add(A3);
     const from = A3.clone().lerp(B3, Math.max(0, ease(u) - 0.45));
@@ -380,7 +387,7 @@ export default function Reveal(cut) {
     const [mx, mz] = pupAt(k);
     const gx = k * TW[0];
     const gy = k * GAP_MID;
-    const gz = k * (TW[2] + 0.5);
+    const gz = k * (TW[2] + FRONT);
     const walk = ease(ramp(t, WALK[0], WALK[1]));
     const dive = ease(ramp(t, DIVE[0], DIVE[1]));
     const out2 = ease(ramp(t, OUT[0], OUT[1]));
@@ -412,7 +419,7 @@ export default function Reveal(cut) {
         <Tower cut={cut} />
         <Flowers cut={cut} />
         <Column cut={cut} />
-        <DiveStreak cut={cut} />
+        <DiveStreak />
         <Flash color="#ffd27a" at={[TW[0], GAP_MID, TW[2] + 0.7]} fn={() => [Math.max(0.9 * ramp(T.t, DIVE[1] - 0.15, DIVE[1]) * (1 - ramp(T.t, DIVE[1], DIVE[1] + 0.5)), 0.7 * ramp(T.t, OUT[0] - 0.1, OUT[0]) * (1 - ramp(T.t, OUT[0], OUT[0] + 0.5)), 0.8 * ramp(T.t, ROLL[1] - 0.1, ROLL[1]) * (1 - ramp(T.t, ROLL[1], ROLL[1] + 0.4))), 2.4]} />
         <Shards start={LID[0]} dur={1.2} from={[TW[0], TOP + 0.3, TW[2] + 0.4]} speed={1.3} up={1.8} gravity={5} size={0.1} count={20} colors={["#ffe3a0", INK.cream, INK.amber]} seed={4} />
       </Rig>

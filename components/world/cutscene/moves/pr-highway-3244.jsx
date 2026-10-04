@@ -1,5 +1,5 @@
 // the Highway: SONIC. One highway car is promoted (two-tone, no lettering, no
-// face) and speaks "I am speed."; at 3.6 s the pup hops onto its roof and sits,
+// face) and speaks "I am speed."; by 3.6 s the pup has hopped onto its roof and sits,
 // the car revs and launches with the pup aboard in a red taillight streak, and
 // the pup hops off in a SPIN-DASH: a curled ball, uniform, turning several
 // times in a ring of blue blur. A row of dim ghost key-pair ticks stands behind
@@ -17,16 +17,16 @@ import { AdditiveBlending, BoxGeometry, BufferAttribute, Color, CylinderGeometry
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Stage, Speaker, onTwos, useCutFrame } from "../kit";
 import { live } from "../../../../lib/world/store";
-import { Flash, INK, Rig, Shards, T, clock, ease, flat, landK, nudge, ramp, usePup } from "./g2/parts";
+import { Flash, INK, Rig, Shards, T, clock, ease, flat, landK, nudge, ramp, useHideLand, usePup } from "./g2/parts";
 
 const ROAD_Z = -1.1;
 const CAR_AT = [2.4, 0, -1.9];
 const SLICES = 24;
 const CAR_S = 1.18; // the car's scale in the scene
 // the beats: the pup mounts, the car launches, the pup hops off in a spin-dash
-const MOUNT = [3.6, 4.2];
-const LAUNCH = 4.7;
-const OFF = [4.95, 5.45];
+const MOUNT = [3.0, 3.6];
+const LAUNCH = 3.9;
+const OFF = [4.2, 4.75];
 const runAt = (t) => Math.pow(ramp(t, LAUNCH, LAUNCH + 0.9), 2);
 // where the pup is this frame, in the figure frame (usePup writes it, the ring and streak read it)
 const PUP = { x: 0, y: 0, z: 0, ball: 0 };
@@ -108,10 +108,10 @@ function Road({ cut }) {
   const dashMat = useMemo(() => flat("#ffe9a8"), []);
   const sliceMat = useMemo(() => flat(INK.mint, { transparent: true, opacity: 0.9, depthWrite: false }), []);
   const ghosts = useRef();
-  const ghostMat = useMemo(() => flat("#a79bd0", { transparent: true, opacity: 0.55, depthWrite: false }), []);
+  const ghostMat = useMemo(() => flat("#6f63ad", { transparent: true, opacity: 0.8, depthWrite: false }), []);
   const dashGeo = useMemo(() => new BoxGeometry(0.8, 0.012, 0.09), []);
-  const sliceGeo = useMemo(() => new BoxGeometry(0.1, 1, 0.1), []);
-  const ghostGeo = useMemo(() => new BoxGeometry(0.06, 0.34, 0.06), []);
+  const sliceGeo = useMemo(() => new BoxGeometry(0.15, 1, 0.15), []);
+  const ghostGeo = useMemo(() => new BoxGeometry(0.07, 0.36, 0.07), []);
   const roadGeo = useMemo(() => new BoxGeometry(26, 0.02, 5.4), []);
   const edgeGeo = useMemo(() => new BoxGeometry(26, 0.02, 0.1), []);
   const tD = LAUNCH;
@@ -141,7 +141,7 @@ function Road({ cut }) {
     for (let i = 0; i < SLICES; i++) {
       const x = -1.6 + i * 0.4;
       const near = Math.min(Math.abs(carX - x), Math.abs(ballX - x));
-      const h = tt > LAUNCH && near < 0.3 ? 1.1 * (1 - near / 0.3) : 0;
+      const h = tt > LAUNCH && near < 0.45 ? 1.6 * (1 - near / 0.45) : 0;
       DUMMY.position.set(x, 0.05 + 0.17, ROAD_Z - 1.55);
       DUMMY.scale.set(born + 0.001, born + 0.001, born + 0.001);
       DUMMY.updateMatrix();
@@ -218,6 +218,7 @@ function BlurRing() {
 
 export default function Sonic(cut) {
   const { tl, mode } = cut;
+  useHideLand(); // the highway's own landform and anything left standing (a stray pup) stay off: the road is built here
   const out = (t) => 1 - ramp(t, tl.collapse[0], tl.duration);
   useCutFrame((t) => {
     if (mode !== "full") return;
@@ -225,8 +226,9 @@ export default function Sonic(cut) {
     const hop = ramp(t, OFF[0], OFF[1]);
     live.pose.sign = ramp(t, tl.sign[0], tl.sign[1]) * (1 - ramp(t, tl.sign[1] + 0.2, tl.lineA)) * o;
     // crouch to spring, sit on the roof, curl into the ball for the spin-dash hop
-    live.pose.crouch = (ramp(t, MOUNT[0] - 0.4, MOUNT[0] - 0.05) * (1 - ramp(t, MOUNT[0], MOUNT[0] + 0.1)) + (hop > 0 && hop < 1 ? 1 : 0)) * o;
-    live.pose.sit = ramp(t, MOUNT[1], MOUNT[1] + 0.2) * (1 - ramp(t, OFF[0] - 0.1, OFF[0])) * o;
+    // seated on the roof is a low crouch (the meditation sit would raise a halo over the head)
+    const seat = ramp(t, MOUNT[1], MOUNT[1] + 0.2) * (1 - ramp(t, OFF[0] - 0.1, OFF[0]));
+    live.pose.crouch = (ramp(t, MOUNT[0] - 0.4, MOUNT[0] - 0.05) * (1 - ramp(t, MOUNT[0], MOUNT[0] + 0.1)) + 0.7 * seat + (hop > 0 && hop < 1 ? 1 : 0)) * o;
     live.pose.spin = hop > 0 && hop < 1 ? (4 * hop) % 1 : 0;
     live.pose.raise = ramp(t, OFF[1] + 0.1, OFF[1] + 0.5) * o;
   });

@@ -13,7 +13,7 @@ import { BufferAttribute, BufferGeometry, Color, ConeGeometry, CylinderGeometry,
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Stage, Speaker, onTwos, useCutFrame } from "../kit";
 import { live } from "../../../../lib/world/store";
-import { Flash, INK, InkRing, Rig, Shards, T, clock, ease, flat, nudge, rand, ramp, usePup } from "./g2/parts";
+import { Flash, INK, InkRing, Ring, Rig, Shards, T, clock, ease, flat, nudge, rand, ramp, usePup } from "./g2/parts";
 
 const N = 22;
 // the beats, on the scene clock: the shell cracks (the hero pose holds), the pup hops, the ink ring lands, the floor condenses, the forest grows
@@ -143,7 +143,7 @@ function Shell({ cut }) {
   const bolts = useRef();
   const geo = useMemo(shellGeometry, []);
   const edges = useMemo(() => new EdgesGeometry(geo, 38), [geo]);
-  const fill = useMemo(() => new MeshLambertMaterial({ color: INK.coral, emissive: "#ff5a52", emissiveIntensity: 0.55, flatShading: true, transparent: true, opacity: 0.5, depthWrite: false, side: DoubleSide }), []);
+  const fill = useMemo(() => new MeshLambertMaterial({ color: INK.coral, emissive: "#ff5a52", emissiveIntensity: 0.55, flatShading: true, transparent: true, opacity: 0.34, depthWrite: false, side: DoubleSide }), []);
   const line = useMemo(() => new LineBasicMaterial({ color: INK.cream, toneMapped: false, transparent: true, opacity: 0.8 }), []);
   const boltGeo = useMemo(() => {
     const g = new BufferGeometry();
@@ -169,7 +169,7 @@ function Shell({ cut }) {
     const s = 1.55 * ease(ramp(tt, A + 0.3, A + 1.2)) * (1 + 0.03 * Math.sin(tt * 38) * power);
     g.position.set(0, 0.56 * s + 0.05, 0);
     g.scale.setScalar(s);
-    g.rotation.y = tt * 0.9;
+    g.rotation.y = 0.3 * Math.sin(tt * 2.6); // a slow sway: the horns stay on its flanks, never over the head
     line.opacity = 0.55 + 0.45 * (Math.floor(tt * 12) % 2) * power;
     // the lightning: a few zigzags over the shell, re-drawn on twos
     const frame = Math.floor(t * 12);
@@ -248,7 +248,8 @@ export default function Frieza(cut) {
           }}
         />
         <InkRing at={[0, 0.05, 0]} fn={() => [0.3 + 2.4 * ease(ramp(T.t, 4.4, 5.0)), T.t < 4.4 ? 0 : 1 - ramp(T.t, 4.7, 5.2)]} />
-        <Shards start={CRACK} dur={1.3} from={[0, 1.0, 0]} speed={2.6} up={2.4} size={0.16} count={18} colors={[INK.coral, INK.cream, "#ffa285"]} seed={5} />
+        <Ring color="#ffd9c8" at={[0, 0.9, 0.3]} fn={() => [0.6 + 3.6 * ease(ramp(T.t, CRACK, CRACK + 0.5)), T.t < CRACK ? 0 : 0.9 * (1 - ramp(T.t, CRACK, CRACK + 0.55))]} />
+        <Shards start={CRACK} dur={1.3} from={[0, 1.0, 0.2]} speed={4.4} up={2.6} size={0.2} count={28} colors={[INK.coral, INK.cream, "#ffa285"]} seed={5} />
       </Rig>
     </>
   );

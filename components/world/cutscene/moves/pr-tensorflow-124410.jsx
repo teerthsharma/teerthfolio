@@ -145,6 +145,8 @@ function Beams({ cut }) {
 // aimed up and right at the coral beam, each up for 0.3 s and re-thrown every
 // 0.64 s on a new angle; a spark flares on the beam with each jab.
 const SHOULDER = [0.5, 0.3, 0.4];
+// a stable 0..1 from three small integers (the seeded rand's first draws are all near 0)
+const hash = (a, b, c) => Math.abs(Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453) % 1;
 const BEAM = [BASE[0], FOURTH.y, BASE[2] + FOURTH.z]; // the coral beam's midpoint, in the scaled frame
 function Barrage({ cut }) {
   const ref = useRef();
@@ -180,7 +182,7 @@ function Barrage({ cut }) {
       const live_ = rel >= 0 && ph < 0.3 && cycle < 2;
       const r = rand(j * 31 + cycle * 7 + 5)();
       const angle = base - 0.28 + (((j * 5 + cycle * 3) % JABS) / (JABS - 1)) * 0.56 + (r - 0.5) * 0.06;
-      const reach = 1.4 + 1.8 * ease(ramp(ph, 0, 0.12));
+      const reach = 2.4 + 2.6 * ease(ramp(ph, 0, 0.12));
       const a = live_ ? 1 - ramp(ph, 0.12, 0.3) * 0.6 : 0;
       DUMMY.position.set(SHOULDER[0] + 0.05 * Math.cos(angle) * reach, SHOULDER[1] + 0.05 * Math.sin(angle), SHOULDER[2]);
       DUMMY.rotation.set(0, 0, angle);
@@ -188,12 +190,11 @@ function Barrage({ cut }) {
       DUMMY.updateMatrix();
       m.setMatrixAt(j, DUMMY.matrix);
       // the impact spark on the beam, as the jab lands
-      const hit = live_ ? ramp(ph, 0.1, 0.14) * (1 - ramp(ph, 0.14, 0.3)) : 0;
-      const sr = rand(j * 17 + cycle * 3 + 1);
-      const along = (sr() - 0.5) * FOURTH.len * FIT.s * 0.8;
-      DUMMY.position.set(k * (BEAM[0] + along), ty + (sr() - 0.5) * 0.2, k * (BEAM[2] + 0.1));
-      DUMMY.rotation.set(0, 0, sr() * 3);
-      DUMMY.scale.setScalar(0.2 * k * hit + 0.0001);
+      const hit = live_ ? ramp(ph, 0.08, 0.12) * (1 - ramp(ph, 0.2, 0.3)) : 0;
+      const along = (hash(j, cycle, 1) - 0.5) * FOURTH.len * FIT.s * 0.85;
+      DUMMY.position.set(k * (BEAM[0] + along), ty + (hash(j, cycle, 2) - 0.5) * 0.2, k * (BEAM[2] + 0.1));
+      DUMMY.rotation.set(0, 0, hash(j, cycle, 3) * 3);
+      DUMMY.scale.setScalar(0.16 * k * hit + 0.0001);
       DUMMY.updateMatrix();
       sp.setMatrixAt(j, DUMMY.matrix);
     }

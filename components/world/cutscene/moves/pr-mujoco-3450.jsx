@@ -94,6 +94,7 @@ function hullMaterial() {
 
 const DUMMY = new Object3D();
 const Y = new Vector3(0, 1, 0);
+const Z = new Vector3(0, 0, 1);
 const QUAT = new Quaternion();
 const DIR = new Vector3();
 
@@ -217,7 +218,7 @@ function Clouds({ cut }) {
 // shoulder toward the hull's corner, a mint shockwave ring on the fist facing
 // the hull, and speed lines down the shaft. In and held for six drawings.
 const ARM = new CapsuleGeometry(0.15, 1, 4, 8).rotateX(Math.PI / 2).translate(0, 0, 0.5);
-const MITT = new IcosahedronGeometry(0.24, 1);
+const MITT = new IcosahedronGeometry(0.32, 1);
 const SPEED = new ConeGeometry(0.03, 1, 4).rotateX(Math.PI / 2);
 const RING = new RingGeometry(0.9, 1, 48);
 const LINES = 12;
@@ -252,10 +253,10 @@ function Punch() {
     D.set(C[0] - S.x, C[1] - S.y, C[2] - S.z);
     const len = D.length();
     D.divideScalar(len);
-    const reach = Math.min(len - 0.3, 2.2) * ext;
+    const reach = Math.min(len - 0.35, 2.0) * ext;
     const g = root.current;
     g.position.copy(S);
-    g.lookAt(S.x + D.x, S.y + D.y, S.z + D.z);
+    g.quaternion.setFromUnitVectors(Z, D); // local frame: lookAt would read world coordinates
     arm.current.scale.set(1, 1, reach + 0.0001);
     arm.current.visible = ext > 0.01;
     mitt.current.position.set(0, 0, reach);
@@ -279,7 +280,7 @@ function Punch() {
     const k = ramp(tt, TP, TP + 0.7);
     for (const ring of [ringA.current, ringB.current]) {
       ring.position.copy(F);
-      ring.lookAt(F.x + D.x, F.y + D.y, F.z + D.z);
+      ring.quaternion.copy(g.quaternion);
     }
     const a1 = tt < TP ? 0 : 0.95 * (1 - k);
     ringMat.opacity = a1;
@@ -303,7 +304,7 @@ function Punch() {
 }
 
 // A small white cape behind the pup's body, below its head, for the punch only.
-const CAPE = new ConeGeometry(0.3, 0.75, 4).scale(1.5, 1, 0.6);
+const CAPE = new ConeGeometry(0.34, 0.8, 4).scale(1.3, 1, 0.5);
 function Cape() {
   const ref = useRef();
   const mat = useMemo(() => flat("#ffffff", { side: DoubleSide }), []);
@@ -316,8 +317,10 @@ function Cape() {
     const tt = onTwos(t);
     const k = ramp(tt, TP - 1.0, TP - 0.8) * (1 - ramp(tt, TP + 1.4, TP + 1.9));
     const step = stepAt(tt);
-    g.position.set(0.5 * step - 0.2, 0.28, -0.4 * step - 0.34);
-    g.rotation.set(-0.25 - 0.1 * Math.sin(tt * 16) - 0.35 * extAt(tt), 0.6, 0.04 * Math.sin(tt * 11));
+    // streaming out to the left of the pup as it punches right: its apex at the neck, tilting over
+    const tilt = 0.9 + 0.25 * extAt(tt) + 0.08 * Math.sin(tt * 16);
+    g.position.set(0.5 * step - 0.28 + 0.4 * Math.sin(tilt), 0.66 - 0.4 * Math.cos(tilt), -0.4 * step - 0.3);
+    g.rotation.set(0, 0, tilt);
     g.scale.setScalar(k + 0.0001);
   }, -0.4);
   return <mesh ref={ref} geometry={CAPE} material={mat} visible={false} renderOrder={2} />;
