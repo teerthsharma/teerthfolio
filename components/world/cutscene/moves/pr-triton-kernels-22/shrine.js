@@ -16,6 +16,7 @@ const BONE = [K.bone, 0.88, 0, 0.5];
 const STONE = [K.solid, 0.62, 0, 0.2];
 const ROOF = [K.roof, 0.26, 0, 0.4];
 const LAC = [K.lacquer, 0.55, 0, 0.5];
+const TOOTH = [K.bone, 0.97, 0, 0.5]; // the jaws' teeth: bright ivory so the mouth reads
 const BLACK = [K.solid, 0, 0, 0];
 
 export const MOUTH = [0, 8.2, 9.2]; // the mouth's middle, local
@@ -120,8 +121,8 @@ export function buildShrine() {
   // the upper jaw: a bone gum above the opening with hanging fangs, two great canines
   M.box(0, 12.1, 9.6, 19, 1.9, 2.4, BONE);
   const lens = [2.2, 2.9, 2.5, 3.2, 2.6, 3.2, 2.5, 2.9, 2.2];
-  lens.forEach((l, i) => fang(M, -6.4 + i * 1.6, 11.2, 9.9, 0.62, l, true));
-  for (const sd of [-1, 1]) fang(M, sd * 5.4, 11.2, 10.5, 0.95, 4.4, true);
+  lens.forEach((l, i) => fang(M, -6.4 + i * 1.6, 11.2, 9.9, 0.62 * 1.6, l * 1.6, true, TOOTH));
+  for (const sd of [-1, 1]) fang(M, sd * 5.4, 11.2, 10.5, 0.95 * 1.6, 4.4 * 1.6, true, TOOTH);
   for (const sd of [-1, 1]) horn(M, [sd * 9.6, 12.5, 10.3], sd, 0.2, 5, 0.65); // tusks off the gum
   // the pillars, lacquer red with bone caps
   for (const sd of [-1, 1]) {
@@ -137,8 +138,8 @@ export function buildShrine() {
   }
   // the lower jaw (its own mesh, hinged at the back): a slab with upward fangs and canines
   J.box(0, 0, 3.5, 17, 0.9, 7.2, BONE);
-  [1.8, 2.3, 2.8, 2.4, 2.9, 2.4, 2.8, 2.3, 1.8].forEach((l, i) => fang(J, -6.4 + i * 1.6 + 0.0, 0.45, 5.6, 0.55, l, false));
-  for (const sd of [-1, 1]) fang(J, sd * 4.2, 0.45, 6.8, 0.9, 3.8, false);
+  [1.8, 2.3, 2.8, 2.4, 2.9, 2.4, 2.8, 2.3, 1.8].forEach((l, i) => fang(J, -6.4 + i * 1.6 + 0.0, 0.45, 5.6, 0.55 * 1.6, l * 1.6, false, TOOTH));
+  for (const sd of [-1, 1]) fang(J, sd * 4.2, 0.45, 6.8, 0.9 * 1.6, 3.8 * 1.6, false, TOOTH);
   for (const sd of [-1, 1]) J.box(sd * 8.4, 0.3, 4.6, 1.4, 1.5, 6, BONE);
 
   // ---- the four tiers: a roof, a hall on it, the next roof
@@ -243,6 +244,9 @@ export function buildShrine() {
     const sd = i % 2 ? 1 : -1;
     skulls.push({ x: sd * (6.4 + hash(i, 3) * 1.6), y: 0.4 + hash(i, 4) * 1.8, z: 13 + hash(i, 5) * 6, s: 0.9 + 0.4 * hash(i, 6), rx: 0, ry: hash(i, 7) * 6, rz: 0 });
   }
+
+  // a pile of 14 skulls at the foot of the stair, in front of the mouth
+  for (let i = 0; i < 14; i++) skulls.push({ x: (i - 6.5) * 1.7 + (hash(i, 21) - 0.5), y: 0.6 + 0.9 * hash(i, 22) + (i % 3 === 1 ? 1.1 : 0), z: 21 + 3.5 * hash(i, 23), s: 1.7 + 0.5 * hash(i, 24), rx: (hash(i, 25) - 0.5) * 0.5, ry: (hash(i, 26) - 0.5) * 1.2, rz: 0 });
 
   return { body: M.geometry(), jaw: J.geometry(), skull: sk.geometry(), bone: bone.geometry(), skulls, bones, tris: M.tris + J.tris };
 }

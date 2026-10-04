@@ -255,6 +255,14 @@ export default function Move(cut) {
     }
   }, -0.5);
 
+  // the pup stands upright through the sign, the barrage and the return (no tip on its side or back)
+  useFrame(() => {
+    const r = pupRef.current?.root;
+    if (!r || !live.arrival.id) return;
+    r.rotation.x = 0;
+    r.rotation.z = 0;
+  }, -0.5);
+
   useCutFrame((t, state) => {
     const s = live.seal;
     const full = mode === "full";
@@ -324,6 +332,8 @@ export default function Move(cut) {
     live.pose.point = smooth(T.point[0], T.point[1], tt) * (1 - smooth(5.5, 5.8, tt)) * out;
     live.pose.fist = smooth(flex, flex + 0.3, tt) * out;
     live.pose.demon = smooth(0.5, 1.5, tt) * (1 - smooth(T.erase[0], T.erase[0] + 0.15, tt));
+    // the return: every hook released, the pup upright (upright, see the hook above) for the flex line
+    if (tt >= T.erase[1]) live.pose.sign = live.pose.raise = live.pose.crouch = live.pose.fist = live.pose.pray = 0;
     if (eyes.current) {
       eyes.current.g.visible = live.pose.demon > 0.5 && pupInk;
       eyes.current.mat.uniforms.uTime.value = t;
@@ -491,7 +501,8 @@ export default function Move(cut) {
     holdFlash(m.flash, cam, fl);
 
     // THE RETURN: the picture is rubbed out from the horizon in (the shaders' reveal, above); the island comes back behind it
-    if (tt > T.erase[0] && tt < uc0) for (const o of island.current) o.visible = true;
+    // the island is held under the fading drawing from just before the rub-out, so the screen is never the ring alone
+    if (tt > T.erase[0] - 0.3 && tt < uc0) for (const o of island.current) o.visible = true;
   });
 
   return (
