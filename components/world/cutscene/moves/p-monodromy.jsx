@@ -77,6 +77,11 @@ function panicBubble() {
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
   const scene = useThree((s) => s.scene);
+<<<<<<< HEAD
+=======
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
+>>>>>>> scene2/mono
   const rig = useRef();
   const shellRef = useRef();
   const world = useRef();
@@ -167,6 +172,21 @@ export default function Move(cut) {
       document.querySelector(".hud")?.append(bubble);
     }
     state.bubble = bubble;
+<<<<<<< HEAD
+=======
+    // pre-compile every program the scene draws, so the first frames do not stall: show it all for one compile pass
+    if (mode === "full" && rig.current) {
+      const hidden = [];
+      rig.current.traverse((o) => {
+        if (!o.visible) { hidden.push(o); o.visible = true; }
+      });
+      for (const o of [m.lens.mesh, m.flash]) if (!o.visible) { hidden.push(o); o.visible = true; }
+      skin.current?.set(true);
+      try { gl.compile(scene, camera); } catch { /* the first draw compiles instead */ }
+      skin.current?.set(false);
+      for (const o of hidden) o.visible = false;
+    }
+>>>>>>> scene2/mono
     return () => {
       costume.current?.dispose();
       costume.current = null;
@@ -187,7 +207,11 @@ export default function Move(cut) {
       m.storm.dispose();
       m.ja.dispose();
     };
+<<<<<<< HEAD
   }, [scene, m, mode]);
+=======
+  }, [scene, gl, camera, m, mode]);
+>>>>>>> scene2/mono
 
   // the strike shakes the pup, the step carries it into the crack, the stare turns it to the lens (after Seal.jsx
   // places it); a skip clears the arrival: nothing of the scene draws after
