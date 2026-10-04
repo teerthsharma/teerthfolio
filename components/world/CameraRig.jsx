@@ -395,7 +395,7 @@ export default function CameraRig() {
     // Never inside a building: over a lab's footprint the eye climbs above its
     // tallest tower (LabDecor, 9.5 m + cap and pennant).
     for (const p of PLACES) {
-      if (p.section === "lab" && camera.position.y < LAB_CLEAR && Math.hypot(camera.position.x - p.x, camera.position.z - p.z) < p.radius + 2) camera.position.y = LAB_CLEAR;
+      if (!arrival.id && p.section === "lab" && camera.position.y < LAB_CLEAR && Math.hypot(camera.position.x - p.x, camera.position.z - p.z) < p.radius + 2) camera.position.y = LAB_CLEAR;
     }
     camera.lookAt(lookAt.current);
 
