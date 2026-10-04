@@ -25,7 +25,7 @@ import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { flipperAt, usePupPost } from "./g3/common";
 import { islandList, pupParts } from "./p-caustic/parts";
-import { CTRL, DOOR, N, buildChain, buildFx, buildPlaque, buildSplitPin, poseChain, splayPin } from "./pr-pyrefly-4180/chain";
+import { CTRL, DOOR, KUNAI, N, buildChain, buildFtg, buildFx, buildPlaque, buildSplitPin, poseChain, splayPin } from "./pr-pyrefly-4180/chain";
 import { mountOverlay } from "./pr-pyrefly-4180/overlay";
 import { U, card, disposeFibre, hash, merge } from "./pr-pyrefly-4180/paper";
 import { SHINOBI, buildColony, buildHokage, buildKurama, buildKushina, buildShinobi, poseColony, poseKurama, poseKushina } from "./pr-pyrefly-4180/puppets";
@@ -38,18 +38,19 @@ const T = {
   roarA: [2.3, 2.6, 3.2, 3.7],
   orb: [3.4, 5.1, 5.15, 5.5],
   throw: [2.8, 3.1],
-  grow: [3.1, 5.0],
-  taut: [5.0, 5.5],
-  lurch: [4.95, 5.15, 5.4, 5.9],
-  roarB: [4.9, 5.2, 6.3, 6.9],
-  bolt: [5.15, 5.5],
-  surge: [5.5, 7.0],
-  burst: 7.0,
-  slam: [7.0, 7.35, 9.9, 10.4],
-  rose: [7.25, 7.95],
-  pin: [9.2, 9.55],
-  clack: [9.55, 9.85],
-  cheer: 9.7,
+  grow: [7.0, 8.9],
+  taut: [8.9, 9.4],
+  lurch: [8.85, 9.05, 9.3, 9.8],
+  roarB: [8.8, 9.1, 10.2, 10.8],
+  bolt: [9.05, 9.4],
+  surge: [9.4, 10.9],
+  burst: 10.9,
+  slam: [10.9, 11.25, 13.8, 14.3],
+  rose: [11.15, 11.85],
+  pin: [13.1, 13.45],
+  clack: [13.45, 13.75],
+  cheer: 13.6,
+  hop: [5.7, 6.2, 6.7, 8.95], // Flying Thunder God: to kunai 1, 2, 3, then home
   K: [13.4, 18.6], // REAL seconds (Kushina's line, 5.2 s, right after the pin clacks home)
   plaque: 15.6,
   fold: 16.9,
@@ -57,7 +58,7 @@ const T = {
 };
 // the play's own clock `t` runs slower than the render clock `tr` (the owner's pacing law: every bubble up 5 s, the flex 7.7 s,
 // the credit 4 s+, a breath between beats). Every T above is on the play's clock; these pairs [play, real] join them.
-const ANCH = [[0, 0], [2.3, 2.3], [6.0, 8.3], [10.5, 14.3], [15.5, 22.8], [16.9, 26.0], [17.3, 26.8], [19.4, 28.4]];
+const ANCH = [[0, 0], [2.3, 2.3], [5.5, 7.9], [10.5, 14.3], [15.5, 22.8], [16.9, 26.0], [17.3, 26.8], [19.4, 28.4]];
 const remap = (tr) => {
   for (let i = 1; i < ANCH.length; i++) if (tr <= ANCH[i][1]) return ANCH[i - 1][0] + ((tr - ANCH[i - 1][1]) * (ANCH[i][0] - ANCH[i - 1][0])) / (ANCH[i][1] - ANCH[i - 1][1]);
   return tr - 28.4 + 19.4;
@@ -111,7 +112,7 @@ export default function Move(cut) {
   const pup = useRef(null);
   const island = useRef([]);
   const shake = useRef(new Vector3());
-  const S = useRef({ built: false, fs: 1, ax: 1, phase: 0, kp: { x: 0, y: 0 } });
+  const S = useRef({ off: new Vector3(), gone: false, built: false, fs: 1, ax: 1, phase: 0, kp: { x: 0, y: 0 } });
   const shell = useMemo(skyShell, []);
   const mats = useMemo(() => (mode === "full" ? worldMaterials() : null), [mode]);
 
@@ -183,6 +184,9 @@ export default function Move(cut) {
       s.kur.root.traverse((o) => o.isMesh && track(o.geometry));
     });
     queue.push(() => {
+      s.ftg = buildFtg(mats);
+      th.parent.add(s.ftg.root);
+      s.ftg.root.traverse((o) => o.isMesh && track(o.geometry));
       s.fx = buildFx(mats);
       th.add(s.fx.root);
       s.fx.root.traverse((o) => o.isMesh && track(o.geometry));
@@ -326,8 +330,8 @@ export default function Move(cut) {
       s.built = false;
       for (const o of own) o?.dispose?.();
       for (const l of layers) l.g.removeFromParent();
-      for (const o of [s.fox, s.chainRoot, s.fx?.root, s.pin1, s.pin2, s.plaque, s.kush?.root, s.hoke?.root, s.branch, s.colony?.root, s.leaves, s.embers]) o?.removeFromParent();
-      for (const k of ["layers", "fox", "kur", "chain", "chainRoot", "fx", "pin1", "pin2", "plaque", "kush", "hoke", "shin", "branch", "colony", "leaves", "embers", "haori", "flip"]) s[k] = null;
+      for (const o of [s.ftg?.root, s.fox, s.chainRoot, s.fx?.root, s.pin1, s.pin2, s.plaque, s.kush?.root, s.hoke?.root, s.branch, s.colony?.root, s.leaves, s.embers]) o?.removeFromParent();
+      for (const k of ["layers", "ftg", "fox", "kur", "chain", "chainRoot", "fx", "pin1", "pin2", "plaque", "kush", "hoke", "shin", "branch", "colony", "leaves", "embers", "haori", "flip"]) s[k] = null;
       pup.current = null;
       disposeFibre();
       for (const m of Object.values(mats)) m.dispose();
@@ -351,7 +355,10 @@ export default function Move(cut) {
       if (S.current.haori) S.current.haori.g.visible = false;
       return;
     }
-    if (p?.root && mode === "full") p.root.position.add(shake.current);
+    if (p?.root && mode === "full") {
+      p.root.position.add(shake.current).add(S.current.off);
+      p.root.visible = !S.current.gone;
+    }
   }, -0.5);
 
   // AFTER the pup's own frame: the flipper tip is where the chain bursts out of
@@ -408,7 +415,7 @@ export default function Move(cut) {
     // the pup: the sign, the throw (flippers out), the slam, the flex
     const lower = 1 - smooth(tl.collapse[0], tl.collapse[1], tr);
     live.pose.sign = signAt(tl, tr) * (1 - smooth(1.8, 2.3, t));
-    live.pose.raise = smooth(T.throw[0], T.throw[1], t) * (1 - smooth(T.burst - 0.05, T.burst + 0.1, t)) * lower;
+    live.pose.raise = Math.max(bump(T.throw[0], T.throw[1], T.throw[1] + 0.5, T.throw[1] + 0.8, t), smooth(T.grow[0] - 0.2, T.grow[0] + 0.3, t)) * (1 - smooth(T.burst - 0.05, T.burst + 0.1, t)) * lower;
     live.pose.crouch = bump(T.slam[0], T.slam[1], T.slam[2], T.slam[3], t) * 0.8 * lower;
     live.pose.fist = smooth(T.clack[1] + 0.8, T.clack[1] + 1.2, t) * (1 - smooth(15.6, 16.0, t)) * lower;
     const on = (inside || tr > tl.bloom[1]) && t < T.reveal + 0.2;
@@ -437,6 +444,62 @@ export default function Move(cut) {
       lg.rotation.x = d.sink ? 0 : -(Math.PI / 2) * (1 - rise);
       lg.rotation.z = d.sway * Math.sin(t * 0.9 + i * 1.3);
       if (d.flame) mesh.scale.set(1, 1 + 0.18 * Math.sin(onTwos(t) * 13), 1);
+    }
+
+    // FLYING THUNDER GOD: three kunai thrown round the fox; the pup flashes to each, yellow streaks between, then home
+    {
+      const F = s.ftg;
+      const P = [[0, 0, 0], ...KUNAI, [0, 0, 0]];
+      const HT = T.hop;
+      let at = 0;
+      for (let i = 0; i < 4; i++) if (t >= HT[i]) at = i + 1;
+      const cur = P[at];
+      const dz = 0.14;
+      s.gone = at > 0 && HT.some((h) => t >= h && t < h + dz);
+      const sa = Math.sin(turn);
+      const ca = Math.cos(turn);
+      s.off.set(cur[0] * ca + cur[2] * sa, 0, cur[2] * ca - cur[0] * sa);
+      live.pupAt ??= { x: 0, y: 0, z: 0 };
+      live.pupAt.x = seal.x + s.off.x;
+      live.pupAt.y = 0.9;
+      live.pupAt.z = seal.z + s.off.z;
+      for (const m of [...F.flashes, ...F.cores, ...F.streaks, ...F.streaks2]) m.visible = false;
+      const fold = t < T.fold;
+      for (let k = 0; k < 3; k++) {
+        const g = F.kunai[k];
+        const thr = smooth(T.throw[0] + 0.1 * k, T.throw[1] + 0.35 + 0.1 * k, t);
+        g.visible = thr > 0.01 && fold;
+        const arc = 1 - (1 - thr) * (1 - thr);
+        g.position.set(KUNAI[k][0] * arc, 0.9 + 1.6 * Math.sin(Math.PI * thr) * (1 - thr * 0.3) - 0.5 * thr, KUNAI[k][2] * arc + 0.3 * (1 - arc));
+        g.rotation.z = thr < 1 ? -t * 18 : -1.15;
+        g.scale.setScalar(1.7);
+      }
+      for (let i = 0; i < 4; i++) {
+        const dt = t - HT[i];
+        if (dt < 0 || dt > 0.45 || !fold) continue;
+        const k = 1 - dt / 0.45;
+        const a = P[i];
+        const b = P[i + 1];
+        const len = Math.hypot(b[0] - a[0], b[2] - a[2]);
+        const st = F.streaks[i];
+        const st2 = F.streaks2[i];
+        for (const m of [st, st2]) {
+          m.visible = true;
+          m.position.set(a[0], 1.0, a[2] + 0.2);
+          m.rotation.set(0, Math.atan2(-(b[2] - a[2]), b[0] - a[0]), 0);
+          m.scale.set(len, 1.1 * k + 0.1, 1);
+        }
+        for (const [pt, j] of [[a, 0], [b, 1]]) {
+          const fl = F.flashes[(i % 2) * 2 + j];
+          const co = F.cores[(i % 2) * 2 + j];
+          fl.visible = co.visible = true;
+          fl.position.set(pt[0], 1.0, pt[2] + 0.4);
+          co.position.copy(fl.position);
+          fl.scale.setScalar(0.4 + 2.6 * Math.sin(Math.PI * Math.min(1, dt / 0.45 + 0.1)));
+          co.scale.setScalar(0.3 + 1.6 * k);
+          fl.rotation.z = co.rotation.z = dt * 6 + i;
+        }
+      }
     }
 
     // THE FOX
@@ -475,8 +538,9 @@ export default function Move(cut) {
           s.chain.pts[i].set(FOX.x + fs * (src[0] - FOX0), FOX.y + fs * (src[1] - FOX.y), FOX.z + fs * (src[2] - FOX.z));
         }
       }
-      if (s.flip) V.copy(s.flip);
-      else V.set(0.5, 0.8, 0.4);
+      V.set(KUNAI[2][0], 0.8, KUNAI[2][2]); // the chain is the Reaper Death Seal: it starts at the third kunai
+      rig.current.localToWorld(V);
+      th.worldToLocal(V);
       W.set(pinAt[0], pinAt[1], pinAt[2]);
       const info = poseChain(s.chain, t, { grow: T.grow, taut: bite, surge: t >= T.surge[0] ? T.surge : null }, V, W);
       // the budget hoop at link 100: a flash, then it closes round the chain
