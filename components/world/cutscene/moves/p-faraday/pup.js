@@ -4,7 +4,10 @@
 // flipper's tip (where the coin rests) found from the flipper mesh.
 
 import { Color, Mesh, Object3D, ShaderMaterial, Vector3 } from "three";
-import { CREAM, LIT, MID, NAVY, SHADE, hullOf, rgb, silMaterial } from "./blue";
+import { CREAM, MID, NAVY, SHADE, hullOf, rgb, silMaterial } from "./blue";
+
+const LIT = "#2f7dff"; // saturated cobalt fill
+const PUP_LINE = "#fff3c4";
 
 function twin(m, eye) {
   return new ShaderMaterial({
@@ -55,6 +58,7 @@ export function pupBlue(root) {
   });
   // the outline: the pup's big masses (body, head, flippers, tail) each get a cream hull
   const hullMat = silMaterial(true);
+  hullMat.uniforms.uC.value = rgb(PUP_LINE);
   for (const [o, m] of list) {
     if (m.clearcoat >= 1 || m.isMeshBasicMaterial) continue;
     const n = o.geometry.attributes.position.count;

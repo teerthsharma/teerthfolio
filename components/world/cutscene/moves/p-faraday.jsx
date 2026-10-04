@@ -33,7 +33,7 @@ const CORE_Y = 0.9;
 // the clock (s from the arrival); the card's beats put the credit at 17.45 and the collapse at 20.65
 const T = { jacket: [0.55, 1.1], coin: 6.6, toss: [11.15, 11.9], flick: 11.95, burn: [12.85, 14.55, 16.65] };
 const TURN_TO = 1.5; // the pup's yaw once it faces Touma down the bridge (the kit starts it at 0.6)
-const COME = [1.5, 5.4, 8.2, 4.0]; // Touma charges in: leaves at COME[0], arrives at COME[1], from x COME[2] to COME[3]
+const COME = [1.8, 5.2, 7.0, 2.6]; // Touma charges in: leaves at COME[0], arrives at COME[1], from x COME[2] to COME[3]
 const BACK = [14.2, 15.5]; // the burn has the sheet: the lens and the pup move to the island side so the pup stays whole
 const P = new Vector3();
 const U2 = new Vector3();
@@ -133,7 +133,7 @@ export default function Move(cut) {
     const cam = state.camera;
     p.root.getWorldPosition(P);
     U2.set(-P.x, 0, -P.z).normalize();
-    AIMV.copy(P).addScaledVector(U2, 6.2).setY(P.y + 1.7);
+    AIMV.copy(P).addScaledVector(U2, 7.4).setY(P.y + 1.3);
     LK.copy(P).setY(P.y + 0.75);
     const d = cam.position.distanceTo(P);
     cam.getWorldDirection(V).multiplyScalar(d).add(cam.position);
@@ -225,7 +225,7 @@ export default function Move(cut) {
     const run = smooth(COME[0], COME[1], tt);
     const hitK = smooth(SHOT, SHOT + 0.25, ts) * (1 - smooth(SHOT + 1.1, SHOT + 2.2, ts));
     const tg = w.touma.group;
-    TOUMA.x = COME[2] + (COME[3] - COME[2]) * run + 0.8 * hitK;
+    TOUMA.x = COME[2] + (COME[3] - COME[2]) * run + 0.8 * hitK - 0.6 * smooth(SHOT - 0.5, SHOT - 0.2, ts) * (1 - hitK);
     TOUMA.y = (run < 1 && run > 0 ? 0.13 * Math.abs(Math.sin(tt * 9)) : 0) + 0.35 * hitK * (1 - hitK);
     tg.position.set(TOUMA.x, TOUMA.y, TOUMA.z);
     tg.rotation.y = Math.atan2(-TOUMA.x, -TOUMA.z);
@@ -260,7 +260,7 @@ export default function Move(cut) {
     }
 
     // THE JACKET and the pup's blueprint shading, until the sheet burns round it
-    blue.current?.set((inside || tt > tl.bloom[1]) && away < 8);
+    blue.current?.set((inside || tt > tl.bloom[1]) && away < 8 && (t < SHOT || t > SHOT + 1.2));
     if (c) {
       const k = smooth(T.jacket[0], T.jacket[1], tt);
       c.group.visible = k > 0.01 && away < 3;
