@@ -314,22 +314,22 @@ export default function Tangle(cut) {
     W.knot.haloU.uGlow.value = 0.9 + 0.4 * Math.sin(t * 3.1) * kp;
 
     // ---- the comet: one piece, then it splits; one piece falls and lights the far shore
-    const cAlpha = ss(1.8, 3.2, t) * (1 - ss(T.comet[0], T.comet[1], t));
+    const cAlpha = ss(0.9, 1.8, t) * (1 - ss(T.comet[0], T.comet[1], t));
     const sp = Math.max(0, t - T.split);
     // the comet rides the lens: upper right of the frame, above the girl, wherever the card's view puts the camera
     cam.getWorldDirection(CF).applyAxisAngle(AUP, -turn);
     CR.crossVectors(CF, AUP).normalize();
     CU.crossVectors(CR, CF).normalize();
     const hh = Math.tan((cam.fov * Math.PI) / 360);
-    CDIR.copy(CF).addScaledVector(CR, (0.3 + 0.012 * t) * hh * cam.aspect).addScaledVector(CU, (0.52 + 0.004 * t) * hh).normalize();
+    CDIR.copy(CF).addScaledVector(CR, 0.18 * hh * cam.aspect).addScaledVector(CU, 0.72 * hh).normalize();
     HEAD0.copy(CDIR).multiplyScalar(SKYD).add(EYEV);
     const c0 = W.comets[0];
     c0.ru.uHead.value.copy(HEAD0);
     c0.ru.uDir.value.copy(TAILD);
-    c0.ru.uLen.value = 70 + 8 * Math.sin(t * 0.7);
-    c0.ru.uW.value = 2.4;
+    c0.ru.uLen.value = 140 + 10 * Math.sin(t * 0.7);
+    c0.ru.uW.value = 5.0;
     c0.ru.uAlpha.value = cAlpha;
-    c0.hu.uSize.value = 13 + 0.8 * Math.sin(t * 5);
+    c0.hu.uSize.value = 22 + 0.8 * Math.sin(t * 5);
     const c1 = W.comets[1];
     c1.ru.uHead.value.copy(HEAD0).addScaledVector(V.set(1, 0.18, 0.1), sp * sp * 0.9 + sp * 1.2);
     c1.ru.uDir.value.copy(TAILD).add(V.set(0.1, -0.05, 0)).normalize();

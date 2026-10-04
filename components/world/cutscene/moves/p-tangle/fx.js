@@ -3,7 +3,7 @@
 // ghosts of the sun, and the title card of the dusk's end. All pooled and instanced; nothing allocates per
 // frame and there is no post pass.
 
-import { AdditiveBlending, CanvasTexture, Color, DoubleSide, InstancedMesh, Mesh, Object3D, PlaneGeometry, SRGBColorSpace, ShaderMaterial, Vector3, Vector4 } from "three";
+import { AdditiveBlending, CanvasTexture, Color, DoubleSide, InstancedMesh, Mesh, NormalBlending, Object3D, PlaneGeometry, SRGBColorSpace, ShaderMaterial, Vector3, Vector4 } from "three";
 import { hash } from "./gl";
 import { gridGeometry } from "./cord";
 
@@ -124,6 +124,8 @@ const CFRAG = /* glsl */ `
     float core = exp(-v * v * 22.0) * pow(max(1.0 - s, 0.0), 2.0);
     vec3 col = mix(vec3(0.92, 0.97, 1.0), vec3(0.45, 0.8, 1.0), smoothstep(0.0, 0.35, s));
     col = mix(col, uTint, smoothstep(0.3, 0.9, s));
+    col = mix(col, vec3(1.0, 0.35, 0.75), smoothstep(0.45, 1.0, abs(v)) * 0.6);
+    col = mix(col, vec3(0.55, 0.95, 1.0), clamp(core * 1.4, 0.0, 1.0));
     float a = (body * str * 0.75 + core * 0.9) * uAlpha;
     gl_FragColor = vec4(pow(col, vec3(2.2)), clamp(a, 0.0, 1.0));
   }`;
@@ -151,11 +153,11 @@ const HFRAG = /* glsl */ `
 
 export function cometPiece(U, ribbonGeo, seed, tint) {
   const ru = { ...U, uHead: { value: new Vector3() }, uDir: { value: new Vector3(0, 0, 1) }, uLen: { value: 50 }, uW: { value: 2.2 }, uAlpha: { value: 0 }, uSeed: { value: seed }, uTint: { value: new Vector3(...tint) } };
-  const ribbon = new Mesh(ribbonGeo, new ShaderMaterial({ uniforms: ru, vertexShader: CVERT, fragmentShader: CFRAG, transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide }));
+  const ribbon = new Mesh(ribbonGeo, new ShaderMaterial({ uniforms: ru, vertexShader: CVERT, fragmentShader: CFRAG, transparent: true, depthWrite: false, depthTest: false, blending: NormalBlending, side: DoubleSide }));
   ribbon.frustumCulled = false;
   ribbon.renderOrder = 4;
   const hu = { ...U, uHead: ru.uHead, uSize: { value: 8 }, uAlpha: ru.uAlpha };
-  const head = new Mesh(new PlaneGeometry(1, 1), new ShaderMaterial({ uniforms: hu, vertexShader: HVERT, fragmentShader: HFRAG, transparent: true, depthWrite: false, blending: AdditiveBlending }));
+  const head = new Mesh(new PlaneGeometry(1, 1), new ShaderMaterial({ uniforms: hu, vertexShader: HVERT, fragmentShader: HFRAG, transparent: true, depthWrite: false, depthTest: false, blending: NormalBlending }));
   head.frustumCulled = false;
   head.renderOrder = 4;
   return { ribbon, head, ru, hu };
