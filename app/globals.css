@@ -96,7 +96,8 @@ a {
    HUD layering — nothing here unmounts. [data-state] plays the
    enter/exit transition; each component sets its own --from.
    ============================================================ */
-html[data-hud="off"] .hud {
+html[data-hud="off"] .hud,
+html[data-hud="off"] .place-label {
   display: none;
 }
 .hud {
