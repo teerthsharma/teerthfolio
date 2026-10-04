@@ -29,7 +29,8 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import { Color, DoubleSide, MeshBasicMaterial, Object3D, Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { useUi } from "../../../lib/world/store";
-import { mat, REFLECT, SURFACE, useReflect } from "../palette";
+import { mat, REFLECT, SURFACE } from "../palette";
+import { useReflect } from "../useReflect";
 import { buildCalver, buildChip, buildTriton, CALVER, CALVERS } from "./parts/triton-glacier";
 
 const TRITON = PLACE_BY_ID["pr-triton-kernels-22"];

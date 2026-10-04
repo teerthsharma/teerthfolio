@@ -31,7 +31,8 @@ import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Object3D } from "th
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { live, useUi } from "../../../lib/world/store";
 import { clamp, smoothstep } from "../life/util";
-import { C, lamp, mat, REFLECT, SURFACE, useReflect } from "../palette";
+import { C, lamp, mat, REFLECT, SURFACE } from "../palette";
+import { useReflect } from "../useReflect";
 import {
   BUBBLES,
   BUILDUP_S,

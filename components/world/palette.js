@@ -11,7 +11,6 @@
 //   sea       rgb(0,128,163) teal-blue
 // Change LIGHT or the tone mapping and every one of these numbers moves.
 
-import { useFrame } from "@react-three/fiber";
 import { AdditiveBlending, MeshBasicMaterial, MeshStandardMaterial, NeutralToneMapping } from "three";
 
 export const C = {
@@ -51,22 +50,9 @@ export const SURFACE = {
 // How much more of the environment (sky above, snow below, the sun disc) a
 // glossy family reflects than LIGHT.env lights matte snow (which keeps its
 // calibration). three ignores material.envMapIntensity while the scene's
-// environment is the only map, so useReflect gives each glossy material the
+// environment is the only map, so useReflect (./useReflect.js) gives each glossy material the
 // scene's map itself, and the intensity then means what it says.
 export const REFLECT = { ice: 2.2, metal: 2 };
-
-export function useReflect(k, ...materials) {
-  useFrame(({ scene }) => {
-    const env = scene.environment;
-    if (!env) return;
-    for (const m of materials) {
-      if (m.envMap === env) continue;
-      m.envMap = env;
-      m.envMapIntensity = LIGHT.env * k;
-      m.needsUpdate = true;
-    }
-  });
-}
 
 export const LIGHT = {
   toneMapping: NeutralToneMapping,
