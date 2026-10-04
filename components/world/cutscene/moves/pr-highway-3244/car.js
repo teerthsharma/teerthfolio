@@ -248,12 +248,12 @@ export function chariotWheel() {
 
 function ox(x, z) {
   const L = [];
-  L.push(paint(new SphereGeometry(1, 14, 10), BULL, { gloss: 0.7, smooth: true, m4: at(x, 0.98, z, 0, 0, 0, [0.62, 0.34, 0.3]) }));
-  L.push(paint(new SphereGeometry(1, 12, 8), BULL, { gloss: 0.7, smooth: true, m4: at(x + 0.5, 1.22, z, 0, 0, -0.25, [0.3, 0.24, 0.22]) })); // neck hump / head
-  L.push(paint(new SphereGeometry(1, 12, 8), BULL, { gloss: 0.7, smooth: true, m4: at(x + 0.86, 1.06, z, 0, 0, -0.5, [0.26, 0.17, 0.16]) }));
+  L.push(paint(new SphereGeometry(1, 14, 10), BULL, { gloss: 0.7, smooth: true, m4: at(x, 0.95, z, 0, 0, 0, [0.66, 0.44, 0.36]) }));
+  L.push(paint(new SphereGeometry(1, 12, 8), BULL, { gloss: 0.7, smooth: true, m4: at(x + 0.5, 1.22, z, 0, 0, -0.25, [0.34, 0.3, 0.27]) })); // neck hump / head
+  L.push(paint(new SphereGeometry(1, 12, 8), BULL, { gloss: 0.7, smooth: true, m4: at(x + 0.86, 1.06, z, 0, 0, -0.5, [0.3, 0.2, 0.2]) }));
   for (const sh of [-1, 1]) {
     L.push(paint(new ConeGeometry(0.05, 0.4, 8), GOLD, { gloss: 1, smooth: true, m4: at(x + 0.62, 1.42, z + sh * 0.2, sh * 0.9, 0, 0.35) }));
-    for (const sx of [-1, 1]) L.push(paint(new CylinderGeometry(0.055, 0.04, 0.72, 7), BULL, { gloss: 0.5, m4: at(x + sx * 0.42, 0.44, z + sh * 0.14, 0, 0, sx * 0.08) }));
+    for (const sx of [-1, 1]) L.push(paint(new CylinderGeometry(0.1, 0.07, 0.6, 8), BULL, { gloss: 0.5, m4: at(x + sx * 0.42, 0.34, z + sh * 0.16, 0, 0, sx * 0.08) }));
   }
   L.push(paint(new SphereGeometry(1, 8, 6), "#ffe36a", { gloss: 1, m4: at(x + 1.02, 1.1, z + 0.13, 0, 0, 0, 0.035) })); // eyes
   L.push(paint(new SphereGeometry(1, 8, 6), "#ffe36a", { gloss: 1, m4: at(x + 1.02, 1.1, z - 0.13, 0, 0, 0, 0.035) }));

@@ -41,7 +41,7 @@ const BETA = 0.36; // the speedway's yaw to the lens: the car three-quarters on,
 const CB = Math.cos(BETA);
 const SB = Math.sin(BETA);
 const P0 = [1.0, -1.9]; // the guest's grid slot in the rig (x, z): the card's landAt stands the tail here
-const CAR_S = 1.12;
+const CAR_S = 1.55;
 const NR = RIVALS.length;
 const PUFFS = 110;
 const UP = new Vector3(0, 1, 0);
@@ -166,7 +166,7 @@ export default function Move(cut) {
     const poleMat = solid({ fogK: 0.0042 });
         const clean = ribbons(80, "#5dffc2", { additive: true });
     const trail = ribbons(40, "#8fd8ff", { additive: true });
-    const bolts = ribbons(120, "#bfe6ff", { additive: true });
+    const bolts = ribbons(120, "#38a0ff", { additive: true });
     const smoke = smokePool(PUFFS);
     const conf = confetti(240);
     const streak = streaks(120);
@@ -433,7 +433,7 @@ export default function Move(cut) {
           const qx = px + (dx * 0.5 + (hash(fk + i * 7 + k, 13) - 0.5) * 0.8) * reach * CAR_S;
           const qy = py + (0.15 + 0.35 * hash(fk + i * 7 + k, 14)) * reach * CAR_S;
           const qz = pz + (dz * 0.5 + (hash(fk + i * 7 + k, 15) - 0.5) * 0.8) * reach * CAR_S;
-          bl.seg(px, py, pz, qx, qy, qz, 0.05 * CAR_S * 3, Math.min(1, boost * (1 - (k - 1) * 0.22)), clx, cly, clz);
+          bl.seg(px, py, pz, qx, qy, qz, 0.05 * CAR_S * 1.4, Math.min(1, boost * (1 - (k - 1) * 0.22)), clx, cly, clz);
           px = qx;
           py = qy;
           pz = qz;
@@ -550,7 +550,7 @@ export default function Move(cut) {
     const sn = Math.sin(HERO.yaw);
     ROOFV[0] = HERO.x + CH_ROOF[0] * c * CAR_S;
     ROOFV[2] = HERO.z - CH_ROOF[0] * sn * CAR_S;
-    ROOFV[1] = HERO.y + (CH_ROOF[1] + 0.02) * CAR_S + HERO.bob;
+    ROOFV[1] = HERO.y + (CH_ROOF[1] + 0.3) * CAR_S + HERO.bob;
     const kOn = smooth(T.hop[0], T.hop[1], t);
     const kOff = smooth(T.off, T.off + 0.55, t);
     let x = 0;
@@ -569,7 +569,7 @@ export default function Move(cut) {
     }
     nudge(p, turn, x * o, y * o, z * o);
     const seat = ramp(t, T.hop[1], T.hop[1] + 0.2) * (1 - ramp(t, T.off - 0.1, T.off));
-    p.scale.setScalar(1 - 0.24 * seat);
+    p.scale.setScalar(1 - 0.08 * seat);
     PUP.seat = seat;
   });
 
@@ -581,7 +581,7 @@ export default function Move(cut) {
     const hopOn = ramp(t, T.hop[0], T.hop[1]);
     const hopOff = ramp(t, T.off, T.off + 0.55);
     live.pose.sign = signAt(tl, tc) * (1 - smooth(tl.lineA - 0.3, tl.lineA, tc));
-    live.pose.crouch = (smooth(T.hop[0] - 0.4, T.hop[0] - 0.05, t) * (1 - smooth(T.hop[0], T.hop[0] + 0.1, t)) + 0.7 * PUP.seat + (hopOn > 0 && hopOn < 1 ? 0.8 : 0)) * o;
+    live.pose.crouch = (smooth(T.hop[0] - 0.4, T.hop[0] - 0.05, t) * (1 - smooth(T.hop[0], T.hop[0] + 0.1, t)) + 0.12 * PUP.seat + (hopOn > 0 && hopOn < 1 ? 0.8 : 0)) * o;
     live.pose.spin = hopOff > 0 && hopOff < 1 ? (3 * hopOff) % 1 : 0;
     live.pose.raise = smooth(T.turn[0] + 0.3, T.turn[1] + 0.3, t) * (1 - smooth(T.off - 0.1, T.off + 0.1, t)) * o;
     live.pose.fist = smooth(T.off + 0.6, T.off + 0.9, t) * o;
