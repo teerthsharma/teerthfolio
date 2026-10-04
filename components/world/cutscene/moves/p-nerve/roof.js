@@ -144,7 +144,7 @@ function puddleMaterial() {
         float streak = pow(nh, 160.0) * 2.4 + pow(nh, 26.0) * 0.28;
         vec3 sky = vec3(0.30, 0.17, 0.07) * pow(1.0 - max(V.y, 0.0), 3.0) * 0.55;
         vec3 col = base + sky * 0.5 + vec3(1.0, 0.80, 0.55) * streak * spot + vec3(0.04, 0.14, 0.16) * uScreenGlow * 0.25 * (1.0 + uToll);
-        gl_FragColor = vec4(pow(col, vec3(2.2)), 0.84 * edge);
+        gl_FragColor = vec4(pow(max(col, 0.0), vec3(2.2)), 0.84 * edge);
       }`,
   });
 }
@@ -168,7 +168,7 @@ function doorMaterial() {
     fragmentShader: /* glsl */ `
       varying vec2 vUv;
       void main() {
-        float g = (1.0 - vUv.y * 0.55) * smoothstep(0.0, 0.1, vUv.x) * smoothstep(1.0, 0.9, vUv.x);
+        float g = (1.0 - vUv.y * 0.55) * smoothstep(0.0, 0.1, vUv.x) * (1.0 - smoothstep(0.9, 1.0, vUv.x));
         gl_FragColor = vec4(pow(vec3(1.0, 0.62, 0.26) * g * 0.95, vec3(2.2)), 1.0);
       }`,
   });

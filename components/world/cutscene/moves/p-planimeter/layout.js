@@ -46,6 +46,7 @@ export const VIEW = {
   estab: { wide: [wideLook, [0, 44, 88]], tall: [wideLook, [0, 52, 108]] },
   med: { wide: [[0.4, -3.0, 0], [0, 8.0, 15.5]], tall: [[0.4, -3.8, 0], [0, 10.5, 22]] },
   mid: { wide: [[0.4, -5, 0], [0, 14, 27]], tall: [[0.4, -6, 0], [0, 18, 36]] }, // the stamps across the plaza, the pup in its window
+  plaza: { wide: [[0, 0.0, 0], [2.4, 1.9, 9.6]], tall: [[0, 0.1, 0], [1.8, 2.2, 12.5]] }, // after the drop: level, the whole pup centred, the table and the island behind it
   gate: { wide: [gateLook, [20.1, 22, 34.6]], tall: [gateLook, [25.8, 26, 45.2]] }, // from the south along the avenue
 };
 const ss = (a, b, t) => {
@@ -59,6 +60,8 @@ export function lensAt(t) {
   const b = t < 0 ? 1 : ss(6.3, 6.9, t); // estab -> medium
   const m2 = t < 0 ? 0 : ss(7.3, 7.9, t) * (1 - ss(8.9, 9.4, t)); // medium -> mid for the rain, and back for HMM.
   const c = t < 0 || t >= T.cut ? 0 : ss(T.gateLens[0], T.gateLens[1], t); // medium -> the gate; the plaza cut resets it
+  const pz = t >= T.cut ? 1 : 0; // the drop to the plaza: a pup-height lens, never down at the snow
+  const pe = 1 - (1 - Math.min(1, Math.max(0, (t - T.cut) / 0.34))) ** 3; // the pup is brought SHOTS.B.off[2] m toward the lens: the look follows it
   for (const asp of ["wide", "tall"]) {
     for (let r = 0; r < 2; r++) {
       for (let i = 0; i < 3; i++) {
@@ -69,7 +72,8 @@ export function lensAt(t) {
         const x = k + (e - k) * a;
         const y0 = x + (m - x) * b;
         const y = y0 + (VIEW.mid[asp][r][i] - y0) * m2;
-        OUT[asp][r][i] = y + (g - y) * c;
+        const z = y + (g - y) * c;
+        OUT[asp][r][i] = pz ? VIEW.plaza[asp][r][i] + (r === 0 && i === 2 ? SHOTS.B.off[2] * pe : 0) : z;
       }
     }
   }

@@ -211,7 +211,7 @@ export function tene({ albedo = "#bdb09a", wet = 0.1, emit = 0, vertexColors = f
           glass
             ? `
         vec3 V = normalize(cameraPosition - uOrigin - vP);
-        float f = pow(1.0 - abs(dot(N, V)), 2.4);
+        float f = pow(max(1.0 - abs(dot(N, V)), 0.0), 2.4);
         alpha = 0.05 + 0.5 * f;
         col = col * 0.55 + vec3(0.14, 0.30, 0.34) * f * 0.7;`
             : ""

@@ -61,12 +61,12 @@ export function skyDome() {
         // the lit underside of the low cloud: warm streaks along the bottom of each billow
         float edge = smoothstep(0.35, 0.62, bands) * (1.0 - smoothstep(0.62, 0.9, bands));
         c += under * glow * (0.42 + 0.5 * (1.0 - dens) + 0.35 * edge);
-        c += under * 0.45 * smoothstep(0.0, -0.10, el) * (0.55 + 0.45 * bands);
-        c = mix(c, umber * 0.7, smoothstep(-0.12, -0.55, el));
+        c += under * 0.45 * (1.0 - smoothstep(-0.10, 0.0, el)) * (0.55 + 0.45 * bands);
+        c = mix(c, umber * 0.7, (1.0 - smoothstep(-0.55, -0.12, el)));
         float alpha = 1.0;
         if (gl_FrontFacing && uInside < 0.5) {
           // seen from outside while it swells: a bubble of umber with an ochre skin
-          float f = pow(1.0 - abs(dot(normalize(vN), normalize(vP0 - camL))), 2.0);
+          float f = pow(max(1.0 - abs(dot(normalize(vN), normalize(vP0 - camL))), 0.0), 2.0);
           c += f * vec3(0.55, 0.30, 0.12) * 0.7;
           alpha = mix(0.35, 1.0, f);
         }

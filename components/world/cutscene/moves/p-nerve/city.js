@@ -123,7 +123,7 @@ function screenMaterial() {
           if (d < d1) { d1 = d; sid = h21(ip + g + 11.0 + id); }
         }
         vec3 c = sid < 0.30 ? vec3(0.12, 0.30, 0.34) : sid < 0.55 ? vec3(0.80, 0.74, 0.60) : sid < 0.75 ? vec3(0.80, 0.48, 0.20) : sid < 0.94 ? vec3(0.08, 0.11, 0.13) : vec3(0.66, 0.08, 0.10);
-        return c * (0.5 + 0.5 * smoothstep(0.62, 0.08, d1));
+        return c * (0.5 + 0.5 * (1.0 - smoothstep(0.08, 0.62, d1)));
       }
       void main() {
         vec2 uv = vUv;
