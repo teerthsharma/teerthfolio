@@ -1,76 +1,20 @@
-// The Kingdom of Science from Dr. Stone, built once at mount: a saturated sky, cracked-grass ground, one
-// stone-cell material for every prop, DNA rings, flasks, statues and Senku's hair for the pup.
+// Gilgamesh's treasury from Fate, built once at mount: a crimson and ultramarine sky, a premium gold shader with a
+// strong rim, the Gate of Babylon's rippling portals, the dark silhouettes that poke out of them (Excalibur, Gae Bolg,
+// Rho Aias, Saber's helmet, Archer's bow and swords, the Holy Grail, Enkidu's chains), the Key of the Heavens, the
+// Bab-ilu vault gate with its red circuitry, Ea and its red spiral wind, and the pup's armour and hair.
 // Nothing allocates per frame; the move disposes every geometry and material.
 
-import { Color, ConeGeometry, CylinderGeometry, DoubleSide, Float32BufferAttribute, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3 } from "three";
+import { BufferGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, AdditiveBlending, Float32BufferAttribute, Shape, ShapeGeometry, ShaderMaterial, SphereGeometry, TorusGeometry, Path, BoxGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-export const HASH = /* glsl */ `
-  float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  vec2 h22(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
-  // voronoi: x the nearest distance, y the second, z the cell id in 0..1; cc the cell's point
-  vec3 vor(vec2 p, out vec2 cc) {
-    vec2 ip = floor(p);
-    vec2 fp = fract(p);
-    float d1 = 8.0;
-    float d2 = 8.0;
-    float id = 0.0;
-    cc = ip;
-    for (int j = -1; j <= 1; j++) {
-      for (int i = -1; i <= 1; i++) {
-        vec2 g = vec2(float(i), float(j));
-        vec2 o = h22(ip + g);
-        vec2 r = g + o - fp;
-        float d = dot(r, r);
-        if (d < d1) { d2 = d1; d1 = d; id = h21(ip + g); cc = ip + g + o; }
-        else if (d < d2) { d2 = d; }
-      }
-    }
-    return vec3(sqrt(d1), sqrt(d2), id);
-  }`;
+const A = Math.PI * 2;
 
-const col = (c) => ({ value: new Color(c) });
-
-// stone, grass and wood in one material: voronoi cells in two inks, dark cracks between them, an optional glow in the cracks
-export function stoneMaterial(base, alt, crack, scale = 1.2, glow = "#000000", instanced = false) {
-  return new ShaderMaterial({
-    uniforms: { uBase: col(base), uAlt: col(alt), uCrack: col(crack), uGlow: col(glow), uScale: { value: scale } },
-    vertexShader: /* glsl */ `
-      varying vec3 vWorld;
-      varying vec3 vN;
-      void main() {
-        vec4 w = modelMatrix * ${instanced ? "instanceMatrix * " : ""}vec4(position, 1.0);
-        vWorld = w.xyz;
-        vN = normalize(mat3(modelMatrix) * normal);
-        gl_Position = projectionMatrix * viewMatrix * w;
-      }`,
-    fragmentShader: /* glsl */ `
-      uniform vec3 uBase;
-      uniform vec3 uAlt;
-      uniform vec3 uCrack;
-      uniform vec3 uGlow;
-      uniform float uScale;
-      varying vec3 vWorld;
-      varying vec3 vN;
-      ${HASH}
-      void main() {
-        vec2 cc;
-        vec3 v = vor(vec2(vWorld.x + vWorld.z * 0.8, vWorld.z * 0.5 + vWorld.y * 1.3) * uScale, cc);
-        vec3 c = mix(uBase, uAlt, v.z);
-        float line = 1.0 - smoothstep(0.03, 0.11, v.y - v.x);
-        float shade = 0.72 + 0.28 * clamp(dot(normalize(vN), normalize(vec3(0.4, 0.8, 0.5))) * 0.5 + 0.5, 0.0, 1.0);
-        c = mix(c * shade, uCrack, line * 0.8) + uGlow * line;
-        gl_FragColor = vec4(c, 1.0);
-      }`,
-  });
-}
-
-// THE SKY: saturated and banded: blue overhead, cyan, a magenta and yellow horizon, a sun
+// ---------- the sky: deep crimson to ultramarine, a gold glow low down, drifting gold dust ----------
 export function skyMaterial() {
   return new ShaderMaterial({
     side: DoubleSide,
     depthWrite: false,
-    uniforms: { uSun: { value: new Vector3(0.35, 0.28, -0.9).normalize() } },
+    uniforms: { uTime: { value: 0 } },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -78,107 +22,344 @@ export function skyMaterial() {
         gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: /* glsl */ `
-      uniform vec3 uSun;
+      uniform float uTime;
       varying vec3 vDir;
       void main() {
-        float y = clamp(vDir.y, -0.2, 1.0);
-        vec3 c = mix(vec3(1.0, 0.86, 0.22), vec3(1.0, 0.35, 0.72), smoothstep(-0.05, 0.1, y));
-        c = mix(c, vec3(0.12, 0.85, 1.0), smoothstep(0.1, 0.32, y));
-        c = mix(c, vec3(0.10, 0.45, 1.0), smoothstep(0.3, 0.9, y));
-        float s = max(dot(normalize(vDir), uSun), 0.0);
-        float s2 = s * s;
-        float s4 = s2 * s2;
-        c += vec3(1.0, 0.95, 0.5) * (smoothstep(0.985, 0.992, s) + 0.35 * s4 * s4);
+        float y = clamp(vDir.y, -0.3, 1.0);
+        vec3 c = mix(vec3(0.62, 0.02, 0.14), vec3(0.4, 0.03, 0.3), smoothstep(-0.2, 0.1, y));
+        c = mix(c, vec3(0.1, 0.08, 0.7), smoothstep(0.05, 0.35, y));
+        c = mix(c, vec3(0.03, 0.14, 0.9), smoothstep(0.3, 0.8, y));
+        float g = exp(-abs(y + 0.05) * 14.0);
+        c += vec3(1.0, 0.62, 0.12) * g * 0.45;
+        vec2 q = vDir.xz / max(0.25, 0.4 + vDir.y) * 18.0;
+        float st = fract(sin(dot(floor(q), vec2(127.1, 311.7))) * 43758.5453);
+        float tw = step(0.965, st) * (0.5 + 0.5 * sin(uTime * 3.0 + st * 60.0));
+        c += vec3(1.0, 0.9, 0.6) * tw * smoothstep(0.0, 0.3, y);
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
 }
 
-// DNA RINGS: red (wrong sign) to green (right sign), a base-pair banding running round the ring
-export function ringMaterial() {
+// ---------- gold: a fake PBR (a key light, a broad specular, a strong rim in warm white); vertex colour is the base ----------
+export function goldMaterial() {
   return new ShaderMaterial({
-    uniforms: { uSign: { value: 0 }, uTime: { value: 0 } },
+    side: DoubleSide,
+    uniforms: { uTime: { value: 0 }, uBoost: { value: 1 } },
     vertexShader: /* glsl */ `
-      varying vec2 vUv;
+      attribute vec3 color;
       varying vec3 vN;
       varying vec3 vV;
+      varying vec3 vC;
       void main() {
-        vUv = uv;
-        vec4 w = modelMatrix * vec4(position, 1.0);
-        vN = normalize(mat3(modelMatrix) * normal);
-        vV = normalize(cameraPosition - w.xyz);
-        gl_Position = projectionMatrix * viewMatrix * w;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vN = normalize(normalMatrix * normal);
+        vV = -mv.xyz;
+        vC = color;
+        gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `
-      uniform float uSign;
       uniform float uTime;
-      varying vec2 vUv;
+      uniform float uBoost;
       varying vec3 vN;
       varying vec3 vV;
+      varying vec3 vC;
       void main() {
-        vec3 c = mix(vec3(1.0, 0.16, 0.2), vec3(0.12, 1.0, 0.42), clamp(uSign, 0.0, 1.0));
-        float band = 0.62 + 0.38 * sin(vUv.x * 100.0 + vUv.y * 12.566 - uTime * 3.0);
-        float rim = 1.0 - clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);
-        gl_FragColor = vec4(c * band + vec3(1.0, 1.0, 0.8) * rim * rim * 0.55, 1.0);
+        vec3 N = normalize(vN);
+        vec3 V = normalize(vV + vec3(0.0, 0.0, 1e-4));
+        if (!gl_FrontFacing) N = -N;
+        vec3 L = normalize(vec3(0.45, 0.8, 0.6));
+        float d = max(dot(N, L), 0.0);
+        vec3 base = mix(vec3(0.42, 0.2, 0.02), vec3(1.0, 0.78, 0.22), 0.25 + 0.75 * d) * vC;
+        vec3 H = normalize(L + V);
+        float sp = pow(max(dot(N, H), 0.0), 36.0);
+        float fr = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 2.2);
+        vec3 env = mix(vec3(1.0, 0.25, 0.3), vec3(0.45, 0.65, 1.0), clamp(N.y * 0.5 + 0.5, 0.0, 1.0));
+        vec3 c = base + sp * vec3(1.0, 0.93, 0.7) * 1.3 + fr * mix(env, vec3(1.0, 0.92, 0.6), 0.55) * 1.35;
+        c += vec3(1.0, 0.85, 0.4) * 0.12 * (0.5 + 0.5 * sin(uTime * 4.0 + vV.x * 9.0));
+        gl_FragColor = vec4(c * uBoost, 1.0);
       }`,
   });
 }
 
-export const ringGeometry = (R, r) => new TorusGeometry(R, r, 10, 56);
-
-const strip = (g) => {
+// y-gradient vertex colour; every geometry that wears the gold material needs a colour attribute
+export function paint(g, lo, hi = lo, span = 1) {
+  const p = g.attributes.position;
+  const c = new Float32Array(p.count * 3);
+  const a = new Color(lo);
+  const b = new Color(hi);
+  const k = new Color();
+  for (let i = 0; i < p.count; i++) {
+    k.copy(a).lerp(b, Math.min(1, Math.max(0, p.getY(i) / span)));
+    c.set([k.r, k.g, k.b], i * 3);
+  }
+  g.setAttribute("color", new Float32BufferAttribute(c, 3));
+  if (g.attributes.uv) g.deleteAttribute("uv");
+  return g;
+}
+const clean = (g) => {
   const n = g.index ? g.toNonIndexed() : g;
-  n.deleteAttribute("uv");
-  n.deleteAttribute("normal");
+  if (n.attributes.uv) n.deleteAttribute("uv");
   return n;
 };
 
-// a science flask, lit from within by its instance colour
-export function flaskGeometry() {
-  return mergeGeometries(
-    [new SphereGeometry(0.16, 10, 8).translate(0, 0.16, 0), new CylinderGeometry(0.045, 0.06, 0.2, 8).translate(0, 0.38, 0), new CylinderGeometry(0.07, 0.07, 0.03, 8).translate(0, 0.49, 0)].map(strip),
-  );
-}
-
-// a petrified figure, arms thrown up (kept whole: the stone material needs normals)
-export function statueGeometry() {
-  return mergeGeometries([
-    new CylinderGeometry(0.2, 0.24, 1.0, 7).translate(0, 0.5, 0),
-    new SphereGeometry(0.17, 8, 6).translate(0, 1.2, 0),
-    new CylinderGeometry(0.05, 0.06, 0.7, 5).rotateZ(0.5).translate(0.34, 1.2, 0),
-    new CylinderGeometry(0.05, 0.06, 0.7, 5).rotateZ(-0.5).translate(-0.34, 1.2, 0),
-  ]);
-}
-
-// Senku's hair for the pup: a pale-mint crown cap and nine spikes standing up from it, tips vivid green (vertex colours)
+// ---------- the pup's Gilgamesh: slicked-back gold hair on the crown, a collar, pauldrons ----------
 export function hairGeometry() {
-  const tint = (g, lo, hi, h) => {
-    const p = g.attributes.position;
-    const c = new Float32Array(p.count * 3);
-    const a = new Color(lo);
-    const b = new Color(hi);
-    const k = new Color();
-    for (let i = 0; i < p.count; i++) {
-      k.copy(a).lerp(b, Math.min(1, Math.max(0, p.getY(i) / h)));
-      c.set([k.r, k.g, k.b], i * 3);
-    }
-    g.setAttribute("color", new Float32BufferAttribute(c, 3));
-    return g;
-  };
   const parts = [];
-  // head frame: skull radii 0.52, 0.47, 0.5, +y up: the cap covers the crown only
-  const cap = new SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, 0.8).scale(0.545, 0.5, 0.52);
-  parts.push(strip(tint(cap, "#dff5c8", "#8be34a", 0.5)));
-  const spike = (x, z, h, tilt, yaw) => {
-    const g = new ConeGeometry(0.1, h, 5).translate(0, h / 2, 0);
-    tint(g, "#d7f7b0", "#18e04a", h);
-    g.rotateX(tilt).rotateY(yaw).translate(x, 0.4, z);
-    parts.push(strip(g));
+  const cap = new SphereGeometry(1, 20, 10, 0, A, 0, 0.82).scale(0.545, 0.5, 0.525);
+  parts.push(paint(clean(cap), "#c98a12", "#ffd54a", 0.5));
+  const spike = (x, z, h, back, side, w = 0.1) => {
+    const g = clean(new ConeGeometry(w, h, 6).translate(0, h / 2, 0));
+    paint(g, "#d99a10", "#fff2a0", h);
+    g.rotateZ(-side).rotateX(-back).translate(x, 0.36, z);
+    parts.push(g);
   };
-  spike(0, 0, 0.78, 0, 0);
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    spike(Math.sin(a) * 0.2, Math.cos(a) * 0.2 - 0.03, 0.5 + 0.12 * ((i * 5) % 3), 0.42, a);
+  // rows from the brow back over the crown: all swept up and back, the middle row tallest
+  spike(0, 0.2, 0.62, 0.35, 0);
+  spike(0.2, 0.15, 0.6, 0.3, 0.35);
+  spike(-0.2, 0.15, 0.6, 0.3, -0.35);
+  spike(0, 0.0, 0.86, 0.3, 0, 0.11);
+  spike(0.24, 0.0, 0.72, 0.4, 0.5);
+  spike(-0.24, 0.0, 0.72, 0.4, -0.5);
+  spike(0.38, -0.05, 0.5, 0.35, 0.95, 0.08);
+  spike(-0.38, -0.05, 0.5, 0.35, -0.95, 0.08);
+  spike(0.12, -0.2, 0.8, 0.55, 0.15);
+  spike(-0.12, -0.2, 0.8, 0.55, -0.15);
+  spike(0, -0.28, 0.7, 0.7, 0);
+  spike(0.3, -0.2, 0.6, 0.55, 0.6);
+  spike(-0.3, -0.2, 0.6, 0.55, -0.6);
+  return mergeGeometries(parts);
+}
+export function armourGeometry() {
+  const parts = [];
+  const collar = new TorusGeometry(0.42, 0.05, 12, 40).rotateX(Math.PI / 2).translate(0, -0.36, 0.0);
+  parts.push(paint(clean(collar), "#a86a08", "#ffd54a", 0.4));
+  const gem = new SphereGeometry(0.075, 10, 8).translate(0, -0.42, 0.5);
+  parts.push(paint(clean(gem), "#ff1f3a", "#ff6a7a", 1));
+  for (const s of [1, -1]) {
+    const dome = new SphereGeometry(0.3, 16, 8, 0, A, 0, Math.PI / 2).scale(1, 0.75, 1).rotateZ(-0.55 * s).translate(0.58 * s, -0.52, -0.02);
+    parts.push(paint(clean(dome), "#a86a08", "#ffe27a", 0.3));
+    const horn = new ConeGeometry(0.07, 0.3, 6).translate(0, 0.15, 0).rotateZ(-1.0 * s).translate(0.8 * s, -0.42, -0.02);
+    parts.push(paint(clean(horn), "#c98a12", "#fff2a0", 0.3));
   }
   return mergeGeometries(parts);
 }
+
+// ---------- the portals: instanced quads, a ripple ring shader; the opening scale lives in each instance's matrix ----------
+export function portalMaterial() {
+  return new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    side: DoubleSide,
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      varying float vPh;
+      void main() {
+        vUv = uv;
+        vPh = fract(sin(instanceMatrix[3].x * 12.9 + instanceMatrix[3].y * 78.2) * 43758.5);
+        gl_Position = projectionMatrix * viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      varying vec2 vUv;
+      varying float vPh;
+      void main() {
+        float r = length(vUv - 0.5) * 2.0;
+        if (r > 1.0) discard;
+        float rim = smoothstep(0.78, 0.86, r) * (1.0 - smoothstep(0.94, 1.0, r));
+        float rip = 0.5 + 0.5 * sin(r * 26.0 - uTime * 5.0 + vPh * 6.28);
+        float ring2 = smoothstep(0.8, 1.0, rip) * (1.0 - smoothstep(0.55, 0.78, r)) * 0.6;
+        float core = (1.0 - r) * 0.5;
+        vec3 gold = vec3(1.0, 0.78, 0.26);
+        vec3 c = gold * (core * 0.8 + ring2) + mix(gold, vec3(1.0, 0.95, 0.7), 0.35) * rim * 1.1;
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  });
+}
+
+// ---------- the silhouettes: flat dark shapes pointing +y from their base at the origin, one nominal metre long ----------
+const poly = (pts, holes = []) => {
+  const s = new Shape();
+  pts.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
+  s.closePath();
+  for (const h of holes) {
+    const p = new Path();
+    h.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
+    p.closePath();
+    s.holes.push(p);
+  }
+  return new ShapeGeometry(s);
+};
+const rect = (x0, y0, x1, y1) => poly([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]);
+const ell = (cx, cy, rx, ry, n = 14, rot = 0) => {
+  const p = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * A;
+    const x = Math.cos(a) * rx;
+    const y = Math.sin(a) * ry;
+    p.push([cx + x * Math.cos(rot) - y * Math.sin(rot), cy + x * Math.sin(rot) + y * Math.cos(rot)]);
+  }
+  return p;
+};
+const mirror = (half) => [...half, ...[...half].reverse().map(([x, y]) => [-x, y])];
+
+export const SIL_KINDS = 7;
+export function silhouetteGeometries() {
+  const merge = (list) => mergeGeometries(list.map(clean));
+  // 0 Excalibur: pommel, grip, a winged crossguard, a long blade
+  const excalibur = merge([poly(ell(0, 0.02, 0.045, 0.045, 10)), rect(-0.016, 0.04, 0.016, 0.22), poly([[-0.2, 0.21], [-0.12, 0.2], [0.12, 0.2], [0.2, 0.21], [0.15, 0.27], [0.03, 0.245], [-0.03, 0.245], [-0.15, 0.27]]), poly([[-0.048, 0.245], [0.048, 0.245], [0.04, 0.9], [0, 1.0], [-0.04, 0.9]])]);
+  // 1 Gae Bolg: a barbed crimson spear, reduced to its dark outline
+  const gae = merge([rect(-0.012, 0, 0.012, 0.7), poly([[-0.012, 0.7], [-0.08, 0.74], [-0.03, 0.79], [-0.085, 0.86], [-0.025, 0.9], [0, 1.0], [0.025, 0.9], [0.085, 0.86], [0.03, 0.79], [0.08, 0.74], [0.012, 0.7]])]);
+  // 2 Rho Aias: seven petals fanned like a flower
+  const petals = [];
+  for (let k = 0; k < 7; k++) {
+    const a = (k - 3) * 0.4;
+    petals.push(poly(ell(Math.sin(a) * 0.32, 0.2 + Math.cos(a) * 0.32, 0.09, 0.22, 14, -a)));
+  }
+  petals.push(poly(ell(0, 0.08, 0.1, 0.1, 12)));
+  const rho = merge(petals);
+  // 3 Saber's helmet: a dome with cheek guards, a visor slit, a crest and swept wings
+  const helm = merge([
+    poly(mirror([[0.0, 0.52], [0.12, 0.5], [0.2, 0.42], [0.24, 0.28], [0.24, 0.06], [0.17, -0.02], [0.08, -0.05]]).slice(0, 14), [[[-0.17, 0.2], [0.17, 0.2], [0.17, 0.26], [-0.17, 0.26]]]),
+    poly([[-0.025, 0.5], [0, 0.78], [0.025, 0.5]]),
+    poly([[0.23, 0.3], [0.46, 0.5], [0.4, 0.28]]),
+    poly([[-0.23, 0.3], [-0.46, 0.5], [-0.4, 0.28]]),
+  ]);
+  // 4 Archer's bow and his twin swords crossed under it
+  const arc = (r, a0, a1, n) => Array.from({ length: n + 1 }, (_, i) => [Math.cos(a0 + ((a1 - a0) * i) / n) * r - r + 0.3, 0.5 + Math.sin(a0 + ((a1 - a0) * i) / n) * r]);
+  const bowOut = arc(0.6, -1.0, 1.0, 12);
+  const bowIn = arc(0.56, -1.0, 1.0, 12).reverse();
+  const sword = (ang) => poly([[-0.02, 0.0], [0.02, 0.0], [0.03, 0.4], [0.0, 0.5], [-0.02, 0.4]].map(([x, y]) => [x * Math.cos(ang) - y * Math.sin(ang) + 0.3, x * Math.sin(ang) + y * Math.cos(ang) - 0.1]));
+  const archer = merge([poly([...bowOut, ...bowIn]), rect(0.2, 0.02, 0.215, 0.98), sword(0.5), sword(-0.5)]);
+  // 5 the Holy Grail
+  const grail = merge([poly(mirror([[0.0, 0.62], [0.18, 0.62], [0.22, 0.5], [0.16, 0.34], [0.06, 0.26], [0.035, 0.17], [0.035, 0.08], [0.15, 0.04]]).slice(0, 16)), rect(-0.18, 0, 0.18, 0.05), poly(ell(0.25, 0.5, 0.05, 0.08, 8)), poly(ell(-0.25, 0.5, 0.05, 0.08, 8))]);
+  // 6 Enkidu's chains: alternating links ending in a spearhead
+  const links = [];
+  for (let i = 0; i < 6; i++) {
+    const wide = i % 2 === 0;
+    const rx = wide ? 0.05 : 0.02;
+    links.push(poly(ell(0, 0.08 + i * 0.12, rx, 0.085, 12), [ell(0, 0.08 + i * 0.12, rx * 0.5, 0.05, 10)]));
+  }
+  links.push(poly([[-0.05, 0.8], [0, 1.0], [0.05, 0.8]]));
+  const chain = merge(links);
+  return [excalibur, gae, rho, helm, archer, grail, chain];
+}
+
+// ---------- the Key of the Heavens ----------
+export function keyGeometry() {
+  const p = [];
+  p.push(paint(clean(new TorusGeometry(0.2, 0.05, 10, 28).translate(0, 0.78, 0)), "#a86a08", "#ffe27a", 0.2));
+  p.push(paint(clean(new TorusGeometry(0.09, 0.03, 8, 20).translate(0, 0.78, 0.0)), "#c98a12", "#fff2a0", 0.2));
+  p.push(paint(clean(new CylinderGeometry(0.045, 0.045, 0.7, 10).translate(0, 0.32, 0)), "#a86a08", "#ffe27a", 0.7));
+  p.push(paint(clean(new BoxGeometry(0.22, 0.07, 0.07).translate(0.1, 0.1, 0)), "#c98a12", "#ffe27a", 0.2));
+  p.push(paint(clean(new BoxGeometry(0.16, 0.07, 0.07).translate(0.08, 0.24, 0)), "#c98a12", "#ffe27a", 0.2));
+  p.push(paint(clean(new ConeGeometry(0.08, 0.16, 6).translate(0, -0.06, 0).rotateX(Math.PI)), "#c98a12", "#fff2a0", 0.2));
+  return mergeGeometries(p);
+}
+
+// ---------- the vault gate (Bab-ilu): a gold ring, red circuit lines spreading out from the middle as uSpread rises ----------
+export function gateMaterial() {
+  return new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+    uniforms: { uSpread: { value: 0 }, uOpen: { value: 0 }, uTime: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: /* glsl */ `
+      uniform float uSpread;
+      uniform float uOpen;
+      uniform float uTime;
+      varying vec2 vUv;
+      float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      void main() {
+        vec2 p = (vUv - 0.5) * 2.0;
+        float r = length(p);
+        if (r > 1.0) discard;
+        // circuit: cells with a trace along one axis, 45 degree bends, nodes at the corners
+        vec2 g = p * 9.0;
+        vec2 id = floor(g);
+        vec2 f = fract(g) - 0.5;
+        float hh = h(id);
+        float tr = hh < 0.5 ? smoothstep(0.07, 0.03, abs(f.y)) : smoothstep(0.07, 0.03, abs(f.x));
+        float dg = hh > 0.82 ? smoothstep(0.07, 0.03, abs(abs(f.x) - abs(f.y))) : 0.0;
+        float nd = smoothstep(0.14, 0.1, length(f)) * step(0.7, h(id + 7.0));
+        float line = max(max(tr, dg), nd) * step(0.2, h(id + 3.0));
+        float front = uSpread * 1.15;
+        float reach = 1.0 - smoothstep(front - 0.12, front, r);
+        float pulse = 0.65 + 0.35 * sin(r * 14.0 - uTime * 6.0);
+        vec3 col = vec3(0.35, 0.02, 0.1) * 0.9;
+        col += vec3(1.0, 0.1, 0.18) * line * reach * pulse * 1.6;
+        float rim = smoothstep(0.9, 0.95, r) * (1.0 - smoothstep(0.985, 1.0, r));
+        col = mix(col, vec3(1.0, 0.8, 0.3), rim);
+        // opening: the middle blazes gold-white and the iris widens
+        float hole = 1.0 - smoothstep(uOpen * 0.62 - 0.08, uOpen * 0.62, r);
+        col = mix(col, mix(vec3(1.0, 0.5, 0.08), vec3(1.0, 0.8, 0.3), 1.0 - r), hole);
+        gl_FragColor = vec4(col, 0.94);
+      }`,
+  });
+}
+
+// ---------- Ea: a black drill-sword, three red glowing segments that turn ----------
+export function eaParts() {
+  const core = new CylinderGeometry(0.07, 0.07, 1.3, 12).translate(0, 0.65, 0);
+  const tip = new ConeGeometry(0.07, 0.34, 12).translate(0, 1.47, 0);
+  const grip = new CylinderGeometry(0.06, 0.06, 0.22, 10).translate(0, -0.1, 0);
+  // a segment: an open cylinder of 4.3 rad with a thicker lip, so its turning reads
+  const seg = (h) => new CylinderGeometry(0.15, 0.15, h, 14, 1, true, 0, 4.3).translate(0, h / 2, 0);
+  const glow = (h) => new CylinderGeometry(0.2, 0.2, h, 14, 1, true, 0, 4.3).translate(0, h / 2, 0);
+  return { core: mergeGeometries([core, tip, grip].map(clean)), seg: seg(0.26), glow: glow(0.26) };
+}
+
+// the spiral wind: an open cone from the sword tip, red and white stripes turning round its axis (+y is its length; the move lays it down)
+export function windMaterial() {
+  return new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    side: DoubleSide,
+    uniforms: { uTime: { value: 0 }, uK: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      uniform float uK;
+      varying vec2 vUv;
+      void main() {
+        float a = vUv.x * 6.28318;
+        float s = sin(5.0 * (a + vUv.y * 7.0 - uTime * 16.0));
+        float band = smoothstep(0.35, 0.95, s);
+        float fade = smoothstep(0.0, 0.08, vUv.y) * (1.0 - smoothstep(0.75, 1.0, vUv.y));
+        vec3 c = mix(vec3(0.95, 0.06, 0.14), vec3(1.0, 0.75, 0.55), band * band) * (0.35 + band * 1.2);
+        gl_FragColor = vec4(c * fade * uK, 1.0);
+      }`,
+  });
+}
+export const windGeometry = () => new CylinderGeometry(2.7, 0.14, 15, 40, 20, true).translate(0, 7.5, 0);
+
+// a soft gold glow quad for the pup's rim light and the key's halo
+export function glowMaterial(color = "#ffc34a") {
+  return new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    uniforms: { uC: { value: new Color(color) }, uK: { value: 1 } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uC;
+      uniform float uK;
+      varying vec2 vUv;
+      void main() {
+        float r = length(vUv - 0.5) * 2.0;
+        float a = pow(max(1.0 - r, 0.0), 2.0);
+        gl_FragColor = vec4(uC * a * uK, 1.0);
+      }`,
+  });
+}
+export const discGeometry = () => new CircleGeometry(1, 40);
+export { BufferGeometry };
