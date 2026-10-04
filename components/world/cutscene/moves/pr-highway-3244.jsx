@@ -1,24 +1,35 @@
 // the Highway: SONIC. One highway car is promoted (two-tone, no lettering, no
-// face) and speaks "I am speed."; it revs, then launches off the right of the
-// frame in a red taillight streak. The pup SPIN-DASHES after it: curled into a
-// ball, turning several times, along the road in a blue speed streak, and the
-// slices it overlaps flash mint as it passes (the pairs that cannot overlap are
-// never drawn at all). The highway's own landform hides during the scene (it
-// stands between the lens and the pup), so the road is built here too.
-// Cost: road 3 boxes, lane dashes 1 (instanced), car 2 (body, wheels), slices 1
-// (instanced), two streaks, flash 1, shards 1; no post pass.
+// face) and speaks "I am speed."; at 3.6 s the pup hops onto its roof and sits,
+// the car revs and launches with the pup aboard in a red taillight streak, and
+// the pup hops off in a SPIN-DASH: a curled ball, uniform, turning several
+// times in a ring of blue blur. A row of dim ghost key-pair ticks stands behind
+// the road; only the few the car and the ball overlap flash mint as they pass
+// (the pairs that cannot overlap stay dark). The highway's own landform hides
+// during the scene (it stands between the lens and the pup), so the road is
+// built here too.
+// Cost: road 3 boxes, lane dashes 1 (instanced), car 2 (body, wheels), ghost
+// ticks 1 + flashing slices 1 (instanced), two streaks, ring 1, flash 1,
+// shards 1; no post pass.
 
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { AdditiveBlending, BoxGeometry, BufferAttribute, Color, CylinderGeometry, DoubleSide, MeshBasicMaterial, Object3D, PlaneGeometry, ShaderMaterial, Vector3 } from "three";
+import { AdditiveBlending, BoxGeometry, BufferAttribute, Color, CylinderGeometry, DoubleSide, MeshBasicMaterial, Object3D, PlaneGeometry, RingGeometry, ShaderMaterial, Vector3 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Stage, Speaker, onTwos, useCutFrame } from "../kit";
 import { live } from "../../../../lib/world/store";
-import { Flash, INK, Rig, Shards, T, clock, ease, flat, nudge, ramp, usePup } from "./g2/parts";
+import { Flash, INK, Rig, Shards, T, clock, ease, flat, landK, nudge, ramp, usePup } from "./g2/parts";
 
 const ROAD_Z = -1.1;
 const CAR_AT = [2.4, 0, -1.9];
-const SLICES = 16;
+const SLICES = 24;
+const CAR_S = 1.18; // the car's scale in the scene
+// the beats: the pup mounts, the car launches, the pup hops off in a spin-dash
+const MOUNT = [3.6, 4.2];
+const LAUNCH = 4.7;
+const OFF = [4.95, 5.45];
+const runAt = (t) => Math.pow(ramp(t, LAUNCH, LAUNCH + 0.9), 2);
+// where the pup is this frame, in the figure frame (usePup writes it, the ring and streak read it)
+const PUP = { x: 0, y: 0, z: 0, ball: 0 };
 const DASHES = 24;
 
 const SUN = new Vector3(-0.3, 0.8, 0.5).normalize();
@@ -92,19 +103,22 @@ function Road({ cut }) {
   const dashes = useRef();
   const slices = useRef();
   const roadRef = useRef();
-  const roadMat = useMemo(() => flat("#262c4a"), []);
-  const edgeMat = useMemo(() => flat("#8f9bd6"), []);
+  const roadMat = useMemo(() => flat("#5b5588"), []);
+  const edgeMat = useMemo(() => flat("#c9c3f0"), []);
   const dashMat = useMemo(() => flat("#ffe9a8"), []);
-  const sliceMat = useMemo(() => flat(INK.mint, { transparent: true, opacity: 0.85, depthWrite: false }), []);
+  const sliceMat = useMemo(() => flat(INK.mint, { transparent: true, opacity: 0.9, depthWrite: false }), []);
+  const ghosts = useRef();
+  const ghostMat = useMemo(() => flat("#a79bd0", { transparent: true, opacity: 0.55, depthWrite: false }), []);
   const dashGeo = useMemo(() => new BoxGeometry(0.8, 0.012, 0.09), []);
   const sliceGeo = useMemo(() => new BoxGeometry(0.1, 1, 0.1), []);
+  const ghostGeo = useMemo(() => new BoxGeometry(0.06, 0.34, 0.06), []);
   const roadGeo = useMemo(() => new BoxGeometry(26, 0.02, 5.4), []);
   const edgeGeo = useMemo(() => new BoxGeometry(26, 0.02, 0.1), []);
-  const tD = tl.move[0];
+  const tD = LAUNCH;
   useFrame((state) => {
     const t = clock(state);
     const on = Boolean(live.arrival.id) && live.inStage;
-    roadRef.current.visible = dashes.current.visible = slices.current.visible = on;
+    roadRef.current.visible = dashes.current.visible = slices.current.visible = ghosts.current.visible = on;
     if (!on) return;
     const tt = onTwos(t);
     const out = 1 - ramp(tt, tl.collapse[0], tl.collapse[1]);
@@ -120,18 +134,24 @@ function Road({ cut }) {
       dashes.current.setMatrixAt(i, DUMMY.matrix);
     }
     dashes.current.instanceMatrix.needsUpdate = true;
-    // the slices: only the ones the dash overlaps are ever drawn
-    const pupX = 2.4 * ease(ramp(tt, tD, tD + 0.55));
-    const carX = CAR_AT[0] + 14 * Math.pow(ramp(tt, tD - 0.1, tD + 0.8), 2);
+    // a row of dim ghost ticks (every key pair the slice could have compared),
+    // and only the few that the car and the ball overlap flash mint as they pass
+    const carX = CAR_AT[0] + 14 * runAt(tt);
+    const ballX = PUP.ball > 0.01 ? PUP.x : -99;
     for (let i = 0; i < SLICES; i++) {
-      const x = -1.6 + i * 0.5;
-      const near = Math.min(Math.abs(carX - x), Math.abs(pupX - x));
-      const h = i % 3 === 1 && tt > tD && near < 0.6 ? 1.1 * (1 - near / 0.6) : 0;
+      const x = -1.6 + i * 0.4;
+      const near = Math.min(Math.abs(carX - x), Math.abs(ballX - x));
+      const h = tt > LAUNCH && near < 0.3 ? 1.1 * (1 - near / 0.3) : 0;
+      DUMMY.position.set(x, 0.05 + 0.17, ROAD_Z - 1.55);
+      DUMMY.scale.set(born + 0.001, born + 0.001, born + 0.001);
+      DUMMY.updateMatrix();
+      ghosts.current.setMatrixAt(i, DUMMY.matrix);
       DUMMY.position.set(x, 0.05 + h / 2, ROAD_Z - 1.55);
       DUMMY.scale.set(1, h + 0.0001, 1);
       DUMMY.updateMatrix();
       slices.current.setMatrixAt(i, DUMMY.matrix);
     }
+    ghosts.current.instanceMatrix.needsUpdate = true;
     slices.current.instanceMatrix.needsUpdate = true;
   }, -0.4);
   return (
@@ -142,7 +162,8 @@ function Road({ cut }) {
         <mesh position={[3, 0.02, ROAD_Z + 2.62]} material={edgeMat} geometry={edgeGeo} />
       </group>
       <instancedMesh ref={dashes} args={[dashGeo, dashMat, DASHES]} visible={false} frustumCulled={false} />
-      <instancedMesh ref={slices} args={[sliceGeo, sliceMat, SLICES]} visible={false} frustumCulled={false} />
+      <instancedMesh ref={ghosts} args={[ghostGeo, ghostMat, SLICES]} visible={false} frustumCulled={false} />
+      <instancedMesh ref={slices} args={[sliceGeo, sliceMat, SLICES]} visible={false} frustumCulled={false} renderOrder={2} />
     </>
   );
 }
@@ -152,7 +173,7 @@ function Car({ cut }) {
   const root = useRef();
   const { body, wheels } = useMemo(carGeometry, []);
   const lit = useMemo(() => new MeshBasicMaterial({ vertexColors: true, toneMapped: false, fog: false }), []);
-  const tL = tl.move[0] - 0.1;
+  const tL = LAUNCH;
   useFrame((state) => {
     const g = root.current;
     const t = clock(state);
@@ -162,12 +183,12 @@ function Car({ cut }) {
     const tt = onTwos(t);
     const enter = ease(ramp(tt, 1.95, 2.35));
     const revs = ramp(tt, tL - 0.9, tL);
-    const run = Math.pow(ramp(tt, tL, tL + 0.9), 2);
+    const run = runAt(tt);
     const shake = (0.012 + 0.03 * revs) * ((Math.floor(tt * 12) % 2) - 0.5) * 2 * (1 - run);
     g.position.set(CAR_AT[0] + 14 * run, CAR_AT[1] + shake, CAR_AT[2] + (1 - enter) * -0.6);
     g.rotation.set(0, -0.4 * (1 - run * 0.8), -0.04 * revs * (1 - run));
     const o = 1 - ramp(tt, tl.collapse[0], tl.collapse[1]);
-    g.scale.setScalar(1.18 * enter * o + 0.001);
+    g.scale.setScalar(CAR_S * enter * o + 0.001);
   }, -0.4);
   return (
     <group ref={root} visible={false}>
@@ -177,21 +198,75 @@ function Car({ cut }) {
   );
 }
 
+// A ring of blue blur round the curled pup: it faces the lens and follows the ball.
+const BLUR = new RingGeometry(0.7, 1, 40);
+function BlurRing() {
+  const ref = useRef();
+  const m = useMemo(() => flat(INK.blue, { transparent: true, depthWrite: false, side: DoubleSide, blending: AdditiveBlending }), []);
+  useFrame(({ camera }) => {
+    const g = ref.current;
+    g.visible = live.inStage;
+    if (!g.visible) return;
+    const on = PUP.ball > 0.01;
+    m.opacity = 0.9 * PUP.ball;
+    g.position.set(PUP.x, PUP.y + 0.42, PUP.z);
+    g.scale.setScalar(on ? 0.62 + 0.06 * Math.sin(T.t * 60) : 0.0001);
+    g.quaternion.copy(camera.quaternion);
+  }, -0.4);
+  return <mesh ref={ref} geometry={BLUR} material={m} visible={false} renderOrder={5} frustumCulled={false} />;
+}
+
 export default function Sonic(cut) {
   const { tl, mode } = cut;
-  const tD = tl.move[0];
   const out = (t) => 1 - ramp(t, tl.collapse[0], tl.duration);
-  const pupX = (t) => 2.4 * ease(ramp(t, tD, tD + 0.55));
   useCutFrame((t) => {
     if (mode !== "full") return;
     const o = out(t);
+    const hop = ramp(t, OFF[0], OFF[1]);
     live.pose.sign = ramp(t, tl.sign[0], tl.sign[1]) * (1 - ramp(t, tl.sign[1] + 0.2, tl.lineA)) * o;
-    live.pose.crouch = ramp(t, tD - 0.45, tD - 0.05) * (1 - ramp(t, tD + 0.55, tD + 0.9)) * o;
-    const turns = 4 * ramp(t, tD - 0.05, tD + 0.6);
-    live.pose.spin = turns >= 4 ? 0 : turns % 1;
-    live.pose.raise = ramp(t, tD + 1.0, tD + 1.5) * o;
+    // crouch to spring, sit on the roof, curl into the ball for the spin-dash hop
+    live.pose.crouch = (ramp(t, MOUNT[0] - 0.4, MOUNT[0] - 0.05) * (1 - ramp(t, MOUNT[0], MOUNT[0] + 0.1)) + (hop > 0 && hop < 1 ? 1 : 0)) * o;
+    live.pose.sit = ramp(t, MOUNT[1], MOUNT[1] + 0.2) * (1 - ramp(t, OFF[0] - 0.1, OFF[0])) * o;
+    live.pose.spin = hop > 0 && hop < 1 ? (4 * hop) % 1 : 0;
+    live.pose.raise = ramp(t, OFF[1] + 0.1, OFF[1] + 0.5) * o;
   });
-  usePup(cut, (t, p, turn) => nudge(p, turn, pupX(t) * out(t), 0, 0));
+  usePup(cut, (t, p, turn) => {
+    const k = landK(cut.card, cut.place, live.seal.x, live.seal.z);
+    const o = out(t);
+    // the roof of the car, in the figure frame (the car stands in the scaled rig, the pup does not)
+    const roof = (tt) => {
+      const run = runAt(tt);
+      const ry = -0.4 * (1 - run * 0.8);
+      const lx = -0.1 * CAR_S;
+      return [k * (CAR_AT[0] + 14 * run + Math.cos(ry) * lx), k * 0.99 * CAR_S, k * (CAR_AT[2] - Math.sin(ry) * lx)];
+    };
+    const hopOn = ease(ramp(t, MOUNT[0], MOUNT[1]));
+    const hopOff = ease(ramp(t, OFF[0], OFF[1]));
+    const R = roof(Math.min(t, OFF[0]));
+    // up onto the roof (an arc), carried by the car, then off home in the spin-dash
+    let x = 0;
+    let y = 0;
+    let z = 0;
+    if (t < OFF[0]) {
+      const target = roof(t);
+      x = target[0] * hopOn;
+      y = target[1] * hopOn + 0.9 * Math.sin(Math.PI * ramp(t, MOUNT[0], MOUNT[1]));
+      z = target[2] * hopOn;
+    } else {
+      x = R[0] * (1 - hopOff);
+      y = R[1] * (1 - hopOff) + 0.7 * Math.sin(Math.PI * hopOff);
+      z = R[2] * (1 - hopOff);
+    }
+    nudge(p, turn, x * o, y * o, z * o);
+    const ball = hopOff > 0 && hopOff < 1 ? 1 : 0;
+    const sitting = ramp(t, MOUNT[1], MOUNT[1] + 0.2) * (1 - ramp(t, OFF[0] - 0.1, OFF[0]));
+    // on the roof it is a touch smaller, curled in the dash it is a uniform ball: scale only ever uniform, so the head stays round
+    p.scale.setScalar(1 - 0.22 * sitting - 0.2 * ball);
+    PUP.x = x;
+    PUP.y = y;
+    PUP.z = z;
+    PUP.ball = ball * o;
+  });
   return (
     <>
       <Stage {...cut} />
@@ -203,8 +278,8 @@ export default function Sonic(cut) {
           color="#ff4a5e"
           fn={() => {
             const t = T.t;
-            const run = Math.pow(ramp(t, tD - 0.1, tD + 0.8), 2);
-            return [CAR_AT[0] + 14 * run - 1.1, 0.5, CAR_AT[2], Math.min(7, 14 * run), 0.16, run > 0 ? 1 - ramp(t, tD + 0.8, tD + 1.5) : 0];
+            const run = runAt(t);
+            return [CAR_AT[0] + 14 * run - 1.1, 0.62, CAR_AT[2], Math.min(7, 14 * run), 0.3, run > 0 ? 1 - ramp(t, LAUNCH + 0.8, LAUNCH + 1.5) : 0];
           }}
         />
       </Rig>
@@ -213,11 +288,14 @@ export default function Sonic(cut) {
           color={INK.blue}
           fn={() => {
             const t = T.t;
-            return [pupX(t) + 0.1, 0.5, 0.1, 0.4 + 3.2 * ramp(t, tD, tD + 0.3), 0.7, t < tD ? 0 : 1 - ramp(t, tD + 0.55, tD + 1.4)];
+            const u = ramp(t, OFF[0], OFF[1]);
+            // behind the ball, thin, never over its face
+            return [PUP.x - 0.3, PUP.y + 0.4, PUP.z - 0.25, u > 0 && u < 1 ? 0.5 + 2.4 * u : 0, 0.16, u > 0 && u < 1 ? 1 : 0];
           }}
         />
-        <Flash color="#9fd2ff" at={[0.4, 0.5, 0.3]} fn={() => [T.t < tD ? 0 : 0.9 * (1 - ramp(T.t, tD, tD + 0.3)), 2.6]} />
-        <Shards start={tD + 0.05} dur={0.9} from={[0.2, 0.15, 0.3]} speed={1.6} up={0.9} size={0.07} count={16} colors={[INK.cream, INK.blue]} seed={12} />
+        <BlurRing />
+        <Flash color="#9fd2ff" at={[0.4, 0.5, -0.3]} fn={() => [T.t < OFF[0] ? 0 : 0.7 * (1 - ramp(T.t, OFF[0], OFF[0] + 0.3)), 2.2]} />
+        <Shards start={OFF[1]} dur={0.9} from={[0.2, 0.15, 0.3]} speed={1.6} up={0.9} size={0.07} count={16} colors={[INK.cream, INK.blue]} seed={12} />
       </Rig>
     </>
   );

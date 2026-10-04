@@ -73,6 +73,11 @@ export function usePup(cut, fn) {
       return;
     }
     fn(clock(state), p, turnFor(cut.card, cut.place, live.seal.x, live.seal.z));
+    // where the pup really is this frame (a move offsets it): the bubble's tail points here (ui/Bubbles.jsx)
+    const at = (live.pupAt ??= { x: 0, y: 0, z: 0 });
+    at.x = p.position.x;
+    at.y = p.position.y + p.scale.y;
+    at.z = p.position.z;
   }, -0.5);
   useEffect(() => () => pup.current?.scale.setScalar(1), []);
 }
@@ -176,4 +181,52 @@ export function Shards({ count = 18, start, dur = 1.2, from = [0, 1, 0], speed =
     mesh.instanceMatrix.needsUpdate = true;
   }, -0.4);
   return <instancedMesh ref={ref} args={[SHARD, m, count]} visible={false} frustumCulled={false} />;
+}
+
+// A flat ink ring on the ground: a dark outline round a cream band, opaque, so it
+// reads as 2D ink over the lit world (the smash ring, drawn). fn() -> [scale, alpha].
+const INK_OUT = new RingGeometry(0.9, 1, 40).rotateX(-Math.PI / 2);
+const INK_IN = new RingGeometry(0.74, 0.9, 40).rotateX(-Math.PI / 2);
+export function InkRing({ at = [0, 0.05, 0], fn, color = INK.cream, ink = "#22163f" }) {
+  const ref = useRef();
+  const mats = useMemo(() => [flat(ink, { transparent: true, depthWrite: false }), flat(color, { transparent: true, depthWrite: false })], [ink, color]);
+  useFrame(() => {
+    const g = ref.current;
+    const [scale, alpha] = fn();
+    g.visible = live.inStage;
+    if (!g.visible) return;
+    mats[0].opacity = mats[1].opacity = alpha;
+    g.scale.setScalar(alpha > 0.01 && scale > 0.01 ? scale : 0.0001);
+  }, -0.4);
+  return (
+    <group ref={ref} position={at} visible={false}>
+      <mesh geometry={INK_OUT} material={mats[0]} renderOrder={4} />
+      <mesh geometry={INK_IN} material={mats[1]} position={[0, 0.004, 0]} renderOrder={5} />
+    </group>
+  );
+}
+
+// A scene that builds its own ground and sky hides the landform the stage keeps
+// lit (a land speaker's): every top-level object still showing inside the stage
+// goes off, and comes back the frame the stage ends. The stage's own hide list
+// is untouched, so a skip restores everything in the same frame.
+export function useHideLand() {
+  const scene = useThree((s) => s.scene);
+  const list = useRef([]);
+  const restore = () => {
+    for (const o of list.current) o.visible = true;
+    list.current.length = 0;
+  };
+  useFrame(() => {
+    if (!live.arrival.id || !live.inStage) {
+      if (list.current.length) restore();
+      return;
+    }
+    for (const o of scene.children) {
+      if (o.name === "cutscene" || o.name === "seal" || o.isLight || !o.visible) continue;
+      o.visible = false;
+      list.current.push(o);
+    }
+  }, -0.3);
+  useEffect(() => restore, []);
 }

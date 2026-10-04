@@ -13,9 +13,13 @@ import { BufferAttribute, BufferGeometry, Color, ConeGeometry, CylinderGeometry,
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Stage, Speaker, onTwos, useCutFrame } from "../kit";
 import { live } from "../../../../lib/world/store";
-import { Flash, INK, Rig, Shards, T, clock, ease, flat, nudge, rand, ramp, usePup } from "./g2/parts";
+import { Flash, INK, InkRing, Rig, Shards, T, clock, ease, flat, nudge, rand, ramp, usePup } from "./g2/parts";
 
 const N = 22;
+// the beats, on the scene clock: the shell cracks (the hero pose holds), the pup hops, the ink ring lands, the floor condenses, the forest grows
+const CRACK = 3.8;
+const HOP = [4.1, 4.45];
+const SLIDE = [4.1, 4.75];
 const CELL = 0.3;
 const FLOOR = [0.9, 0.03, -1.6]; // the floor's centre, in the figure frame
 const cx = (j) => FLOOR[0] + (j - (N - 1) / 2) * CELL;
@@ -54,11 +58,12 @@ const treeGeometry = () =>
     paint(new ConeGeometry(0.18, 0.42, 5).translate(0, 0.74, 0), "#8fe0b8"),
   ]);
 
-// The shell: a low-poly dome with two horns on its shoulders, in one geometry.
+// The shell: a low-poly dome with two horns low on its flanks, pointing out
+// (never above the head's line: the pup reads round, no ears), in one geometry.
 const shellGeometry = () =>
   mergeGeometries([
     bare(new IcosahedronGeometry(1, 1).scale(1.15, 0.95, 1.05)),
-    ...[-1, 1].map((s) => bare(new ConeGeometry(0.2, 0.95, 5).rotateZ(-s * 0.55).translate(s * 0.78, 1.0, -0.1))),
+    ...[-1, 1].map((s) => bare(new ConeGeometry(0.2, 0.95, 5).rotateZ(-s * 1.3).translate(s * 1.0, -0.2, -0.15))),
   ]);
 
 const DUMMY = new Object3D();
@@ -75,6 +80,8 @@ function Floor({ cut }) {
   const leafMat = useMemo(() => new MeshLambertMaterial({ vertexColors: true, flatShading: true }), []);
   const floorMat = useMemo(() => flat("#ffffff"), []);
   const ready = useRef(false);
+  const tint = useMemo(() => new Color(), []);
+  const glowC = useMemo(() => new Color("#fff3c2"), []);
   useFrame((state) => {
     const mesh = cells.current;
     const forest = trees.current;
@@ -90,26 +97,29 @@ function Floor({ cut }) {
       mesh.instanceColor.needsUpdate = true;
     }
     const tt = onTwos(t);
-    const M0 = tl.move[0];
     const out = 1 - ramp(tt, tl.collapse[0], tl.collapse[1]);
-    const slide = ease(ramp(tt, M0, M0 + 0.55));
-    const gone = ramp(tt, M0 + 0.3, M0 + 0.7);
-    const lift = 1 - ramp(tt, M0 + 0.55, M0 + 0.9);
+    const slide = ease(ramp(tt, SLIDE[0], SLIDE[1]));
+    const gone = ramp(tt, SLIDE[0] + 0.2, SLIDE[1] + 0.05);
+    const lift = 1 - ramp(tt, SLIDE[1], SLIDE[1] + 0.3);
+    // the diagonal brightens as the rows slide into it, so the condensing reads
+    for (let i = 0; i < N; i++) mesh.setColorAt(i * N + i, tint.set("#ffa285").lerp(glowC, slide));
+    mesh.instanceColor.needsUpdate = true;
     for (let i = 0; i < N; i++) {
       const build = ramp(tt, 1.6 + i * 0.035, 1.9 + i * 0.035);
       for (let j = 0; j < N; j++) {
         const k = (i === j ? lift : 1 - gone) * build * out;
         DUMMY.position.set(cx(j) + (cx(i) - cx(j)) * slide, FLOOR[1] + 0.04 * k, cz(i));
-        DUMMY.scale.set(0.135 * k, 0.04 * k + 0.001, 0.135 * k);
+        const big = i === j ? 1 + 0.45 * slide : 1;
+        DUMMY.scale.set(0.135 * k * big, 0.04 * k + 0.001, 0.135 * k * big);
         DUMMY.updateMatrix();
         mesh.setMatrixAt(i * N + j, DUMMY.matrix);
       }
     }
     mesh.instanceMatrix.needsUpdate = true;
     for (let i = 0; i < N; i++) {
-      const u = ramp(tt, M0 + 0.55, M0 + 1.5 + i * 0.012);
+      const u = ramp(tt, SLIDE[1] - 0.05, SLIDE[1] + 0.55 + i * 0.006);
       const e = ease(u);
-      const sway = 0.07 * Math.sin(tt * 2.3 + i) * ramp(tt, M0 + 1.6, M0 + 2.0);
+      const sway = 0.07 * Math.sin(tt * 2.3 + i) * ramp(tt, SLIDE[1] + 0.6, SLIDE[1] + 1.0);
       DUMMY.position.set(cx(i) + (spots[i][0] - cx(i)) * e, 0.03 + 0.6 * Math.sin(Math.PI * e) * (1 - ramp(u, 0.9, 1)), cz(i) + (spots[i][1] - cz(i)) * e);
       DUMMY.rotation.set(0, i, sway);
       DUMMY.scale.setScalar(Math.min(1, u * 3) * (0.8 + 0.06 * (i % 4)) * out);
@@ -146,7 +156,7 @@ function Shell({ cut }) {
     const g = root.current;
     const t = clock(state);
     const A = tl.lineA;
-    const crack = tl.move[0] + 0.15;
+    const crack = CRACK;
     const on = Boolean(live.arrival.id) && live.inStage;
     g.visible = on;
     if (!on) return;
@@ -201,24 +211,24 @@ function Shell({ cut }) {
 export default function Frieza(cut) {
   const { tl, mode } = cut;
   const A = tl.lineA;
-  const M0 = tl.move[0];
-  const M1 = tl.move[1];
   const out = (t) => 1 - ramp(t, tl.collapse[0], tl.duration);
-  const power = (t) => ease(ramp(t, A + 0.2, M0 - 0.1));
+  const power = (t) => ease(ramp(t, A + 0.2, CRACK - 0.1));
   useCutFrame((t) => {
     if (mode !== "full") return;
     const o = out(t);
     live.pose.sign = ramp(t, tl.sign[0], tl.sign[1]) * (1 - ramp(t, tl.sign[1] + 0.2, A)) * o;
-    live.pose.crouch = ramp(t, A, A + 0.9) * (1 - ramp(t, M0 + 0.1, M0 + 0.4)) * o;
-    live.pose.raise = ramp(t, M1 - 0.3, M1 + 0.3) * o;
+    live.pose.crouch = ramp(t, A, A + 0.9) * (1 - ramp(t, CRACK - 0.25, CRACK)) * o;
+    // the hero pose: both flippers out from the crack, held through line B
+    live.pose.raise = ramp(t, CRACK, CRACK + 0.2) * o;
   });
   usePup(cut, (t, p, turn) => {
     const o = out(t);
+    // 1 -> 1.4 in the shell, and it stays 1.4: the final form
     p.scale.setScalar(1 + 0.4 * power(t) * o);
-    const pw = power(t) * (1 - ramp(t, M0 - 0.1, M0 + 0.1));
+    const pw = power(t) * (1 - ramp(t, CRACK - 0.1, CRACK));
     nudge(p, turn, Math.sin(onTwos(t) * 70) * 0.035 * pw, 0, 0);
-    // out of the shell in a hop, landing among the trees with a squash
-    nudge(p, turn, 0, 0.8 * Math.sin(Math.PI * ramp(t, M0 + 0.15, M1 + 0.2)) * o, 0);
+    // out of the shell, a hold, then a hop that lands among the sliding rows
+    nudge(p, turn, 0, 0.8 * Math.sin(Math.PI * ramp(t, HOP[0], HOP[1])) * o, 0);
   });
   return (
     <>
@@ -232,12 +242,13 @@ export default function Frieza(cut) {
           at={[0, 0.8, -0.3]}
           fn={() => {
             const t = T.t;
-            const glow = 0.4 * power(t) * (1 - ramp(t, M0 + 0.1, M0 + 0.2));
-            const burst = t > M0 + 0.15 ? 1 - ramp(t, M0 + 0.15, M0 + 0.6) : 0;
-            return [Math.max(glow, burst), 2.2 + 3 * ramp(t, M0 + 0.15, M0 + 0.6) + 1.4 * power(t)];
+            const glow = 0.4 * power(t) * (1 - ramp(t, CRACK - 0.1, CRACK));
+            const burst = t > CRACK ? 1 - ramp(t, CRACK, CRACK + 0.45) : 0;
+            return [Math.max(glow, burst), 2.2 + 3 * ramp(t, CRACK, CRACK + 0.45) + 1.4 * power(t)];
           }}
         />
-        <Shards start={M0 + 0.15} dur={1.3} from={[0, 1.0, 0]} speed={2.6} up={2.4} size={0.16} count={18} colors={[INK.coral, INK.cream, "#ffa285"]} seed={5} />
+        <InkRing at={[0, 0.05, 0]} fn={() => [0.3 + 2.4 * ease(ramp(T.t, 4.4, 5.0)), T.t < 4.4 ? 0 : 1 - ramp(T.t, 4.7, 5.2)]} />
+        <Shards start={CRACK} dur={1.3} from={[0, 1.0, 0]} speed={2.6} up={2.4} size={0.16} count={18} colors={[INK.coral, INK.cream, "#ffa285"]} seed={5} />
       </Rig>
     </>
   );
