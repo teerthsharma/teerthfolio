@@ -14,6 +14,9 @@ import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { tickSnack } from "../components/world/life/snack.js";
+import { TOYS, blastAt, makeBowling, makeCone, makeStack, makeTnt, tickToys } from "../lib/world/toys.js";
+import { buildToys } from "../components/world/life/toys-seed.js";
+import { forbidden, samplePoints } from "../components/world/life/spawn.js";
 import { CAR_BAYS, createCar, stepCar } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
@@ -330,6 +333,211 @@ assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
   for (let i = 0; i < 120 * 9; i++) step(null);
   assert.ok(!pen.gone && !pen.edible && pen.bumps === 0 && w.props.includes(pen), "the penguin did not respawn as a normal one");
   assert.ok(Math.hypot(pen.x - sn.x, pen.z - sn.z) >= 18, `respawned ${Math.hypot(pen.x - sn.x, pen.z - sn.z).toFixed(1)} m from the seal`);
+}
+
+// Toys (TNT and Bruno-style stuff): all placed on open land; a bump lights the
+// fuse and the crate goes off after the delay; the blast flings props and the
+// seal outward, the seal always landing on land inside the island; a blast
+// that reaches another crate lights it; the crate comes back later, far from
+// the seal; nothing fires in an arrival hold; stacks topple, pins strike,
+// cones tip, and all of them reset.
+{
+  const landable = (x, z) => Math.hypot(x, z) <= ISLAND_RADIUS - MOTION.sealRadius && waterGap(x, z) > 0 && colliders.every((c) => Math.hypot(x - c.x, z - c.z) >= c.radius + MOTION.sealRadius);
+  const toys = buildToys();
+  const spots = [...toys.tnt, ...toys.stacks.flatMap((s) => s.base), ...toys.bowling.pins, toys.bowling.ball, ...toys.cones];
+  assert.ok(toys.tnt.length >= 6 && toys.tnt.length <= 9, `${toys.tnt.length} TNT crates, expected 6-9`);
+  assert.ok(toys.cones.length >= 3, `only ${toys.cones.length} cones`);
+  assert.ok(toys.stacks.length >= 1 && toys.bowling.pins.length === 6, "stack or pins missing");
+  const nearRoad = (x, z) => {
+    for (let a = 0; a < 16; a++) for (const r of [2, 3.5, 5]) if (onHighway(x + Math.cos(a * 0.3927) * r, z + Math.sin(a * 0.3927) * r)) return true;
+    return false;
+  };
+  for (const p of spots) {
+    const at = `${p.kind} at (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`;
+    assert.ok(Math.hypot(p.x, p.z) < ISLAND_RADIUS - 3, `${at} is at the rim`);
+    assert.ok(waterGap(p.x, p.z) > 2, `${at} is in or beside the water (${waterGap(p.x, p.z).toFixed(1)} m)`);
+    assert.ok(!onHighway(p.x, p.z), `${at} is on the asphalt`);
+    assert.ok(Math.hypot(p.x - SPAWN.x, p.z - SPAWN.z) >= 8, `${at} is at the spawn`);
+    assert.ok(PLACES.every((pl) => Math.hypot(p.x - pl.x, p.z - pl.z) >= pl.radius + 3 && Math.hypot(p.x - dockPoint(pl).x, p.z - dockPoint(pl).z) >= 3), `${at} is in a building or on a dock`);
+    assert.ok(colliders.every((c) => Math.hypot(p.x - c.x, p.z - c.z) >= c.radius + p.radius), `${at} is inside a collider`);
+    if (p.kind !== "cone") assert.ok(!forbidden(p.x, p.z, 0), `${at} is on a trail or forbidden snow`);
+  }
+  assert.ok(toys.cones.every((c) => nearRoad(c.x, c.z)), "a cone is not beside the highway");
+
+  const mkL = (seal) => ({ seal, boom: { n: 0, x: 0, z: 0, q: [] }, cheer: { n: 0, x: 0, z: 0 }, fizz: 0 });
+  const T0 = { x: SPAWN.x, z: SPAWN.z + 10 };
+  const rig = (extra = {}) => {
+    const tnt = makeTnt(T0.x, T0.z);
+    const seal = createSeal(T0.x, T0.z - 7);
+    const w = { ...world, props: [tnt], ...extra };
+    const L = mkL(seal);
+    const set = { tnt: [tnt], stacks: [], bowling: null, cones: [] };
+    const step = (input) => {
+      stepSeal(seal, { input }, 1 / 120, w);
+      tickToys(set, 1 / 120, w, L);
+    };
+    const run = (s, input = null) => {
+      for (let i = 0; i < s * 120; i++) step(input);
+    };
+    const charge = () => {
+      for (let i = 0; i < 120 * 6 && tnt.fuse < 0; i++) step({ x: 0, z: 1 });
+    };
+    return { tnt, seal, w, L, set, step, run, charge };
+  };
+
+  // A bump lights the fuse; it goes off only after the delay.
+  {
+    const { tnt, seal, w, L, run, charge } = rig();
+    run(1);
+    assert.equal(tnt.fuse, -1, "an untouched crate has a lit fuse");
+    charge();
+    assert.ok(tnt.fuse >= 0 && L.fizz === 1, "bumping the crate did not light its fuse");
+    run(TOYS.fuse - 0.3);
+    assert.equal(L.boom.n, 0, "the crate went off before its fuse burned down");
+    assert.ok(w.props.includes(tnt), "a lit crate stopped being solid");
+    const before = Math.hypot(seal.x - tnt.x, seal.z - tnt.z);
+    run(0.5);
+    assert.equal(L.boom.n, 1, "the crate never exploded");
+    assert.ok(tnt.gone && !w.props.includes(tnt), "an exploded crate is still there");
+    assert.ok(seal.flight > 0, "the blast did not hop the seal");
+    run(2.5);
+    const after = Math.hypot(seal.x - L.boom.x, seal.z - L.boom.z);
+    assert.ok(after > before + 1.5, `the blast did not push the seal out (${before.toFixed(1)} -> ${after.toFixed(1)} m)`);
+    assert.ok(landable(seal.x, seal.z) && seal.flight === 0, `the seal ended off the land at (${seal.x.toFixed(1)}, ${seal.z.toFixed(1)})`);
+    // The crate stays away while the seal lingers, then pops back at least respawnFar from it.
+    run(TOYS.respawn + 1);
+    assert.ok(tnt.gone, "the crate came back with the seal standing beside it");
+    seal.x = tnt.seedX + 40;
+    seal.z = tnt.seedZ;
+    seal.vx = seal.vz = 0;
+    run(0.2);
+    assert.ok(!tnt.gone && w.props.includes(tnt) && tnt.fuse < 0 && tnt.bumps === 0, "the crate did not respawn clean");
+    assert.ok(Math.hypot(tnt.x - seal.x, tnt.z - seal.z) >= TOYS.respawnFar, "the crate respawned on top of the seal");
+  }
+
+  // The blast flings a nearby prop outward, and a neighbour crate catches the fuse.
+  {
+    const { tnt, w, L, set, run, charge } = rig();
+    const ball = { kind: "snowball", x: T0.x + 3, z: T0.z, vx: 0, vz: 0, radius: 0.5, mass: 1, spin: 0, hit: 0 };
+    const pal = makeTnt(T0.x - 4.5, T0.z + 1);
+    const far = makeTnt(T0.x, T0.z + 30);
+    w.props.push(ball, pal, far);
+    set.tnt.push(pal, far);
+    charge();
+    run(TOYS.fuse + 0.05);
+    assert.equal(L.boom.n, 1, "the first blast never fired");
+    assert.ok(ball.vx > 4, `the blast did not fling the snowball (vx ${ball.vx.toFixed(1)})`);
+    assert.ok(pal.fuse >= 0, "a crate inside the blast radius did not catch the fuse");
+    assert.ok(far.fuse < 0, "a crate outside the blast radius caught the fuse");
+    run(TOYS.chainFuse + 0.1);
+    assert.equal(L.boom.n, 2, "the chained crate never exploded");
+    assert.equal(far.fuse, -1, "the far crate went off");
+    assert.ok(tnt.gone, "the first crate is still here");
+    run(1);
+    assert.ok(ball.x > T0.x + 4, `the flung snowball did not travel outward (x ${(ball.x - T0.x).toFixed(1)})`);
+  }
+
+  // An arrival hold: nothing lights, and a lit fuse waits.
+  {
+    const held = rig({ hold: true });
+    held.run(0.3);
+    held.charge();
+    held.run(1);
+    assert.ok(held.tnt.bumps === 0 && held.tnt.fuse < 0, "a bump lit the fuse during an arrival hold");
+    const g = rig();
+    g.charge();
+    g.w.hold = true;
+    g.run(TOYS.fuse + 2);
+    assert.equal(g.L.boom.n, 0, "a crate went off during an arrival hold");
+    g.w.hold = false;
+    g.w.arriving = true;
+    g.run(2);
+    assert.equal(g.L.boom.n, 0, "a crate went off during an arrival");
+    g.w.arriving = false;
+    g.run(TOYS.fuse);
+    assert.equal(g.L.boom.n, 1, "the held crate never went off afterwards");
+  }
+
+  // Fuzz: a blast beside the seal anywhere on the island leaves it on land.
+  {
+    const pts = samplePoints(80, 77, { gap: 2 });
+    let hopped = 0;
+    pts.forEach(({ x, z }, i) => {
+      const a = i * 2.399;
+      const seal = createSeal(x, z);
+      const w = { ...world, props: [] };
+      const L = mkL(seal);
+      blastAt(x - Math.cos(a) * 1.8, z - Math.sin(a) * 1.8, w, L, null);
+      for (let k = 0; k < 120 * 3; k++) stepSeal(seal, {}, 1 / 120, w);
+      assert.ok(landable(seal.x, seal.z) && seal.flight === 0, `a blast left the seal off the land at (${seal.x.toFixed(1)}, ${seal.z.toFixed(1)}), started (${x.toFixed(1)}, ${z.toFixed(1)})`);
+      if (Math.hypot(seal.x - x, seal.z - z) > 1) hopped++;
+    });
+    assert.ok(hopped > pts.length * 0.8, `only ${hopped}/${pts.length} blasts moved the seal`);
+  }
+
+  // The stack topples when a base cube is hit, then resets once the seal is away.
+  {
+    const st = makeStack(T0.x, T0.z);
+    const seal = createSeal(T0.x, T0.z - 6);
+    const w = { ...world, props: [...st.base] };
+    const L = mkL(seal);
+    const set = { tnt: [], stacks: [st], bowling: null, cones: [] };
+    const step = (input) => {
+      stepSeal(seal, { input }, 1 / 120, w);
+      tickToys(set, 1 / 120, w, L);
+    };
+    for (let i = 0; i < 120; i++) step(null);
+    assert.ok(st.riders.every((r) => r.y > 0.4 && !w.props.includes(r)), "the stack is not standing at rest");
+    for (let i = 0; i < 120 * 6 && !st.down; i++) step({ x: 0, z: 1 });
+    assert.ok(st.down && st.riders.every((r) => w.props.includes(r)), "hitting the stack did not topple it");
+    for (let i = 0; i < 120 * 3; i++) step(null);
+    assert.ok(st.riders.every((r) => r.y === 0), "a toppled cube is still in the air");
+    seal.x = T0.x + 40;
+    seal.z = T0.z;
+    for (let i = 0; i < 120 * (TOYS.resetAfter + 1); i++) step(null);
+    assert.ok(!st.down && st.riders.every((r) => !w.props.includes(r) && r.y > 0.4) && st.base.every((b) => Math.hypot(b.x - b.seedX, b.z - b.seedZ) < 1e-6), "the stack did not reset");
+  }
+
+  // A rolled ball into the pins is a strike (confetti), once; they reset after.
+  {
+    const bw = makeBowling(T0.x, T0.z + 4);
+    const seal = createSeal(T0.x, T0.z - 3);
+    const w = { ...world, props: [bw.ball, ...bw.pins] };
+    const L = mkL(seal);
+    const set = { tnt: [], stacks: [], bowling: bw, cones: [] };
+    const step = (input) => {
+      stepSeal(seal, { input }, 1 / 120, w);
+      tickToys(set, 1 / 120, w, L);
+    };
+    for (let i = 0; i < 120 * 8 && !bw.pins.every((p) => p.down); i++) step({ x: 0, z: 1 });
+    for (let i = 0; i < 120 * 3; i++) step(null);
+    assert.ok(bw.pins.every((p) => p.down), `${bw.pins.filter((p) => p.down).length}/6 pins went down`);
+    assert.equal(L.cheer.n, 1, "a strike did not cheer exactly once");
+    seal.x = T0.x + 40;
+    seal.z = T0.z;
+    for (let i = 0; i < 120 * (TOYS.resetAfter + 1); i++) step(null);
+    assert.ok(bw.pins.every((p) => !p.down && Math.hypot(p.x - p.seedX, p.z - p.seedZ) < 1e-6) && Math.hypot(bw.ball.x - bw.ball.seedX, bw.ball.z - bw.ball.seedZ) < 1e-6, "the pins did not reset");
+    assert.equal(L.cheer.n, 1, "the reset cheered");
+  }
+
+  // A cone tips when bumped, and stands again after a while.
+  {
+    const cone = makeCone(T0.x, T0.z);
+    const seal = createSeal(T0.x, T0.z - 5);
+    const w = { ...world, props: [cone] };
+    const L = mkL(seal);
+    const set = { tnt: [], stacks: [], bowling: null, cones: [cone] };
+    const step = (input) => {
+      stepSeal(seal, { input }, 1 / 120, w);
+      tickToys(set, 1 / 120, w, L);
+    };
+    for (let i = 0; i < 120 * 6 && !cone.down; i++) step({ x: 0, z: 1 });
+    assert.ok(cone.down, "a bumped cone did not tip");
+    seal.x = T0.x + 40;
+    seal.z = T0.z;
+    for (let i = 0; i < 120 * (TOYS.resetAfter + 1); i++) step(null);
+    assert.ok(!cone.down && Math.hypot(cone.x - cone.seedX, cone.z - cone.seedZ) < 1e-6, "the cone did not stand up again");
+  }
 }
 
 // Highway cars: every car starts, and re-enters after each loop, from a bay of
@@ -852,4 +1060,4 @@ for (let tier = 0; tier < TIERS.length; tier++) {
   for (const p of PLACES) assert.ok(!inRock(dockPoint(p).x, dockPoint(p).z), `${p.id}'s dock is inside MujoRush`);
 }
 
-console.log(`world check passed: quality ladder, punch lines, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks`);
+console.log(`world check passed: quality ladder, punch lines, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, toys (TNT, stack, pins, cones), throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks`);
