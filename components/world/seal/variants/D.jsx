@@ -25,6 +25,7 @@
 //   fist    a raised fist before the cheek, the chest leaning in
 //   raise   both flippers up and out, a ta-da (never above the head: no ears)
 //   point   the near flipper across the chest, toward the speaker
+//   pray    both flippers pressed together before the chest (a mudra)
 //   crouch  squashed down onto the snow, ready to spring
 //   sit     up on its tail, like the meditation
 //   spin    one full turn about its feet at 1
@@ -84,6 +85,7 @@ const HOOKS = {
   fist: { near: { twist: 1.5, back: -1.4, up: 0.9 }, reach: [0.2, 0.05, 0.6] }, // a raised fist before the cheek
   raise: { near: { twist: 0, back: -0.4, up: 1.0 }, far: { twist: 0, back: -0.4, up: 1.0 } }, // ta-da, both out and up
   point: { near: { twist: 0.6, back: -2.0, up: 0.15 }, reach: [0.2, 0, 0.6] }, // across the chest, toward the speaker
+  pray: { near: { twist: 1.2, back: -2.0, up: 0.3 }, far: { twist: 1.2, back: -2.0, up: 0.3 }, reach: [-0.12, -0.08, 0.55] }, // both flippers together before the chest, palms pressed
 };
 // The pup's look-round on an arrival with no stage (reduced motion), seconds.
 const LOOK_ROUND = 5.4;
@@ -367,6 +369,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     shared.fist = P.fist;
     shared.raise = P.raise;
     shared.point = P.point;
+    shared.pray = P.pray;
     digits.current.visible = sign > 0.3;
     digits.current.scale.setScalar(smooth(0.3, 1, sign));
     outfit.current.visible = !cut && arrival.id !== AWAKE.id; // a scene keeps the round head clean: no hat, no ear-like diamonds
@@ -375,10 +378,11 @@ export default function SealD({ pose, near, drive, headRef }) {
     flipR.current.scale.setScalar(1 - 0.22 * sign); // a smaller hand, held at the chin below the eye
     const fr = HOOKS.fist.reach;
     const pr = HOOKS.point.reach;
+    const py = HOOKS.pray.reach;
     flipR.current.position.set(
-      SHOULDER[0] + SIGN_REACH[0] * sign + fr[0] * P.fist + pr[0] * P.point,
-      SHOULDER[1] + SIGN_REACH[1] * sign + fr[1] * P.fist + pr[1] * P.point,
-      SHOULDER[2] + SIGN_REACH[2] * sign + fr[2] * P.fist + pr[2] * P.point,
+      SHOULDER[0] + SIGN_REACH[0] * sign + fr[0] * P.fist + pr[0] * P.point + py[0] * P.pray,
+      SHOULDER[1] + SIGN_REACH[1] * sign + fr[1] * P.fist + pr[1] * P.point + py[1] * P.pray,
+      SHOULDER[2] + SIGN_REACH[2] * sign + fr[2] * P.fist + pr[2] * P.point + py[2] * P.pray,
     );
 
     // THE STORY, show not tell: every place is radioactive. The coat glows

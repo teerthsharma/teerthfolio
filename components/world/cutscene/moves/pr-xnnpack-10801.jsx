@@ -26,6 +26,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { AdditiveBlending, DoubleSide, InstancedMesh, Object3D, PlaneGeometry, Quaternion, RingGeometry, ShaderMaterial, Vector2, Vector3 } from "three";
 import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
+import { registerWarm, takeWarm } from "../prewarm";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { Motes } from "./_g1";
 import { flashQuad, hide, holdFlash, islandList, lettering, mat, pupParts, put } from "./p-caustic/parts";
@@ -89,30 +90,7 @@ function slashMaterial() {
   });
 }
 
-export default function Move(cut) {
-  const { card, place, tl, mode } = cut;
-  const scene = useThree((s) => s.scene);
-  const rig = useRef();
-  const shellRef = useRef();
-  const world = useRef();
-  const dais = useRef();
-  const moonRef = useRef();
-  const dust = useRef();
-  const hullsRef = useRef([]);
-  const detailRef = useRef([]);
-  const tipRef = useRef();
-  const gapRef = useRef();
-  const slashRef = useRef();
-  const colonyRef = useRef();
-  const ichRef = useRef();
-  const pup = useRef(null);
-  const lift = useRef(0);
-  const shake = useRef(new Vector3());
-  const ink = useRef(null);
-  const island = useRef([]);
-  const islandOn = useRef(false);
-
-  const m = useMemo(() => {
+function buildWorld() {
     const shared = sharedUniforms();
     const hullPaper = hullMaterial(shared, PAPER, 1);
     const cp = colonyPup();
@@ -167,7 +145,35 @@ export default function Move(cut) {
       letB: lettering("ILLUSION BROKEN", "#080a0f", 0.05),
       flash: flashQuad("#d8ecff"),
     };
-  }, []);
+}
+
+// THE APPROACH: the shared prewarm (../prewarm.js) builds the world while the seal walks up; the arrival takes it.
+registerWarm("pr-xnnpack-10801", buildWorld);
+
+export default function Move(cut) {
+  const { card, place, tl, mode } = cut;
+  const scene = useThree((s) => s.scene);
+  const rig = useRef();
+  const shellRef = useRef();
+  const world = useRef();
+  const dais = useRef();
+  const moonRef = useRef();
+  const dust = useRef();
+  const hullsRef = useRef([]);
+  const detailRef = useRef([]);
+  const tipRef = useRef();
+  const gapRef = useRef();
+  const slashRef = useRef();
+  const colonyRef = useRef();
+  const ichRef = useRef();
+  const pup = useRef(null);
+  const lift = useRef(0);
+  const shake = useRef(new Vector3());
+  const ink = useRef(null);
+  const island = useRef([]);
+  const islandOn = useRef(false);
+
+  const m = useMemo(() => takeWarm("pr-xnnpack-10801", buildWorld), []);
 
   useEffect(() => {
     island.current = islandList(scene);
