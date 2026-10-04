@@ -1,178 +1,241 @@
 "use client";
 
-// Pyrefly: Naruto's Rasengan on the chain that does not continue. A "to be
-// continued" arrow of 208 dots (130 in the shaft, a 78-dot head, one dot at
-// the tip) races left to right and stops dead on line A. The pup raises its
-// flipper and a spinning blue sphere forms in it, banded like the real
-// thing; on the move it is planted on the last dot, and the chain, pinned,
-// goes cold. The land speaks, so the whole rig is turned toward the place
-// (g3/common.jsx) and the arrow stands where the camera looks.
-// Cost: the sphere, its two rings, the instanced chain, the ring: five draw
-// calls. Card: lib/world/cutscene/cards/pr-pyrefly-4180.js.
+// Pyrefly: JoJo, and the "To Be Continued" arrow that does not continue. An
+// arrow of 208 beads (130 in the shaft, a 78-bead head, one at the tip) grows
+// across the frame and stops dead at the pup. The pup strikes the JoJo pose
+// (hip twisted, one flipper across its face, the other up) while GOGOGO
+// glyphs rise off both flanks; then, still in the pose, it slaps one flipper
+// down on the last bead ("PAN!"): a ring closes round it (should_panic), the
+// arrow jitters three drawings, cracks in two ("BAKI") and falls out of the
+// frame with one ripple ring, and the last bead stays pinned. The land
+// speaks (the arrow), so the whole rig is turned toward the place (g3/common.jsx).
+// Light tier: no shader, no new area. Cost: the instanced beads, the glyphs,
+// one ring, one ripple, three letters: seven draw calls.
+// Card: lib/world/cutscene/cards/pr-pyrefly-4180.js.
 
 import { useMemo, useRef } from "react";
-import { AdditiveBlending, Color, DoubleSide, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, RingGeometry, ShaderMaterial, TorusGeometry } from "three";
-import { onTwos, signAt, smooth, Stage, useCutFrame } from "../kit";
-import { landPoint } from "../../../../lib/world/cutscene/timeline";
+import { AdditiveBlending, CanvasTexture, Color, DoubleSide, InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, PlaneGeometry, RingGeometry, SRGBColorSpace, TorusGeometry } from "three";
+import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { live } from "../../../../lib/world/store";
-import { useStageGroup, CREAM } from "./g3/common";
+import { CREAM, PLANE, flipperAt, letterMat, letterTex, useCredit, usePupPost, useStageGroup } from "./g3/common";
 
 const SHAFT = 130;
-const HEAD = 12; // columns of the head, 12 + 11 + ... + 1 = 78 dots
+const HEAD = 12; // columns of the head, 12 + 11 + ... + 1 = 78 beads
 const N = 208;
-const FIST = [-0.3, 0.68, 0.95]; // the pup's raised flipper, in the pup's space (tuned from frames)
-const CHAIN_Y = 1.45;
-const CHAIN_Z = -3.2;
-const CHAIN_X0 = -5.6;
+const SPLIT = 100; // where the arrow cracks
+const GLYPHS = 10;
+const ANGLE = -0.1; // the arrow's slant
+const CORAL = "#ff6b57";
+const BLUE = "#4aa2ff";
 
-// where each dot sits (before the rig scale) and when it appears
+// bead i in the arrow's own frame: the tip at the origin, the arrow along -x
 function layout() {
   const pts = [];
-  for (let i = 0; i < SHAFT; i++) pts.push([CHAIN_X0 + i * 0.05, 0, 0.032]);
-  const hx = CHAIN_X0 + SHAFT * 0.05 + 0.08;
+  for (let i = 0; i < SHAFT; i++) pts.push([-0.98 - (SHAFT - 1 - i) * 0.03, 0]);
   for (let c = 0; c < HEAD; c++) {
     const n = HEAD - c;
-    for (let j = 0; j < n; j++) pts.push([hx + c * 0.1, (j - (n - 1) / 2) * 0.1, 0.052]);
+    for (let j = 0; j < n; j++) pts.push([-0.9 + c * 0.075, (j - (n - 1) / 2) * 0.075]);
   }
   return pts; // the last is the tip
 }
 
-function rasengan() {
-  return new ShaderMaterial({
-    uniforms: { uT: { value: 0 }, uDeep: { value: new Color("#1b4dff") }, uMid: { value: new Color("#4cc4ff") }, uWhite: { value: new Color("#f4fbff") } },
-    vertexShader: /* glsl */ `
-      varying vec3 vP;
-      varying float vF;
-      void main() {
-        vP = position;
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vec3 n = normalize(normalMatrix * normal);
-        vF = 1.0 - abs(dot(n, normalize(-mv.xyz)));
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: /* glsl */ `
-      uniform float uT;
-      uniform vec3 uDeep;
-      uniform vec3 uMid;
-      uniform vec3 uWhite;
-      varying vec3 vP;
-      varying float vF;
-      void main() {
-        float a = atan(vP.z, vP.x);
-        float band = sin(a * 3.0 + vP.y * 14.0 - uT * 16.0);
-        float band2 = sin(a * 5.0 - vP.y * 9.0 + uT * 11.0);
-        vec3 col = mix(uDeep, uMid, smoothstep(-0.3, 0.5, band));
-        col = mix(col, uWhite, smoothstep(0.78, 0.98, band) * 0.8 + smoothstep(0.9, 1.0, band2) * 0.5);
-        col = mix(col, uWhite, pow(vF, 2.2) * 0.85);
-        gl_FragColor = vec4(col, 1.0);
-      }`,
-  });
+// a white glyph with an ink outline, tinted by instance colour
+function glyphTex() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  const draw = () => {
+    const x = c.getContext("2d");
+    x.clearRect(0, 0, 128, 128);
+    x.font = "800 104px 'Yu Gothic', 'Hiragino Sans', 'Noto Sans JP', Meiryo, sans-serif";
+    x.textAlign = "center";
+    x.textBaseline = "middle";
+    x.lineJoin = "round";
+    x.lineWidth = 12;
+    x.strokeStyle = "#1c1b19";
+    x.strokeText("ゴ", 64, 68);
+    x.fillStyle = "#ffffff";
+    x.fillText("ゴ", 64, 68);
+    t.needsUpdate = true;
+  };
+  draw();
+  document.fonts?.ready?.then(draw, () => {});
+  return t;
 }
 
 export default function Move(cut) {
-  const { card, place, tl } = cut;
+  const { tl } = cut;
   const root = useRef();
-  const ball = useRef();
-  const rings = useRef();
-  const chain = useRef();
-  const burst = useRef();
+  const beads = useRef();
+  const glyphs = useRef();
+  const hoop = useRef();
+  const ripple = useRef();
+  const lt = [useRef(), useRef(), useRef()];
+  const plant = useRef([0.24, 0.3, 1.1]); // where the flipper meets the last bead, in the pup's space
+  const [, m1] = tl.move;
+  const S = m1 - 0.05; // the slap
+  const FALL = S + 0.3; // the arrow cracks off
+
   const g = useMemo(() => {
-    const pts = layout();
     const dots = new InstancedMesh(new OctahedronGeometry(1, 0), new MeshBasicMaterial({ toneMapped: false, fog: false }), N);
     dots.frustumCulled = false;
     dots.setColorAt(0, new Color(CREAM));
+    const gl = new InstancedMesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: glyphTex(), transparent: true, depthWrite: false, depthTest: false, toneMapped: false, fog: false, side: DoubleSide }), GLYPHS);
+    gl.frustumCulled = false;
+    for (let i = 0; i < GLYPHS; i++) gl.setColorAt(i, new Color(i % 2 ? BLUE : CORAL));
+    const texts = [letterTex("PAN!", BLUE, 120), letterTex("BAKI", CORAL, 120), letterTex("…", CREAM, 120)];
     return {
-      pts,
+      pts: layout(),
       dots,
+      gl,
       o: new Object3D(),
       cream: new Color(CREAM),
       cold: new Color("#7f8fb8"),
       tmp: new Color(),
-      sphere: new IcosahedronGeometry(1, 2),
-      sphereMat: rasengan(),
-      ringGeo: new TorusGeometry(1.3, 0.03, 4, 36),
-      ringMat: new MeshBasicMaterial({ color: "#d6f3ff", toneMapped: false, fog: false, transparent: true, opacity: 0.9 }),
-      burst: new RingGeometry(0.8, 1, 40),
-      burstMat: new MeshBasicMaterial({ color: "#8fdcff", transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, toneMapped: false, fog: false }),
+      hoop: new TorusGeometry(1, 0.035, 5, 40),
+      hoopMat: new MeshBasicMaterial({ color: "#b48cff", toneMapped: false, fog: false, transparent: true }),
+      ripple: new RingGeometry(0.85, 1, 44).rotateX(-Math.PI / 2),
+      rippleMat: new MeshBasicMaterial({ color: "#8fdcff", transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, toneMapped: false, fog: false }),
+      texts,
+      textMats: texts.map(letterMat),
     };
   }, []);
 
-  // the pose: the opening sign, then the flipper closes on the sphere and thrusts
+  // the opening sign, then the JoJo pose held; the near flipper leaves it for the slap
   useCutFrame((t) => {
     if (cut.mode !== "full") return;
     const hold = smooth(2.7, 3.2, t);
     const fade = signAt(tl, t);
+    const slap = smooth(S - 0.05, S + 0.05, t);
     live.pose.sign = fade * (1 - hold);
-    live.pose.fist = fade * hold;
-    live.pose.crouch = 0.5 * smooth(tl.move[0], tl.move[1], t) * (1 - smooth(tl.move[1] + 0.2, tl.move[1] + 0.8, t));
+    live.pose.fist = fade * hold * (1 - slap);
+    live.pose.sit = 0.35 * smooth(2.7, 3.3, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
   });
+  usePupPost(cut, (t, rig) => {
+    const T = onTwos(t);
+    const pose = smooth(2.7, 3.3, T) * (1 - smooth(tl.collapse[0], tl.collapse[1], T));
+    const slap = smooth(S - 0.05, S + 0.05, T);
+    // the pose: hip twisted, the far flipper up and out, the tail kicked
+    rig.rear.rotation.z += 0.42 * pose;
+        rig.tail.rotation.x += 0.45 * pose;
+    const e = rig.flipL.rotation;
+    rig.flipL.rotation.set(e.x + (0 - e.x) * pose, e.y + (-0.3 - e.y) * pose, e.z + (0.85 - e.z) * pose, "YZX");
+    // the slap: the near flipper comes down onto the last bead
+    const f = rig.flipR.rotation;
+    rig.flipR.rotation.set(f.x + (0 - f.x) * slap, f.y + (-0.95 - f.y) * slap, f.z + (0.6 - f.z) * slap, "YZX");
+    rig.flipR.position.z += 0.2 * slap;
+    // two drawings of shake on the blow
+    const hit = T - S;
+    if (hit >= 0 && hit < 0.17) rig.seal.position.x += 0.04 * (Math.floor(hit * 12) % 2 ? 1 : -1);
+    if (root.current && slap > 0.99) {
+      const p = flipperAt(rig.flipR, root.current, [0.66, 0.06, 0]);
+      plant.current = [p.x, p.y, p.z];
+    }
+  });
+
+  useCredit(cut, "facebook/pyrefly #4180", "208 SCCs pinned", "The failure is pinned at the end with should_panic.");
 
   useStageGroup(root, cut, (t) => {
     const T = onTwos(t);
-    const s = live.seal;
-    const at = landPoint(card, place);
-    const k = Math.min(1.8, Math.max(1, (0.6 * Math.hypot(at.x - s.x, at.z - s.z)) / Math.hypot(1.7, 3.2)));
-    const [m0, m1] = tl.move;
-    const hit = T - m1;
     const o = g.o;
-    // the chain: dots race in left to right, stop, shudder and go cold when pinned
-    const dots = chain.current;
+    const hit = T - S;
+    const [px, py, pz] = plant.current;
+    const dots = beads.current;
+    const ca = Math.cos(ANGLE);
+    const sa = Math.sin(ANGLE);
+    const jam = hit >= 0 && T < FALL ? 0.014 * (Math.floor(hit * 12) % 2 ? 1 : -1) : 0;
+    const tau = Math.max(0, T - FALL);
     for (let i = 0; i < N; i++) {
-      const p = g.pts[i];
+      const [lx, ly] = g.pts[i];
       const born = 2.0 + 0.9 * (i / (N - 1));
-      let sc = smooth(born, born + 0.14, T) * (i === N - 1 ? 0.07 : i >= SHAFT ? 0.034 : 0.02);
-      let dy = 0;
-      if (hit >= 0) {
-        const d = (N - 1 - i) / 60; // the blow runs back down the chain
-        dy = 0.05 * Math.exp(-hit * 5) * Math.sin(hit * 40 - d * 9) * Math.exp(-d);
-        dots.setColorAt(i, i === N - 1 ? g.cream : g.tmp.copy(g.cream).lerp(g.cold, smooth(0, 0.5 + d * 0.3, hit)));
-      } else dots.setColorAt(i, g.cream);
-      if (i === N - 1) sc *= 1.8;
-      o.position.set(p[0] * k, CHAIN_Y * k + p[1] * k + dy, CHAIN_Z * k + p[2]);
+      const tip = i === N - 1;
+      let sc = smooth(born, born + 0.14, T) * (tip ? 0.11 : i >= SHAFT ? 0.06 : 0.045);
+      // arrow frame -> the pup's space
+      let x = px + lx * ca - ly * sa;
+      let y = py + lx * sa + ly * ca;
+      if (jam && !tip) {
+        x += jam * Math.sin(i);
+        y += jam * Math.cos(i * 1.3);
+      }
+      if (tau > 0 && !tip) {
+        // each half falls about the crack: A tips left, B tips right
+        const left = i < SPLIT;
+        const cx = px + g.pts[SPLIT][0] * ca;
+        const cy = py + g.pts[SPLIT][0] * sa;
+        const th = (left ? 1 : -1) * 1.1 * tau * tau;
+        const dx = x - cx;
+        const dy = y - cy;
+        x = cx + dx * Math.cos(th) - dy * Math.sin(th) + (left ? -0.4 : 0.5) * tau;
+        y = cy + dx * Math.sin(th) + dy * Math.cos(th) - 3.4 * tau * tau;
+      }
+      if (hit >= 0) dots.setColorAt(i, tip ? g.cream : g.tmp.copy(g.cream).lerp(g.cold, smooth(0, 0.5, hit)));
+      else dots.setColorAt(i, g.cream);
+      if (tip) sc *= 1.7;
+      o.position.set(x, y, pz);
       o.rotation.set(0, i * 0.7, i * 0.4);
-      o.scale.setScalar(Math.max(0.0001, sc * k));
+      o.scale.setScalar(Math.max(0.0001, sc));
       o.updateMatrix();
       dots.setMatrixAt(i, o.matrix);
     }
     dots.instanceMatrix.needsUpdate = true;
     if (dots.instanceColor) dots.instanceColor.needsUpdate = true;
-
-    // the rasengan: forms in the flipper, thrown onto the last dot, spins there
-    const tip = g.pts[N - 1];
-    const tx = tip[0] * k;
-    const ty = CHAIN_Y * k;
-    const tz = CHAIN_Z * k + 0.1;
-    const grow = smooth(3.0, 4.2, T);
-    const fly = smooth(m0, m1, T);
-    const e = fly * fly;
-    const b = ball.current;
-    b.visible = grow > 0.01;
-    b.position.set(FIST[0] + (tx - FIST[0]) * e, FIST[1] + (ty - FIST[1]) * e + 0.5 * Math.sin(Math.PI * e), FIST[2] + (tz - FIST[2]) * e);
-    const size = (0.07 + 0.19 * grow + (hit >= 0 ? 0.04 + 0.03 * Math.exp(-hit * 6) : 0)) * (1 + 0.6 * e * k);
-    b.scale.setScalar(Math.max(0.001, size));
-    b.rotation.set(0.25, 0, 0.35);
-    g.sphereMat.uniforms.uT.value = T;
-    rings.current.visible = b.visible;
-    rings.current.position.copy(b.position);
-    rings.current.rotation.set(1.2 + T * 7, T * 5, 0.4);
-    rings.current.scale.setScalar(Math.max(0.001, size * 1.3));
-    // the blow
-    burst.current.visible = hit >= 0 && hit < 0.5;
-    if (burst.current.visible) {
-      burst.current.position.set(tx, ty, tz + 0.05);
-      burst.current.scale.setScalar(0.25 + 2.4 * Math.min(1, hit / 0.45));
-      g.burstMat.opacity = 1 - hit / 0.5;
+    // the ring that closes round the last bead: should_panic
+    const h = hoop.current;
+    const close = smooth(S, S + 0.25, T);
+    h.visible = hit >= 0 && T < tl.collapse[0];
+    h.position.set(px, py, pz);
+    h.scale.setScalar(Math.max(0.001, 1.0 - 0.62 * close));
+    // the GOGOGO glyphs rise off both flanks on twos
+    const gl = glyphs.current;
+    const up = smooth(2.9, 3.4, T) * (1 - smooth(tl.collapse[0], tl.collapse[1], T));
+    for (let i = 0; i < GLYPHS; i++) {
+      const side = i % 2 ? 1 : -1;
+      const k = (T * 0.55 + i / GLYPHS) % 1;
+      o.position.set(side * (1.55 + 0.45 * ((i >> 1) % 3)) + 0.1, 0.1 + 2.3 * k, -0.4 - 0.2 * (i % 3));
+      o.rotation.set(0, 0, side * 0.15);
+      o.scale.setScalar(Math.max(0.0001, up * (0.32 + 0.12 * ((i >> 1) % 3)) * Math.sin(Math.PI * k) ** 0.5));
+      o.updateMatrix();
+      gl.setMatrixAt(i, o.matrix);
     }
+    gl.instanceMatrix.needsUpdate = true;
+    // one ripple where the halves land
+    const rp = ripple.current;
+    const rage = T - (FALL + 0.75);
+    rp.visible = rage >= 0 && rage < 0.9;
+    if (rp.visible) {
+      rp.position.set(px - 1.8, 0.03, pz);
+      rp.scale.setScalar(0.3 + 2.4 * (rage / 0.9));
+      g.rippleMat.opacity = 1 - rage / 0.9;
+    }
+    // the lettering: PAN! on the slap, BAKI as it cracks, a small ... as it falls
+    const put = (ref, l, x, y, z, hh, a0, a1, rot) => {
+      const m = ref.current;
+      const age = T - a0;
+      m.visible = age >= 0 && T < a1;
+      if (m.visible) {
+        const pop = 1 + 0.35 * Math.exp(-age * 12);
+        m.position.set(x, y, z);
+        m.scale.set(hh * l.aspect * pop, hh * pop, 1);
+        m.rotation.z = rot;
+      }
+    };
+    put(lt[0], g.texts[0], px - 0.9, py + 1.7, pz - 0.6, 0.6, S, S + 1.0, 0.08);
+    put(lt[1], g.texts[1], px + 1.8, py + 1.2, pz + 0.1, 0.6, FALL, FALL + 0.9, -0.1);
+    put(lt[2], g.texts[2], px + 1.4, py + 0.2, pz, 0.5, FALL + 0.5, FALL + 1.4, 0);
   });
 
   return (
     <>
       <Stage {...cut} />
       <group ref={root} visible={false}>
-        <mesh ref={ball} geometry={g.sphere} material={g.sphereMat} visible={false} />
-        <mesh ref={rings} geometry={g.ringGeo} material={g.ringMat} visible={false} />
-        <primitive ref={chain} object={g.dots} />
-        <mesh ref={burst} geometry={g.burst} material={g.burstMat} visible={false} />
+        <primitive ref={beads} object={g.dots} />
+        <primitive ref={glyphs} object={g.gl} />
+        <mesh ref={hoop} geometry={g.hoop} material={g.hoopMat} visible={false} />
+        <mesh ref={ripple} geometry={g.ripple} material={g.rippleMat} visible={false} />
+        {lt.map((ref, i) => (
+          <mesh key={i} ref={ref} geometry={PLANE} material={g.textMats[i]} visible={false} renderOrder={9} />
+        ))}
       </group>
     </>
   );
