@@ -3,7 +3,7 @@
 // Input -> motion -> "which building is the seal at". Owns no visuals.
 
 import { useFrame } from "@react-three/fiber";
-import { stepSeal, nearestPlace } from "../../lib/world/motion";
+import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
 import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
 import { arrivalHold, arrivalLength, domainBeat, domainMode } from "../../lib/world/domain";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
@@ -15,6 +15,25 @@ const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...L
 // object can be built once too instead of every frame.
 const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, places: PLACES, time: 0 };
 let seenBursts = 0;
+// m of open snow between the seal and a place at which its arrival fires
+// (nearestPlace's dock reach is 3.2): the cutscene starts on the approach.
+const APPROACH_REACH = 7;
+
+// The nearest place within APPROACH_REACH whose arrival has not played yet: a
+// seen neighbour must not mask the next one. No allocation (runs every frame).
+function nearestUnseen(seal) {
+  let best = null;
+  let bestGap = APPROACH_REACH;
+  for (const place of PLACES) {
+    if (live.seen.has(place.id)) continue;
+    const gap = Math.hypot(seal.x - place.x, seal.z - place.z) - place.radius - MOTION.sealRadius;
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = place;
+    }
+  }
+  return best;
+}
 
 // Places whose arrival showcase already played this session (moments.js
 // ARRIVAL). Storage can be missing or blocked (private windows): then every
@@ -123,21 +142,30 @@ export default function Controller() {
 
     const near = nearestPlace(seal, PLACES)?.id ?? null;
     if (near !== ui.near) setUi({ near });
-    if (near && ui.started && !live.seen.has(near)) {
-      live.seen.add(near);
+    // The arrival is a proximity event: it fires as the seal comes within
+    // APPROACH_REACH of a place, before the dock and before a tapped
+    // building's panel opens. The place the seal spawns beside (the first
+    // 1.5 s, ?spawn= stills) is marked seen without playing; after that a
+    // place only counts as seen once its arrival has actually started, so an
+    // open panel or another arrival never burns it.
+    const approach = nearestUnseen(seal)?.id ?? null;
+    if (approach && ui.started && !live.seen.has(approach) && t <= 1.5) {
+      live.seen.add(approach);
       saveSeen();
-      if (t > 1.5 && !ui.open && !arrival.id) {
-        arrival.id = near;
-        arrival.start = t;
-        arrival.keys = new Set(live.keys);
-        arrival.target = live.target;
-        arrival.stick = live.stick;
-        setUi({ cutscene: near });
-      }
+    } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id) {
+      live.seen.add(approach);
+      saveSeen();
+      arrival.id = approach;
+      arrival.start = t;
+      arrival.keys = new Set(live.keys);
+      arrival.target = live.target;
+      arrival.stick = live.stick;
+      setUi({ cutscene: approach });
     }
 
-    // A building that was clicked opens itself once the seal has arrived.
-    if (live.pendingOpen && near === live.pendingOpen && seal.speed < 1.2) {
+    // A building that was clicked opens itself once the seal has arrived,
+    // after its arrival has played.
+    if (live.pendingOpen && !arrival.id && near === live.pendingOpen && seal.speed < 1.2) {
       setUi({ open: near });
       live.pendingOpen = null;
     }
