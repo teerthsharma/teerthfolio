@@ -44,7 +44,8 @@ const HUT_R = 1.3;
 const HUT_SIDES = 8;
 const WALL_H = 1.6;
 const ROOF_H = 1.0;
-const ROOF_Y = WALL_H + ROOF_H;
+const RAISE = 1.2; // the cap rides 1.2 m higher on taller posts, so the tubes stay in view from 34 degrees
+const ROOF_Y = WALL_H + RAISE + ROOF_H;
 const HUT_CZ = -0.7; // hut set back so the gauge porch it feeds has room in front
 
 const MAST_LEN = 1.55;
@@ -96,8 +97,8 @@ const ringTopGeo = new TorusGeometry(HUT_R, 0.045, 6, HUT_SIDES).rotateX(Math.PI
 
 function postAt(i) {
   const a = (i / HUT_SIDES) * Math.PI * 2 + Math.PI / HUT_SIDES; // offset so no post sits at front centre
-  return new BoxGeometry(0.13, WALL_H, 0.13)
-    .translate(0, WALL_H / 2, 0)
+  return new BoxGeometry(0.13, WALL_H + RAISE, 0.13)
+    .translate(0, (WALL_H + RAISE) / 2, 0)
     .translate(Math.cos(a) * HUT_R, 0, HUT_CZ + Math.sin(a) * HUT_R);
 }
 function plankAt(i) {
@@ -158,7 +159,7 @@ export default function Witness({ place, near: nearProp }) {
   // scoops against the dark hub/arms (charcoalMat) instead of merging into
   // one crossbar silhouette -- see the judges' fix in the file header.
   const anemCupMat = useMemo(() => mat(C.ice, { roughness: 0.65 }), []);
-  const tubeMat = useMemo(() => mat(C.ice, { roughness: 0.12, metalness: 0.05, opacity: 0.35, side: DoubleSide }), []);
+  const tubeMat = useMemo(() => mat(C.ice, { roughness: 0.12, metalness: 0.05, opacity: 0.35, side: DoubleSide, emissive: MINT, emissiveIntensity: 0.8 }), []);
   // Roughness/emissive tuned high: unlike the rest of the palette, the rain
   // sits low in the hut's own shadow and needs to glow, not just be lit, to
   // read as its own colour from 35 m -- mat()'s usual 0.1-0.2 emissive goes

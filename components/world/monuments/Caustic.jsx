@@ -42,7 +42,7 @@ const RAIL_R = GALLERY_R * 0.97, RAIL_Y = GALLERY_Y + GALLERY_H + 0.09, RAIL_N =
 
 // Two accent stripes plus two accent windows: the classic striped-lighthouse
 // silhouette.
-const STRIPE_FRACS = [0.2, 0.8], STRIPE_H = 0.5;
+const STRIPE_BANDS = [[0, 1.2], [2.4, 2.6]]; // accent / white alternating every 1.2 m of shaft (tapered to fit it)
 const WINDOW_FRACS = [0.12, 0.88], WINDOW_W = 0.22, WINDOW_H = 0.36, WINDOW_D = 0.05;
 
 // Fixed identity colour for the 20 beacon bulbs: a cool teal -> blue ->
@@ -89,7 +89,7 @@ export default function Caustic({ place }) {
     return pts;
   }, []);
 
-  const bodyMat = useMemo(() => mat("#f3ede4", { roughness: 0.72 }), []);
+  const bodyMat = useMemo(() => mat("#ffffff", { roughness: 0.72 }), []);
   const footMat = useMemo(() => mat("#43434c", { roughness: 0.6 }), []);
   const bulbMat = useMemo(() => mat("#ffffff", { roughness: 0.3, metalness: 0.15 }), []);
   const bandMat = useMemo(() => lamp(accent, 0.9), [accent]);
@@ -177,12 +177,11 @@ export default function Caustic({ place }) {
       <mesh position={[0, SHAFT_Y + SHAFT_H / 2, 0]} castShadow receiveShadow material={bodyMat}>
         <cylinderGeometry args={[SHAFT_TOP_R, SHAFT_BASE_R, SHAFT_H, 8]} />
       </mesh>
-      {STRIPE_FRACS.map((f) => {
-        const y = SHAFT_Y + SHAFT_H * f;
-        const r = shaftRAt(y) + 0.015;
+      {STRIPE_BANDS.map(([h0, h1]) => {
+        const y0 = SHAFT_Y + h0, y1 = SHAFT_Y + h1;
         return (
-          <mesh key={f} position={[0, y, 0]} castShadow material={bandMat}>
-            <cylinderGeometry args={[r, r, STRIPE_H, 8]} />
+          <mesh key={h0} position={[0, (y0 + y1) / 2, 0]} castShadow material={bandMat}>
+            <cylinderGeometry args={[shaftRAt(y1) + 0.02, shaftRAt(y0) + 0.02, h1 - h0, 8]} />
           </mesh>
         );
       })}

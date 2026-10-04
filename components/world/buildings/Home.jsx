@@ -21,6 +21,9 @@ import {
   CylinderGeometry,
   LatheGeometry,
   MathUtils,
+  Color,
+  Float32BufferAttribute,
+  MeshBasicMaterial,
   PlaneGeometry,
   SphereGeometry,
   TorusGeometry,
@@ -146,6 +149,23 @@ function buildGeometry() {
   return { snow, charcoal, portholeLenses, skylight, doorArch, hearth, skirt, turretDrum, tube, lensRing, lensDisc };
 }
 
+const IGLOO_SCALE = 1.25; // the igloo stands next to 1.7x labs
+const LANTERN_R = 5.6; // a ring of six coloured lanterns, clear of the door axis
+const LANTERN_COLORS = ["#ff6a4d", "#ffb020", "#22c55e", "#06b6d4", "#4f7cff", "#e94bff"];
+const LANTERNS = mergeGeometries(
+  LANTERN_COLORS.map((hex, i) => {
+    const a = (i / 6) * Math.PI * 2;
+    const g = new SphereGeometry(0.25, 10, 8).translate(Math.cos(a) * LANTERN_R, 0.45, Math.sin(a) * LANTERN_R);
+    const c = new Color(hex);
+    const n = g.attributes.position.count;
+    const col = new Float32Array(n * 3);
+    for (let v = 0; v < n; v++) col.set([c.r, c.g, c.b], v * 3);
+    g.setAttribute("color", new Float32BufferAttribute(col, 3));
+    return g;
+  }),
+);
+const LANTERN_MAT = new MeshBasicMaterial({ vertexColors: true, toneMapped: false }); // unlit: each keeps its colour
+
 const DWELL = 2; // s spent facing each place
 const TURN = 1.5; // s eased turn between places
 const BASE_ELEV = MathUtils.degToRad(25);
@@ -217,6 +237,8 @@ export default function Home({ place }) {
 
   return (
     <group>
+      <mesh geometry={LANTERNS} material={LANTERN_MAT} />
+      <group scale={IGLOO_SCALE}>
       <mesh castShadow receiveShadow geometry={geo.snow} material={mat(C.snow, { roughness: 0.85 })} />
       <mesh castShadow receiveShadow geometry={geo.charcoal} material={mat(C.charcoal)} />
       <mesh geometry={geo.portholeLenses} material={lamp(C.lamp, 1)} />
@@ -232,6 +254,7 @@ export default function Home({ place }) {
           <mesh castShadow geometry={geo.lensRing} material={mat(C.charcoal)} />
           <mesh geometry={geo.lensDisc} material={lamp(A, 0.6)} />
         </group>
+      </group>
       </group>
     </group>
   );

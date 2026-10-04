@@ -26,7 +26,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, ConeGeometry, CylinderGeometry, IcosahedronGeometry, Object3D, RingGeometry } from "three";
+import { BoxGeometry, CircleGeometry, ConeGeometry, DoubleSide, CylinderGeometry, IcosahedronGeometry, Object3D, RingGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useUi } from "../../../lib/world/store";
 import { damp } from "../life/util";
@@ -139,8 +139,14 @@ const bracketGeo = new BoxGeometry(Math.hypot(bracketDX, bracketDY), 0.12, 0.12)
   .rotateZ(Math.atan2(bracketDY, bracketDX))
   .translate((GATE_X + BEACON_POS[0]) / 2, (GATE_POST_H + beaconBaseY) / 2, GATE_Z);
 for (const g of [doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo, bracketGeo]) g.deleteAttribute("uv");
+// The eave arch: a 0.44 m cyan fascia (was a 0.18 m charcoal wire), plus two
+// cyan basins flanking the booth.
+const fasciaGeo = buildFasciaGeo(0.44);
+const basinGeo = mergeGeometries(
+  [-3.7, 3.7].map((x) => new CircleGeometry(1.2, 28).rotateX(-Math.PI / 2).translate(x, 0.03, -0.4)),
+);
 const charcoalStaticGeo = mergeGeometries([
-  buildFasciaGeo(), doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo, bracketGeo,
+  doorGeo, winFrameGeo, hopperGeo, gatePostGeo, skirtGeo, bracketGeo,
 ]);
 
 const winPaneGeo = new BoxGeometry(WIN_W, WIN_H, 0.05).translate(BOOTH_X, WIN_Y, BOOTH_FRONT_Z + 0.05);
@@ -186,7 +192,8 @@ export default function Certify({ place, near: nearProp }) {
   const near = nearProp ?? nearStore;
 
   const matCharcoal = useMemo(() => mat(C.charcoal), []);
-  const matWarmWhite = useMemo(() => mat(C.warmWhite), []);
+  const matWarmWhite = useMemo(() => mat("#e6fbff"), []); // cyan-tinted white, not beige
+  const matCyan = useMemo(() => mat("#06b6d4", { emissive: "#06b6d4", emissiveIntensity: 0.5, side: DoubleSide }), []);
   const matAccent = useMemo(() => mat(ACCENT, { emissive: ACCENT, emissiveIntensity: 1.5 }), []);
   const matWindow = useMemo(() => lamp(A, 0.9), [A]);
   const matRibbon = useMemo(() => lamp(A, 1.2), [A]);
@@ -358,6 +365,8 @@ export default function Certify({ place, near: nearProp }) {
     <group>
       <mesh geometry={warmWhiteStaticGeo} material={matWarmWhite} castShadow receiveShadow />
       <mesh geometry={charcoalStaticGeo} material={matCharcoal} receiveShadow />
+      <mesh geometry={fasciaGeo} material={matCyan} castShadow />
+      <mesh geometry={basinGeo} material={matCyan} receiveShadow />
       <mesh geometry={winPaneGeo} material={matWindow} />
       <mesh geometry={ribbonGeo} material={matRibbon} />
       <mesh geometry={ribbonGlowGeo} material={matRibbonGlow} />

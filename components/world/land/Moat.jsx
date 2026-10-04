@@ -249,6 +249,15 @@ export default function Moat() {
   return (
     <group>
       <KeepVeins />
+      {/* topograph's own mark: a 4 m obsidian obelisk with a purple sigil (Ainz) */}
+      <group position={[52, heightAt(52, -14), -14]}>
+        <mesh position={[0, 2, 0]} castShadow material={mat("#14101c", { roughness: 0.2 })}>
+          <cylinderGeometry args={[0.35, 0.7, 4, 4]} />
+        </mesh>
+        <mesh position={[0, 2.4, 0.5]} material={mat("#a78bfa", { emissive: "#a78bfa", emissiveIntensity: 0.9 })}>
+          <octahedronGeometry args={[0.28, 0]} />
+        </mesh>
+      </group>
       <Uphill lively={lively} />
       {FLOES.map((floe, i) => (
         <Floe key={floe.place.id} floe={floe} index={i} />

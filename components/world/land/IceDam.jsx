@@ -27,7 +27,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { BoxGeometry, CylinderGeometry, IcosahedronGeometry, Object3D } from "three";
+import { BoxGeometry, Color, CylinderGeometry, IcosahedronGeometry, Object3D } from "three";
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { live, useUi } from "../../../lib/world/store";
 import { clamp, smoothstep } from "../life/util";
@@ -381,7 +381,9 @@ export default function IceDam() {
   // wedge's own light-to-shadow curve as a per-vertex multiplier (white
   // elsewhere, unchanged) so the whole body -- wedge, piers, towers,
   // powerhouse -- stays one merged, one-draw-call mesh.
-  const concreteMat = useMemo(() => mat(C.metal, { ...SURFACE.metal, vertexColors: true }), []);
+  const concreteMat = useMemo(() => mat(`#${new Color("#e5e7eb").lerp(new Color("#ff8a3d"), 0.3).getHexString()}`, { ...SURFACE.metal, metalness: 0.25, vertexColors: true }), []);
+  const plantMat = useMemo(() => mat("#f3f4f6", { roughness: 0.6 }), []);
+  const plantRedMat = useMemo(() => mat("#ef4444", { roughness: 0.5 }), []);
   const roadMat = useMemo(() => mat(C.charcoal, { roughness: 0.92 }), []);
   useReflect(REFLECT.ice, iceMat);
   useReflect(REFLECT.metal, concreteMat);
@@ -409,6 +411,8 @@ export default function IceDam() {
     <group>
       <mesh geometry={iceGeo} material={iceMat} castShadow receiveShadow />
       <mesh geometry={concrete.body} material={concreteMat} castShadow receiveShadow />
+      <mesh geometry={concrete.plant} material={plantMat} castShadow receiveShadow />
+      <mesh geometry={concrete.plantRed} material={plantRedMat} castShadow />
       <mesh geometry={concrete.road} material={roadMat} receiveShadow />
       <mesh geometry={concrete.accent} material={accentMat} />
       <mesh geometry={concrete.bathtub} material={bathtubMat} />

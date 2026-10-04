@@ -206,6 +206,21 @@ const SPARK_POS = [-WIRE_X, WIRE_X].flatMap((wx) =>
   SPARK_OFFSETS.map(([dx, dy, dz]) => [wx + dx, CAP_Y - 0.2 + dy, dz]),
 );
 
+// A copper toroid stands upright on the deck in front of the bushings (a
+// transformer's core), and an arc jumps between the two bushing caps.
+const TOROID_GEO = new TorusGeometry(1.1, 0.25, 8, 24);
+const TOROID_Y = DECK_Y + 1.35, TOROID_Z = 0.85;
+const ARC_GEO = new TubeGeometry(
+  new CatmullRomCurve3([
+    new Vector3(-WIRE_X + 0.2, CAP_Y, 0),
+    new Vector3(-0.5, CAP_Y + 0.35, 0.08),
+    new Vector3(-0.15, CAP_Y - 0.12, -0.08),
+    new Vector3(0.3, CAP_Y + 0.3, 0.06),
+    new Vector3(WIRE_X - 0.2, CAP_Y, 0),
+  ]),
+  24, 0.045, 5, false,
+);
+
 const CYCLE_FAR = 6.5, CYCLE_NEAR = 3.6, EASE = 4; // seconds per coupling rise-and-fall
 const COUPLE_BOB = 0.4; // metres the coupling core rises as coupleK climbs to 1
 
@@ -231,6 +246,9 @@ export default function Glass({ place }) {
   }, [accent]);
   const trefoilMat = useMemo(() => mat(accent, { emissive: accent, emissiveIntensity: 0.35 }), [accent]);
   const sparkMat = useMemo(() => glow(accent, 1.3), [accent]);
+
+  const toroidMat = useMemo(() => mat("#ff8a3d", { roughness: 0.3, metalness: 0.7, emissive: "#ff8a3d", emissiveIntensity: 0.25 }), []);
+  const arcMat = useMemo(() => glow("#bfe9ff", 0.9).clone(), []);
 
   const coupleMat = useMemo(() => mat(accent, { roughness: 0.25, emissive: accent, emissiveIntensity: 1 }).clone(), [accent]);
   const coupleGlowMat = useMemo(() => glow(accent, 0.4), [accent]);
@@ -267,6 +285,7 @@ export default function Glass({ place }) {
   }, []);
 
   useFrame((state, dt) => {
+    arcMat.opacity = Math.sin(state.clock.elapsedTime * Math.PI * 16) > 0.2 ? 0.95 : 0.12; // 8 Hz flicker
     const k = 1 - Math.exp(-EASE * dt);
     nearK.current += ((nearRef.current ? 1 : 0) - nearK.current) * k;
     const cycle = CYCLE_FAR - (CYCLE_FAR - CYCLE_NEAR) * nearK.current;
@@ -330,6 +349,8 @@ export default function Glass({ place }) {
         <mesh geometry={TREFOIL_GEO} material={trefoilMat} position={[0, 0, 0.003]} />
       </group>
 
+      <mesh geometry={TOROID_GEO} material={toroidMat} position={[0, TOROID_Y, TOROID_Z]} castShadow />
+      <mesh geometry={ARC_GEO} material={arcMat} />
       <mesh geometry={SHEET_GLOW_GEO} material={sheetGlowMat} />
 
       <mesh ref={coreRef} position={[0, DECK_Y + 0.05, 0]} material={coupleMat}>

@@ -23,8 +23,8 @@ const CORE_Y = 0.9;
 const T = { hair: [0.55, 1.15], eyes: [2.3, 3.0], open: 2.5, step: 0.075, key: [7.0, 8.2], spread: [8.8, 13.0], gate: [8.3, 9.6], opens: [12.6, 14.2], keyAway: [13.6, 14.4], draw: [14.4, 16.4], aim: [18.0, 19.2], blast: [19.4, 19.9], word: [19.6, 21.6], shatter: 20.3, ret: 21.2, windEnd: [21.4, 22.2], shardEnd: 22.8 };
 const NP = 42;
 const NS = 240;
-const KEY_AT = [0.95, 1.95, 0.4];
-const EA_AT = [1.0, 0.7, 0.55];
+const KEY_AT = [0.55, 1.35, 0.6];
+const EA_AT = [0.75, 0.55, 0.45];
 const GATE_AT = [0, 4.8, -12];
 const COL = new Color();
 const V = new Vector3();
@@ -35,6 +35,8 @@ const FZ = new Vector3();
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
   const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
   const rig = useRef();
   const skyRef = useRef();
   const world = useRef();
@@ -46,6 +48,7 @@ export default function Move(cut) {
   const island = useRef([]);
   const worn = useRef([]);
   const glows = useRef({});
+  const pupRef = useRef(null);
 
   const m = useMemo(() => {
     const gold = goldMaterial();
@@ -102,8 +105,15 @@ export default function Move(cut) {
   }, []);
 
   useEffect(() => {
+    // the gate, portal and wind shaders compile now, not on the beat that first shows them (the 370 ms freeze)
+    try {
+      gl.compile(scene, camera);
+    } catch {
+      // a failed precompile only costs the old first-use hitch
+    }
     island.current = islandList(scene);
     const p = pupParts(scene);
+    pupRef.current = p;
     const add = (mesh) => {
       mesh.visible = false;
       p.head.add(mesh);
@@ -134,7 +144,7 @@ export default function Move(cut) {
       m.word.material.map?.dispose();
       for (const x of [m.portals, m.shards, ...m.sil]) x.dispose();
     };
-  }, [scene, m]);
+  }, [scene, m, gl, camera]);
 
   // a skip clears the arrival: nothing of the world draws for the frame before this unmounts
   useFrame(() => {
@@ -145,6 +155,27 @@ export default function Move(cut) {
       worn.current.forEach((o) => (o.visible = false));
     }
   }, -0.5);
+
+  // THE RETURN: a wide island shot, and the pup drops back from 3 m over 0.6 s onto the fountain
+  const EYE_R2 = useMemo(() => new Vector3(), []);
+  const LOOK_R2 = useMemo(() => new Vector3(), []);
+  useFrame((state) => {
+    const a = live.arrival;
+    const p = pupRef.current;
+    if (!a.id || mode !== "full") return;
+    const t = state.clock.elapsedTime - a.start;
+    const k = smooth(T.ret, T.ret + 0.5, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
+    if (k <= 0.001) return;
+    const at = card.landAt;
+    EYE_R2.set(at.x, at.y + 7, at.z + 14);
+    LOOK_R2.set(at.x, at.y + 1, at.z);
+    const cm = state.camera;
+    cm.getWorldDirection(V).multiplyScalar(cm.position.distanceTo(LOOK_R2)).add(cm.position);
+    V.lerp(LOOK_R2, k);
+    cm.position.lerp(EYE_R2, k);
+    cm.lookAt(V);
+    if (p?.root) p.root.position.y += 3 * (1 - smooth(T.ret, T.ret + 0.6, t));
+  }, -0.4);
 
   // a flat quad that always faces the lens, at a rig-local spot
   const bill = (mesh, x, y, z, size, cam) => {
@@ -181,9 +212,10 @@ export default function Move(cut) {
     const dz = cam.position.z - s.z;
     const inside = r > Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.3;
     const gone = tt >= T.ret;
-    sky.visible = r > 0.02 && !gone;
-    sky.scale.setScalar(inside ? 140 : Math.max(r, 0.02));
-    world.current.visible = inside && !gone;
+    const early = tt < 0.4; // the stage colour never shows a blank frame: the sky is already up at t=0
+    sky.visible = (r > 0.02 || early) && !gone;
+    sky.scale.setScalar(inside || early ? 140 : Math.max(r, 0.02));
+    world.current.visible = (inside || early) && !gone;
     const fade = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
 
     // GILGAMESH on the pup: gold hair, collar, pauldrons and red eyes, gone with the stage
@@ -199,7 +231,7 @@ export default function Move(cut) {
     for (let i = 0; i < NP; i++) {
       const p = m.lay[i];
       const o = smooth(T.open + i * T.step, T.open + i * T.step + 0.5, tt);
-      const sz = p.size * o * (1 + 0.06 * Math.sin(t * 3 + i));
+      const sz = p.size * 1.3 * o * (1 + 0.06 * Math.sin(t * 3 + i));
       put(m.portals, i, p.x, p.y, p.z, sz, sz, 1);
       const len = p.len * smooth(T.open + i * T.step + 0.3, T.open + i * T.step + 1.0, tt);
       put(m.sil[p.kind], p.slot, p.x, p.y, p.z + 0.1, len, len, 1, 0, 0, p.a - Math.PI / 2 + 0.05 * Math.sin(t * 1.7 + i));
@@ -212,7 +244,7 @@ export default function Move(cut) {
     const key = keyG.current;
     key.visible = kin > 0.01;
     key.position.set(KEY_AT[0], KEY_AT[1] + (1 - kin) * 0.6 + 0.05 * Math.sin(tt * 2.4), KEY_AT[2]);
-    key.scale.setScalar(Math.max(kin, 0.01) * 1.25);
+    key.scale.setScalar(Math.max(kin, 0.01) * 2.2);
     key.rotation.set(0.1, tt * 2.6, 0.08 * Math.sin(tt * 1.5));
     const gate = gateRef.current;
     gate.visible = tt > T.gate[0] && !gone;
@@ -225,16 +257,15 @@ export default function Move(cut) {
     const aim = smooth(T.aim[0], T.aim[1], tt);
     const ea = eaG.current;
     ea.visible = draw > 0.01 && !gone;
-    ea.scale.setScalar(Math.max(draw, 0.01) * 1.4);
+    ea.scale.setScalar(Math.max(draw, 0.01) * 1.1);
     ea.position.set(EA_AT[0], EA_AT[1] + 0.05 * Math.sin(tt * 2.0), EA_AT[2]);
-    ea.rotation.set(-0.2 - 0.3 * aim, 0, -0.5 + 1.4 * aim);
-    const spin = tt * (2 + 10 * smooth(T.draw[1], T.blast[0], tt));
-    segs.current.forEach((sg, i) => (sg.rotation.y = spin * (i % 2 ? -1 : 1) + i * 1.6));
+    ea.rotation.set(-0.2, 0, -0.9 + 0.5 * aim);
+    segs.current.forEach((sg, i) => (sg.rotation.y = tt * (6 + 3 * i) * (i % 2 ? -1 : 1)));
     const blast = smooth(T.blast[0], T.blast[1], tt) * (1 - smooth(T.windEnd[0], T.windEnd[1], tt));
     const w = wind.current;
-    w.visible = blast > 0.01 && !gone;
+    w.visible = tt >= T.aim[0] && tt < T.windEnd[1] && !gone;
     w.scale.set(0.3 + blast, 0.2 + 0.8 * blast, 0.3 + blast);
-    m.windM.uniforms.uK.value = blast * 2.6;
+    m.windM.uniforms.uK.value = Math.max(blast * 2.6, 0.9 * smooth(T.aim[0], T.aim[1], tt));
 
     // THE RETURN: the blast shatters space into shards; the world goes and the island is there
     const age = tt - T.shatter;
@@ -263,7 +294,7 @@ export default function Move(cut) {
     m.glowM.uniforms.uK.value = 0.55 * smooth(2.3, 3.4, tt);
     const gk = glows.current.key;
     gk.visible = kin > 0.01;
-    bill(gk, KEY_AT[0], KEY_AT[1] + 0.4, KEY_AT[2], 2.2 * kin, cam);
+    bill(gk, KEY_AT[0], KEY_AT[1] + 0.4, KEY_AT[2], 2.2 * 1.6 * kin, cam);
 
     // the flashes: gold at the blast and at the swap, never a white-out
     holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(tt - 19.8) / 0.25) * 0.4 + Math.max(0, 1 - Math.abs(tt - T.ret) / 0.3) * 0.5);
