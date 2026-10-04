@@ -212,7 +212,7 @@ moundGeo.translate(0, VENT_H / 2, 0);
 const rimGeo = new CylinderGeometry(VENT_R * 0.62, VENT_R * 0.68, 0.22, 12);
 const ventGeo = new CylinderGeometry(VENT_R * 0.42, VENT_R * 0.5, 0.4, 12);
 const dropGeo = new IcosahedronGeometry(1, 1);
-const steamGeo = new IcosahedronGeometry(0.24, 1);
+const steamGeo = new IcosahedronGeometry(0.55, 1);
 const splashGeo = new IcosahedronGeometry(0.22, 0);
 const bubbleGeo = new IcosahedronGeometry(0.1, 0);
 
@@ -223,7 +223,7 @@ function Geyser({ boost }) {
   const buildupRef = useRef();
   const rimMat = useMemo(() => lamp(GEYSER_COLOR, 0.8), []);
   const dropMat = useMemo(() => mat(C.ice, { flat: false, roughness: 0.1, emissive: GEYSER_COLOR, emissiveIntensity: 0.6 }), []);
-  const steamMat = useMemo(() => mat(C.warmWhite, { flat: false, roughness: 0.9, opacity: 0.24, emissive: GEYSER_COLOR, emissiveIntensity: 0.12 }), []);
+  const steamMat = useMemo(() => mat(C.warmWhite, { flat: false, roughness: 0.9, opacity: 0.5, emissive: GEYSER_COLOR, emissiveIntensity: 0.12 }), []);
   const splashMat = useMemo(() => mat(C.warmWhite, { flat: false, roughness: 0.85, opacity: 0.5, emissive: GEYSER_COLOR, emissiveIntensity: 0.2 }), []);
   const buildupMat = useMemo(() => mat(C.warmWhite, { flat: false, roughness: 0.9, opacity: 0.3, emissive: GEYSER_COLOR, emissiveIntensity: 0.25 }), []);
 

@@ -17,8 +17,8 @@ export const RISE_S = 1.3; // s the column takes to climb
 export const FALL_S = 3.2; // s it takes to fall back as spray
 export const DROP_COUNT = 40;
 
-export const VENT_R = 1.8; // the sinter mound's base radius
-export const VENT_H = 1.6; // the mound's height at the vent lip
+export const VENT_R = 2.4; // the sinter mound's base radius
+export const VENT_H = 3.4; // the mound's height at the vent lip
 
 // Every drop's own, fixed way up: a golden-angle fan (the same trick as
 // land/Moat.jsx's Uphill), so the column reads as a fountain, not one jet,
@@ -41,13 +41,13 @@ export const SPLASH = Array.from({ length: SPLASH_COUNT }, (_, i) => ({
 // THE ALWAYS-ON TELL: a few pale steam puffs drift up off the vent lip all
 // the time, on their own slow loop -- never gated to ERUPT_PERIOD, so the
 // mound reads "hot" through the ~86% of the cycle the fountain is dormant.
-export const STEAM_COUNT = 7;
+export const STEAM_COUNT = 14;
 export const STEAM_PERIOD = 3.4; // s: one puff's own rise-and-fade loop
 export const STEAM = Array.from({ length: STEAM_COUNT }, (_, i) => ({
   angle: i * GOLDEN,
   radius: 0.12 + 0.22 * ((i * 0.41) % 1),
   offset: i / STEAM_COUNT,
-  apex: 1.3 + 0.9 * ((i * 0.618) % 1),
+  apex: 3.5 + 4.5 * ((i * 0.618) % 1),
 }));
 
 // THE BUILD-UP: in the last BUILDUP_S seconds before an eruption, a few
