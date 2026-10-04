@@ -129,7 +129,7 @@ export function buildRyuk(mats) {
   const bustM = mk(rg.bust, mats.ryuk, bust);
   bustM.position.set(0, -0.85, 0.15);
   // the eyes: two small pale glints
-  const eyeM = new MeshBasicMaterial({ color: "#f3efe0", toneMapped: false, fog: false });
+  const eyeM = new MeshBasicMaterial({ color: "#ffdd00", toneMapped: false, fog: false });
   const eyes = mk(merge([ball(0.028, -0.09, 2.14, 0.74, 1.4, 1, 0.6, 6, 4), ball(0.028, 0.09, 2.14, 0.74, 1.4, 1, 0.6, 6, 4)]), eyeM, bust);
   eyes.position.set(0, -0.85, 0.15);
   const wings = [-1, 1].map((s) => {

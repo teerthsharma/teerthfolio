@@ -53,11 +53,11 @@ export function skyDome() {
         float dens = smoothstep(0.28, 0.72, broad * 0.65 + bands * 0.45);
         // the city's light under the ceiling: ochre at the horizon, thinning upward, brightest where the cloud is thin
         float glow = exp(-max(el, 0.0) * 7.5);
-        vec3 under = vec3(0.64, 0.35, 0.14);
-        vec3 teal = vec3(0.060, 0.100, 0.112);
-        vec3 umber = vec3(0.028, 0.021, 0.019);
+        vec3 under = vec3(0.55, 0.04, 0.09);
+        vec3 teal = vec3(0.040, 0.040, 0.075);
+        vec3 umber = vec3(0.010, 0.010, 0.018);
         vec3 c = mix(umber, teal, smoothstep(0.02, 0.45, el) * 0.5 + 0.18);
-        c = mix(c, vec3(0.05, 0.075, 0.085), dens * smoothstep(0.1, 0.5, el) * 0.8);
+        c = mix(c, vec3(0.030, 0.030, 0.060), dens * smoothstep(0.1, 0.5, el) * 0.8);
         // the lit underside of the low cloud: warm streaks along the bottom of each billow
         float edge = smoothstep(0.35, 0.62, bands) * (1.0 - smoothstep(0.62, 0.9, bands));
         c += under * glow * (0.42 + 0.5 * (1.0 - dens) + 0.35 * edge);
@@ -67,7 +67,7 @@ export function skyDome() {
         if (gl_FrontFacing && uInside < 0.5) {
           // seen from outside while it swells: a bubble of umber with an ochre skin
           float f = pow(max(1.0 - abs(dot(normalize(vN), normalize(vP0 - camL))), 0.0), 2.0);
-          c += f * vec3(0.55, 0.30, 0.12) * 0.7;
+          c += f * vec3(0.55, 0.05, 0.10) * 0.7;
           alpha = mix(0.35, 1.0, f);
         }
         float web = 1.0 - smoothstep(0.012, 0.03, min(vBary.x, min(vBary.y, vBary.z)));
@@ -137,8 +137,8 @@ function realmGeometry() {
 export function buildRealm() {
   const geo = realmGeometry();
   const mats = {
-    ash: lit({ albedo: "#d9d2c0", dir: [0.25, 1, 0.2], floor: 0.42, haze: "#a07848", fogK: 0.0035, vertexColors: true }),
-    apple: lit({ albedo: "#c4131d", dir: [0.25, 1, 0.2], floor: 0.5, haze: "#a07848", fogK: 0.0035 }),
+    ash: lit({ albedo: "#d9d2c0", dir: [0.25, 1, 0.2], floor: 0.42, haze: "#3a0a12", fogK: 0.0035, vertexColors: true }),
+    apple: lit({ albedo: "#c4131d", dir: [0.25, 1, 0.2], floor: 0.5, haze: "#3a0a12", fogK: 0.0035 }),
     puff: lit({ albedo: "#33414a", dir: [0, -1, 0], light: "#d9893e", floor: 0.0, haze: "#6a4a2a", fogK: 0.001 }),
   };
   const g = new Group();

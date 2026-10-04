@@ -214,6 +214,9 @@ export default function Move(cut) {
     p.set(on);
     p.showCostume(on);
     if (on) p.tick(t, cam, live.anchors?.mouth);
+    // the Light-style head tilt as the page goes up: 12 degrees on z for half a second, then upright again
+    const tilt = sm(T.page[0], T.page[0] + 0.25, t) * (1 - sm(T.page[0] + 0.3, T.page[0] + 0.55, t));
+    if (on && tilt > 0) p.root.rotation.z = 0.21 * tilt;
     else if (broken) p.afterBreak(t, cam);
     // Ryuk takes the apple, chews it, writes, tosses the core; L's wrist and the pup's cuff are the chain's ends
     TIP.copy(p.tipL).add(W.set(0.04, 0.09, 0));
