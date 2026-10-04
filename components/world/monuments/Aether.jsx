@@ -67,8 +67,10 @@ const WINDOW_GEO = new BoxGeometry(0.34, 0.42, 0.1);
 const FINIAL_GEO = new IcosahedronGeometry(0.17, 0);
 const LAMP_GEO = new IcosahedronGeometry(0.2, 0); // a bulb big enough to read as a point of light at game distance
 
-const FOOT_MAT = mat(C.warmWhite, { roughness: 0.82 });
-const DRUM_MAT = mat(C.warmWhite, { roughness: 0.8 }); // the body stays near-neutral; its windows carry the colour
+const FOOT_MAT = mat("#ffd6fb", { roughness: 0.82 }); // pink, not beige
+const DRUM_MAT = mat("#ffd6fb", { roughness: 0.8 });
+const BAND_MAT = mat("#e94bff", { roughness: 0.5, emissive: "#e94bff", emissiveIntensity: 0.35 });
+const BAND_GEO = new CylinderGeometry(1.94, 1.94, 0.22, 10); // the body stays near-neutral; its windows carry the colour
 const POLE_MAT = mat(C.charcoal, { roughness: 0.4, metalness: 0.15 });
 const RAIL_MAT = mat(C.charcoal, { roughness: 0.3, metalness: 0.5 });
 const SPOKE_MAT = mat(C.charcoal, { roughness: 0.5 });
@@ -197,6 +199,7 @@ export default function Aether({ place, near }) {
       {/* the drum: a solid body between the foot and the platform, so the
           base reads as a standing carousel and not an open cage */}
       <mesh position={[0, PLATFORM_TOP + DRUM_H / 2, 0]} castShadow receiveShadow material={DRUM_MAT} geometry={DRUM_GEO} />
+      <mesh position={[0, 1.2, 0]} material={BAND_MAT} geometry={BAND_GEO} />
       <instancedMesh ref={windowRef} args={[WINDOW_GEO, windowMat, WINDOW_COUNT]} frustumCulled={false} />
 
       <mesh position={[0, PLATFORM_TOP + POLE_H / 2, 0]} castShadow material={POLE_MAT} geometry={POLE_GEO} />
