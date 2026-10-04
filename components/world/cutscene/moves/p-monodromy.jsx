@@ -7,13 +7,14 @@
 // city-scale lightning from a vortex over the palace that is so big it BREAKS THE FOURTH WALL: the HUD frame, the
 // letterbox and the Skip chip shudder, a crack runs across the lens, the pup looks at the viewer. The crack IS the
 // loop (monodromy): the pup steps into it and the whole world folds shut along it, and the island is back exactly
-// where we left it, the loop closed (a ring on the ground closes too), the pup giving a sheepish wave.
+// where we left it: the world freezes, cracks into ~40 shards that fall away, and the island flies back in on them (shatter.js).
 // No post pass: the crack is one quad on the lens, the fold is a vertex squeeze, the HUD shudder is CSS variables.
 // Card: lib/world/cutscene/cards/p-monodromy.js. Parts: ./p-monodromy/.
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, InstancedMesh, Mesh, Object3D, Vector2, Vector3 } from "three";
+import { realAt } from "../../../../lib/world/cutscene/clock";
 import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { place as placeBubble } from "../../ui/Bubbles";
@@ -21,9 +22,10 @@ import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { Motes } from "./_g1";
 import { flashQuad, holdFlash, islandList, pupParts } from "./p-caustic/parts";
 import { boltMaterial, megaBoltGeometry } from "./p-monodromy/bolt";
-import { crackLens, foldPlane, loopRing, placeLens } from "./p-monodromy/crack";
+import { crackLens, placeLens } from "./p-monodromy/crack";
 import { jafar, sigil, sinbad, stormColumn } from "./p-monodromy/hero";
 import { U, celMat, hash, pupCel } from "./p-monodromy/look";
+import { shatter } from "./p-monodromy/shatter";
 import { FLEET, LANTERN_COLORS, PALM_AT, ROBES, SEA_Y, landscape, lanternGeometry, palmGeometry, personGeometry, sea, shipGeometry, skyShell, strings } from "./p-monodromy/world";
 import { registerWarm, takeWarm } from "../prewarm";
 
@@ -36,22 +38,20 @@ const T = {
   charge: [4.9, 6.3], // the flippers rise, the vortex winds up
   strike: 6.4, // BAARARAQ SAIQA
   lens: 6.5, // it comes out of the screen: the lens cracks
-  stare: [6.8, 7.7],
-  step: [7.7, 8.4], // the pup steps into the crack
-  fold: [8.3, 9.5], // the world folds shut along it
-  home: 9.5, // the island, exactly where we left it; the pup is back
-  heal: [9.5, 9.9],
-  ring: [9.55, 10.2],
+  stare: [6.8, 12],
 };
+// THE SHATTER, in real seconds from the arrival (the card is paced; 0.8 s must be 0.8 s): the world freezes after the
+// "Oops" line has been read, the crack spreads over the shards, they fall, the island flies back in and locks.
+const F = realAt("p-monodromy", 8.4);
+const R = { freeze: F, fall: F + 0.5, back: F + 1.1, grabIsland: F + 1.2, land: F + 1.3, locked: F + 2.1, ringEnd: F + 2.7, shardsOff: F + 2.45, costumeOut: [F + 2.1, F + 3.4] };
 const FLASHES = [3.35, 3.95, 4.9, 5.35, 5.8, 6.1]; // far lightning in the clouds as the storm builds
 const CROWD = 72;
 const LAMPS = 72;
 const CRACK_AT = new Vector2(0.1, 0.06); // where the lens breaks (screen, aspect-centred units)
 const CRACK_ANG = 1.12;
+const IMPACT = { x: (2 * CRACK_AT.x) / 1.6, y: 2 * CRACK_AT.y }; // the strike in NDC (rank only: the shards are in clip space)
 
 const V = new Vector3();
-const W = new Vector3();
-const N = new Vector3();
 const O = new Object3D();
 const COL = new Color();
 // the illuminated-manuscript frame: a 14 px gold border, a 4 px crimson inner line, an 8-point star in each corner
@@ -128,9 +128,9 @@ function buildWorld() {
   const lens = crackLens();
   lens.m.uniforms.uC.value = CRACK_AT;
   lens.m.uniforms.uAng.value = CRACK_ANG;
-  const ring = loopRing();
+  const sh = shatter(IMPACT);
   const flash = flashQuad("#cfe6ff");
-  return { cel, palmMat, shell, seaM, land, landMesh, palmG, palms, shipG, ships, personG, crowd, folk, str, lampList, ropes, lampG, lamps, mega, sigilFloor, sigilSky, storm, ja, lens, ring, flash };
+  return { cel, palmMat, shell, seaM, land, landMesh, palmG, palms, shipG, ships, personG, crowd, folk, str, lampList, ropes, lampG, lamps, mega, sigilFloor, sigilSky, storm, ja, lens, sh, flash };
 }
 registerWarm("p-monodromy", buildWorld);
 
@@ -144,7 +144,7 @@ export default function Move(cut) {
   const world = useRef();
   const dust = useRef();
   const pup = useRef(null);
-  const st = useRef({ step: new Vector3(), scale: 1, faceTo: 0, faceK: 0, bubble: null, frame: null });
+  const st = useRef({ step: new Vector3(), scale: 1, faceTo: 0, faceK: 0, bubble: null, frame: null, grab0: false, grab1: false, rt: null });
 
   const m = useMemo(() => takeWarm("p-monodromy", buildWorld), []);
 
@@ -181,7 +181,7 @@ export default function Move(cut) {
       rig.current.traverse((o) => {
         if (!o.visible) { hidden.push(o); o.visible = true; }
       });
-      for (const o of [m.lens.mesh, m.flash]) if (!o.visible) { hidden.push(o); o.visible = true; }
+      for (const o of [m.lens.mesh, m.flash, m.sh.shards, m.sh.veil, m.sh.wave]) if (!o.visible) { hidden.push(o); o.visible = true; }
       skin.current?.set(true);
       try { gl.compile(scene, camera); } catch { /* the first draw compiles instead */ }
       skin.current?.set(false);
@@ -200,8 +200,9 @@ export default function Move(cut) {
       state.bubble = null;
       state.frame = null;
       U.uFold.value = U.uStorm.value = U.uFlash.value = 0;
-      for (const g of [m.shell.g, m.seaM.g, m.land, m.palmG, m.shipG, m.personG, m.str.rope, m.lampG, m.mega.geometry, m.lens.mesh.geometry, m.ring.mesh.geometry, m.flash.geometry]) g.dispose();
-      for (const x of [m.cel, m.palmMat, m.shell.m, m.seaM.m, m.mega.material, m.lens.m, m.ring.m, m.flash.material]) x.dispose();
+      for (const g of [m.shell.g, m.seaM.g, m.land, m.palmG, m.shipG, m.personG, m.str.rope, m.lampG, m.mega.geometry, m.lens.mesh.geometry, m.flash.geometry]) g.dispose();
+      for (const x of [m.cel, m.palmMat, m.shell.m, m.seaM.m, m.mega.material, m.lens.m, m.flash.material]) x.dispose();
+      m.sh.dispose();
       for (const x of [m.palms, m.ships, m.crowd, m.lamps]) x.dispose();
       m.storm.dispose();
       m.sigilFloor.dispose();
@@ -221,6 +222,7 @@ export default function Move(cut) {
       skin.current?.set(false);
       m.lens.mesh.visible = false;
       m.flash.visible = false;
+      m.sh.hide();
       if (costume.current) costume.current.hair.visible = costume.current.armour.visible = false;
       if (S.frame) S.frame.style.opacity = 0;
       return;
@@ -234,6 +236,23 @@ export default function Move(cut) {
       }
     }
   }, -0.5);
+
+  // the two grabs, after the camera rig and the pup are placed for this frame: the frozen world, then the island
+  useFrame((state) => {
+    const S = st.current;
+    const sh = m.sh;
+    if (!live.arrival.id || mode !== "full" || S.rt == null) return;
+    const rt = S.rt;
+    const first = rt >= R.freeze && !S.grab0;
+    if (!first && !(rt >= R.grabIsland && S.grab0 && !S.grab1)) return;
+    const vis = [m.lens.mesh.visible, sh.shards.visible, sh.veil.visible, sh.wave.visible];
+    m.lens.mesh.visible = false;
+    sh.hide();
+    sh.grab(state.gl, state.scene, state.camera, first ? sh.old : sh.next);
+    [m.lens.mesh.visible, sh.shards.visible, sh.veil.visible, sh.wave.visible] = vis;
+    if (first) S.grab0 = true;
+    else S.grab1 = true;
+  }, 1.5); // after FrameGuard (0.9) has framed the pup, or the grab sees another camera
 
   useCutFrame((t, state) => {
     const S = st.current;
@@ -256,8 +275,9 @@ export default function Move(cut) {
     const cam = state.camera;
     const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
     const struck = tt - T.strike;
-    const folding = tt >= T.fold[0];
-    const done = tt >= T.home;
+    const rt = state.clock.elapsedTime - live.arrival.start; // real seconds: the shatter is not paced
+    if (rt < R.freeze) S.grab0 = S.grab1 = false; // a replay grabs again
+    const back = rt >= R.back; // behind the falling shards the island is set: this is the frame that is grabbed
 
     // the rig: the pup at the origin, turned so the landform stands where the figure would
     const turn = turnFor(card, place, s.x, s.z);
@@ -268,11 +288,11 @@ export default function Move(cut) {
     const r = radiusAt(tl, t);
     V.set(s.x, CORE_Y, s.z);
     const inside = r > cam.position.distanceTo(V) + 0.3;
-    shellRef.current.visible = r > 0.02 && !done;
+    shellRef.current.visible = r > 0.02 && !back;
     shellRef.current.scale.setScalar(inside ? 140 : Math.max(r, 0.02));
     m.shell.m.uniforms.uInside.value = inside ? 1 : 0;
-    world.current.visible = inside && !done;
-    dust.current.visible = !folding;
+    world.current.visible = inside && !back;
+    dust.current.visible = !back;
 
     // the shared sky and light: the storm winds up with the equip and the charge; the flashes
     const storm = smooth(T.charge[0], T.charge[1], tt); // the sky darkens in the charge only
@@ -281,69 +301,85 @@ export default function Move(cut) {
     flash = Math.max(flash, Math.max(0, 1 - Math.abs(tt - T.equip[0]) / 0.18) * 0.3);
     U.uTime.value = t;
     U.uStorm.value = tt >= T.strike ? 1 : storm;
-    U.uFlash.value = folding ? 0 : Math.min(flash, 0.5);
+    U.uFlash.value = back ? 0 : Math.min(flash, 0.5);
     U.uGust.value = 0.14 + 0.35 * U.uStorm.value + Math.max(0, 1 - Math.abs(struck) / 0.8) * 0.5;
     m.seaM.m.uniforms.uSurge.value = 0.1 + 0.9 * U.uStorm.value;
 
-    // THE CRACK'S PLANE and THE FOLD
-    foldPlane(cam, CRACK_AT, CRACK_ANG, N);
-    U.uFoldN.value.copy(N);
-    U.uFoldC.value.copy(cam.position);
-    U.uFold.value = smooth(T.fold[0], T.fold[1], tt);
-    if (folding && tt < tl.collapse[0]) for (const o of island.current) o.visible = true; // the island the stage hid, under the closing world
+    U.uFold.value = 0;
+    if (back && tt < tl.collapse[0]) for (const o of island.current) o.visible = true; // the island the stage hid
 
     // THE PUP: Sinbad, then Baal; the real pup drawn in the dimension's cel until it is home
-    skin.current?.set((inside || tt > tl.bloom[1]) && !done);
-    const costumeK = done ? 0 : smooth(T.costume[0], T.costume[1], tt) * (1 - smooth(T.step[0] + 0.4, T.step[1], tt));
-    const equipK = done ? 0 : smooth(T.equip[0], T.equip[1], tt) * (1 - smooth(T.step[0] + 0.3, T.step[1], tt));
+    skin.current?.set((inside || tt > tl.bloom[1]) && !back);
+    // Sinbad stays through the shatter, and fades off the pup once the island has locked
+    const wear = 1 - smooth(R.costumeOut[0], R.costumeOut[1], rt);
+    const costumeK = smooth(T.costume[0], T.costume[1], tt) * wear;
+    const equipK = back ? 0 : smooth(T.equip[0], T.equip[1], tt);
     const flare = Math.max(0, 1 - Math.abs(struck - 0.1) / 0.5);
-    const gone = done ? 0 : 1 - smooth(T.step[0] + 0.3, T.step[1], tt);
+    const gone = back ? 0 : 1;
     m.sigilFloor.tick(t, smooth(T.equip[0], T.equip[0] + 0.5, tt) * gone);
     m.sigilSky.tick(t, smooth(T.charge[0], T.charge[0] + 0.5, tt) * gone);
     if (c) c.tick(t, costumeK, equipK, flare);
     // the storm round the pup: the column grows with the equip and flares with the strike, gone as it steps through
-    const col = done ? 0 : (equipK * 0.7 + smooth(T.charge[0], T.charge[1], tt) * 0.5 + flare * 0.6) * (1 - smooth(T.step[0] + 0.2, T.step[1], tt));
+    const col = back ? 0 : (equipK * 0.7 + smooth(T.charge[0], T.charge[1], tt) * 0.5 + flare * 0.6);
     m.storm.tick(t, Math.min(col, 1.2));
     // BAARARAQ SAIQA: the trunks and the sheets grow out of the vortex in three drawings, hold, then crawl and fade
     const mu = m.mega.material.uniforms;
-    m.mega.visible = struck >= 0 && !folding;
+    m.mega.visible = struck >= 0 && !back;
     mu.uGrow.value = struck / 0.2;
     mu.uFade.value = 1 - smooth(0.5, 0.9, struck); // full for 0.5 s, then gone
     mu.uStep.value = 0;
 
-    // THE LENS: the crack grows from the impact, opens into a seam as the world folds, heals from its ends
+    // THE LENS: the crack grows from the impact (the shards take it over at the freeze)
     const L = m.lens;
-    L.mesh.visible = tt >= T.lens && tt < T.heal[1] + 0.1;
+    const sh = m.sh;
+    L.mesh.visible = tt >= T.lens && rt < R.fall;
     if (L.mesh.visible) {
       placeLens(L.mesh, cam);
       const u = L.m.uniforms;
       u.uAspect.value = cam.aspect;
       u.uGrow.value = smooth(T.lens, T.lens + 0.45, tt);
-      u.uGap.value = smooth(T.step[0], T.fold[1], tt);
-      u.uHeal.value = smooth(T.heal[0], T.heal[1], tt);
+      u.uGap.value = 0;
+      u.uHeal.value = 0;
       u.uTime.value = t;
       u.uStep.value = Math.floor(t * 12);
       u.uFlash.value = Math.max(0, 1 - (tt - T.lens) / 0.25);
     }
-    // the manuscript frame: on from 1.5 s to the fold
-    if (S.frame) S.frame.style.opacity = tt >= 1.5 && tt < T.fold[0] ? 1 : 0;
+    // the manuscript frame: on from 1.5 s until the shards fall
+    if (S.frame) S.frame.style.opacity = tt >= 1.5 && rt < R.fall ? 1 : 0;
 
-    // THE STEP THROUGH: the pup walks into the crack (its plane through the lens) and shrinks to nothing; home, it is back
-    V.set(s.x, 0.6, s.z);
-    const sk = done ? 0 : smooth(T.step[0], T.step[1], tt);
-    const dist = W.copy(V).sub(cam.position).dot(N);
-    S.step.copy(N).multiplyScalar(-dist * sk);
-    const pop = done ? Math.min(1, (tt - T.home) / 0.25) : 1;
-    S.scale = (done ? Math.max(0.01, pop * (1 + 0.2 * Math.sin(pop * Math.PI))) : Math.max(0.02, 1 - 0.97 * sk)) * (1 + 0.015 * Math.sin((t * Math.PI * 2) / 0.6)); // a slow breath
+    // THE SHATTER: grab the frozen world once, crack it, drop it; grab the island once, fly it in, lock it, ring
+    const SU = sh.U;
+    S.rt = rt; // the grab itself runs after the camera has moved (priority 1.5, below)
+    const live0 = S.grab0 && rt < R.shardsOff;
+    sh.shards.visible = live0;
+    sh.veil.visible = S.grab0 && rt < R.locked;
+    sh.wave.visible = S.grab0 && rt >= R.locked - 0.05 && rt < R.ringEnd;
+    if (live0) {
+      const assembling = rt >= R.land;
+      SU.uMode.value = assembling ? 1 : 0;
+      SU.uTex.value = (assembling ? sh.next : sh.old).texture;
+      SU.uK.value = assembling ? (rt - R.land) / 0.8 : rt >= R.fall ? Math.max(0.001, (rt - R.fall) / 0.8) : 0;
+      SU.uCrack.value = Math.min(1, (rt - R.freeze) / 0.5);
+      SU.uAspect.value = cam.aspect;
+      SU.uTime.value = rt;
+    }
+    if (sh.wave.visible) {
+      V.set(s.x, 0.7, s.z).project(cam);
+      sh.ring.uniforms.uC.value.set(V.x * 0.5 * cam.aspect, V.y * 0.5);
+      sh.ring.uniforms.uAmt.value = Math.max(0.0002, (rt - (R.locked - 0.05)) / (R.ringEnd - R.locked + 0.05));
+    }
+
+    // no step through the crack any more: the pup stands at its dock, upright, from the first frame to the last
+    S.step.set(0, 0, 0);
+    S.scale = 1 + (rt < R.freeze ? 0.015 * Math.sin((t * Math.PI * 2) / 0.6) : 0); // a slow breath, until the freeze
     S.faceTo = turn;
     S.faceK = smooth(T.strike + 0.1, T.stare[0], tt);
 
     // the pup's poses: the sign, the grip on the hilt, flippers up for the strike, the battle cry, the sheepish wave
     live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt));
     live.pose.fist = smooth(T.equip[0], T.equip[0] + 0.3, tt) * (1 - smooth(T.charge[0], T.charge[0] + 0.3, tt)) * out;
-    const wave = done ? 0.55 * (Math.floor(t * 4) % 2) * smooth(T.home + 0.2, T.home + 0.5, tt) : 0;
-    live.pose.raise = (smooth(T.strike - 0.15, T.strike, tt) * (1 - smooth(T.stare[0], T.stare[0] + 0.3, tt)) + wave) * out; // one flipper up, for the strike
-    live.pose.mouth = Math.max(smooth(T.strike - 0.1, T.strike + 0.05, tt) * (1 - smooth(T.strike + 0.5, T.strike + 0.8, tt)), 0.6 * smooth(7.0, 7.2, tt) * (1 - smooth(T.step[0], T.step[0] + 0.2, tt)));
+    live.pose.raise = (smooth(T.strike - 0.15, T.strike, tt) * (1 - smooth(T.stare[0], T.stare[0] + 0.3, tt)) * (back ? 0 : 1)) * out; // one flipper up, for the strike
+    live.pose.mouth = Math.max(smooth(T.strike - 0.1, T.strike + 0.05, tt) * (1 - smooth(T.strike + 0.5, T.strike + 0.8, tt)), 0.6 * smooth(7.0, 7.2, tt) * (back ? 0 : 1));
     live.pose.sit = 0; // upright for the whole scene, never lying on its side
     live.pose.crouch = 0;
 
@@ -395,11 +431,6 @@ export default function Move(cut) {
       }
     }
 
-    // the loop, closed: a ring round the pup's feet draws itself to meet where it began
-    m.ring.mesh.visible = tt >= T.ring[0] && tt < tl.collapse[0];
-    m.ring.m.uniforms.uClose.value = smooth(T.ring[0], T.ring[1], tt);
-    m.ring.m.uniforms.uFade.value = 1 - smooth(tl.credit - 0.4, tl.credit + 0.4, tt);
-
     // the flash: cold, never a white-out
     holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(struck - 0.03) / 0.12) * 0.4 + Math.max(0, 1 - Math.abs(tt - T.equip[0]) / 0.12) * 0.15);
   });
@@ -412,6 +443,9 @@ export default function Move(cut) {
       </group>
       <primitive object={m.flash} />
       <primitive object={m.lens.mesh} />
+      <primitive object={m.sh.veil} />
+      <primitive object={m.sh.shards} />
+      <primitive object={m.sh.wave} />
       <group ref={rig} visible={false}>
         <mesh ref={shellRef} geometry={m.shell.g} material={m.shell.m} position={[0, CORE_Y, 0]} renderOrder={-3} frustumCulled={false} />
         <group ref={world}>
@@ -430,7 +464,6 @@ export default function Move(cut) {
         <primitive object={m.storm.g} />
         <primitive object={m.sigilFloor.g} />
         <primitive object={m.sigilSky.g} position={[0, 9, 0]} />
-        <primitive object={m.ring.mesh} />
       </group>
     </>
   );
