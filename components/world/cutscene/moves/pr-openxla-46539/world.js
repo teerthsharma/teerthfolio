@@ -14,7 +14,7 @@ import { Group, Mesh, Vector3 } from "three";
 import { signAt } from "../../../../../lib/world/cutscene/timeline";
 import { flashQuad, holdFlash, lettering } from "../p-caustic/parts";
 import { buildCity } from "./city";
-import { beamFx, burstFx, domeFx, geyserFx, halosFx, panelFx, pillarFx, rainFx, smokeFx } from "./fx";
+import { beamFx, burstFx, domeFx, geyserFx, halosFx, panelFx, pillarFx, rainFx, smokeFx, vortexFx } from "./fx";
 import { hullMaterial, worldMaterial } from "./mesh";
 import { NOMU_H, SHOULDER, nomu } from "./nomu";
 import { gloveGeo } from "./punch";
@@ -87,12 +87,13 @@ export function makeWorld({ tl, KN }) {
   const dm = domeFx();
   const pn = panelFx();
   const gy = geyserFx();
+  const vx = vortexFx();
   const cards = cardFx();
   const crowd = crowdFx(city.info.roofs);
   const flags = flagsFx(city.info.flags);
   const rocks = rocksFx(city.groundY, crater, city.info.HW);
-  const smash = lettering("SMASH!", "#ec2a8a", -0.1);
-  const rip = lettering("RIIIP!", "#d6282b", 0.06);
+  const smash = lettering("SMASH!", "#ffc800", -0.1);
+  const rip = lettering("RIIIP!", "#1f5fe0", 0.06);
   const flash = flashQuad("#fff4e4");
   smash.renderOrder = rip.renderOrder = 40; // the words ride over the falling tiles
 
@@ -131,8 +132,9 @@ export function makeWorld({ tl, KN }) {
   const beam = mk(bm.g, bm.m, 19);
   const dome = mk(dm.g, dm.m, 18);
   const panel = mk(pn.g, pn.m, 35);
-  for (const x of [burst, beam, dome, panel]) x.visible = false;
-  root.add(shell, world, glove, burst, beam, dome, panel, smash, rip);
+  const vortex = mk(vx.g, vx.m, 12); // the storm's wedges, wound round the hole the punch opened
+  for (const x of [burst, beam, dome, panel, vortex]) x.visible = false;
+  root.add(shell, world, glove, burst, beam, dome, panel, vortex, smash, rip);
 
   const o = { shakeX: 0, shakeY: 0, pupY: 0, pose: { sign: 0, fist: 0, raise: 0, crouch: 0 }, capeOn: false, wind: 0, billow: 0, auraOn: false, auraK: 0, paint: false, reveal: false, held: false, flash };
   const odd = { v: 1 };
@@ -242,19 +244,22 @@ export function makeWorld({ tl, KN }) {
     }
 
     // THE HERO: the sign, the raised fist, the crouch, the spring, the punch
+    // the blow is built over 2.8 s: the fist comes up and the cape swells (wind-up), the pup sinks, then the strike
+    const W0 = hit - 2.8;
+    const hold = 1 - smooth(hit + 3.4, hit + 4.2, tt); // the arm comes down well before the page tears
     o.pose.sign = signAt(tl, t) * (1 - smooth(1.4, 1.8, tt));
-    o.pose.fist = smooth(4.9 + D, 5.7 + D, tt) * (1 - smooth(hit - 0.15, hit, tt)) * out;
-    o.pose.raise = smooth(hit - 0.05, hit + 0.1, tt) * (1 - smooth(hit + 2.4, hit + 3.0, tt));
-    o.pose.crouch = (smooth(6.3 + D, 6.95 + D, tt) * (1 - smooth(hit - 0.15, hit, tt)) * 0.9 + smooth(BRK, BRK + 0.1, tt) * (1 - smooth(BRK + 0.5, BRK + 0.9, tt)) * 0.5) * out;
+    o.pose.fist = smooth(W0, W0 + 0.8, tt) * (1 - smooth(hit - 0.15, hit, tt)) * out;
+    o.pose.raise = smooth(hit - 0.05, hit + 0.1, tt) * hold;
+    o.pose.crouch = smooth(hit - 1.5, hit - 0.7, tt) * (1 - smooth(hit - 0.15, hit, tt)) * 0.9 * out;
     o.pupY = 0.7 * smooth(hit - 0.12, hit + 0.1, tt) * (1 - smooth(hit + 0.5, hit + 1.0, tt)) * out;
     o.held = brk > 0.2; // the printed pup holds a beat into the tear, then snaps back with the island
     o.paint = (inside || tt > tl.bloom[1]) && !o.held;
     o.capeOn = !o.held && tt > 1.3;
     o.wind = Math.min(1.5, 0.28 + (wind - 0.3) * 0.6);
-    o.billow = smooth(5.4 + D, 6.6 + D, tt) * 0.35 + smooth(hit - 0.05, hit + 0.18, tt) * 0.65 - smooth(hit + 1.6, hit + 3.0, tt) * 0.45;
-    o.auraOn = !o.held && tt > 5.3 + D;
-    o.auraK = smooth(5.3 + D, 6.4 + D, tt) * (1 + (age > 0 ? 0.5 * Math.exp(-age * 4) : 0)) * (1 - smooth(hit + 2.2, hit + 3.0, tt));
-    o.punch = Math.max(smooth(5.9 + D, 6.9 + D, tt) * 0.9, smooth(hit - 0.05, hit + 0.12, tt)) * (1 - smooth(hit + 2.4, hit + 3.0, tt)) * out; // the fist stands above the head before the blow
+    o.billow = smooth(W0, hit - 0.6, tt) * 0.35 + smooth(hit - 0.05, hit + 0.18, tt) * 0.65 - smooth(hit + 2.4, hit + 4.0, tt) * 0.45;
+    o.auraOn = !o.held && tt > W0 - 0.1;
+    o.auraK = smooth(W0, hit - 0.9, tt) * (1 + (age > 0 ? 0.5 * Math.exp(-age * 4) : 0)) * (1 - smooth(hit + 3.0, hit + 4.2, tt));
+    o.punch = Math.max(smooth(hit - 1.9, hit - 0.9, tt) * 0.5, smooth(hit - 0.05, hit + 0.12, tt)) * hold * out; // the fist stands beside the head in the wind-up, then thrusts
     glove.visible = o.punch > 0.05 && !broken;
     glove.position.set(fist[0], fist[1], fist[2]);
     glove.scale.setScalar(0.6 + 0.4 * o.punch);
@@ -276,6 +281,14 @@ export function makeWorld({ tl, KN }) {
       const w2 = 0.6 + 2.2 * smooth(0, 0.18, age);
       beam.scale.set(w2, 1, w2);
       bm.m.uniforms.uAge.value = age / 0.55;
+    }
+    // THE VORTEX: a ring of Ben-Day cloud wedges spins outward round the hole while the punch holds
+    vortex.visible = age > 0.05 && tt < BRK + 0.9;
+    if (vortex.visible) {
+      vx.m.uniforms.uK.value = smooth(0.1, 1.2, age) * (1 - smooth(BRK - 0.9, BRK - 0.1, tt));
+      vx.m.uniforms.uSpin.value = 0.35 * Math.max(0, age) + 0.6 * (1 - Math.exp(-Math.max(0, age) * 1.5));
+      vx.m.uniforms.uOpen.value = smooth(0.1, 3.0, age);
+      pin(vortex, root, cam, 0.1, 0.5, 8, (wide ? 0.3 : 0.6) * (1 + 0.2 * smooth(0, 4, age))); // a wheel of storm over the top of the frame
     }
     dome.visible = age > 0 && age < 1.1;
     if (dome.visible) {
@@ -300,7 +313,7 @@ export function makeWorld({ tl, KN }) {
     smash.visible = age > 0.04 && age < 0.9;
     if (smash.visible) {
       const pop = Math.min(1, (age - 0.04) / 0.08) * (1 + 0.25 * Math.max(0, 1 - (age - 0.04) / 0.2));
-      pin(smash, root, cam, wide ? -0.52 : -0.3, wide ? 0.5 : 0.62, 8, (wide ? 0.34 : 0.62) * pop);
+      pin(smash, root, cam, wide ? -0.52 : -0.3, wide ? 0.5 : 0.62, 8, (wide ? 0.46 : 0.9) * pop);
       smash.position.x += 0.05 * odd.v;
     }
     rip.visible = brk > -0.02 && brk < 1.15;
@@ -318,14 +331,14 @@ export function makeWorld({ tl, KN }) {
   }
 
   function dispose() {
-    const geoms = [city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
+    const geoms = [vx.g, city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
     for (const g of [...geoms, ...cards.geoms, ...crowd.geoms, ...flags.geoms, ...rocks.geoms, ...pillar.geoms, smoke.obj.geometry, halos.obj.geometry, rain.obj.geometry]) g.dispose();
-    const mats = [sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
+    const mats = [vx.m, sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
     for (const x of [...mats, ...cards.mats, ...crowd.mats, ...flags.mats, ...rocks.mats, ...pillar.mats]) x.dispose();
     smash.material.map?.dispose();
     rip.material.map?.dispose();
     for (const x of [smoke.obj, halos.obj, rain.obj, crowd.A, crowd.B, flags.obj, rocks.rubble, rocks.rubbleH, rocks.debris, rocks.debrisH]) x.dispose();
   }
 
-  return { root, flash, update, dispose };
+  return { root, flash, update, dispose, textures: [smash.material.map, rip.material.map].filter(Boolean) };
 }

@@ -20,7 +20,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Box3, Vector3 } from "three";
+import { Box3, Group, Matrix4, Vector3 } from "three";
 import { radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, smooth, useCutFrame } from "../kit";
@@ -32,15 +32,26 @@ import { applyPunch } from "./pr-openxla-46539/punch";
 import { makeWorld } from "./pr-openxla-46539/world";
 
 const FIST_REST = [0.9, 2.2, 0.4];
+const RM = new Matrix4();
+
+// `rig` (a child of the pup's root) takes the place of `src` (a part somewhere inside the pup) every frame, in the root's space
+function follow(rig, src, root) {
+  src.updateWorldMatrix(true, false);
+  root.updateWorldMatrix(true, false);
+  rig.matrix.copy(RM.copy(root.matrixWorld).invert()).multiply(src.matrixWorld);
+  rig.matrixWorldNeedsUpdate = true;
+}
 
 export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
   const pup = useRef(null);
   const paint = useRef(null);
   const island = useRef([]);
   const cleared = useRef(null);
-  const bx = useRef(new Box3()).current;
+  const prep = useRef({ boxes: [], i: 0, done: false, shown: 0 }); // the island's tall pieces and their boxes, measured a few a frame before the scene needs them
   useEffect(() => () => { for (const x of cleared.current || []) x.visible = true; }, []);
   const movers = useRef(null); // the island's cars and flakes held out of sight from the tear to the end
   const hero = useRef(null);
@@ -59,17 +70,42 @@ export default function Move(cut) {
     const p = pupParts(scene);
     pup.current = p;
     paint.current = p?.root ? pupPrint(p.root) : null;
-    const h = { cape: null, aura: null };
+    // All Might's cape and V of light are children of the pup's own root rig (the "seal" group), each in a rig that
+    // follows the body and the head, added here and removed on exit
+    const h = { cape: null, aura: null, capeRig: null, auraRig: null, rear: p?.rear, head: p?.head };
     if (p?.head && p.rear) {
       const body = p.rear.children.find((o) => o.isMesh);
       h.cape = cape(body);
-      p.rear.add(h.cape.mesh);
+      h.capeRig = new Group();
+      h.capeRig.matrixAutoUpdate = false;
+      h.capeRig.add(h.cape.mesh);
+      p.root.add(h.capeRig);
       h.aura = vAura();
       h.aura.mesh.position.set(0, 0.4, 0.3);
-      p.head.add(h.aura.mesh);
+      h.auraRig = new Group();
+      h.auraRig.matrixAutoUpdate = false;
+      h.auraRig.add(h.aura.mesh);
+      p.root.add(h.auraRig);
     }
     hero.current = h;
+    // BUILD NOW, DRAW LATER: every program and texture the scene will use is made while the seal is still walking
+    // up (the move mounts on the approach), so no frame of the scene links a shader or uploads a canvas.
+    const cut = scene.getObjectByName("cutscene");
+    if (cut) gl.compile(cut, camera, scene);
+    if (paint.current && p?.root) {
+      paint.current.set(true);
+      gl.compile(p.root, camera, scene);
+      paint.current.set(false);
+    }
+    for (const t of w.textures) gl.initTexture(t);
+    const pr = prep.current;
+    pr.boxes = island.current.filter((x) => !x.isInstancedMesh).map((x) => [x, new Box3()]);
+    pr.i = 0;
+    pr.done = false;
+    pr.shown = 0;
     return () => {
+      h.capeRig?.removeFromParent();
+      h.auraRig?.removeFromParent();
       for (const x of [h.cape, h.aura]) {
         if (!x) continue;
         x.mesh.removeFromParent();
@@ -84,12 +120,17 @@ export default function Move(cut) {
       pup.current = null;
       w.dispose();
     };
-  }, [scene, w]);
+  }, [scene, w, gl, camera]);
 
   // impacts shake the frame two drawings each: the street and the pup together (after Seal.jsx places it)
   // a skip clears the arrival: nothing of the dimension draws for the frame before this unmounts
   useFrame(() => {
     const p = pup.current;
+    const pr = prep.current;
+    if (pr.i < pr.boxes.length) {
+      const [x, b] = pr.boxes[pr.i++];
+      b.setFromObject(x); // one piece a frame
+    } else pr.done = true;
     if (!live.arrival.id) {
       for (const m of movers.current ?? []) m.visible = true;
       w.root.visible = false;
@@ -112,6 +153,11 @@ export default function Move(cut) {
     applyPunch(r.flipR, w.punch ?? 0);
     const p = flipperAt(r.flipR, w.root, [0.75, 0.1, 0]);
     fist.current = [p.x, p.y, p.z];
+    const h = hero.current;
+    if (h?.capeRig && pup.current?.root) {
+      follow(h.capeRig, h.rear, pup.current.root);
+      follow(h.auraRig, h.head, pup.current.root);
+    }
   });
 
   useCutFrame((t0, state) => {
@@ -146,17 +192,18 @@ export default function Move(cut) {
       h.aura.m.uniforms.uK.value = o.auraK;
     }
     if (o.reveal) {
-      for (const x of island.current) x.visible = true;
-      movers.current ??= nearMovers(island.current, live.seal.x, live.seal.z);
+      const pr = prep.current;
       // the stage lens stands where an island wall may be: hold any top-level piece the lens is inside or against out of sight until the end
       if (!cleared.current) {
         cleared.current = [];
-        for (const x of island.current) {
-          if (x.isInstancedMesh) continue;
-          bx.setFromObject(x);
-          if (!bx.isEmpty() && bx.distanceToPoint(state.camera.position) < 5 && bx.max.y - bx.min.y > 3) { x.visible = false; cleared.current.push(x); }
-        }
+        for (const [x, b] of pr.boxes) if (!b.isEmpty() && b.distanceToPoint(state.camera.position) < 5 && b.max.y - b.min.y > 3) cleared.current.push(x);
       }
+      // the island comes back a twelfth at a time, never in one frame
+      const list = island.current;
+      const upto = Math.min(list.length, pr.shown + Math.ceil(list.length / 12));
+      for (let i = pr.shown; i < upto; i++) list[i].visible = !cleared.current.includes(list[i]);
+      pr.shown = upto;
+      movers.current ??= nearMovers(list, live.seal.x, live.seal.z);
     }
     if (movers.current && t > tl.lineC - 0.7) for (const m of movers.current) m.visible = false;
   });

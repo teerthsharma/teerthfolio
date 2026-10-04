@@ -29,6 +29,10 @@ const SHADE_FRAG = /* glsl */ `
     float rim = 1.0 - max(dot(n, v), 0.0);
     float ink = smoothstep(0.8, 0.88, rim);
     vec3 col = mix(inkPrint(t), INK_K, ink);
+    // rim and glow: All Might gold on the lit edge, blue on the shadow edge, round the whole silhouette
+    float rimG = smoothstep(0.55, 0.82, rim) * (1.0 - ink);
+    col = mix(col, mix(vec3(0.16, 0.45, 1.0), vec3(1.0, 0.8, 0.1), smoothstep(-0.2, 0.4, nl)), rimG * 0.85);
+    col = mix(col, col * vec3(1.15, 1.08, 0.95), 0.4);
     gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(2.2)), uOpacity);
   }`;
 
@@ -153,7 +157,7 @@ export function vAura() {
     const P = (x, y) => [x * c - y * s, x * s + y * c, 0];
     return [...P(-w, 0), ...P(w, 0), ...P(0, len)];
   };
-  const pos = [...ray(0.3, L, 0.05), ...ray(-0.3, L, 0.05), ...ray(0.62, L * 0.6, 0.035), ...ray(-0.62, L * 0.6, 0.035)];
+  const pos = [...ray(0.3, L, 0.09), ...ray(-0.3, L, 0.09), ...ray(0.62, L * 0.6, 0.06), ...ray(-0.62, L * 0.6, 0.06)];
   g.setAttribute("position", new Float32BufferAttribute(pos, 3));
   const uvs = [];
   for (let i = 0; i < 4; i++) uvs.push(0, 0, 1, 0, 0.5, 1);
