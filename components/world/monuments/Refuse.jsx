@@ -37,7 +37,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { BoxGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, IcosahedronGeometry, Object3D, SphereGeometry } from "three";
+import { BoxGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, IcosahedronGeometry, Object3D, SphereGeometry } from "three";
 import { useUi } from "../../../lib/world/store";
 import { clamp, damp, easeOutBack } from "../life/util";
 import { C, glow, lamp, mat } from "../palette";
@@ -98,6 +98,12 @@ const COUNTER_W = BODY_W * 0.68;
 const COUNTER_D = 0.6;
 const COUNTER_H = 0.22;
 const COUNTER_TOP = COUNTER_Y + COUNTER_H / 2;
+
+// The roof's brass planimeter arm: two bars hinged at an elbow, sweeping.
+const ARM_Y = WALL_TOP + 0.62; // on the roof cone's axis, clear of the lantern
+const ARM_SEG_GEO = new BoxGeometry(1.5, 0.15, 0.15).translate(0.75, 0, 0);
+const ARM_PIVOT_GEO = new CylinderGeometry(0.18, 0.18, 0.3, 10);
+const ARM_TRACER_GEO = new ConeGeometry(0.08, 0.3, 6).rotateX(Math.PI);
 
 const STAMP_X = 0.85;
 const STAMP_ARM_LEN = 0.34;
@@ -216,8 +222,9 @@ export default function Refuse({ place }) {
   const near = useUi((s) => s.near === place.id);
 
   const foundMat = useMemo(() => mat(C.charcoal), []);
-  const wallMat = useMemo(() => mat(C.warmWhite), []);
-  const panelMat = useMemo(() => mat(C.charcoal, { roughness: 0.6 }), []);
+  const wallMat = useMemo(() => mat(`#${new Color("#ffffff").lerp(new Color("#f59e0b"), 0.4).getHexString()}`), []); // amber over white, not beige
+  const panelMat = useMemo(() => mat(C.charcoal, { roughness: 0.6, emissive: "#ffb020", emissiveIntensity: 0.8 }), []);
+  const brassMat = useMemo(() => mat("#c9a227", { roughness: 0.3, metalness: 0.85 }), []);
   const trimMat = useMemo(() => mat(A, { roughness: 0.5 }), [A]);
   const windowMat = useMemo(() => lamp(A, 1.2), [A]);
   const halfPegMat = useMemo(() => lamp(A, 1.4).clone(), [A]); // the refused pegs, in the radiation colour
@@ -238,6 +245,7 @@ export default function Refuse({ place }) {
   const armWhiteRef = useRef(null);
   const gatePivotRef = useRef(null);
   const stampRef = useRef(null);
+  const armRef = useRef(null);
   const moteRef = useRef(null);
   const kRef = useRef(0); // eased 0..1 toward `near`
   const vt = useRef(0);
@@ -271,6 +279,7 @@ export default function Refuse({ place }) {
     const tau = vt.current % CYCLE;
     const t = vt.current;
 
+    if (armRef.current) armRef.current.rotation.y = t * 0.3; // 0.3 rad/s
     const held = updateRefPegs(halfPegRef.current, studRef.current, haloRef.current, PLANIMETER_REF, tau, k);
 
     lanternMat.emissiveIntensity = (0.9 + 0.3 * Math.sin(t * 1.4)) * bright;
@@ -334,6 +343,16 @@ export default function Refuse({ place }) {
         <instancedMesh ref={halfPegRef} args={[HALF_PEG_GEO, halfPegMat, PLANIMETER_REF.length * 2]} castShadow frustumCulled={false} />
         <instancedMesh ref={studRef} args={[STUD_GEO, studMat, PLANIMETER_REF.length * 2]} frustumCulled={false} />
         <instancedMesh ref={haloRef} args={[HALO_GEO, haloMat, PLANIMETER_REF.length]} frustumCulled={false} />
+      </group>
+
+      <group ref={armRef} position={[0, ARM_Y, -0.35]}>
+        <mesh castShadow geometry={ARM_PIVOT_GEO} material={brassMat} />
+        <mesh castShadow geometry={ARM_SEG_GEO} material={brassMat} />
+        <group position={[1.5, 0, 0]} rotation={[0, -0.9, 0]}>
+          <mesh castShadow geometry={ARM_PIVOT_GEO} material={brassMat} scale={0.6} />
+          <mesh castShadow geometry={ARM_SEG_GEO} material={brassMat} scale={[0.95, 1, 1]} />
+          <mesh geometry={ARM_TRACER_GEO} material={brassMat} position={[1.43, -0.2, 0]} />
+        </group>
       </group>
 
       {/* the lantern: this place's one accent, its science-district glow */}
