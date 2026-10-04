@@ -68,13 +68,19 @@ function place(el, mx, my, slot, still) {
   const by = ry - ry * Math.sqrt(1 - ((bx - rx) / rx) ** 2) + 14;
   const tx = mx - left;
   const ty = my - top;
-  const len = Math.hypot(tx - bx, ty - by);
-  const k = still ? Math.min(0.9, (0.4 * H) / len) : Math.min(0.62, (0.26 * H) / len); // still: the figure is small and far, so reach it
-  const px = bx + (tx - bx) * k;
-  const py = by + (ty - by) * k;
-  const half = Math.min(30, w * 0.06);
-  const bend = (tx > bx ? 1 : -1) * 0.12 * len * k;
-  const d = `M${bx - half} ${by} Q${(bx + px) / 2 - bend} ${(by + py) / 2} ${px} ${py} Q${(bx + px) / 2 + bend * 0.4} ${(by + py) / 2} ${bx + half} ${by}Z`;
+  // a short, curved comic tail aimed at the mouth (comic convention: it
+  // points, it does not reach)
+  const len = Math.hypot(tx - bx, ty - by) || 1;
+  const ux = (tx - bx) / len;
+  const uy = (ty - by) / len;
+  const L = clamp(0.1 * H, 56, 104) + 14;
+  const px = bx + ux * L;
+  const py = by + uy * L;
+  const half = Math.min(24, w * 0.05);
+  const bow = (ux > 0 ? -1 : 1) * 0.28 * L; // it curls away from the way it leans
+  const cx = (bx + px) / 2 - uy * bow;
+  const cy = (by + py) / 2 + ux * bow;
+  const d = `M${bx - half} ${by} Q${cx - half * 0.3} ${cy} ${px} ${py} Q${cx + half * 0.5} ${cy} ${bx + half} ${by}Z`;
   for (const p of el.querySelectorAll(".bubble-tail")) p.setAttribute("d", d);
   const svg = el.querySelector("svg");
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);

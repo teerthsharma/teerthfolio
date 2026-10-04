@@ -21,13 +21,14 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, OctahedronGeometry, RingGeometry } from "three";
+import { CapsuleGeometry, Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, OctahedronGeometry, RingGeometry } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW } from "../../../../lib/world/moments";
 import { domainMode, signAt } from "../../../../lib/world/domain";
 import { PLACE_BY_ID, districtAt } from "../../../../lib/world/places";
 import { getUi, live, useUi } from "../../../../lib/world/store";
 import { glow } from "../../palette";
 import Outfit, { HEAD_RADIUS } from "../Outfit";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { buildSealD, FLIPPER_REST, MOUTH, PIVOT, SKULL } from "./D-parts";
 
 const TAU = Math.PI * 2;
@@ -52,8 +53,14 @@ const HALO_DEFAULT = "#ffd66b";
 const HALO_AT = [0, 0.66, -0.06];
 const HALO_TILT = [-Math.PI / 2 + 0.3, 0, 0];
 // The hand sign's flipper (Euler YZX, see poseFlipper) and its glint at the tip.
-const SIGN = { twist: 1.5, back: -0.75, up: 1.0 }; // up beside the cheek (the head is too big to reach across), flat to the lens
-const GLINT_AT = [0.7, 0.07, 0];
+const SIGN = { twist: 1.5, back: -1.3, up: 1.45 };
+// The sign lifts the flipper's root forward and up, so the raised flipper
+// stands in front of the cheek instead of behind the big head.
+const SIGN_REACH = [0.06, 0.14, 0.4];
+const SHOULDER = rel(PIVOT.shoulder, PIVOT.rear); // up beside the cheek (the head is too big to reach across), flat to the lens
+const GLINT_AT = [0.86, 0.07, 0];
+// Two little digits crossed at the flipper's tip, in its flat plane: the sign.
+const DIGITS_AT = [0.62, 0.06, 0];
 
 function materials() {
   return {
@@ -106,6 +113,16 @@ export default function SealD({ pose, near, drive, headRef }) {
   // the sign's glint: a small four-point star, always facing out of the flipper
   const glintGeo = useMemo(() => new OctahedronGeometry(1, 0).scale(0.35, 1, 0.35), []);
   const glintMat = useMemo(() => new MeshBasicMaterial({ color: "#f4ecff", toneMapped: false }), []);
+  const digitsGeo = useMemo(() => {
+    const finger = (yaw, lift) => new CapsuleGeometry(0.036, 0.16, 4, 8).rotateZ(-Math.PI / 2).rotateY(yaw).translate(0.1, lift, 0); // crossed at their middles: an X
+    const a = finger(0.42, 0.014);
+    const b = finger(-0.42, -0.014);
+    const g = mergeGeometries([a, b]);
+    a.dispose();
+    b.dispose();
+    return g;
+  }, []);
+  const digitsMat = useMemo(() => new MeshStandardMaterial({ color: "#6f8fbf", roughness: 0.5 }), []);
   const haloSoftGeo = useMemo(() => new RingGeometry(0.18, 0.42, 40), []);
   const haloMat = useMemo(() => {
     const m = glow(HALO_DEFAULT, 0.85).clone();
@@ -124,10 +141,12 @@ export default function SealD({ pose, near, drive, headRef }) {
     haloGeo.dispose();
     glintGeo.dispose();
     glintMat.dispose();
+    digitsGeo.dispose();
+    digitsMat.dispose();
     haloSoftGeo.dispose();
     haloMat.dispose();
     haloSoftMat.dispose();
-  }, [parts, mats, haloGeo, haloSoftGeo, haloMat, haloSoftMat, glintGeo, glintMat]);
+  }, [parts, mats, haloGeo, haloSoftGeo, haloMat, haloSoftMat, glintGeo, glintMat, digitsGeo, digitsMat]);
   // ?sealface=happy|blink holds that expression, for close-up captures.
   const [force] = useState(() => new URLSearchParams(window.location.search).get("sealface"));
 
@@ -159,6 +178,8 @@ export default function SealD({ pose, near, drive, headRef }) {
   const mouth = useRef();
   const halo = useRef();
   const glint = useRef();
+  const digits = useRef();
+  const outfit = useRef();
   const haloSoft = useRef();
   const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0, sign: 0 }), []);
 
@@ -290,10 +311,14 @@ export default function SealD({ pose, near, drive, headRef }) {
     shared.water = water;
     shared.calm = sit;
     shared.sign = sign;
+    digits.current.visible = sign > 0.3;
+    digits.current.scale.setScalar(smooth(0.3, 1, sign));
+    outfit.current.visible = !domain; // the domain keeps the round head clean: no hat, no ear-like diamonds
     glint.current.visible = sign > 0.97;
     if (glint.current.visible) glint.current.scale.setScalar(0.12 + 0.05 * Math.sin(now * 9));
     poseFlipper(flipL.current, 1, d, shared);
     poseFlipper(flipR.current, -1, d, shared);
+    flipR.current.position.set(SHOULDER[0] + SIGN_REACH[0] * sign, SHOULDER[1] + SIGN_REACH[1] * sign, SHOULDER[2] + SIGN_REACH[2] * sign);
 
     // THE STORY, show not tell: every place is radioactive. The coat glows
     // in whichever area's colour the seal stands in, and flashes brighter
@@ -405,6 +430,7 @@ export default function SealD({ pose, near, drive, headRef }) {
           <group scale={[-1, 1, 1]}>
             <group ref={flipR} position={shoulder}>
               <mesh geometry={parts.flipper} material={coat} castShadow receiveShadow />
+              <mesh ref={digits} geometry={digitsGeo} material={digitsMat} position={DIGITS_AT} visible={false} castShadow />
               <mesh ref={glint} geometry={glintGeo} material={glintMat} position={GLINT_AT} visible={false} />
             </group>
           </group>
@@ -421,7 +447,7 @@ export default function SealD({ pose, near, drive, headRef }) {
               <mesh ref={happyEyes} geometry={parts.happyEyes} material={mats.eye} visible={false} />
               <mesh ref={shutEyes} geometry={parts.shutEyes} material={mats.eye} visible={false} />
               <mesh ref={mouth} geometry={parts.mouth} material={mats.mouth} position={MOUTH} visible={false} />
-              <group scale={OUTFIT_SCALE}>
+              <group ref={outfit} scale={OUTFIT_SCALE}>
                 <Outfit placeId={near} />
               </group>
               <mesh ref={halo} geometry={haloGeo} material={haloMat} position={HALO_AT} rotation={HALO_TILT} visible={false} />

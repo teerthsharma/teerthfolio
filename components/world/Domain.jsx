@@ -12,10 +12,10 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
-  AdditiveBlending, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh,
+  AdditiveBlending, BackSide, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh,
   MeshBasicMaterial, Object3D, OctahedronGeometry, Quaternion, ShaderMaterial, SphereGeometry, Vector3,
 } from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DOMAIN, FIGURE_AT, FIGURE_SCALE, domainMode, onTwos, radiusAt } from "../../lib/world/domain";
 import { live } from "../../lib/world/store";
 
@@ -121,10 +121,9 @@ function inkMaterial() {
       void main() {
         vec3 n = normalize(cross(dFdx(vView), dFdy(vView))); // the facet's normal: low poly, flat
         if (dot(n, vView) > 0.0) n = -n;
-        float rim = pow(1.0 - abs(dot(n, normalize(-vView))), 2.2);
-        float tone = rim * 0.9 + max(n.y, 0.0) * 0.12;
-        vec3 col = mix(uInk, uRim, halftone(tone) * step(0.18, tone));
-        col = mix(col, uRim, smoothstep(0.8, 0.92, rim));
+        // body shading only: a faint halftone where the facets turn to the light
+        float tone = max(n.y, 0.0) * 0.5 + max(n.x, 0.0) * 0.35;
+        vec3 col = mix(uInk, mix(uInk, uRim, 0.22), halftone(tone));
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
@@ -182,9 +181,49 @@ function figureGeometry() {
   }
   const ink = mergeGeometries(parts);
   for (const p of parts) p.dispose();
+  // the rim: an inverted hull, welded so its smooth normals push out evenly
+  const outline = mergeVertices(ink.clone(), 1e-3);
+  outline.computeVertexNormals();
   // the one prop: the blindfold band, round the head at the eyes
   const band = new CylinderGeometry(0.162, 0.162, 0.062, 14, 1, true).scale(0.96, 1, 1.04).translate(HEAD[0], HEAD[1] + 0.02, HEAD[2]);
-  return { ink, band };
+  return { ink, band, outline };
+}
+
+// A thin solid rim: the hull pushed out a fixed width, back faces only.
+function outlineMaterial() {
+  return new ShaderMaterial({
+    uniforms: { uRim: { value: RIM } },
+    side: BackSide,
+    vertexShader: /* glsl */ `
+      void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position + normal * 0.022, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uRim;
+      void main() { gl_FragColor = vec4(uRim, 1.0); }`,
+  });
+}
+
+// The pup's anchor in the void: a faint violet glow on the floor it stands on.
+function discMaterial() {
+  return new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        float r = length(vUv * 2.0 - 1.0);
+        float k = (1.0 - smoothstep(0.0, 1.0, r)) * 0.55 + (1.0 - smoothstep(0.55, 0.62, r)) * smoothstep(0.45, 0.55, r) * 0.25;
+        gl_FragColor = vec4(pow(vec3(0.62, 0.48, 1.0) * k, vec3(2.2)), 1.0);
+      }`,
+  });
 }
 
 function build() {
@@ -221,6 +260,10 @@ function build() {
     ink: fig.ink,
     band: fig.band,
     inkMat: inkMaterial(),
+    outline: fig.outline,
+    outlineMat: outlineMaterial(),
+    disc: new CircleGeometry(1, 40).rotateX(-Math.PI / 2),
+    discMat: discMaterial(),
     bandMat: new MeshBasicMaterial({ color: "#fbfaf7", side: DoubleSide, toneMapped: false, fog: false }),
   };
 }
@@ -243,6 +286,7 @@ export default function Domain() {
   const root = useRef();
   const sphere = useRef();
   const pool = useRef();
+  const disc = useRef();
   const starsRef = useRef();
   const figure = useRef();
   const hidden = useRef({ on: false, list: [] });
@@ -305,6 +349,7 @@ export default function Domain() {
     starsRef.current.scale.setScalar(r);
     starsRef.current.rotation.y = 0.04 * t;
     pool.current.visible = inside;
+    disc.current.visible = inside;
 
     // the silhouette: steps in on twos after the bloom, out on the collapse
     const f = figure.current;
@@ -327,7 +372,9 @@ export default function Domain() {
         <primitive object={kit.stars} ref={starsRef} />
       </group>
       <mesh ref={pool} geometry={kit.pool} material={kit.poolMat} position={[0.8, 0.01, -1.5]} scale={[3.4, 1, 3]} />
+      <mesh ref={disc} geometry={kit.disc} material={kit.discMat} position={[0, 0.02, 0.1]} scale={1.15} />
       <group ref={figure} position={FIGURE_AT}>
+        <mesh geometry={kit.outline} material={kit.outlineMat} />
         <mesh geometry={kit.ink} material={kit.inkMat} />
         <mesh geometry={kit.band} material={kit.bandMat} />
       </group>
