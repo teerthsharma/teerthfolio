@@ -100,7 +100,7 @@ export function Flash({ color = "#ffffff", at = [0, 1, 0], fn }) {
         depthWrite: false,
         blending: AdditiveBlending,
         vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-        fragmentShader: "uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv; void main(){ float r = length(vUv * 2.0 - 1.0); float k = pow(max(1.0 - r, 0.0), 1.6); gl_FragColor = vec4(pow(uColor * k * uAlpha, vec3(2.2)), 1.0); }",
+        fragmentShader: "uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv; void main(){ float r = length(vUv * 2.0 - 1.0); float k = pow(max(1.0 - r, 1e-4), 1.6); gl_FragColor = vec4(pow(max(uColor * k * uAlpha, vec3(1e-4)), vec3(2.2)), 1.0); }",
       }),
     [color]
   );

@@ -68,7 +68,7 @@ function Streak({ color, fn }) {
         blending: AdditiveBlending,
         side: DoubleSide,
         vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-        fragmentShader: "uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv; void main(){ float k = pow(vUv.x, 1.8) * (1.0 - pow(abs(vUv.y * 2.0 - 1.0), 2.0)); gl_FragColor = vec4(pow(uColor * k * uAlpha * 1.4, vec3(2.2)), 1.0); }",
+        fragmentShader: "uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv; void main(){ float k = pow(max(vUv.x, 1e-4), 1.8) * max(1.0 - pow(abs(vUv.y * 2.0 - 1.0), 2.0), 0.0); gl_FragColor = vec4(pow(max(uColor * k * uAlpha * 1.4, vec3(1e-4)), vec3(2.2)), 1.0); }",
       }),
     [color]
   );
