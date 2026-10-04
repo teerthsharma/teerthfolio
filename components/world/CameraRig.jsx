@@ -18,17 +18,21 @@ import { cutFor, cutView, cutsceneMode, viewAt } from "../../lib/world/cutscene/
 import { awakeFov, awakeMode, awakeView } from "../../lib/world/awakening";
 import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { MOTION } from "../../lib/world/motion";
-import { PLACE_BY_ID, SPAWN } from "../../lib/world/places";
+import { PLACES, PLACE_BY_ID, SPAWN } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
 
 // Direction from the seal to the camera: 42 degrees of elevation, so the
 // districts ahead show, 35.5 m away. Fixed: the azimuth never rotates.
-const ELEVATION = (42 * Math.PI) / 180;
-const FOLLOW_DISTANCE = 35.5;
+// Cinematic: a lower pitch and a longer lens (Scene.jsx fov 28) so the 1.7x
+// lab buildings tower over the pup; the distance grows with the narrower lens
+// so the pup stays about the same size on screen.
+const ELEVATION = (34 * Math.PI) / 180;
+const FOLLOW_DISTANCE = 42;
 const OFFSET = new Vector3(0, Math.sin(ELEVATION), Math.cos(ELEVATION)).multiplyScalar(FOLLOW_DISTANCE);
-const LEAD_TIME = 0.5; // seconds of velocity the view leads by
+const LAB_CLEAR = 14; // m
+const LEAD_TIME = 0.7; // seconds of velocity the view leads by
 const LEAD_Z = 1.5; // moving down the screen only: its bottom edge is just 12.4 m from the seal
-const LEAD_MAX = 5.5; // m
+const LEAD_MAX = 7; // m
 const RIVER_LEAD = 4; // m of extra lead at full depth: riding, the view leans down the current
 const LEAD_SMOOTH_DAMP = 4; // 1/s: a bump can't reverse the focus in one frame
 const FOCUS_DAMP = 3.5;
@@ -387,6 +391,11 @@ export default function CameraRig() {
       lookAt.current.lerp(CUT_LOOK, k);
       camera.position.addScaledVector(shake.current, 2 * k);
       high = Math.max(0, camera.position.y);
+    }
+    // Never inside a building: over a lab's footprint the eye climbs above its
+    // tallest tower (LabDecor, 9.5 m + cap and pennant).
+    for (const p of PLACES) {
+      if (p.section === "lab" && camera.position.y < LAB_CLEAR && Math.hypot(camera.position.x - p.x, camera.position.z - p.z) < p.radius + 2) camera.position.y = LAB_CLEAR;
     }
     camera.lookAt(lookAt.current);
 
