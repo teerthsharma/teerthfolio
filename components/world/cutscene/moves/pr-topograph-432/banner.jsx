@@ -1,7 +1,7 @@
 "use client";
 
 // THE BANNER: the island's own area banner (cream plate, accent band, the name at clamp(40px, 7vw, 88px),
-// weight 800) announcing the scene before any landscape: THE BRIDGE OF KHAZAD-DUM, the topograph logo,
+// weight 800) announcing the scene before any landscape: THE THRONE ROOM OF NAZARICK, the topograph logo,
 // dsx-ai-factory/topograph #432. It slams in at 0 s on a mint flash with a two-pose hit-stop, holds through
 // the sign and the first impact, and on the stage bloom shrinks up into the top cinema bar (title and repo
 // line) where it stays until the collapse. Reduced motion shows the plate, static. Smooth and unstepped:
@@ -14,7 +14,7 @@ const CSS = `
 .topo-flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, rgba(111, 240, 196, 0.5), rgba(111, 240, 196, 0) 62%); opacity: 0; animation: topo-flash 420ms steps(4, end) both; }
 .topo-plate { position: absolute; left: 0; right: 0; top: 16vh; margin-inline: auto; width: min(760px, calc(100vw - 32px)); text-align: center; text-shadow: 0 2px 24px rgba(28, 27, 25, 0.2); color: #1c1b19; transform-origin: 50% 0; animation: topo-slam 560ms steps(1, end) both; transition: opacity 420ms cubic-bezier(0.4, 0, 1, 1), transform 480ms cubic-bezier(0.4, 0, 0.6, 1); }
 .topo-plate::before { content: ""; position: absolute; inset: -28px -48px; z-index: -1; border-radius: 28px; background: radial-gradient(ellipse at center, rgba(251, 250, 247, 0.94) 0%, rgba(251, 250, 247, 0.82) 58%, rgba(251, 250, 247, 0) 100%); }
-.topo-band { display: block; width: 64px; height: 6px; margin: 0 auto 16px; border-radius: 3px; background: #4fd9ae; }
+.topo-band { display: block; width: 64px; height: 6px; margin: 0 auto 16px; border-radius: 3px; background: #e0b040; }
 .topo-name { margin: 0; font-size: clamp(40px, 7vw, 88px); line-height: 1; font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; }
 .topo-logo { display: block; margin: 18px auto 0; height: clamp(34px, 5.4vh, 56px); width: auto; max-width: 70%; object-fit: contain; }
 .topo-repo { margin: 12px 0 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: clamp(14px, 2vh, 18px); font-weight: 600; letter-spacing: 0.02em; }
@@ -32,8 +32,8 @@ html[data-topo-banner] .cut-title { opacity: 0 !important; }
 `;
 
 const HTML = (still) => `<style>${CSS}</style>${still ? "" : '<div class="topo-flash" aria-hidden="true"></div>'}
-<div class="topo-plate"><span class="topo-band" aria-hidden="true"></span><h2 class="topo-name">The Bridge of Khazad-dûm</h2><img class="topo-logo" src="/org/topograph.png" alt="topograph"><p class="topo-repo">dsx-ai-factory/topograph #432</p></div>
-<div class="topo-dock"><strong>The Bridge of Khazad-dûm</strong><span>dsx-ai-factory/topograph #432</span></div>`;
+<div class="topo-plate"><span class="topo-band" aria-hidden="true"></span><h2 class="topo-name">The Throne Room of Nazarick</h2><img class="topo-logo" src="/org/topograph.png" alt="topograph"><p class="topo-repo">dsx-ai-factory/topograph #432</p></div>
+<div class="topo-dock"><strong>The Throne Room of Nazarick</strong><span>dsx-ai-factory/topograph #432</span></div>`;
 
 // drawn as plain DOM from an effect: the move lives inside the R3F reconciler, where a react-dom portal of
 // <style>/<div> is read as a three.js object and throws

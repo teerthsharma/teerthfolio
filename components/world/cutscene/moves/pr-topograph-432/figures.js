@@ -13,7 +13,7 @@ const SK = "#d9b894";
 // swing weight for hair and hems: 0 at the root, 1 at the free end
 const down = (top, bottom) => (x, y) => Math.min(1, Math.max(0, (top - y) / (top - bottom)));
 
-function frodo() {
+function aura() {
   const cloak = "#3a2c28";
   const body = merge([
     taper([-0.07, 0.0, 0], [-0.075, 0.36, 0], 0.06, 0.055, "#2a201c", { seg: 6, rows: 1 }),
@@ -32,7 +32,7 @@ function frodo() {
   return { body, arms, blade, shoulder: [0, 0.55, 0], h: 0.8, bodyK: { rim: 1.1 } };
 }
 
-function aragorn() {
+function demiurge() {
   const coat = "#2d2420";
   const body = merge([
     taper([-0.1, 0.0, 0], [-0.11, 0.95, 0], 0.09, 0.08, "#231b18", { seg: 6, rows: 2 }),
@@ -53,7 +53,7 @@ function aragorn() {
   return { body, arms, shoulder: [0, 1.45, 0], h: 1.9, bodyK: { rim: 1.0 } };
 }
 
-function legolas() {
+function albedo() {
   const coat = "#26231f";
   const body = merge([
     taper([-0.08, 0.0, 0], [-0.09, 0.9, 0], 0.075, 0.07, "#1f1b18", { seg: 6, rows: 2 }),
@@ -81,9 +81,9 @@ function legolas() {
 
 // a stand spot: x, floor top y, z, facing yaw
 export const SPOTS = {
-  frodo: [-4.1, FLOOR_Y, -0.35, 0.9],
-  aragorn: [-5.05, -0.52, -1.1, 0.7],
-  legolas: [-5.75, -0.24, -1.7, 0.55],
+  aura: [-4.1, FLOOR_Y, -0.35, 0.9],
+  demiurge: [-5.05, -0.52, -1.1, 0.7],
+  albedo: [-5.75, -0.24, -1.7, 0.55],
 };
 
 export function buildWitnesses() {
@@ -115,7 +115,7 @@ export function buildWitnesses() {
     }
     return parts;
   };
-  const f = { frodo: make(frodo(), "frodo", 0.04), aragorn: make(aragorn(), "aragorn", 0.07), legolas: make(legolas(), "legolas", 0.09) };
+  const f = { aura: make(aura(), "aura", 0.04), demiurge: make(demiurge(), "demiurge", 0.07), albedo: make(albedo(), "albedo", 0.09) };
   return {
     ...f,
     dispose() {
@@ -136,14 +136,14 @@ export function poseWitnesses(W, tt, T, odd) {
   };
   const shout = sm(T.shout, T.shout + 0.2, tt) * (1 - sm(T.shout + 2.4, T.shout + 2.8, tt));
   const brace = sm(T.slam, T.slam + 0.3, tt);
-  const f = W.frodo;
+  const f = W.aura;
   f.g.position.y = FLOOR_Y + 0.02 * Math.max(0, Math.sin(Math.floor(tt * 12) * 1.7)) * shout;
   f.g.rotation.z = -0.08 * shout + 0.03 * odd * shout;
   f.arms.rotation.set(0, 0, 0.1 - 0.55 * shout); // the arm lifts with the shout
-  const a = W.aragorn;
+  const a = W.demiurge;
   a.arms.rotation.set(0, 0, -0.1 * odd * (1 - brace) * 0.5 + 0.05 * Math.sin(tt * 2));
   a.g.rotation.z = 0.02 * Math.sin(tt * 1.6);
-  const l = W.legolas;
+  const l = W.albedo;
   l.arms.rotation.set(0, 0, 0.03 * Math.sin(tt * 1.4));
   l.g.rotation.z = 0.02 * Math.sin(tt * 1.5 + 1);
   for (const p of [f, a, l]) {

@@ -19,17 +19,17 @@ export const BLOCKS = 18; // voussoirs
 const BR_W = 1.25;
 const D = new Object3D();
 
-const STONE = "#bd9a74";
-const DARK = "#7b5b49";
+const STONE = "#3a2a5a";
+const DARK = "#241638";
 
 function pillarGeo() {
   const p = [];
   const ring = (hex) => (x, y) => new Color(hex).multiplyScalar(0.92 + 0.12 * Math.sin(y * 2.3 + x));
-  p.push(piece(lump(new BoxGeometry(2.7, 0.7, 2.7, 3, 1, 3).translate(0, 0.35, 0), 0.03, 1.6), "#a38161"));
+  p.push(piece(lump(new BoxGeometry(2.7, 0.7, 2.7, 3, 1, 3).translate(0, 0.35, 0), 0.03, 1.6), "#33224f"));
   p.push(piece(lump(new CylinderGeometry(1.15, 1.28, 7.6, 4, 8).rotateY(Math.PI / 4).translate(0, 0.7 + 3.8, 0), 0.035, 1.3), ring(STONE)));
-  p.push(piece(lump(new BoxGeometry(2.25, 0.32, 2.25, 2, 1, 2).translate(0, 8.46, 0), 0.025, 1.6), "#9d7b5d"));
-  p.push(piece(lump(new CylinderGeometry(1.98, 1.22, 1.0, 4, 3).rotateY(Math.PI / 4).translate(0, 9.12, 0), 0.04, 1.3), "#b4916d"));
-  p.push(piece(lump(new BoxGeometry(3.05, 0.4, 3.05, 3, 1, 3).translate(0, 9.8, 0), 0.03, 1.5), "#a58463"));
+  p.push(piece(lump(new BoxGeometry(2.25, 0.32, 2.25, 2, 1, 2).translate(0, 8.46, 0), 0.025, 1.6), "#2d1e48"));
+  p.push(piece(lump(new CylinderGeometry(1.98, 1.22, 1.0, 4, 3).rotateY(Math.PI / 4).translate(0, 9.12, 0), 0.04, 1.3), "#3c2c60"));
+  p.push(piece(lump(new BoxGeometry(3.05, 0.4, 3.05, 3, 1, 3).translate(0, 9.8, 0), 0.03, 1.5), "#35254f"));
   return merge(p);
 }
 
@@ -46,7 +46,7 @@ function chasmWalls() {
         const xa = side * (HALF + off);
         const xb = side * (HALF + 6);
         const t = Math.min(1, layer / 14);
-        const c = new Color("#a47652").lerp(new Color("#4a2c3a"), t).multiplyScalar(0.88 + 0.24 * hash(n++, 6));
+        const c = new Color("#4a3270").lerp(new Color("#12081f"), t).multiplyScalar(0.88 + 0.24 * hash(n++, 6));
         parts.push(boxP(Math.min(xa, xb), Math.max(xa, xb), y0, y1, z0, z0 + 11.4, c));
       }
     }
@@ -56,12 +56,12 @@ function chasmWalls() {
 
 function floors() {
   return merge([
-    boxP(HALF + 0.4, 62, -4, FLOOR_Y, -80, 8, "#a07d62"),
-    boxP(-62, -HALF - 0.4, -4, FLOOR_Y, -80, 8, "#a07d62"),
+    boxP(HALF + 0.4, 62, -4, FLOOR_Y, -80, 8, "#2a1a44"),
+    boxP(-62, -HALF - 0.4, -4, FLOOR_Y, -80, 8, "#2a1a44"),
   ]);
 }
 
-// the broken stair on the Fellowship's bank, the doorway wall, a few fallen blocks
+// the broken stair on the guardians' bank, the doorway wall, a few fallen blocks
 function stairAndDoor() {
   const p = [];
   const step = (z0, z1, top) => p.push(boxP(-9.6, -HALF - 0.3, FLOOR_Y - 0.05, top, z0, z1, varied(DARK, Math.round(top * 10 + z0), 0.1)));
@@ -69,16 +69,16 @@ function stairAndDoor() {
   step(-2.05, -1.45, -0.24);
   step(-2.65, -2.05, 0.06);
   // the wall, with the doorway gap x in [-5.8, -4.4]
-  const wall = (x0, x1, y0, y1) => p.push(boxP(x0, x1, y0, y1, -3.3, -2.65, "#8a6a52"));
+  const wall = (x0, x1, y0, y1) => p.push(boxP(x0, x1, y0, y1, -3.3, -2.65, "#2a1a44"));
   wall(-9.8, -5.8, FLOOR_Y, 5.2);
   wall(-4.4, -3.1, FLOOR_Y, 5.2);
   wall(-5.8, -4.4, 2.55, 5.2);
   // the jamb trim and the lintel: lighter, dry-brushed plaster
-  p.push(boxP(-5.95, -5.8, 0.06, 2.7, -2.7, -2.5, "#d1ad84"));
-  p.push(boxP(-4.4, -4.25, 0.06, 2.7, -2.7, -2.5, "#d1ad84"));
-  p.push(boxP(-5.95, -4.25, 2.55, 2.78, -2.7, -2.5, "#d1ad84"));
+  p.push(boxP(-5.95, -5.8, 0.06, 2.7, -2.7, -2.5, "#e0b040"));
+  p.push(boxP(-4.4, -4.25, 0.06, 2.7, -2.7, -2.5, "#e0b040"));
+  p.push(boxP(-5.95, -4.25, 2.55, 2.78, -2.7, -2.5, "#e0b040"));
   // broken edge of the stair at the chasm lip, and fallen stones
-  p.push(boxP(-4.15, -3.6, FLOOR_Y - 0.05, -0.55, -0.9, 0.2, "#7e5f4b"));
+  p.push(boxP(-4.15, -3.6, FLOOR_Y - 0.05, -0.55, -0.9, 0.2, "#2a1a44"));
   for (let i = 0; i < 7; i++) {
     const g = piece(lump(new BoxGeometry(0.3 + 0.3 * hash(i, 1), 0.22 + 0.2 * hash(i, 2), 0.3 + 0.25 * hash(i, 3), 2, 2, 2), 0.03, 2), varied(DARK, i, 0.2));
     g.rotateY(hash(i, 4) * 3).translate(-9.0 + 5 * hash(i, 5), FLOOR_Y + 0.15, -1.9 + 2.6 * hash(i, 6));
@@ -91,7 +91,7 @@ function stairAndDoor() {
 function vault() {
   const p = [];
   const top = FLOOR_Y + PILLAR_H;
-  const col = (i) => varied("#6d5348", i, 0.1);
+  const col = (i) => varied("#2e2050", i, 0.1);
   ROWS.forEach((z, k) => {
     const rr = 6.8;
     for (let s = 0; s < 12; s++) {
@@ -153,7 +153,7 @@ export function buildSet() {
   lanterns.frustumCulled = false;
 
   // knobs: the daemonset agent carved on each capital
-  const knobG = merge([piece(lump(new IcosahedronGeometry(0.4, 2).scale(1, 0.85, 1), 0.04, 2.5), "#ffffff"), piece(new CylinderGeometry(0.22, 0.3, 0.2, 8).translate(0, -0.38, 0), "#d5b48c")]);
+  const knobG = merge([piece(lump(new IcosahedronGeometry(0.4, 2).scale(1, 0.85, 1), 0.04, 2.5), "#ffffff"), piece(new CylinderGeometry(0.22, 0.3, 0.2, 8).translate(0, -0.38, 0), "#d8a93a")]);
   const knobMat = clay({ boil: 0.01, emit: 1.35, edge: 0.3, bump: 0.3, tex: 1.6 });
   const knobs = new InstancedMesh(knobG, knobMat, PILLARS.length);
   PILLARS.forEach((p, i) => {
@@ -169,7 +169,7 @@ export function buildSet() {
   const blockG = piece(lump(new BoxGeometry(0.44, 0.46, BR_W, 2, 2, 3), 0.012, 3), "#ffffff");
   const blockMat = stoneClay({ boil: 0.012, edge: 0.95, bump: 0.45, tex: 1.4 });
   const bridge = new InstancedMesh(blockG, blockMat, BLOCKS);
-  blocks.forEach((b) => bridge.setColorAt(b.i, varied("#c7a67e", b.i * 3, 0.1)));
+  blocks.forEach((b) => bridge.setColorAt(b.i, varied("#5a3a8a", b.i * 3, 0.1)));
   bridge.frustumCulled = false;
 
   const meshes = {

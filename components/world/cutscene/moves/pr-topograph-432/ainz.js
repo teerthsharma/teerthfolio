@@ -1,9 +1,9 @@
-// THE PUP AS GANDALF, in plasticine: a long grey felt cloak with a whipping hem (riding the pup's body
-// group), a mint-crystal staff and a short sword that follow the two flippers' tips, no hat, round head,
-// NO ears. And the pup's own materials swapped for plasticine twins (the shared thumbprint normal, a
+// THE PUP AS AINZ OOAL GOWN, in plasticine: a long black-and-purple cloak with a gold-trimmed hem and high collar
+// (riding the pup's body group), a small gold staff ringed with seven coloured gems and a short gold blade that
+// follow the two flippers' tips, gold rings of power on the grip, round head, NO ears. And the pup's own materials swapped for plasticine twins (the shared thumbprint normal, a
 // faint waxy sheen, glossy bead eyes) lit by the set's lamps and boiled at each step.
 
-import { Box3, BoxGeometry, BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, Group, Mesh, Vector3 } from "three";
+import { Box3, BoxGeometry, BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, Group, Mesh, SphereGeometry, TorusGeometry, Vector3 } from "three";
 import { clay, hash, lump, merge, piece } from "./clay";
 import { crystalGeometry } from "./fx";
 import { blob, slab, taper } from "./shapes";
@@ -26,8 +26,8 @@ function cloakGeometry(bb) {
   const col = [];
   const sway = [];
   const idx = [];
-  const felt = new Color("#8d9099");
-  const lining = new Color("#5f636d");
+  const felt = new Color("#1a1030");
+  const lining = new Color("#5b2a9a");
   for (let i = 0; i <= N; i++) {
     const t = i / N;
     const z = zF + (zB - zF) * t;
@@ -48,6 +48,7 @@ function cloakGeometry(bb) {
       pos.push(x, y, z);
       const k = 0.88 + 0.12 * hash(i * 31 + j, 3);
       const c2 = felt.clone().lerp(lining, flare * 0.6 + t * 0.2).multiplyScalar(k);
+      if (edge > 0.93 || t < 0.12) c2.set("#e6b43a").multiplyScalar(k); // the gold trim on the hem and the high collar
       col.push(c2.r, c2.g, c2.b);
       sway.push(Math.min(1, sm(0.45, 1, t) * 0.95 + flare * 0.55 * (0.3 + 0.7 * t)));
     }
@@ -78,9 +79,9 @@ function feltGeometry(bb) {
 
 function staffGeometry() {
   const p = [
-    piece(lump(new CylinderGeometry(0.034, 0.03, 2.1, 7, 10).translate(0, 0.05, 0), 0.006, 6), "#5a4030"),
-    piece(new CylinderGeometry(0.05, 0.05, 0.05, 8).translate(0, -0.7, 0), "#8a6a48"),
-    piece(new CylinderGeometry(0.05, 0.05, 0.05, 8).translate(0, 0.15, 0), "#8a6a48"),
+    piece(lump(new CylinderGeometry(0.034, 0.03, 2.1, 7, 10).translate(0, 0.05, 0), 0.006, 6), "#e6b43a"),
+    piece(new CylinderGeometry(0.05, 0.05, 0.05, 8).translate(0, -0.7, 0), "#c9922a"),
+    piece(new CylinderGeometry(0.05, 0.05, 0.05, 8).translate(0, 0.15, 0), "#c9922a"),
   ];
   // the pup's flipper gripping the staff at its middle: a fist round the shaft, four finger lobes wrapped about it, a thumb over
   const FL = "#aab3c8";
@@ -90,20 +91,23 @@ function staffGeometry() {
     p.push(blob([Math.cos(a) * 0.075, 0.015 - k * 0.02, Math.sin(a) * 0.075], [0.04, 0.032, 0.04], FL, { w: 6, h: 5, lump: 0.003 }));
   }
   p.push(taper([0.06, -0.06, 0.04], [0.02, 0.07, 0.07], 0.03, 0.022, FL, { seg: 6, rows: 1 }));
-  p.push(blob([0, -0.1, 0], [0.12, 0.05, 0.12], "#8d9099", { w: 8, h: 6, lump: 0.004 })); // the cloak's cuff
-  // three claws cradling the crystal
-  for (let k = 0; k < 3; k++) {
-    const a = (k / 3) * Math.PI * 2;
-    p.push(taper([Math.cos(a) * 0.035, 1.0, Math.sin(a) * 0.035], [Math.cos(a) * 0.12, 1.34, Math.sin(a) * 0.12], 0.026, 0.01, "#6b4e36", { seg: 5, rows: 2 }));
-  }
+  p.push(blob([0, -0.1, 0], [0.12, 0.05, 0.12], "#e6b43a", { w: 8, h: 6, lump: 0.004 })); // the cloak's gold cuff
+  // the rings of power on the grip, and the staff's head: a gold ring of seven serpents, each holding a coloured gem
+  for (let k = 0; k < 3; k++) p.push(piece(new TorusGeometry(0.058, 0.011, 5, 10).rotateX(Math.PI / 2).translate(0, 0.06 - k * 0.05, 0), "#ffd35a"));
+  p.push(piece(new TorusGeometry(0.2, 0.026, 6, 24).translate(0, 1.2, 0), "#e6b43a"));
+  const GEMS = ["#ff3b3b", "#ff9a2e", "#ffe14a", "#3be06a", "#35c8ff", "#7a5cff", "#ff5ad2"];
+  GEMS.forEach((c, k) => {
+    const a = (k / 7) * Math.PI * 2;
+    p.push(piece(new SphereGeometry(0.05, 8, 6).translate(Math.cos(a) * 0.2, 1.2 + Math.sin(a) * 0.2, 0), c));
+  });
   return merge(p);
 }
 function swordGeometry() {
   return merge([
-    slab([0, 0.04, 0], [0, 0.66, 0], 0.075, 0.02, "#cfd2dc"),
-    piece(new BoxGeometry(0.24, 0.035, 0.05).translate(0, 0.04, 0), "#8a6a48"),
-    piece(new CylinderGeometry(0.022, 0.022, 0.16, 6).translate(0, -0.06, 0), "#4a3226"),
-    piece(new CylinderGeometry(0.035, 0.035, 0.03, 6).translate(0, -0.15, 0), "#8a6a48"),
+    slab([0, 0.04, 0], [0, 0.66, 0], 0.075, 0.02, "#f0d68a"),
+    piece(new BoxGeometry(0.24, 0.035, 0.05).translate(0, 0.04, 0), "#7a2ab0"),
+    piece(new CylinderGeometry(0.022, 0.022, 0.16, 6).translate(0, -0.06, 0), "#2a1448"),
+    piece(new CylinderGeometry(0.035, 0.035, 0.03, 6).translate(0, -0.15, 0), "#e6b43a"),
   ]);
 }
 
@@ -138,7 +142,7 @@ export function buildGear(parts, crystalMat) {
   const staff = new Group();
   staff.add(new Mesh(staffG, woodM));
   const crystal = new Mesh(crystalGeometry(), crystalMat);
-  crystal.position.y = 1.2;
+  crystal.position.y = 1.2; crystal.scale.setScalar(0.8);
   crystal.renderOrder = 7;
   staff.add(crystal);
   const swordG = swordGeometry();
