@@ -36,7 +36,7 @@ function helix(out, from, to, R, Rz, turns, phase, zc, axis) {
   }
 }
 function designPath() {
-  const o = [[0.5, 0.8, 0.4], [1.5, 2.4, -1.8], [3.0, 1.0, -5.0]];
+  const o = [[0.3, 0.8, -6.0], [1.8, 1.7, -5.0], [3.0, 1.0, -5.0]];
   helix(o, [5.0, 0.9], [5.2, 3.6], 1.1, 1.3, 2.5, -Math.PI / 2, -8.5, "y"); // the hind leg
   helix(o, [8.0, 2.8], [8.5, 7.0], 1.3, 1.2, 2.5, -Math.PI / 2, -9.2, "y"); // the tails' root
   o.push([6.2, 6.4, -7.6]);
@@ -240,4 +240,39 @@ export function buildPlaque() {
   m.visible = false;
   m.frustumCulled = false;
   return m;
+}
+
+// ---- FLYING THUNDER GOD: three three-pronged kunai (Minato's), yellow flash stars and lightning streaks -----------------
+export const KUNAI = [[-3.2, 0, -3.0], [3.4, 0, -4.4], [0.8, 0, -4.2]]; // the pup's rig frame (the pup at the origin)
+export function buildFtg(mats) {
+  const root = new Group();
+  const mk = (geo, mat, vis = false) => {
+    const m = new Mesh(geo, mat);
+    m.frustumCulled = false;
+    m.visible = vis;
+    root.add(m);
+    return m;
+  };
+  const kGeo = () =>
+    merge([
+      card([[-0.2, 0], [0.4, 0.14], [1.0, 0], [0.4, -0.14]], { color: "#dfe8ff", depth: 0.05 }),
+      card([[0.3, 0.1], [0.62, 0.38], [0.55, 0.06]], { color: "#dfe8ff", depth: 0.05 }),
+      card([[0.3, -0.1], [0.62, -0.38], [0.55, -0.06]], { color: "#dfe8ff", depth: 0.05 }),
+      card(circle(-0.42, 0, 0.17, 10), { holes: [circle(-0.42, 0, 0.09, 8)], color: "#ffcf1f", depth: 0.05 }),
+    ]);
+  const aura = card(circle(0.3, 0, 0.75, 16), { color: "#ffe21a", depth: 0.02, z: -0.08 });
+  const kunai = KUNAI.map(() => {
+    const g = new Group();
+    g.add(new Mesh(kGeo(), mats.solid), new Mesh(aura, mats.glow));
+    g.traverse((o) => (o.frustumCulled = false));
+    g.visible = false;
+    root.add(g);
+    return g;
+  });
+  const flashes = [0, 1, 2, 3].map(() => mk(card(star(8, 1, 0.3), { color: "#ffe21a", depth: 0.04 }), mats.glow));
+  const cores = [0, 1, 2, 3].map(() => mk(card(star(8, 0.55, 0.2), { color: "#fffbd0", depth: 0.04, z: 0.05 }), mats.glow));
+  const bolt = [[0, 0], [0.25, 0.1], [0.45, -0.04], [0.7, 0.09], [1, 0], [0.7, -0.02], [0.45, -0.14], [0.25, -0.05]];
+  const streaks = [0, 1, 2, 3].map(() => mk(card(bolt, { color: "#ffd400", depth: 0.04 }), mats.glow));
+  const streaks2 = [0, 1, 2, 3].map(() => mk(card(bolt, { color: "#fff6a0", depth: 0.04, z: 0.04 }), mats.glow));
+  return { root, kunai, flashes, cores, streaks, streaks2 };
 }
