@@ -156,11 +156,12 @@ function addSpray(pool, x, y, z, vx, vy, vz, size, life, foam, squashY) {
 }
 
 // 22 droplets radiating from the seal: the entry/exit splash.
-function splashBurst(pool, x, z) {
-  for (let i = 0; i < 22; i++) {
+// `big` scales it (the loop's entry and exit throw a bigger one, climbing with each clean loop in a row).
+function splashBurst(pool, x, z, big = 1) {
+  for (let i = 0; i < 22 * big; i++) {
     const a = Math.random() * Math.PI * 2;
-    const r = 1.5 + Math.random() * 1;
-    addSpray(pool, x, WATER_Y + 0.1, z, Math.cos(a) * r, 3.5 + Math.random() * 1.5, Math.sin(a) * r, 0.12 + Math.random() * 0.08, 0.8, 0);
+    const r = (1.5 + Math.random() * 1) * Math.sqrt(big);
+    addSpray(pool, x, WATER_Y + 0.1, z, Math.cos(a) * r, (3.5 + Math.random() * 1.5) * Math.sqrt(big), Math.sin(a) * r, 0.12 + Math.random() * 0.08, 0.8, 0);
   }
 }
 
@@ -232,6 +233,7 @@ export default function Effects() {
     jumpAt: -1,
     jumped: true,
     water: 0,
+    ride: 0,
     foamSide: 1,
   });
   const ring = useRef({ x: 0, z: 0 });
@@ -428,8 +430,21 @@ export default function Effects() {
 
     // River splash (entry/exit) + foaming wake + bow wave while swimming.
     const water = seal.water ?? 0;
-    if ((water > 0.05) !== (st.water > 0.05)) splashBurst(spray, seal.x, seal.z);
-    st.water = water;
+    // THE LOOP (lib/world/loop.js): the ribbon is water, so no wet/dry splash
+    // while riding; a big one going in and coming out (the exit's growing with
+    // each clean loop in a row: the hidden cue), and spray shed all the way round.
+    const riding = seal.ride ? 1 : 0;
+    const wetNow = water > 0.05 || riding === 1;
+    if (riding && !st.ride) splashBurst(spray, seal.x, seal.z, 2);
+    else if (!riding && st.ride) splashBurst(spray, seal.x, seal.z, 2 + 1.5 * (seal.loopClean ? seal.loopStreak || 3 : 0));
+    else if (wetNow !== st.water > 0.05) splashBurst(spray, seal.x, seal.z);
+    st.water = wetNow || st.ride ? 1 : 0; // the frame it leaves the ribbon still counts as wet
+    st.ride = riding;
+    if (riding) {
+      for (let i = 0; i < 2; i++) {
+        addSpray(spray, seal.x, seal.rideY, seal.z, -seal.vx * 0.15 + (Math.random() - 0.5) * 2, 0.5 + Math.random() * 1.5, (Math.random() - 0.5) * 3, 0.1 + Math.random() * 0.08, 0.7, 0);
+      }
+    }
 
     if (water > 0.05 && seal.speed > 1.5) {
       riverAt(seal.x, seal.z, RIVER_OUT);

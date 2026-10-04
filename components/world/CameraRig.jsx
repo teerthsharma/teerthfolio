@@ -38,6 +38,8 @@ const PANEL_RETRY_FRAMES = 30;
 const PANEL_LEFT_FRACTION = 0.4;
 const PANEL_TOP_FRACTION = 0.2;
 const FREE_RECT_RAISE = 0.1;
+const RIDE_ZOOM = 1.22; // the loop (lib/world/loop.js): the view stands back to take the whole ribbon in
+const RIDE_RISE = 0.55; // share of the rider's height the view climbs with it
 const TRAUMA_DECAY = 2.5; // 1/s
 const TRAUMA_RISE_MIN = 0.12;
 const TRAUMA_IMPACT_MIN = 0.3;
@@ -189,7 +191,7 @@ export default function CameraRig() {
     // ZOOM_IN / ZOOM_OUT: the push toward an opened building and the ease
     // back, each reaching 95% within its moment's duration.
     const nearSlow = ui.near && seal.speed < 2;
-    const modeZoomTarget = ui.open ? OPEN_ZOOM : nearSlow ? NEAR_ZOOM : 1;
+    const modeZoomTarget = ui.open ? OPEN_ZOOM : nearSlow ? NEAR_ZOOM : seal.ride ? RIDE_ZOOM : 1;
     const modeRate = 3 / (modeZoomTarget < modeZoom.current ? ZOOM_IN.duration : ZOOM_OUT.duration);
     modeZoom.current += (modeZoomTarget - modeZoom.current) * damp(modeRate, dt);
 
@@ -291,6 +293,7 @@ export default function CameraRig() {
     }
 
     wanted.current.z -= SPAWN_LEAN * spawnK.current;
+    wanted.current.y = seal.ride && !reduced.current ? seal.rideY * RIDE_RISE : 0;
 
     if (cutK > 0) {
       const place = PLACE_BY_ID[arrival.id];
@@ -333,7 +336,7 @@ export default function CameraRig() {
     const elevation = ELEVATION + ((dock?.elev ? (dock.elev * Math.PI) / 180 : LOOK_ELEVATION) - ELEVATION) * dockTall + (ARRIVAL_ELEVATION - ELEVATION) * cutK;
     orbit.current.set(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(FOLLOW_DISTANCE).applyAxisAngle(UP, ARRIVAL_ORBIT * cutK * (cutU - 0.5));
     followPos.current.copy(orbit.current).multiplyScalar(dNow).add(focus.current).add(shake.current);
-    followLook.current.set(focus.current.x, 0.6 + ((dock ? dock.y : 0.6) - 0.6) * lk + (ARRIVAL_LOOK_Y - 0.6) * cutK, focus.current.z).add(shake.current);
+    followLook.current.set(focus.current.x, focus.current.y + 0.6 + ((dock ? dock.y : 0.6) - 0.6) * lk + (ARRIVAL_LOOK_Y - 0.6) * cutK, focus.current.z).add(shake.current);
 
     if (!ui.started) {
       // The overview: the whole island and the sea round it.

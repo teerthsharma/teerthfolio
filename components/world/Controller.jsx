@@ -7,6 +7,7 @@ import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
 import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
 import { arrivalHold, arrivalLength, domainBeat, domainMode } from "../../lib/world/domain";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
+import { AWAKENING } from "../../lib/world/loop";
 import { WHIRLPOOL } from "../../lib/world/river";
 import { getUi, live, setUi } from "../../lib/world/store";
 
@@ -15,6 +16,19 @@ const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...L
 // object can be built once too instead of every frame.
 const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, places: PLACES, time: 0 };
 let seenBursts = 0;
+let seenWins = 0;
+// THE LOOP's hidden win (lib/world/loop.js AWAKENING): once per session, and
+// never on a still (?play, ?spawn, ?hud=off), so a capture never ends up inside it.
+const WIN_KEY = "seal:loopwin";
+function loopWinAllowed() {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (q.has("play") || q.has("spawn") || document.documentElement.dataset.hud === "off") return false;
+    return !sessionStorage.getItem(WIN_KEY);
+  } catch {
+    return true; // no storage: once per page load (seenWins only moves forward)
+  }
+}
 // m of open snow between the seal and a place at which its arrival fires
 // (nearestPlace's dock reach is 3.2): the cutscene starts on the approach.
 const APPROACH_REACH = 7;
@@ -141,6 +155,26 @@ export default function Controller() {
       live.rad.id = radId;
       if (district) live.rad.color = district.radiation;
       live.rad.start = t < 1.5 ? -100 : t;
+    }
+
+    // THE LOOP's win: held back while an arrival plays or a panel is open, then raised.
+    if (seal.wins !== seenWins && ui.started && !ui.open && !ui.list && !arrival.id) {
+      seenWins = seal.wins;
+      if (loopWinAllowed()) {
+        try {
+          sessionStorage.setItem(WIN_KEY, "1");
+        } catch {
+          /* no storage */
+        }
+        live.loopWin.at = t;
+        arrival.id = AWAKENING.id;
+        arrival.start = t;
+        arrival.keys = new Set(live.keys);
+        arrival.target = live.target;
+        arrival.stick = live.stick;
+        arrival.skip = false;
+        setUi({ cutscene: AWAKENING.id });
+      }
     }
 
     const near = nearestPlace(seal, PLACES)?.id ?? null;

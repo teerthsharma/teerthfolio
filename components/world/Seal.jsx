@@ -65,6 +65,7 @@ function contactShadow() {
 
 export default function Seal() {
   const root = useRef();
+  const shadowRef = useRef();
   const headRef = useRef(null);
   const near = useUi((s) => s.near);
   // A getter, so a variant never holds a stale seal if live.seal is replaced.
@@ -78,8 +79,14 @@ export default function Seal() {
   useFrame((state, delta) => {
     const s = live.seal;
     stepDrive(drive, s, near, state.clock.elapsedTime, delta);
-    root.current.position.set(s.x, (s.air || 0) * (s.airHeight || 3.2), s.z); // air: a whirlpool or geyser throw (motion.js)
+    // air: a whirlpool or geyser throw (motion.js). ride: on the loop ribbon
+    // (lib/world/loop.js): rideY is the origin's height, ridePitch rolls the
+    // body round the loop, inverted over the top.
+    root.current.position.set(s.x, s.ride ? s.rideY : (s.air || 0) * (s.airHeight || 3.2), s.z);
+    root.current.rotation.order = "YXZ";
+    root.current.rotation.x = s.ride ? -s.ridePitch : 0;
     root.current.rotation.y = s.heading + drive.bodyYaw;
+    if (shadowRef.current) shadowRef.current.visible = !s.ride;
     const arrival = live.arrival;
     const place = arrival.id ? PLACE_BY_ID[arrival.id] : null;
     if (place) {
@@ -100,7 +107,7 @@ export default function Seal() {
 
   return (
     <group ref={root} name="seal">
-      <mesh material={shadow} position={[0, 0.012, -0.1]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+      <mesh ref={shadowRef} material={shadow} position={[0, 0.012, -0.1]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
         <planeGeometry args={[1.9, 2.7]} />
       </mesh>
       <Variant pose={pose} near={near} drive={drive} headRef={headRef} />

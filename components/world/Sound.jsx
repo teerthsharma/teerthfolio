@@ -67,6 +67,7 @@ function createEngine() {
   let prevOpen = null;
   let prevSqueak = 0;
   let prevGulp = 0;
+  let prevLoops = 0;
   let prevStroke = 0;
   let prevWhoosh = false;
   let prevStarted = false;
@@ -379,6 +380,20 @@ function createEngine() {
     duckUntil = ctx.currentTime + delaySec + 0.35;
     bell(f, delaySec, 0.18);
     bell(f * 1.5, delaySec + 0.11, 0.18);
+  }
+
+  // The loop's hidden cue: a clean loop rings a bell that climbs a step each
+  // time in a row (1, 2, 3), the third ringing the whole triad; a messy loop is silent.
+  function playLoopChime(step) {
+    if (!beginVoice(1.8)) return;
+    counts.chime++;
+    duckUntil = ctx.currentTime + 0.35;
+    const f = 392 * [1, 1.26, 1.5][step - 1];
+    bell(f, 0, 0.16);
+    if (step === 3) {
+      bell(f * 1.26, 0.09, 0.14);
+      bell(f * 1.5, 0.18, 0.14);
+    }
   }
 
   function playDiscovery(placeId, delaySec = 0) {
@@ -780,6 +795,11 @@ function createEngine() {
     const squeak = live.squeak ?? 0;
     if (audible && squeak !== prevSqueak) playSqueak();
     prevSqueak = squeak;
+
+    if (seal.loops !== prevLoops) {
+      prevLoops = seal.loops;
+      if (audible && seal.loopClean) playLoopChime(seal.loopStreak || 3); // a win zeroes the streak after the third
+    }
 
     const gulp = live.gulp ?? 0;
     if (audible && gulp !== prevGulp) playGulp();
