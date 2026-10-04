@@ -41,6 +41,7 @@ const dummy = new Object3D();
 const tint = new Color();
 const GRANITE_C = new Color("#b0a49d");
 const RAD_C = new Color(RAD);
+const BLUE_C = new Color("#8fa7ff"); // the cliff leans periwinkle, not taupe
 // Each eye's light: a carved catchlight (a lit bump of pale granite in the
 // polished inlay, never a glossy toy highlight), or on the evil pup a pupil
 // glowing in the radiation. SLOT: the eye's index in its own mesh.
@@ -155,7 +156,7 @@ export default function MujoRush() {
         dummy.scale.set(b.r, b.r * 0.82, b.r * 0.94);
         dummy.updateMatrix();
         fm.setMatrixAt(i, dummy.matrix);
-        tint.copy(GRANITE_C).lerp(RAD_C, 0.16 + 0.12 * Math.sin(c * 1.3 + b.phase));
+        tint.copy(GRANITE_C).lerp(BLUE_C, 0.35).lerp(RAD_C, 0.16 + 0.12 * Math.sin(c * 1.3 + b.phase));
         fm.setColorAt(i, tint);
         dummy.scale.set(b.r * 0.42, b.r * 1.45, b.r * 0.42); // the crystal through it, poking out both ends
         dummy.updateMatrix();

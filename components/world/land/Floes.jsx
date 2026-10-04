@@ -111,7 +111,7 @@ function Funnel({ near }) {
   // the "glowing through its edges" read: it only peeks out past the ice
   // silhouette, never washing the faces out. Both static/shared; only their
   // intensity moves per frame.
-  const iceMat = useMemo(() => mat(C.deepIce, { ...SURFACE.ice, emissive: RADIATION, emissiveIntensity: 0.55 }).clone(), []);
+  const iceMat = useMemo(() => mat("#3b82f6", { ...SURFACE.ice, emissive: RADIATION, emissiveIntensity: 0.4 }).clone(), []);
   const haloMat = useMemo(() => glow(RADIATION, 0.3).clone(), []);
 
   useEffect(() => {
