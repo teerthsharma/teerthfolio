@@ -655,7 +655,7 @@ export default function Effects() {
         ringScale = 1 - u;
         ringVisible = ringScale > 0.001;
       }
-      ringMesh.visible = ringVisible;
+      ringMesh.visible = ringVisible && !live.inStage; // a cutscene's stage hides the island, the marker too
       if (ringVisible) {
         ringMesh.position.set(ring.current.x, 0.035, ring.current.z);
         ringMesh.scale.setScalar(ringScale);
@@ -663,7 +663,7 @@ export default function Effects() {
 
       // One-shot ripple, independent of how long the target itself lasts.
       const rippleU = (t - st.poppedAt) / 0.5;
-      rippleMesh.visible = rippleU >= 0 && rippleU < 1;
+      rippleMesh.visible = rippleU >= 0 && rippleU < 1 && !live.inStage;
       if (rippleMesh.visible) {
         rippleMesh.position.set(ring.current.x, 0.035, ring.current.z);
         rippleMesh.scale.setScalar(1 + rippleU * 1.2);
