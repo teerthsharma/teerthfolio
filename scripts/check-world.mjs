@@ -22,6 +22,7 @@ import { buildToys } from "../components/world/life/toys-seed.js";
 import { forbidden, samplePoints } from "../components/world/life/spawn.js";
 import { CAR_BAYS, CAR_R, ROAD_Y, createCar, onDrawnAsphalt, stepCar, stepCars } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
+import { buildConcreteWall } from "../components/world/land/parts/dam-wall.js";
 import { PEAK, WATER_Y, heightAt } from "../lib/world/terrain.js";
 import { PEAK_PATH, PEAK_WORLD, peakBlocked } from "../lib/world/peak.js";
 
@@ -1526,6 +1527,10 @@ for (const d of DISPLAY.filter((o) => o.id !== "auto")) {
 }
 assert.equal(displayTier("nonsense"), null);
 assert.equal(gpuName("ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00003EA0) Direct3D11 vs_5_0 ps_5_0, D3D11)"), "Intel(R) UHD Graphics 620");
+
+// Every dam geometry merges: a null one (mixed indexed parts) throws in the
+// renderer's cull every frame and blanks the whole island.
+for (const [k, g] of Object.entries(buildConcreteWall())) assert.ok(g, `dam-wall ${k} merged to null`);
 
 // MujoRush is solid: no route puts the seal inside the rock the renderer
 // draws. The footprint is the carved sheet's frontmost vertex per column

@@ -21,8 +21,8 @@
 
 import { BoxGeometry, BufferAttribute, ConeGeometry, ExtrudeGeometry, IcosahedronGeometry, Shape } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { LAND_COLLIDERS } from "../../../../lib/world/land";
-import { clamp, smoothstep } from "../../life/util";
+import { LAND_COLLIDERS } from "../../../../lib/world/land.js";
+import { clamp, smoothstep } from "../../life/util.js";
 
 const DAM_COLLIDERS = LAND_COLLIDERS.filter((c) => c.land === "dam");
 
@@ -380,7 +380,8 @@ export function buildConcreteWall() {
     bathtub.push(new BoxGeometry(0.5, 0.18, len).rotateY(Math.atan2(dx, dz)).translate(mx, 0, mz));
   }
 
-  const clean = (gs) => gs.map((g) => (g.attributes.uv ? (g.deleteAttribute("uv"), g) : g));
+  // one index layout per merge: mergeGeometries returns null on a mix, and a null-geometry mesh throws in every frame's cull, blanking the whole island
+  const clean = (gs) => gs.map((g) => (g.attributes.uv && g.deleteAttribute("uv"), g.index ? g.toNonIndexed() : g));
   return {
     body: mergeGeometries(clean(body), false),
     road: mergeGeometries(clean(road), false),
