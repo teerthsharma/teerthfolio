@@ -68,7 +68,7 @@ function aimTail(el, mx, my) {
   const len = Math.hypot(tx - bx, ty - by) || 1;
   const ux = (tx - bx) / len;
   const uy = (ty - by) / len;
-  const L = Math.max(40, len - 34);
+  const L = Math.min(90, Math.max(40, len - 34));
   const px = bx + ux * L;
   const py = by + uy * L;
   const half = Math.min(22, w * 0.045);
@@ -168,6 +168,7 @@ export default function AwakeningLayer() {
   if (!mode) return null;
   const impact = !still && (beat === 2 || beat === 5 || beat === 7);
   const showLine = still ? beat > 0 : beat === 9;
+  const showOpen = !still && beat === 4;
   const showCard = still ? beat > 0 : beat === 10;
   return (
     <div className="comic awake" ref={wrap} data-beat={beat} style={{ "--accent": LOOP.color }} aria-live="polite">
@@ -178,6 +179,7 @@ export default function AwakeningLayer() {
       ) : null}
       {!still && beat === 3 ? <Sfx text={SFX} /> : null}
       {showLine ? <Bubble slot="a" who="seal" kind="oval" line={LINE.text} bold={LINE.bold} /> : null}
+      {showOpen ? <Bubble slot="a" who="seal" kind="oval" line="The loop closed. Something wakes up." bold={["loop closed", "wakes up"]} /> : null}
       {showCard ? <Credit still={still} /> : null}
     </div>
   );
