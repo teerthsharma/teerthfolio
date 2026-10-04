@@ -1,278 +1,476 @@
-// MujoRush: Attack on Titan, the Rumbling. The ground cracks in a line toward
-// the cliff, plates fall off it and the three carved faces open their eyes and
-// steam as they speak line A; a line of colossal silhouettes marches the
-// horizon. The pup titan-swells (stomp, snow puffs), opens its mouth, and the
-// coral block of exactly 1,282 fish-cubes standing between it and the cliff
-// spirals into it top-down until nothing is left but one blue cube, balanced
-// on its nose when the pup shrinks back; a flock of seabirds bursts off the
-// cliff on the last word and the pup flips the cube on the flex line. Burnt
-// orange haze, ash and halftone come from the move's own sky (a shader). The
-// pup's scale is set on its own root group and put back the moment the scene
-// ends, is skipped, or mounts without motion. Shape, colour, pose.
-// Cost by construction: dome, ground, motes, block (1,282 cubes, one instanced
-// mesh), steam, eyes, plates, crack, march, gulls, cube: about 14 draw calls.
-// Card: lib/world/cutscene/cards/pr-mujoco-3396.js.
+// MOUNT MUJORUSH: Attack on Titan, the Walls were Titans, and the Rumbling,
+// seal edition. ONE cinematic for the whole mountain (#3396, mujoco_warp
+// #1541, #3450), in its own dimension: GRITTY CHARCOAL, graphite on warm
+// grey toothy paper, every surface hatched by its light value in its own
+// shader, one burnt-orange wash from the low sun, the coral of the cubes,
+// and the sea's single cold blue once the Wall opens.
+//
+// 0 s     the banner slams in over the island: THE WALLS WERE TITANS
+// 1.2 s   the impact: the island is drawn over in charcoal. Wall Maria's sea
+//         end at dusk, seen from the cobbled square of a Shiganshina-style
+//         district: red-tile roofs, chimneys, the bell tower, the arched gate
+//         with its portcullis up. MujoRush is promoted: its carved cliff is a
+//         section of the Wall, its three pup faces set in it, the crowned one
+//         centre stage. Eren stands on the crest, back to us, coat whipping.
+// 3.2 s   line A, from the faces. A crack races along the cobbles to the
+//         Wall; the faces split and fall, wall-titans' faces behind them,
+//         eyes lit; the skin falls plate by plate from the crowned face
+//         outward: the Wall was titans, shoulder to shoulder, and under the
+//         crowned face its core is a block of exactly 1,282 coral fish-cubes.
+//         Over the crest the Rumbling rises: seal-titans in thousands, ribs
+//         glowing, marching on the beat; every footfall shakes the frame,
+//         swings the bell, ducks the colony on the roofs and cracks the ice
+//         on the setts. Penguins stampede across the square. The Founding
+//         Titan's ribcage stands witness on the far ridge.
+// 6.75 s  a bolt of lightning strikes the pup: it swells to a titan with a stomp
+// 7.2 s   line B. The pup eats the block, top course first, the cubes
+//         spiralling into its mouth, until one blue cube is left.
+// 10.4 s  it shrinks back with the cube on its nose; the Wall stands open on
+//         the sea, the first open horizon; gulls burst off the cliff.
+// 11 s    the flex line, the cube flipped and caught. Why we come home: the
+//         Wall was the cage of this dimension, and the way out is the sea
+//         beyond it: from the gap the sea's colour burns the charcoal
+//         drawing off the paper, ember-edged, and the real island is under it.
+// 16 s    the credit card, while the drawing burns away and the lens comes home.
+//
+// Card: lib/world/cutscene/cards/pr-mujoco-3396.js. Parts: ./pr-mujoco-3396/.
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { AdditiveBlending, BackSide, BoxGeometry, Color, IcosahedronGeometry, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, OctahedronGeometry, SphereGeometry } from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { turnFor } from "../../../../lib/world/cutscene/timeline";
+import { Mesh, MeshBasicMaterial, PlaneGeometry, Vector2, Vector3 } from "three";
+import { PLACE_BY_ID } from "../../../../lib/world/places";
 import { live } from "../../../../lib/world/store";
-import { EYES } from "../../land/parts/mujorush-build";
-import { Speaker, Stage, onTwos, smooth, useCutFrame } from "../kit";
-import { Dome, Motes } from "./_g1";
+import { onTwos, signAt, smooth, useCutFrame } from "../kit";
+import { islandList, pupParts } from "./p-caustic/parts";
+import { makeBanner } from "./pr-mujoco-3396/banner";
+import { U, pupCharcoal } from "./pr-mujoco-3396/charcoal";
+import { N, dropKit, put, takeKit, watch } from "./pr-mujoco-3396/kit";
+import { BLOCK, BLUE_AT, CELLS, FACES, FACE_Y, PLATES, hash, zF } from "./pr-mujoco-3396/world";
 
-const D = new Object3D();
-const PAL = {
-  top: "#2b140a", mid: "#8a3f1a", hor: "#e98a3a", bot: "#4a2210", glow: "#ffc27a", dot: "#2a1208", glowK: 0.55, dotK: 0.85,
-  groundIn: "#7a4a2c", groundOut: "#3a1c0e", groundDot: "#22100a",
-};
-const mat = (o = {}) => new MeshBasicMaterial({ toneMapped: false, fog: false, ...o });
-const put = (m, i, x, y, z, sx, sy = sx, sz = sx, rx = 0, ry = 0, rz = 0) => {
-  D.position.set(x, y, z);
-  D.rotation.set(rx, ry, rz);
-  D.scale.set(sx, sy, sz);
-  D.updateMatrix();
-  m.setMatrixAt(i, D.matrix);
-};
-const inst = (g, m, n, colors) => {
-  const mesh = new InstancedMesh(g, m, n);
-  mesh.frustumCulled = false;
-  if (colors) colors.forEach((c, i) => mesh.setColorAt(i, c));
-  return mesh;
-};
-const hash = (i, k = 0) => (((Math.sin(i * 127.1 + k * 311.7) * 43758.5453) % 1) + 1) % 1;
-const ease = (x) => x * x * (3 - 2 * x);
+watch(); // the prebuild: the kit is built and compiled while the seal walks up to the mountain
 
-const FISH = 1282; // the figure's own count: units, 1,282 copies
-const NX = 11;
-const NY = 13;
-const NZ = 9; // 11 x 13 x 9 = 1,287; the first 1,282 stand
-const CUBE = 0.17;
-const BLOCK_AT = [2.6, 0, -0.9]; // beside the pup, between it and the cliff (pup-local, turned toward the cliff)
-const CORAL = ["#ff8f7a", "#f6a08a", "#ff7d6b", "#ffb199"].map((c) => new Color(c));
-const SWELL = 1.8; // titan scale (the camera is capped: more leaves the frame)
-const T = { swell: 3.0, drain: 3.5, drainEnd: 4.55, shrink: 4.8, gulls: 6.3, flip: 7.35 };
-const MARCH = 12;
-const STEAM = 42;
-const PLATES = 30;
-const CRACK = 16;
-const GULLS = 8;
-const CELLS = [];
-for (let z = 0; z < NZ; z++) for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) if (CELLS.length < FISH) CELLS.push([x, y, z]);
+const T = {
+  inside: 1.25, // the drawing is up, behind the impact frame
+  dock: 1.6, // the banner docks under the top bar
+  crack: [3.3, 4.3],
+  tremble: [3.4, 4.0],
+  split: [4.0, 4.5, 4.7], // the crowned face's skin first, then the horned and the capped
+  skin: 4.1, // the plates begin to fall, each on its own delay outward
+  rise: [4.0, 6.0], // the march crests the horizon
+  beat0: 4.6,
+  beat: 0.9,
+  beatEnd: 15.6,
+  bolt: [6.75, 7.05],
+  swell: [6.85, 7.25],
+  eat: [7.4, 10.3],
+  shrink: [10.35, 10.85],
+  gulls: 10.9,
+  flip: [11.7, 12.35],
+  restore: [15.9, 16.6], // the island comes back under the drawing, a slice a frame
+  burn: [16.3, 19.3],
+  home: [18.4, 19.8], // the lens hands back to the follow
+};
+const SPLIT = [T.split[1], T.split[0], T.split[2]]; // in FACES order: horned, crowned, capped
+const TITAN = 6; // the pup's titan scale
+
+// THE LENS: key frames in the scene's frame [t, eye, look, k], wide; a tall screen stands back by k
+const KEYS = [
+  [1.25, [0, 2.2, 40], [0, 11, -30], 1.15], // the huge low wide: down the avenue, the square, the Wall, the march over its crest
+  [3.2, [0.5, 2.4, 33], [0, 11, -30], 1.15],
+  [4.4, [1, 2.8, 24], [0, 11.5, -30], 1.15], // the skin falls
+  [5.3, [-22, 24.5, -23], [20, 110, -400], 1.0], // the fly-along: along the crest, past Eren, down the column of the march
+  [6.4, [4, 24.5, -23], [40, 115, -400], 1.0],
+  [6.8, [3, 2.2, 14], [0, 4.5, -10], 1.2], // the strike
+  [7.7, [10, 6.5, 19], [-1.5, 5, -18], 1.2], // the titan pup eats the block, three-quarter on
+  [10.3, [9, 6, 18], [-1, 4.5, -18], 1.2],
+  [11.0, [1.4, 2.1, 7.2], [0, -2.9, -30], 1.3], // the flex: the pup above the bubbles, the open gap and the sea behind it
+  [16.0, [1.1, 2.0, 6.4], [0, -2.7, -30], 1.3],
+  [19.8, [1.0, 2.0, 6.2], [0, -2.7, -30], 1.3],
+];
+const FOV = [50, 62]; // wide, tall: the dimension's own lens, wider than the island's 35
+const EYE = new Vector3();
+const LOOK = new Vector3();
+const A = new Vector3();
+const B = new Vector3();
+const RL = new Vector3();
+const DIR = new Vector3();
+const V = new Vector3();
+const W = new Vector3();
+const RES = new Vector2();
+function lens(t, tall, eye, look) {
+  let i = 0;
+  while (i < KEYS.length - 2 && t >= KEYS[i + 1][0]) i++;
+  const [t0, e0, l0, k0] = KEYS[i];
+  const [t1, e1, l1, k1] = KEYS[i + 1];
+  const u = smooth(t0, t1, t);
+  look.set(l0[0] + (l1[0] - l0[0]) * u, l0[1] + (l1[1] - l0[1]) * u, l0[2] + (l1[2] - l0[2]) * u);
+  eye.set(e0[0] + (e1[0] - e0[0]) * u, e0[1] + (e1[1] - e0[1]) * u, e0[2] + (e1[2] - e0[2]) * u);
+  if (tall) {
+    // a tall screen stands back along the ground only, keeping the eye's height
+    const k = k0 + (k1 - k0) * u;
+    eye.x = look.x + (eye.x - look.x) * k;
+    eye.z = look.z + (eye.z - look.z) * k;
+  }
+}
+
+// the footfalls: s since the last one (9 if none yet) and how many have fallen
+function footfall(t) {
+  if (t < T.beat0) return [9, 0];
+  const n = Math.min(Math.floor((t - T.beat0) / T.beat), Math.floor((T.beatEnd - T.beat0) / T.beat));
+  return [t - (T.beat0 + n * T.beat), n + 1];
+}
+
+// the pup's nose and mouth in the scene's frame, from the anchors the pup writes every frame of a scene (D.jsx)
+const nose = (out) => out.copy(live.anchors?.nose ?? out.set(0, 1, 0.6)).sub(V.set(live.seal.x, 0, live.seal.z));
+const mouth = (out) => out.copy(live.anchors?.mouth ?? out.set(0, 0.7, 0.6)).sub(V.set(live.seal.x, 0, live.seal.z));
+
+const pupScale = (t) => {
+  const up = smooth(T.swell[0], T.swell[1], t);
+  const over = t > T.swell[1] && t < T.shrink[0] ? 1 + 0.12 * Math.sin(Math.PI * Math.min(1, (t - T.swell[1]) / 0.3)) : 1;
+  return 1 + (TITAN * over - 1) * up * (1 - smooth(T.shrink[0], T.shrink[1], t));
+};
+const pupYaw = (t) => {
+  const a = 2.55 + (Math.PI - 2.55) * smooth(6.6, 7.3, t); // three-quarters toward the Wall, then square to it to eat
+  return a + (0.22 - a) * smooth(T.shrink[0] - 0.1, T.shrink[1] + 0.2, t); // then round to the lens for the flex
+};
 
 export default function Move(cut) {
-  const { card, place, tl, mode } = cut;
+  const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
-  const g = useRef();
-  const w = useRef(); // the cliff's own overlays, world space
-  const cube = useRef();
-  const f = useMemo(() => {
-    const block = inst(new BoxGeometry(1, 1, 1), mat(), FISH, CELLS.map((_, i) => CORAL[Math.floor(hash(i + 3) * 4)]));
-    const steam = inst(new IcosahedronGeometry(1, 1), mat({ transparent: true, opacity: 0.55, blending: AdditiveBlending, depthWrite: false }), STEAM, Array(STEAM).fill(new Color("#ff9d5c")));
-    const eyes = inst(new SphereGeometry(1, 10, 6), mat({ transparent: true, opacity: 0.95 }), EYES.length, Array(EYES.length).fill(new Color("#ffb04a")));
-    const plates = inst(new BoxGeometry(1, 0.5, 0.8), mat(), PLATES, Array.from({ length: PLATES }, (_, i) => new Color(i % 2 ? "#7b6657" : "#5f4d41")));
-    const crack = inst(new BoxGeometry(1, 0.02, 0.14), mat(), CRACK * 2, Array.from({ length: CRACK * 2 }, (_, i) => new Color(i < CRACK ? "#120806" : "#ff8a3a")));
-    const march = inst(
-      mergeGeometries([new SphereGeometry(0.5, 8, 6).scale(1, 0.85, 1.3).translate(0, 0.45, 0).toNonIndexed(), new SphereGeometry(0.34, 8, 6).translate(0, 1.0, 0.45).toNonIndexed()].map((x) => (x.deleteAttribute("uv"), x.deleteAttribute("normal"), x))),
-      mat(),
-      MARCH,
-      Array(MARCH).fill(new Color("#1c0b05")),
-    );
-    const gulls = inst(new OctahedronGeometry(1, 0).scale(0.55, 0.03, 0.16), mat(), GULLS, Array(GULLS).fill(new Color("#fff6ea")));
-    const dust = inst(new IcosahedronGeometry(1, 1), mat({ transparent: true, opacity: 0.4, depthWrite: false }), 10, Array(10).fill(new Color("#f4e7da")));
-    return { block, steam, eyes, plates, crack, march, gulls, dust };
-  }, []);
-  const noseCube = useMemo(() => {
-    const k = new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial({ color: "#4a5bff", emissive: "#2a3acc", emissiveIntensity: 0.45, flatShading: true, roughness: 0.5 }));
-    const rim = new Mesh(new BoxGeometry(1, 1, 1), mat({ color: "#fbf6ec", side: BackSide }));
-    rim.scale.setScalar(1.22);
-    k.add(rim);
-    return k;
+  const gl = useThree((s) => s.gl);
+  const full = mode === "full";
+  const k = useMemo(() => (full ? takeKit() : null), [full]);
+  const st = useRef({ island: [], hidden: false, restored: 0, pup: null, paint: null, outfit: null, orders: [], plates: new Uint8Array(PLATES.length), banner: null, last: -1, free: false });
+  const clear = useMemo(() => {
+    // the drawing draws over everything: after the island's opaque pass the depth is cleared, so the
+    // charcoal (render order 1000 up) only lets the island through where it has burnt away
+    const m = new Mesh(new PlaneGeometry(0.001, 0.001), new MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false }));
+    m.renderOrder = 999;
+    m.frustumCulled = false;
+    m.onBeforeRender = (r) => r.clearDepth();
+    return m;
   }, []);
 
-  // the pup always goes back to its own size, whatever ended the scene
-  useFrame(() => {
-    const seal = scene.getObjectByName("seal");
-    if (seal && !live.arrival.id && seal.scale.x !== 1) seal.scale.setScalar(1);
-  }, -1.1);
-  useEffect(() => () => scene.getObjectByName("seal")?.scale.setScalar(1), [scene]);
-
-  useCutFrame((t) => {
-    const s = live.seal;
-    const seal = scene.getObjectByName("seal");
-    const full = mode === "full";
-    g.current.visible = full;
-    w.current.visible = full;
+  useEffect(() => {
+    const s = st.current;
+    const place = PLACE_BY_ID["pr-mujoco-3396"];
+    s.banner = makeBanner({ logo: place?.logo, repos: "google-deepmind · mujoco #3396 · mujoco_warp #1541 · mujoco #3450" });
     if (!full) {
-      seal?.scale.setScalar(1);
+      s.banner.set("still");
+      return () => s.banner.dispose();
+    }
+    s.banner.set("slam");
+    s.island = islandList(scene);
+    const p = pupParts(scene);
+    s.pup = p;
+    if (p?.root) {
+      s.paint = pupCharcoal(p.root);
+      p.root.traverse((o) => {
+        if (o.isMesh) s.orders.push([o, o.renderOrder]);
+      });
+      // the outfit (a cap, here) is the head's scaled group: the crown takes its place
+      s.outfit = p.head?.children.find((c) => c.type === "Group" && Math.abs(c.scale.x - 1) > 1e-3) ?? null;
+      p.head?.add(k.crown);
+      k.crown.visible = false;
+    }
+    return () => {
+      s.banner.dispose();
+      for (const o of s.island) o.visible = true;
+      s.paint?.dispose();
+      for (const [o, r] of s.orders) o.renderOrder = r;
+      if (s.outfit) s.outfit.visible = true;
+      if (p?.root) p.root.scale.setScalar(1);
+      k.group.add(k.crown);
+      live.inStage = false;
+      clear.geometry.dispose();
+      clear.material.dispose();
+      dropKit();
+    };
+  }, [scene, gl, full, k, clear]);
+
+  // AFTER THE PUP IS PLACED (Seal.jsx, -1): its scale, its turn, its paint, its crown
+  useFrame((state) => {
+    const s = st.current;
+    const p = s.pup;
+    if (!full || !p?.root) return;
+    const a = live.arrival;
+    if (!a.id) {
+      p.root.scale.setScalar(1);
+      s.paint?.set(false);
+      k.crown.visible = false;
+      if (s.outfit) s.outfit.visible = true;
+      for (const [o, r] of s.orders) o.renderOrder = r;
       return;
     }
-    const a = turnFor(card, place, s.x, s.z);
-    g.current.position.set(s.x, 0, s.z);
-    g.current.rotation.y = a;
-    const ca = Math.cos(a);
-    const sa = Math.sin(a);
+    const t = state.clock.elapsedTime - a.start;
+    const on = t >= T.inside && t < T.burn[1];
+    p.root.scale.setScalar(pupScale(onTwos(t)));
+    if (t >= T.inside) p.root.rotation.y = pupYaw(t);
+    s.paint?.set(on && !s.free);
+    k.crown.visible = t >= T.inside && t < T.home[1];
+    if (s.outfit) s.outfit.visible = !k.crown.visible;
+    for (const [o, r] of s.orders) o.renderOrder = on ? 1005 + (r > 0 ? 1 : 0) : r;
+  }, -0.5);
+
+  // THE LENS, after CameraRig (0): the scene's own shots, cut in behind the impact frame, handed back at the end
+  useFrame((state) => {
+    const a = live.arrival;
+    if (!full || !a.id) return;
+    const t = state.clock.elapsedTime - a.start;
+    const w = (t >= T.inside ? 1 : 0) * (1 - smooth(T.home[0], T.home[1], t));
+    if (w <= 0) return;
+    const cam = state.camera;
+    lens(t, state.size.width < state.size.height, EYE, LOOK);
+    // the footfalls and the stomp shake the frame for two drawings each
+    const [since] = footfall(t);
+    const stomp = t - T.swell[1];
+    const amp = (since < 0.17 ? 0.07 : 0) + (stomp > 0 && stomp < 0.25 ? 0.22 : 0);
+    const odd = Math.floor(t * 12) % 2 ? 1 : -1;
+    EYE.x += live.seal.x + amp * odd;
+    EYE.y += amp * 0.6 * odd;
+    EYE.z += live.seal.z;
+    LOOK.x += live.seal.x;
+    LOOK.z += live.seal.z;
+    DIR.set(0, 0, -1).applyQuaternion(cam.quaternion);
+    RL.copy(cam.position).addScaledVector(DIR, 20);
+    cam.position.lerp(EYE, w);
+    RL.lerp(LOOK, w);
+    cam.lookAt(RL);
+    const fov = 35 + (FOV[state.size.width < state.size.height ? 1 : 0] - 35) * w;
+    if (Math.abs(cam.fov - fov) > 1e-3) {
+      cam.fov = fov;
+      cam.updateProjectionMatrix();
+    }
+    if (cam.far < 900) {
+      cam.far = 900;
+      cam.updateProjectionMatrix();
+    }
+  }, 0.5);
+
+  useCutFrame((t, state) => {
+    const s = st.current;
+    if (!full) return;
     const tt = onTwos(t);
-    const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
+    const g = k.group;
+    const up = t >= T.inside && t < T.burn[1];
+    g.visible = up;
+    clear.visible = up;
+    live.inStage = up;
+    s.banner.set(t >= tl.collapse[0] ? "out" : t >= T.burn[0] ? "home" : t >= T.dock ? "dock" : "slam");
+    g.position.set(live.seal.x, 0, live.seal.z);
 
-    // THE PUP: plants its flippers (crouch), swells with an overshoot, stomps, opens its mouth, shrinks back to a crouch, flips the cube, raises it
-    const up = smooth(T.swell, T.swell + 0.35, tt);
-    const over = up * (1 + 0.14 * Math.sin(Math.PI * Math.min(1, (tt - T.swell) / 0.5)) * (tt > T.swell ? 1 : 0));
-    const back = smooth(T.shrink, T.shrink + 0.4, tt);
-    const size = 1 + (SWELL - 1) * Math.max(0, over - back) * out;
-    seal?.scale.setScalar(size);
-    const plant = smooth(0.4, 0.9, tt) * (1 - smooth(1.15, 1.4, tt));
-    const stomp = tt > T.swell + 0.4 && tt < T.swell + 0.6 ? 1 : 0;
-    live.pose.crouch = Math.min(1, 0.7 * plant + 0.9 * smooth(T.shrink, T.shrink + 0.3, tt) * (1 - smooth(T.flip - 0.2, T.flip, tt)) + 0.7 * stomp) * out;
-    live.pose.raise = (0.7 * up * (1 - back) + 0.8 * smooth(T.flip, T.flip + 0.3, tt)) * out;
-    const open = smooth(T.drain - 0.2, T.drain + 0.1, tt) * (1 - smooth(T.drainEnd + 0.1, T.drainEnd + 0.3, tt));
-    live.pose.mouth = open * out;
+    // THE ISLAND: hidden while the drawing is up, brought back a slice a frame under it before it burns
+    if (up && !s.hidden) {
+      s.hidden = true;
+      for (const o of s.island) o.visible = false;
+    }
+    if (s.hidden && t >= T.restore[0]) {
+      const want = Math.ceil(s.island.length * Math.min(1, (t - T.restore[0]) / (T.restore[1] - T.restore[0])));
+      while (s.restored < want) s.island[s.restored++].visible = true;
+    }
+    if (!up) return;
 
-    // THE BLOCK of 1,282 cubes, draining top-down into the mouth in a spiral
-    const M = live.anchors.mouth;
-    const mx = ca * (M.x - s.x) - sa * (M.z - s.z);
-    const mz = sa * (M.x - s.x) + ca * (M.z - s.z);
-    const my = M.y;
-    const appear = smooth(1.2, 2.0, tt) * out;
-    for (let i = 0; i < FISH; i++) {
-      const [cx, cy, cz] = CELLS[i];
-      const ox = BLOCK_AT[0] + (cx - (NX - 1) / 2) * CUBE;
-      const oy = 0.1 + cy * CUBE + CUBE / 2;
-      const oz = BLOCK_AT[2] + (cz - (NZ - 1) / 2) * CUBE;
-      const d0 = T.drain + (1 - cy / (NY - 1)) * (T.drainEnd - T.drain - 0.7) + hash(i, 5) * 0.08; // top-down, a few at once
-      const u = (tt - d0) / 0.7;
-      if (u >= 1) {
-        put(f.block, i, 0, -9, 0, 0.0001);
+    // the shared inks: the stroke size, the clock, the burn
+    U.uPx.value = state.gl.getPixelRatio();
+    U.uTime.value = t;
+    state.gl.getDrawingBufferSize(RES);
+    U.uRes.value.copy(RES);
+    const burn = smooth(T.burn[0], T.burn[1], t);
+    U.uBurn.value = t >= T.burn[0] ? burn * 1.9 - 0.02 : -1;
+    V.set(live.seal.x, 4.5, live.seal.z + zF(0)).project(state.camera);
+    U.uBurnC.value.set((V.x * 0.5 + 0.5) * RES.x, (V.y * 0.5 + 0.5) * RES.y);
+    // the pup is the first thing the burn frees: back in its own colours when the ember edge passes it
+    A.set(live.seal.x, 0.6, live.seal.z).project(state.camera);
+    s.free = U.uBurn.value > 0 && Math.hypot((A.x * 0.5 + 0.5) * RES.x - U.uBurnC.value.x, (A.y * 0.5 + 0.5) * RES.y - U.uBurnC.value.y) / RES.y < U.uBurn.value;
+
+    const [since, falls] = footfall(t);
+    const quake = since < 0.25 ? 1 - since / 0.25 : 0;
+
+    // THE GROUND: the crack races to the Wall; the ice crust cracks a little more each footfall
+    const gu = k.ground.material.uniforms;
+    gu.uCrack.value = smooth(T.crack[0], T.crack[1], t);
+    gu.uIce.value = Math.min(1, falls * 0.09 + (t > T.swell[1] ? 0.35 : 0));
+    gu.uSea.value = smooth(T.shrink[0], T.gulls + 0.6, t); // the gap opens: the sea comes in blue
+    gu.uQuake.value = quake;
+
+    // THE FACES: they tremble and glow, then the skin splits off them and falls
+    k.faces.forEach((f, i) => {
+      const tr = smooth(T.tremble[0], T.tremble[1], t) * (t < SPLIT[i] ? 1 : 0);
+      f.position.set(tr * 0.08 * Math.sin(tt * 90 + i), tr * 0.05 * Math.cos(tt * 70 + i), 0);
+      const u = f.material.uniforms;
+      u.uBreak.value = Math.max(0, t - SPLIT[i]);
+      u.uGlow.value.setRGB(1, 0.5, 0.18);
+      u.uGlowK.value = tr * 0.3;
+    });
+    // their eyes: open, ember, steaming
+    FACES.forEach((f, i) => {
+      const open = smooth(SPLIT[i] + 0.1, SPLIT[i] + 0.4, tt);
+      const y = f.x === 0 ? 15.37 : 15.19;
+      for (const sg of [-1, 1]) put(k.eyes, i * 2 + (sg + 1) / 2, f.x + sg * 1.27, y, zF(f.x) - 1.05, 0.95, Math.max(0.001, 0.62 * open * (0.85 + 0.15 * Math.sin(t * 9 + i))), 0.25);
+    });
+    k.eyes.instanceMatrix.needsUpdate = true;
+    k.titanMat.uniforms.uRib.value = 0.75 * smooth(4.3, 5.2, t);
+
+    // THE SKIN: plate by plate from the crowned face outward; each tips out, falls and lies as rubble
+    let moved = false;
+    for (let i = 0; i < PLATES.length; i++) {
+      const p = PLATES[i];
+      const d = t - T.skin - p.delay;
+      if (d < 0 || s.plates[i] === 2) continue;
+      moved = true;
+      const y = p.y - 4.9 * d * d;
+      if (y < 0.6) {
+        s.plates[i] = 2;
+        put(k.plates, i, 0, -60, 0, 0.001);
+        const zl = p.z + 2.2 + 2 * p.seed;
+        put(k.rubble, i * 2, p.x - 0.6, 0.35, zl, 0.55 + 0.4 * p.seed, 0.4, 0.6, p.seed * 3, p.seed * 5, 0);
+        put(k.rubble, i * 2 + 1, p.x + 0.7, 0.3, zl + 0.8 * p.seed, 0.45, 0.35, 0.5, p.seed * 7, p.seed * 2, 0);
         continue;
       }
-      if (u <= 0) {
-        const k = CUBE * appear;
-        put(f.block, i, ox, oy, oz, k, k, k, 0, hash(i) * 0.15, 0);
+      put(k.plates, i, p.x + (p.seed - 0.5) * d * 2, y, p.z + 1.8 * d, 2.96, 2.46, 0.8, -d * (1.2 + p.seed), p.yaw, (p.seed - 0.5) * d);
+    }
+    if (moved) k.plates.instanceMatrix.needsUpdate = k.rubble.instanceMatrix.needsUpdate = true;
+
+    // THE MARCH: the seal-titans crest the horizon and come on, stepping on the beat
+    const rise = smooth(T.rise[0], T.rise[1], t);
+    for (const m of [k.marchNear, k.marchFar]) {
+      // once the copies are eaten the Rumbling has nothing to march for: it sinks away into its own steam
+      const gone = smooth(T.gulls - 0.4, T.gulls + 1.6, t);
+      m.position.set(0, -170 * (1 - rise) - 260 * gone, Math.max(0, t - T.rise[0]) * 4);
+      m.visible = rise > 0 && gone < 1;
+    }
+    for (const m of k.marchMats) m.uniforms.uStep.value = Math.max(0, (t - T.beat0) / T.beat);
+
+    // EREN: coat and hair whipping in the steam, on twos
+    k.coat.rotation.set(-(0.45 + 0.3 * Math.abs(Math.sin(tt * 7))), 0, 0.08 * Math.sin(tt * 11));
+
+    // THE BELL swings after each footfall; THE COLONY ducks at each, and cheers on twos once the Wall is open
+    k.bell.rotation.z = 0.45 * Math.exp(-since * 1.4) * Math.sin(since * 7) * (falls > 0 ? 1 : 0);
+    k.colonyAt.forEach((c, i) => {
+      const cheer = t > T.gulls ? Math.abs(Math.sin(tt * 9 + c.seed * 6)) * 0.5 : 0;
+      put(k.colony, i, c.x, c.y + cheer, c.z, 0.85, 0.85 * (1 - 0.45 * quake), 0.85, 0, c.yaw + (cheer > 0 ? Math.sin(tt * 5 + i) * 0.6 : 0), 0);
+    });
+    k.colony.instanceMatrix.needsUpdate = true;
+
+    // THE PENGUINS stampede across the square, waddling and belly-sliding; a few are tossed by a footfall (on twos)
+    if (Math.floor(t * 12) !== s.last) {
+      s.last = Math.floor(t * 12);
+      for (let i = 0; i < N.penguins; i++) {
+        const pg = k.penguin[i];
+        const age = tt - pg.t0;
+        const x = pg.x0 - pg.v * (pg.slide ? 1.6 : 1) * age;
+        if (age < 0 || x < -70) {
+          put(k.penguins, i, 0, -60, 0, 0.001);
+          continue;
+        }
+        let y = 0;
+        let spin = 0;
+        if (pg.toss && since < 1.1 && falls > 2) {
+          y = Math.max(0, 7 * since - 9 * since * since) * 1.3;
+          spin = since * 9;
+        }
+        const wob = Math.sin(age * 14 + pg.seed * 9);
+        if (pg.slide) put(k.penguins, i, x, y + 0.18, pg.lane, 1.25, 1.25, 1.25, -Math.PI / 2 + 0.15 + spin, -Math.PI / 2, 0);
+        else put(k.penguins, i, x, y + Math.abs(wob) * 0.06, pg.lane, 1.25, 1.25, 1.25, spin, -Math.PI / 2, wob * 0.28);
+      }
+      k.penguins.instanceMatrix.needsUpdate = true;
+    }
+
+    // THE BOLT strikes the pup: a jagged mesh, flickering on twos
+    const bolt = t >= T.bolt[0] && t < T.bolt[1] && Math.floor(t * 24) % 3 !== 1;
+    k.bolt.visible = k.boltGlow.visible = bolt;
+    if (bolt) {
+      const yaw = Math.atan2(state.camera.position.x - live.seal.x, state.camera.position.z - live.seal.z);
+      k.bolt.position.set(0.2, 0.6, 0);
+      k.bolt.scale.set(16, 75, 1);
+      k.bolt.rotation.set(0, yaw, 0);
+      k.boltGlow.position.copy(k.bolt.position);
+      k.boltGlow.scale.set(24, 75, 1);
+      k.boltGlow.rotation.copy(k.bolt.rotation);
+    }
+
+    // THE PUP: the opening sign, a crouch before the strike, the mouth open to eat, flippers up on the catch
+    const sc = pupScale(tt);
+    const yaw = pupYaw(t);
+    live.pose.sign = signAt(tl, t) * (1 - smooth(1.6, 2.0, t));
+    live.pose.crouch = smooth(6.4, 6.75, t) * (1 - smooth(T.swell[0], T.swell[1], t));
+    live.pose.mouth = smooth(T.eat[0] - 0.2, T.eat[0], t) * (1 - smooth(T.eat[1], T.eat[1] + 0.2, t));
+    live.pose.raise = smooth(T.flip[1] - 0.1, T.flip[1] + 0.15, t) * (1 - smooth(13.6, 14.0, t));
+    live.pose.fist = smooth(14.0, 14.3, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
+    // the steam off its shoulders while it is a titan
+    const sm = k.steam.material.uniforms;
+    sm.uClock.value = t;
+    sm.uPup.value.set(live.seal.x, 0, live.seal.z);
+    sm.uPupK.value = sc;
+    k.ash.material.uniforms.uClock.value = tt;
+
+    // THE BLOCK: eaten top course first, each cube spiralling into the open mouth
+    const ea = t - T.eat[0];
+    if (ea > 0 && ea < T.eat[1] - T.eat[0] + 1.2) {
+      mouth(B);
+      const per = (T.eat[1] - T.eat[0] - 0.9) / BLOCK.ny;
+      for (let i = 0; i < CELLS.length; i++) {
+        const [x, y, z, c] = CELLS[i];
+        const u = (ea - (BLOCK.ny - 1 - c) * per - hash(i, 7) * per * 0.9) / 0.9;
+        if (u <= 0) continue;
+        if (u >= 1) {
+          put(k.block, i, 0, -60, 0, 0.001);
+          continue;
+        }
+        const e = u * u * (3 - 2 * u);
+        const th = u * Math.PI * 4 + hash(i, 2) * 6;
+        const r = 3.2 * Math.sin(Math.PI * u) * (0.6 + 0.4 * hash(i, 3));
+        const sz = 0.7 * (1 - 0.8 * e);
+        put(k.block, i, x + (B.x - x) * e + Math.cos(th) * r, y + (B.y - y) * e + Math.sin(th) * r, z + (B.z - z) * e, sz, sz, sz, th, th * 0.7, 0);
+      }
+      k.block.instanceMatrix.needsUpdate = true;
+    }
+    // THE BLUE CUBE: on the cobbles at the block's foot, then onto the nose; flipped and caught on the flex
+    const fly = smooth(T.shrink[0], T.shrink[1], t);
+    nose(A);
+    A.y += 0.08; // on top of the nose
+    const fl = Math.min(1, Math.max(0, (t - T.flip[0]) / (T.flip[1] - T.flip[0])));
+    const hop = 0.7 * Math.sin(Math.PI * fl);
+    const size = 0.72 + (0.24 - 0.72) * fly;
+    k.blue.position.set(BLUE_AT[0] + (A.x - BLUE_AT[0]) * fly, BLUE_AT[1] + (A.y + size / 2 + hop - BLUE_AT[1]) * fly + 2.5 * Math.sin(Math.PI * fly), BLUE_AT[2] + (A.z - BLUE_AT[2]) * fly);
+    k.blue.rotation.set(fl * Math.PI * 4, yaw, 0);
+    k.blue.scale.setScalar(size);
+
+    // THE GULLS burst off the cliff on the last word of line B and wheel out over the sea
+    const ga = t - T.gulls;
+    for (let i = 0; i < N.gulls; i++) {
+      if (ga < 0) {
+        put(k.gulls, i, 0, -60, 0, 0.001);
         continue;
       }
-      const e = ease(u);
-      const px = ox + (mx - ox) * e;
-      const pz = oz + (mz - oz) * e;
-      const dx = mx - ox;
-      const dz = mz - oz;
-      const len = Math.hypot(dx, dz) || 1;
-      const th = u * Math.PI * 3 + hash(i, 6) * 6.28;
-      const r = (1 - u) * (0.7 + 0.5 * hash(i, 7)); // the swirl tightens as it nears the mouth
-      const py = oy + (my - oy) * e + Math.sin(th) * r;
-      const k = CUBE * (1 - 0.7 * u);
-      put(f.block, i, px + (-dz / len) * Math.cos(th) * r, py, pz + (dx / len) * Math.cos(th) * r, k, k, k, th, th * 0.7, 0);
+      const wheel = hash(i, 1) * Math.PI * 2 + ga * (0.6 + 0.3 * hash(i, 2));
+      const x = (hash(i, 3) - 0.5) * 14 + Math.cos(wheel) * (4 + ga * 1.2);
+      const z = -29 - ga * (4 + 3 * hash(i, 4)) + Math.sin(wheel) * (4 + ga * 1.2);
+      const y = 12 + 6 * hash(i, 5) + ga * 0.8 + Math.sin(ga * 2 + i) * 1.5;
+      const flap = Math.floor(t * 12 + i) % 2 ? 1 : -0.6;
+      put(k.gulls, i, x, y, z, 2.2, 2.2 * flap, 2.2, 0.15 * Math.sin(wheel), wheel + Math.PI / 2, -0.4);
     }
-    f.block.instanceMatrix.needsUpdate = true;
+    k.gulls.instanceMatrix.needsUpdate = true;
 
-    // the blue cube on the nose once the pup is pup-sized again, flipped and caught on the flex line
-    const N = live.anchors.nose;
-    const hop = tt > T.flip + 0.1 && tt < T.flip + 0.9 ? Math.sin(((tt - T.flip - 0.1) / 0.8) * Math.PI) : 0;
-    const show = smooth(T.drainEnd, T.drainEnd + 0.2, tt) * out;
-    cube.current.visible = show > 0.01 && tt > T.drainEnd;
-    cube.current.position.set(ca * (N.x - s.x) - sa * (N.z - s.z), N.y + 0.36 * Math.max(size, 1) + 0.9 * hop, sa * (N.x - s.x) + ca * (N.z - s.z));
-    cube.current.scale.setScalar(0.4 * show);
-    cube.current.rotation.set(0.6 * hop * 6.28, tt * 0.5, 0.2 * Math.sin(tt * 2));
-
-    // the ground cracks toward the cliff, orange light in it
-    const dir = [0.9, -0.43]; // toward the block, then the cliff
-    const grow = smooth(0.6, 1.5, tt) * out;
-    for (let i = 0; i < CRACK; i++) {
-      const u = (i + 0.5) / CRACK;
-      const x = dir[0] * (0.8 + u * 5.2 * grow) + (hash(i, 8) - 0.5) * 0.35;
-      const z = dir[1] * (0.8 + u * 5.2 * grow) + (hash(i, 9) - 0.5) * 0.35;
-      const len = 0.5 * (1 - 0.4 * u) * (u < grow ? 1 : 0) * grow;
-      const ang = Math.atan2(dir[0], dir[1]) + (hash(i, 10) - 0.5) * 1.1;
-      put(f.crack, i, x, 0.03, z, len, 1, 1.6, 0, ang + Math.PI / 2, 0);
-      put(f.crack, CRACK + i, x, 0.045, z, len * 0.9, 1, 0.6, 0, ang + Math.PI / 2, 0);
+    // where the bubbles' tails point: the crowned titan's mouth for line A, then the pup's
+    const at = (live.pupAt ??= { x: 0, y: 0, z: 0 });
+    if (t < tl.lineB) {
+      at.x = live.seal.x;
+      at.y = FACE_Y - 2.2;
+      at.z = live.seal.z + zF(0) - 1;
+    } else {
+      mouth(W);
+      at.x = live.seal.x + W.x;
+      at.y = W.y;
+      at.z = live.seal.z + W.z;
     }
-    f.crack.instanceMatrix.needsUpdate = true;
-
-    // the horizon march: colossal silhouettes in lockstep, bobbing on twos
-    const walk = smooth(2.1, 2.8, tt) * out;
-    for (let i = 0; i < MARCH; i++) {
-      const x = -26 + i * 2.8 + (hash(i) - 0.5) * 1.2;
-      const z = -24 - 6 * hash(i, 1);
-      const sc = (7 + 3 * hash(i, 2)) * walk;
-      put(f.march, i, x, Math.abs(Math.sin(tt * 2.4)) * 0.5 * sc * 0.08, z, sc, sc, sc, 0, 0.25, 0);
-    }
-    f.march.instanceMatrix.needsUpdate = true;
-
-    // snow puffs at the stomp
-    const sp = (tt - (T.swell + 0.4)) / 0.7;
-    for (let i = 0; i < 10; i++) {
-      const aa = (i / 10) * Math.PI * 2;
-      const rr = sp > 0 && sp < 1 ? 0.8 + 2.4 * sp : 0;
-      put(f.dust, i, Math.cos(aa) * rr, 0.2 + 0.5 * sp, Math.sin(aa) * rr, sp > 0 && sp < 1 ? 0.2 * (1 - sp) * Math.max(size, 1) : 0.0001);
-    }
-    f.dust.instanceMatrix.needsUpdate = true;
-
-    // the gulls burst off the cliff, flapping on twos, and wheel away over the camera
-    for (let i = 0; i < GULLS; i++) {
-      const u = (tt - (T.gulls + i * 0.07)) / 2.2;
-      if (u <= 0 || u >= 1) {
-        put(f.gulls, i, 0, -9, 0, 0.0001);
-        continue;
-      }
-      const ph = hash(i, 3) * 6.28;
-      const x = 2.7 + (hash(i, 4) - 0.5) * 3 + (-7 - 2.7) * u + 2 * Math.sin(u * 5 + ph);
-      const y = 6 + 8 * u + hash(i, 5) * 2;
-      const z = -5.1 + 17 * u;
-      put(f.gulls, i, x, y, z, 0.7, 1, 0.7, 0, 0.5, Math.sin(tt * 18 + ph) * 0.7);
-    }
-    f.gulls.instanceMatrix.needsUpdate = true;
-
-    // the cliff, world space: eyes open (lids rise), steam boils off the faces, plates fall
-    const open1 = smooth(2.0, 2.6, tt) * out;
-    for (let i = 0; i < EYES.length; i++) {
-      const e = EYES[i];
-      put(f.eyes, i, e.x, e.y, e.z + e.sz * 0.9, e.sx * 0.8, Math.max(e.sy * 0.8 * open1, 0.0001), e.sz * 0.5);
-    }
-    f.eyes.instanceMatrix.needsUpdate = true;
-    const boil = smooth(2.0, 2.5, tt) * out;
-    for (let i = 0; i < STEAM; i++) {
-      const face = i % 3;
-      const fx = EYES[face * 2].x + 1.72; // between the face's two eyes
-      const life = (tt * 0.4 + hash(i)) % 1;
-      const k = boil * Math.sin(life * Math.PI) * (0.5 + 0.7 * hash(i, 2));
-      put(f.steam, i, fx + (hash(i, 3) - 0.5) * 2.4, EYES[face * 2].y - 2.4 + life * 4.2, EYES[face * 2].z + 1.0 + hash(i, 4) * 0.8, k * 0.8);
-    }
-    f.steam.instanceMatrix.needsUpdate = true;
-    const fall = tt - 1.15;
-    for (let i = 0; i < PLATES; i++) {
-      const face = i % 3;
-      const x0 = EYES[face * 2].x + 0.86 + (hash(i, 1) - 0.5) * 5;
-      const y0 = EYES[face * 2].y + 1 + hash(i, 2) * 4;
-      const z0 = EYES[face * 2].z + 0.5;
-      const delay = hash(i, 3) * 0.7;
-      const tau = Math.max(0, fall - delay);
-      const y = Math.max(0.2, y0 - 4.9 * tau * tau);
-      const sz = (0.5 + 0.5 * hash(i, 4)) * (fall > 0 ? 1 : 0.0001) * out;
-      put(f.plates, i, x0, y, z0 + 0.4 * tau * hash(i, 6), sz, sz, sz, y > 0.2 ? tau * 2 * hash(i) : 0.2, hash(i, 7), y > 0.2 ? tau * hash(i, 8) : 0.1);
-    }
-    f.plates.instanceMatrix.needsUpdate = true;
   });
 
+  if (!full) return null;
   return (
     <>
-      <Stage {...cut} bare />
-      <Dome tl={tl} mode={mode} pal={PAL} />
-      <Motes mode={mode} tl={tl} n={130} span={[22, 9, 16]} center={[0, 0, -3]} dir={[0.25, -0.35, 0]} size={0.06} color={["#ffb36a", "#e87a30", "#f4d2b0"]} sway={0.4} />
-      <Speaker {...cut} />
-      <group ref={g} visible={false}>
-        <primitive object={f.block} />
-        <primitive object={f.crack} />
-        <primitive object={f.march} />
-        <primitive object={f.dust} />
-        <primitive object={f.gulls} />
-        <primitive ref={cube} object={noseCube} visible={false} />
-      </group>
-      <group ref={w} visible={false}>
-        <primitive object={f.eyes} />
-        <primitive object={f.steam} />
-        <primitive object={f.plates} />
-      </group>
+      <primitive object={clear} />
+      <primitive object={k.group} />
     </>
   );
 }
