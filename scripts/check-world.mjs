@@ -14,6 +14,7 @@ import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { tickSnack } from "../components/world/life/snack.js";
+import { CAR_BAYS, createCar, stepCar } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
 
@@ -329,6 +330,38 @@ assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
   for (let i = 0; i < 120 * 9; i++) step(null);
   assert.ok(!pen.gone && !pen.edible && pen.bumps === 0 && w.props.includes(pen), "the penguin did not respawn as a normal one");
   assert.ok(Math.hypot(pen.x - sn.x, pen.z - sn.z) >= 18, `respawned ${Math.hypot(pen.x - sn.x, pen.z - sn.z).toFixed(1)} m from the seal`);
+}
+
+// Highway cars: every car starts, and re-enters after each loop, from a bay of
+// the car park (never mid-road), pulls out and joins the ring, and its whole
+// path is continuous (no jump, no spin) and on the asphalt.
+{
+  const c = HIGHWAY.carPark;
+  const inPark = (x, z) => Math.abs(x - c.x) <= c.w / 2 && Math.abs(z - c.z) <= c.d / 2;
+  const r = HIGHWAY.roundabout;
+  const cars = CAR_BAYS.map((_, k) => createCar(k));
+  assert.ok(cars.length >= 4, `only ${cars.length} moving cars`);
+  const log = cars.map(() => ({ cycles: 0, ring: false, town: false, prev: "park" }));
+  for (const [k, car] of cars.entries()) assert.ok(inPark(car.x, car.z), `car ${k} spawns outside the car park at ${car.x}, ${car.z}`);
+  const dt = 1 / 60;
+  for (let i = 0; i < 60 * 150; i++) {
+    for (const [k, car] of cars.entries()) {
+      const { x, z, h } = car;
+      stepCar(car, dt, false);
+      const jump = Math.hypot(car.x - x, car.z - z);
+      assert.ok(jump < 8 * dt, `car ${k} jumped ${jump.toFixed(2)} m in one frame at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
+      const turn = Math.abs(Math.atan2(Math.sin(car.h - h), Math.cos(car.h - h)));
+      assert.ok(turn < 0.3, `car ${k} spun ${turn.toFixed(2)} rad in one frame at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
+      assert.ok(onHighway(car.x, car.z), `car ${k} left the asphalt at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
+      if (car.phase !== "drive") assert.ok(inPark(car.x, car.z), `car ${k} ${car.phase} outside the car park at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
+      const l = log[k];
+      if (Math.abs(Math.hypot(car.x - r.x, car.z - r.z) - r.radius) < 1.2) l.ring = true;
+      if (car.x > -14) l.town = true;
+      if (l.prev === "drive" && car.phase === "park") l.cycles++;
+      l.prev = car.phase;
+    }
+  }
+  log.forEach((l, k) => assert.ok(l.cycles >= 2 && l.ring && l.town, `car ${k} did not loop bay -> ring -> town -> bay (${JSON.stringify(l)})`));
 }
 
 // Throttle: set while input is held, cleared shortly after release.
