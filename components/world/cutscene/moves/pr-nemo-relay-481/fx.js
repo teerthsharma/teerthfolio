@@ -94,7 +94,7 @@ export function buildAura() {
 }
 
 // ----- the ki orbs -----
-export const ORB = { n: 9, launch: 3.55, gap: 0.3, fly: 0.55, colors: ["#ff3b3b", "#ffd23a", "#3aa0ff", "#ff4fc8", "#ff8a1f", "#39e08a"] };
+export const ORB = { n: 9, launch: 3.55, gap: 0.45, fly: 0.55, colors: ["#ff3b3b", "#ffd23a", "#3aa0ff", "#ff4fc8", "#ff8a1f", "#39e08a"] };
 export const passAt = (i) => ORB.launch + i * ORB.gap + ORB.fly;
 // where orb i crosses the pup's plane: behind it (higher) or in front (low), never over the face
 const PASSZ = [-0.95, 1.4, -1.1, 1.6, -0.8, 1.35, -1.0, 1.5, -0.9];

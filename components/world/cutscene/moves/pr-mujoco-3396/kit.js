@@ -47,7 +47,7 @@ import {
 export const N = { near: 26, far: 1560, penguins: 240, gulls: 14, colony: 24, steam: 260, ash: 320, prints: 9 };
 export const IDS = ["pr-mujoco-3396", "pr-mujoco-warp-1541", "pr-mujoco-3450"];
 export const FOUNDING = { x: -210, y: 150, z: -720, s: 300 };
-export const EREN = { x: 7, y: 20, s: 2.6 };
+export const EREN = { x: 3, y: 20, s: 4.2 };
 export const TOWER = { x: 10.5, z: -8.5 };
 
 const inst = (g, m, n) => {
@@ -106,13 +106,13 @@ function build() {
   for (let i = 0; i < FACES.length * 2; i++) put(eyes, i, 0, -60, 0, 0.001);
 
   // THE BLOCK: 1,282 coral fish-cubes, one instanced mesh; and the one blue cube
-  const block = add("block", inst(unitCube(), charcoal({ tone: 0.95, wash: 0, vertexColors: true, edge: 1.2 }), FISH));
+  const block = add("block", inst(unitCube(), charcoal({ tone: 0.95, wash: 0, keep: "#ff5a4a", keepK: 1.0, vertexColors: true, edge: 1.2 }), FISH));
   const coral = ["#ff8f7a", "#f6a08a", "#ff7d6b", "#ffa48e"].map((c) => new Color(c));
   CELLS.forEach(([x, y, z], i) => {
     put(block, i, x, y, z, 0.7);
     block.setColorAt(i, coral[Math.floor(hash(i, 3) * 4)]);
   });
-  add("blue", mesh(unitCube(), charcoal({ tone: 0.95, keep: "#3f86e8", keepK: 0.95, vertexColors: true, edge: 1.4 })));
+  add("blue", mesh(unitCube(), charcoal({ tone: 0.95, keep: "#2a52a8", keepK: 0.95, vertexColors: true, edge: 1.4 })));
 
   // THE DISTRICT
   const houses = add("houses", inst(unitBox(), charcoal({ tone: 0.88, wash: 0.1, vertexColors: true }), HOUSES.length));
@@ -143,9 +143,10 @@ function build() {
     const z = -41 - i * 3.3; // across the strip of plain, out to the sea
     put(prints, i, (i % 2 ? 2.2 : -2.2) + 3 * Math.sin(i * 0.4), 0.05, z, 1.9, 1, 1.9, 0, (hash(i, 3) - 0.5) * 0.4, 0);
   }
-  const marchMat = (lo) => charcoal({ tone: 0.36, wash: 0.2, vertexColors: true, rib: 0, skin: 0, march: true, haze: 0.55, rim: 0.9, edge: lo ? 0.4 : 1 });
-  const near = add("marchNear", inst(penguinGeometry().scale(1.25, 1.25, 1.25), marchMat(false), N.near));
-  const far = add("marchFar", inst(penguinGeometry().scale(1.25, 1.25, 1.25), marchMat(true), N.far));
+  const marchMat = (lo) => charcoal({ tone: 0.36, wash: 0.2, keep: "#b8452a", keepK: 0.8, vertexColors: true, rib: 0, skin: 0, march: true, haze: 0.55, rim: 0.9, edge: lo ? 0.4 : 1 });
+  const quad0 = new PlaneGeometry(1, 1);
+  const near = add("marchNear", inst(penguinGeometry().scale(2, 2, 2), marchMat(false), N.near));
+  const far = add("marchFar", inst(penguinGeometry().scale(2, 2, 2), marchMat(true), N.far));
   k.marchMats = [near.material, far.material];
   const layout = (m, n, d0, d1, rows) => {
     const phase = new Float32Array(n * 2);
@@ -163,6 +164,24 @@ function build() {
     m.geometry.setAttribute("aPhase", new InstancedBufferAttribute(phase, 2));
   };
   layout(near, N.near, 380, 380, 1);
+  // a pale steam column over every near titan, riding the march (child of the instanced mesh)
+  const colSrc = new Float32Array(N.near * 3 * 3);
+  const colLife = new Float32Array(N.near * 3 * 4);
+  for (let i = 0; i < N.near; i++) {
+    const a = -1.15 + (2.3 * (i + 0.3 * hash(i, 2))) / N.near;
+    const h = 380 * (0.42 + 0.06 * hash(i, 3));
+    for (let j = 0; j < 3; j++) {
+      const n = i * 3 + j;
+      colSrc.set([380 * Math.sin(a), h * (0.95 + 0.3 * j), -380 * Math.cos(a)], n * 3);
+      colLife.set([0, 3 + hash(n, 4), hash(n, 6), 0], n * 4);
+    }
+  }
+  const cols = inst(quad0, smudgeMaterial({ size: 14, tint: "#fff4ea", opacity: 0.6 }), N.near * 3);
+  cols.geometry.setAttribute("aSrc", new InstancedBufferAttribute(colSrc, 3));
+  cols.geometry.setAttribute("aLife", new InstancedBufferAttribute(colLife, 4));
+  cols.renderOrder = 1010;
+  near.add(cols);
+  k.cols = cols;
   layout(far, N.far, 420, 840, 39);
   const fo = add("founding", mesh(foundingSkeleton(), charcoal({ tone: 0.3, wash: 0.25, vertexColors: true, rim: 1.0, haze: 0.45 })));
   fo.position.set(FOUNDING.x, FOUNDING.y, FOUNDING.z);
@@ -170,10 +189,10 @@ function build() {
   fo.rotation.y = 0.5;
 
   // EREN on the crest, back to the lens; his coat
-  const eren = add("eren", mesh(erenGeometry(), charcoal({ tone: 0.32, wash: 0.1, vertexColors: true, rim: 1.4 })));
+  const eren = add("eren", mesh(erenGeometry(), charcoal({ tone: 0.55, keep: "#2f6b3a", keepK: 0.9, vertexColors: true, rim: 1.6 })));
   eren.position.set(EREN.x, EREN.y, zF(EREN.x) - 1.6);
   eren.scale.setScalar(EREN.s);
-  const coat = add("coat", mesh(coatGeometry(), charcoal({ tone: 0.3, wash: 0.1, vertexColors: true, rim: 1.4, side: DoubleSide })));
+  const coat = add("coat", mesh(coatGeometry(), charcoal({ tone: 0.55, keep: "#2f6b3a", keepK: 0.9, vertexColors: true, rim: 1.6, side: DoubleSide })));
   coat.position.set(EREN.x, EREN.y + 1.42 * EREN.s, zF(EREN.x) - 1.6);
   coat.scale.setScalar(EREN.s);
 

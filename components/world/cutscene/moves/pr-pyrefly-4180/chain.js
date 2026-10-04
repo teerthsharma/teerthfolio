@@ -36,7 +36,7 @@ function helix(out, from, to, R, Rz, turns, phase, zc, axis) {
   }
 }
 function designPath() {
-  const o = [[0.3, 0.8, -6.0], [1.8, 1.7, -5.0], [3.0, 1.0, -5.0]];
+  const o = [[0.3, 0.8, -6.0], [1.7, 0.35, -2.4], [1.9, 0.9, -4.2], [1.8, 1.7, -5.0], [3.0, 1.0, -5.0]];
   helix(o, [5.0, 0.9], [5.2, 3.6], 1.1, 1.3, 2.5, -Math.PI / 2, -8.5, "y"); // the hind leg
   helix(o, [8.0, 2.8], [8.5, 7.0], 1.3, 1.2, 2.5, -Math.PI / 2, -9.2, "y"); // the tails' root
   o.push([6.2, 6.4, -7.6]);
@@ -243,7 +243,7 @@ export function buildPlaque() {
 }
 
 // ---- FLYING THUNDER GOD: three three-pronged kunai (Minato's), yellow flash stars and lightning streaks -----------------
-export const KUNAI = [[-3.2, 0, -3.0], [3.4, 0, -4.4], [0.8, 0, -4.2]]; // the pup's rig frame (the pup at the origin)
+export const KUNAI = [[-3.6, 0, -0.8], [3.6, 0, -1.6], [0, 0, -3.0]]; // the pup's rig frame (the pup at the origin)
 export function buildFtg(mats) {
   const root = new Group();
   const mk = (geo, mat, vis = false) => {
@@ -255,9 +255,13 @@ export function buildFtg(mats) {
   };
   const kGeo = () =>
     merge([
-      card([[-0.2, 0], [0.4, 0.14], [1.0, 0], [0.4, -0.14]], { color: "#dfe8ff", depth: 0.05 }),
-      card([[0.3, 0.1], [0.62, 0.38], [0.55, 0.06]], { color: "#dfe8ff", depth: 0.05 }),
-      card([[0.3, -0.1], [0.62, -0.38], [0.55, -0.06]], { color: "#dfe8ff", depth: 0.05 }),
+      // a cream die-cut outline card under the steel blade, so it reads on the paper
+      card([[-0.24, 0], [0.4, 0.18], [1.04, 0], [0.4, -0.18]], { color: "#fff6dc", depth: 0.05, z: -0.04 }),
+      card([[0.26, 0.1], [0.62, 0.42], [0.59, 0.06]], { color: "#fff6dc", depth: 0.05, z: -0.04 }),
+      card([[0.26, -0.1], [0.62, -0.42], [0.59, -0.06]], { color: "#fff6dc", depth: 0.05, z: -0.04 }),
+      card([[-0.2, 0], [0.4, 0.14], [1.0, 0], [0.4, -0.14]], { color: "#2e3348", depth: 0.05 }),
+      card([[0.3, 0.1], [0.62, 0.38], [0.55, 0.06]], { color: "#2e3348", depth: 0.05 }),
+      card([[0.3, -0.1], [0.62, -0.38], [0.55, -0.06]], { color: "#2e3348", depth: 0.05 }),
       card(circle(-0.42, 0, 0.17, 10), { holes: [circle(-0.42, 0, 0.09, 8)], color: "#ffcf1f", depth: 0.05 }),
     ]);
   const aura = card(circle(0.3, 0, 0.75, 16), { color: "#ffe21a", depth: 0.02, z: -0.08 });

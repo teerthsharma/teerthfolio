@@ -41,8 +41,11 @@ export function sky() {
         // the low sun: a blaze through the haze and the steam
         tone += pow(s, 6.0) * 0.45 + pow(s, 60.0) * 0.6;
         // the AoT sunset: crimson overhead, amber to gold at the horizon, white steam, a light graphite over it
-        vec3 sk = mix(vec3(1.0, 0.62, 0.14), vec3(0.62, 0.06, 0.1), smoothstep(0.0, 0.5, h));
-        sk = mix(sk, vec3(0.22, 0.03, 0.08), smoothstep(0.45, 0.95, h));
+        // the painted apocalypse: vermilion and gold at the horizon, a lapis storm overhead with dark rolling cloud
+        vec3 sk = mix(vec3(0.95, 0.66, 0.2), vec3(0.78, 0.26, 0.12), smoothstep(0.0, 0.22, h));
+        sk = mix(sk, vec3(0.12, 0.2, 0.48), smoothstep(0.18, 0.7, h));
+        float storm = iNoise(vec2(az * 4.0 + uTime * 0.02, h * 7.0)) * 0.6 + iNoise(vec2(az * 11.0, h * 16.0)) * 0.4;
+        sk = mix(sk, sk * 0.4, smoothstep(0.45, 0.8, storm) * smoothstep(0.08, 0.45, h) * 0.85);
         sk += vec3(1.0, 0.55, 0.15) * (pow(s, 4.0) * 0.6 + pow(s, 40.0) * 0.8);
         sk = mix(sk, vec3(1.0, 0.97, 0.92) * (0.8 + 0.2 * billow), cols * 0.9);
         vec3 c = mix(sk, sk * 0.35, graphite(clamp(tone + 0.3, 0.0, 1.0)) * 0.35);
@@ -142,7 +145,7 @@ export function ground() {
           float s = pow(max(dot(normalize(vW - cameraPosition), uSun), 0.0), 20.0);
           tone = 0.48 + 0.25 * iNoise(vec2(p.x * 0.02, p.y * 0.2)) + s * 0.6;
           // charcoal grey water until the Wall opens; then the sea comes in, the one cold blue
-          keep = vec3(0.33, 0.52, 0.72);
+          keep = vec3(0.16, 0.32, 0.66);
           keepK = 0.9 * uSea;
           wash = 0.25 * (1.0 - uSea);
         }
