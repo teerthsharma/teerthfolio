@@ -908,11 +908,11 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
       last = b;
       seen.set(b, (seen.get(b) ?? 0) + 0.005);
     }
-    assert.deepEqual([...seen.keys()], [1, 2, 3, 4, 5, 6, 7, 8, 9], "every awakening beat plays, in order");
-    assert.ok(seen.get(7) >= 2.4, `the bubble gets ${seen.get(7).toFixed(2)} s, under 2.4 s`);
-    assert.ok(seen.get(8) >= 1.2, "the credit card holds at least 1.2 s");
+    assert.deepEqual([...seen.keys()], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "every awakening beat plays, in order");
+    assert.ok(seen.get(9) >= 2.4, `the bubble gets ${seen.get(9).toFixed(2)} s, under 2.4 s`);
+    assert.ok(seen.get(10) >= 1.2, "the credit card holds at least 1.2 s");
     assert.ok(awakeBeat(A.duration) === 0 && liftAt(A.duration) < 1e-6 && skyAt(A.duration) < 1e-6 && auraAt(A.duration) < 1e-3, "the awakening ends with the pup down and the sky clear");
-    assert.ok(liftAt(A.line[0]) > 60 && liftAt(A.circles[0]) < 1, "the pup flies high for the line and stays down for the eruption");
+    assert.ok(liftAt(A.line[0]) > 40 && liftAt(A.circles[0]) < 1, "the pup flies high for the line and stays down for the eruption");
     const show = JSON.parse(json);
     const c = awakeCredit();
     assert.ok(c.upstream === show.upstream.length && c.lab === show.lab.length && c.results.length >= 2, "the credit counts the showcase");

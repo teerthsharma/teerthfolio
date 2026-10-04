@@ -1,8 +1,8 @@
 "use client";
 
 // THE AWAKENING, on the page (lib/world/awakening.js): the comic-print layer
-// over the 3D scene. Two impact frames (the first ink and violet, the peak's
-// inverted to cream and ink), the one hand-lettered sound in the loop's
+// over the 3D scene. Three impact frames (ink and violet on the eruption and
+// the take-off, the peak's inverted to cream and ink), the one hand-lettered sound in the loop's
 // colour, the line in a cream bubble in the lower half with its tail on the
 // flying pup, and the credit card for the whole body of work. Stepped, on
 // twos, like the domain's layer it borrows its bubble from. ui.beat is the
@@ -104,9 +104,9 @@ export default function AwakeningLayer() {
   }, [mode]);
 
   if (!mode) return null;
-  const impact = !still && (beat === 2 || beat === 5);
-  const showLine = still ? beat > 0 : beat === 7;
-  const showCard = still ? beat > 0 : beat === 8;
+  const impact = !still && (beat === 2 || beat === 5 || beat === 7);
+  const showLine = still ? beat > 0 : beat === 9;
+  const showCard = still ? beat > 0 : beat === 10;
   return (
     <div className="domain awake" ref={wrap} data-beat={beat} style={{ "--accent": LOOP.color }} aria-live="polite">
       {impact ? (

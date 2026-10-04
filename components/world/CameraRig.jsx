@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { domainMode, domainView, viewAt } from "../../lib/world/domain";
-import { awakeMode, awakeView } from "../../lib/world/awakening";
+import { awakeFov, awakeMode, awakeView } from "../../lib/world/awakening";
 import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { MOTION } from "../../lib/world/motion";
 import { PLACE_BY_ID, SPAWN } from "../../lib/world/places";
@@ -135,6 +135,7 @@ export default function CameraRig() {
   const orbit = useRef(new Vector3());
   const radKicked = useRef(-100);
   const prevImpact = useRef(live.seal.impact);
+  const baseFov = useRef(null); // the lens the awakening's flight widens
 
   // The open building's panel: looked up by class each time `open` changes
   // (it mounts after the state change) and again on resize, retried for a
@@ -384,7 +385,14 @@ export default function CameraRig() {
     // hands back to the follow as the pup floats down. A skip cuts straight
     // back to the follow (nothing here is smoothed).
     let high = 0;
-    if (awakeMode(arrival.id) === "full") {
+    const awake = awakeMode(arrival.id) === "full";
+    baseFov.current ??= camera.fov;
+    const fov = awake ? awakeFov(t - arrival.start, baseFov.current) : baseFov.current;
+    if (camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+    if (awake) {
       const k = awakeView(t - arrival.start, seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y), seal.z, camera.aspect, DOM_EYE, DOM_LOOK);
       camera.position.lerp(DOM_EYE, k);
       lookAt.current.lerp(DOM_LOOK, k);
@@ -405,7 +413,7 @@ export default function CameraRig() {
         f.far = sceneFog.far;
       }
       // high over the island (the awakening's flight) the whole island must stay clear of the fog
-      const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull, high * 1.1);
+      const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull, high * 0.6);
       sceneFog.near = f.near + extra;
       sceneFog.far = f.far + extra;
       // Set, not ratcheted: a far plane that only grew (after one pulled-back

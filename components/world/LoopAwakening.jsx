@@ -7,9 +7,9 @@
 //            glowing shards (drawn first, behind the whole island)
 //   cracks   a disc on the water or snow under the pup: violet fissures
 //            racing out from it, over a halftone scorch
-//   aura     the torrent: a flame envelope of ink with violet outlines, a
-//            glow of streaks inside it, and a trail that hangs below the
-//            pup as it flies, like a comet's
+//   aura     the torrent: thirty cel-shaded flame tongues round the pup
+//            (instanced), black cores in violet with pale outlines; in
+//            flight they stream out below it like a comet's tail
 //   circles  four magic circles of original geometry (rings, a star polygon,
 //            runes of plain strokes), one instanced draw, wheeling on twos
 //   sparks   streaks of power rising through the torrent (instanced)
@@ -22,17 +22,19 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
-  AdditiveBlending, BackSide, CircleGeometry, Color, CustomBlending, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedBufferAttribute,
-  InstancedMesh, LatheGeometry, MeshBasicMaterial, Object3D, OctahedronGeometry, OneMinusSrcAlphaFactor, PlaneGeometry, ShaderMaterial,
-  SphereGeometry, SrcAlphaFactor, Vector2, Vector3,
+  AdditiveBlending, BackSide, CircleGeometry, Color, CustomBlending, DoubleSide, IcosahedronGeometry, InstancedBufferAttribute,
+  InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, OneMinusSrcAlphaFactor, PlaneGeometry, ShaderMaterial,
+  Euler, Quaternion, SphereGeometry, SrcAlphaFactor, Vector3,
 } from "three";
-import { AWAKE, auraAt, awakeMode, circleAt, crackAt, liftAt, skyAt } from "../../lib/world/awakening";
+import { AWAKE, auraAt, awakeMode, circleAt, crackAt, liftAt, onStage, skyAt } from "../../lib/world/awakening";
 import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { live } from "../../lib/world/store";
 
 const SPARKS = 140;
+const TONGUES = 30;
 const DEBRIS = 72;
-const CRACK_R = 16; // m
+const CRACK_R = 16; // m: the longest fissure
+const FLOOR_R = 70; // m: the stage's floor, fading into the sky's horizon
 const SKY_R = 200; // m: inside the camera's far plane
 const HORIZON = new Color("#2a1150");
 
@@ -95,13 +97,13 @@ function skyMaterial() {
         vec3 zen = vec3(0.02, 0.008, 0.05);
         vec3 hor = vec3(0.165, 0.067, 0.314);
         vec3 col = mix(hor, zen, smoothstep(-0.02, 0.55, h));
-        col = mix(col, vec3(0.03, 0.012, 0.07), smoothstep(0.0, -0.25, h));
         // the horizon glow, set as halftone
         float band = exp(-abs(h) * 9.0);
         col += halftone(band * 0.7) * vec3(0.32, 0.16, 0.6) * 0.35;
         // the fracture: cell edges on the sphere, spreading out from the rupture
         if (uFract > 0.001) {
-          vec3 p = d * 3.4;
+          // jagged seams: the cells' space is warped by noise
+          vec3 p = d * 3.0 + 0.16 * vec3(vnoise(d * 22.0), vnoise(d * 22.0 + 3.1), vnoise(d * 22.0 + 6.7)) - 0.08;
           vec3 i = floor(p);
           float f1 = 9.0, f2 = 9.0;
           float id = 0.0;
@@ -113,12 +115,15 @@ function skyMaterial() {
           }
           float e = f2 - f1;
           float reach = acos(clamp(dot(d, uRupture), -1.0, 1.0)) / 3.14159;
-          float open = smoothstep(reach, reach + 0.08, uFract * 1.15 + (id - 0.5) * 0.12);
+          float front = uFract * 0.62 + (id - 0.5) * 0.08; // it never cracks the whole dome
+          float open = smoothstep(reach, reach + 0.06, front);
+          // brightest at the rupture, fainter out toward the front
+          float near = open * (1.0 - 0.85 * clamp(reach / max(front, 0.01), 0.0, 1.0));
           float w = fwidth(e) * 1.2;
-          float crack = (1.0 - smoothstep(0.0, 0.02 + w, e)) * open;
-          float halo = exp(-e * 14.0) * open;
+          float crack = (1.0 - smoothstep(0.0, 0.006 + w, e)) * near;
+          float halo = exp(-e * 30.0) * near;
           float flick = 0.85 + 0.15 * hash2(vec2(floor(uTime * 12.0), id));
-          col += id * open * 0.07 * vec3(0.5, 0.35, 0.9);
+          col += id * open * 0.05 * vec3(0.5, 0.35, 0.9);
           col += halftone(halo * 0.8) * vec3(0.55, 0.28, 1.0) * 0.45 * flick;
           col = mix(col, vec3(0.93, 0.86, 1.0), crack * flick);
         }
@@ -127,26 +132,24 @@ function skyMaterial() {
   });
 }
 
-// The ground: fissures racing out from under the pup, branching, a white-hot
-// core in each and a violet glow, over a halftone scorch of ink.
+// The stage's floor: dark ground under the pup that fades into the sky's
+// horizon, a halftone pool of the aura's light, and fissures racing out from
+// under the pup, branching, a white-hot core in each and a violet glow.
 function crackMaterial() {
   const R = CRACK_R.toFixed(1);
   return new ShaderMaterial({
-    uniforms: { uCrack: { value: 0 }, uTime: { value: 0 }, uCell: { value: 6 }, uSeed: { value: 0 } },
-    transparent: true,
-    depthWrite: false,
-    polygonOffset: true,
-    polygonOffsetFactor: -2,
+    uniforms: { uCrack: { value: 0 }, uTime: { value: 0 }, uCell: { value: 6 }, uSeed: { value: 0 }, uPower: { value: 0 } },
     vertexShader: /* glsl */ `
       varying vec2 vP;
       void main() {
-        vP = position.xz * ${R};
+        vP = position.xz * ${FLOOR_R.toFixed(1)};
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: /* glsl */ `
       uniform float uCrack;
       uniform float uTime;
       uniform float uSeed;
+      uniform float uPower;
       varying vec2 vP;
       ${HALFTONE}
       ${NOISE}
@@ -182,97 +185,81 @@ function crackMaterial() {
         float line = (1.0 - smoothstep(width, width + aa, d)) * on;
         float glow = exp(-d * 4.0) * on;
         float flick = 0.8 + 0.2 * hash2(vec2(floor(uTime * 12.0), k));
-        // the scorch: ink under the pup, set as halftone dots at its edge
-        float scorch = (1.0 - smoothstep(0.0, 4.5, r)) * smoothstep(0.0, 0.3, uCrack);
-        float alpha = max(scorch * 0.75, halftone(scorch * 0.9) * 0.6);
-        vec3 col = vec3(0.05, 0.02, 0.1);
+        // the floor: near-black under the pup, into the horizon's violet far off
+        vec3 col = mix(vec3(0.075, 0.03, 0.15), vec3(0.165, 0.067, 0.314), smoothstep(8.0, ${(FLOOR_R * 0.85).toFixed(1)}, r));
+        // the aura's light on it, set as halftone round the pup
+        float pool = exp(-r * 0.32) * min(uPower, 1.2);
+        col += halftone(pool * 0.85) * vec3(0.42, 0.2, 0.85) * 0.5 + pool * vec3(0.12, 0.05, 0.25);
         float lit = max(line, halftone(glow * 0.7) * 0.85) * flick;
         col = mix(col, vec3(0.62, 0.32, 1.0), lit);
-        alpha = max(alpha, lit);
         col = mix(col, vec3(0.97, 0.92, 1.0), core * flick);
-        float edge = 1.0 - smoothstep(${(CRACK_R * 0.8).toFixed(1)}, ${R}, r);
-        gl_FragColor = vec4(pow(col, vec3(2.2)), alpha * edge);
+        gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
       }`,
   });
 }
 
-// The torrent. kind 0: the ink envelope (black, outlined in violet where its
-// tongues break up); kind 1: the glow inside it (violet-white streaks,
-// additive); kind 2: the comet trail below the flying pup. Positions on the
-// lathe are in metres; the trail's cylinder is unit length, stretched by uLen.
-function flameMaterial(kind) {
-  const dir = kind === 2 ? "+" : "-";
+// The torrent: flame tongues standing round the pup, each a flat cel-shaded
+// sprite turned to the lens (a pale outline, a violet fill with a halftone
+// sheen, a black core), swaying and flickering on twos. The ones on the
+// lens's side stay short, licking round the body, so the face stays clear.
+// In flight they turn over and stream out below the pup: the comet's tail.
+// aOff: the tongue's root about the pup; aT: width, height, seed, unused.
+function tongueMaterial() {
   return new ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uPower: { value: 0 }, uLen: { value: 1 }, uCell: { value: 6 } },
+    uniforms: { uTime: { value: 0 }, uPower: { value: 0 }, uDown: { value: 0 }, uLen: { value: 0 }, uCell: { value: 6 } },
     side: DoubleSide,
-    transparent: true,
-    depthWrite: false,
-    blending: kind === 1 ? AdditiveBlending : CustomBlending,
-    blendSrc: SrcAlphaFactor,
-    blendDst: OneMinusSrcAlphaFactor,
     vertexShader: /* glsl */ `
+      attribute vec3 aOff;
+      attribute vec4 aT;
       uniform float uTime;
       uniform float uPower;
+      uniform float uDown;
       uniform float uLen;
-      varying float vH;
-      varying float vHn;
-      varying vec2 vRing;
-      varying vec3 vN;
-      varying vec3 vV;
-      ${NOISE}
+      varying vec2 vUv;
+      varying float vSeed;
       void main() {
-        vec3 p = position;
-        float ang = atan(p.z, p.x);
-        ${kind === 2 ? "vH = -p.y * uLen; vHn = -p.y;" : "vH = p.y; vHn = clamp(p.y / 6.4, 0.0, 1.0);"}
-        vRing = vec2(cos(ang), sin(ang));
-        // the tongues lick out and up, more toward the tips
-        float n = vnoise(vec3(vRing * 1.6, vH * 0.7 ${dir} uTime * 3.0));
-        float push = 1.0 + (n - 0.4) * (0.15 + 0.5 * vHn) * uPower;
-        p.xz *= push * (0.35 + 0.65 * min(uPower, 1.0));
-        ${kind === 2 ? "" : "p.y *= 0.4 + 0.6 * min(uPower, 1.0) + 0.5 * max(uPower - 1.0, 0.0);"}
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        vV = normalize(-mv.xyz);
-        vN = normalize(normalMatrix * normal);
-        gl_Position = projectionMatrix * mv;
+        // in flight the roots draw in under the pup and the tail tapers
+        vec3 c = (modelMatrix * vec4(aOff * vec3(1.0 - 0.55 * uDown, 1.0, 1.0 - 0.55 * uDown), 1.0)).xyz;
+        vec3 toCam = cameraPosition - c;
+        vec2 tc = normalize(toCam.xz + 1e-4);
+        float front = dot(normalize(aOff.xz + 1e-4), tc);
+        float shortK = mix(1.0, 0.32, smoothstep(0.05, 0.65, front) * (1.0 - uDown));
+        float step12 = floor(uTime * 12.0);
+        float flick = 0.82 + 0.3 * fract(sin(step12 * 12.9898 + aT.z * 78.233) * 43758.5453);
+        float p = min(uPower, 1.35);
+        float h = aT.y * shortK * flick * p;
+        float centre = 1.0 - smoothstep(0.35, 0.8, length(aOff.xz));
+        h = mix(h, (0.8 + uLen * (0.2 + 0.8 * centre) * (0.5 + 0.5 * fract(aT.z * 7.31))) * min(p, 1.0), uDown);
+        float w = aT.x * (0.55 + 0.45 * min(p, 1.0)) * mix(1.0, 0.5, uDown);
+        vec3 right = normalize(vec3(toCam.z, 0.0, -toCam.x));
+        vec3 up = vec3(0.0, mix(1.0, -1.0, uDown), 0.0);
+        vec3 pos = c + right * position.x * w + up * position.y * h;
+        vUv = vec2(position.x + 0.5, position.y);
+        vSeed = aT.z;
+        gl_Position = projectionMatrix * viewMatrix * vec4(pos, 1.0);
       }`,
     fragmentShader: /* glsl */ `
       uniform float uTime;
-      uniform float uPower;
-      varying float vH;
-      varying float vHn;
-      varying vec2 vRing;
-      varying vec3 vN;
-      varying vec3 vV;
+      varying vec2 vUv;
+      varying float vSeed;
       ${HALFTONE}
-      ${NOISE}
       void main() {
-        float rim = 1.0 - abs(dot(normalize(vN), normalize(vV)));
-        float t = uTime;
-        ${kind === 1
-          ? `
-        float s = vnoise(vec3(vRing * 4.5, vH * 0.45 - t * 5.0));
-        float streak = smoothstep(0.62, 0.9, s);
-        float fade = (1.0 - smoothstep(0.35, 1.0, vHn)) * smoothstep(0.0, 0.08, vHn + 0.03);
-        float tone = streak * (0.35 + 0.65 * rim) * fade * min(uPower, 1.3);
-        vec3 col = mix(vec3(0.42, 0.18, 0.95), vec3(0.95, 0.9, 1.0), streak * rim);
-        gl_FragColor = vec4(pow(col * (tone + halftone(fade * rim * 0.45 * min(uPower, 1.0)) * 0.25), vec3(2.2)), 1.0);`
-          : `
-        float flow = fbm(vec3(vRing * 1.8, vH * 0.55 ${dir} t * 3.2));
-        // the envelope breaks into tongues toward its tips
-        float thr = 0.18 + 0.62 * vHn;
-        float body = flow + 0.35 - thr;
-        float mask = smoothstep(0.0, 0.03, body);
-        float outline = mask * (1.0 - smoothstep(0.03, 0.09, body));
-        float inner = mask * (1.0 - smoothstep(0.09, 0.13, body)) * (1.0 - outline);
-        vec3 col = vec3(0.035, 0.012, 0.08);
-        col = mix(col, vec3(0.38, 0.14, 0.78), inner * 0.8);
-        col = mix(col, vec3(0.78, 0.55, 1.0), outline);
-        // a halftone violet sheen where the envelope turns from the lens
-        col += halftone(rim * rim * 0.6) * vec3(0.3, 0.12, 0.62) * mask * 0.5;
-        // seen face-on the ink thins, so the pup shows through its middle
-        float vis = mix(0.2, 1.0, pow(rim, 1.2));
-        ${kind === 2 ? "vis *= 1.0 - smoothstep(0.35, 1.0, vHn);" : ""}
-        gl_FragColor = vec4(pow(col, vec3(2.2)), mask * max(vis, outline) * min(uPower, 1.0));`}
+        float y = vUv.y;
+        float t = floor(uTime * 12.0) / 12.0;
+        // the spine sways, more toward the tip; the edge flickers
+        float x = vUv.x - 0.5 - 0.16 * y * sin(y * 5.0 - t * 9.0 + vSeed * 20.0);
+        float wv = 0.5 * pow(1.0 - y, 0.8) * smoothstep(-0.04, 0.16, y);
+        wv *= 0.86 + 0.14 * sin(y * 13.0 + t * 15.0 + vSeed * 9.0);
+        float d = abs(x) - wv;
+        if (d > 0.0) discard;
+        float aa = fwidth(d) * 1.2;
+        float inside = -d;
+        float cw = wv * 0.55;
+        float core = (1.0 - smoothstep(cw - aa, cw + aa, abs(x + 0.05 * sin(y * 9.0 + vSeed * 5.0)))) * (1.0 - smoothstep(0.35, 0.8, y));
+        vec3 col = mix(vec3(0.36, 0.12, 0.76), vec3(0.03, 0.008, 0.06), core);
+        col += halftone((1.0 - core) * 0.5) * vec3(0.32, 0.13, 0.62) * 0.5 * (1.0 - core);
+        col = mix(col, vec3(0.88, 0.75, 1.0), 1.0 - smoothstep(0.035, 0.035 + aa, inside));
+        gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
       }`,
   });
 }
@@ -351,7 +338,7 @@ function circleMaterial() {
       }
       float ink(vec2 p, float s, out float glow) {
         float d = circle(p, s);
-        float w = 0.0065;
+        float w = 0.009;
         float aa = fwidth(d) * 1.1;
         glow = exp(-d * 38.0);
         return 1.0 - smoothstep(w, w + aa, d);
@@ -407,12 +394,19 @@ function debrisMaterial() {
 function build() {
   let seed = 11;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  // the flame's profile (radius, height) in metres round a pup about 1 m long
-  const profile = [
-    [0.5, -0.25], [1.0, 0.15], [1.22, 0.7], [1.12, 1.4], [0.85, 2.3], [0.55, 3.4], [0.3, 4.7], [0.12, 5.8], [0.02, 6.4],
-  ].map(([x, y]) => new Vector2(x, y));
-  const lathe = new LatheGeometry(profile, 40);
-  const trail = new CylinderGeometry(1, 0.06, 1, 28, 10, true).translate(0, -0.5, 0);
+  // the tongues: a ring round a pup about 1 m long, roots just under its belly
+  const tongues = new InstancedMesh(new PlaneGeometry(1, 1, 1, 6).translate(0, 0.5, 0), tongueMaterial(), TONGUES);
+  const off = new Float32Array(TONGUES * 3);
+  const tt = new Float32Array(TONGUES * 4);
+  for (let i = 0; i < TONGUES; i++) {
+    const a = (i / TONGUES) * Math.PI * 2 + (rand() - 0.5) * 0.3;
+    const r = 0.38 + 0.4 * rand();
+    off.set([Math.cos(a) * r, -0.25 + 0.4 * rand(), Math.sin(a) * r * 1.25], i * 3);
+    tt.set([0.45 + 0.4 * rand(), 1.5 + 2.4 * rand() ** 1.5, rand(), 0], i * 4);
+  }
+  tongues.geometry.setAttribute("aOff", new InstancedBufferAttribute(off, 3));
+  tongues.geometry.setAttribute("aT", new InstancedBufferAttribute(tt, 4));
+  tongues.frustumCulled = false;
 
   const circles = new InstancedMesh(new PlaneGeometry(2, 2, 1, 1).rotateX(-Math.PI / 2), circleMaterial(), 4);
   const data = new Float32Array(16);
@@ -442,9 +436,10 @@ function build() {
     const kind = i % 3; // rock, ice, snow
     debris.setColorAt(i, kind === 0 ? rock : kind === 1 ? ice : snow);
     debrisSeed.push({
-      a: rand() * Math.PI * 2,
-      r: 1.8 + 8.5 * rand() ** 0.8,
-      size: kind === 2 ? 0.05 + 0.06 * rand() : 0.08 + 0.3 * rand() ** 2,
+      // all round the pup but the side the lens stands on (about +z), so no chunk fills the frame
+      a: 2.2 + (Math.PI * 2 - 2.0) * rand(),
+      r: 1.8 + 6 * rand() ** 0.8,
+      size: kind === 2 ? 0.04 + 0.05 * rand() : 0.06 + 0.2 * rand() ** 2,
       h: 0.6 + 4.2 * rand() ** 1.6,
       delay: 0.1 + 1.2 * rand(),
       spin: new Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize(),
@@ -457,13 +452,9 @@ function build() {
   return {
     sky: new SphereGeometry(1, 48, 24),
     skyMat: skyMaterial(),
-    crack: new CircleGeometry(1, 72).rotateX(-Math.PI / 2),
+    crack: new CircleGeometry(1, 96).rotateX(-Math.PI / 2),
     crackMat: crackMaterial(),
-    lathe,
-    inkMat: flameMaterial(0),
-    glowMat: flameMaterial(1),
-    trail,
-    trailMat: flameMaterial(2),
+    tongues,
     circles,
     sparks,
     sparkSeed,
@@ -476,12 +467,15 @@ function build() {
 // the pup, smaller as it climbs. [radius, height over the pup, tilt, spin rad/s]
 const CIRCLES = [
   [4.4, 0, 0, 0.22],
-  [2.3, 0.12, 0.1, -0.6],
-  [1.65, 1.75, -0.08, 0.9],
-  [1.1, 3.0, 0.05, -1.3],
+  [2.3, 0.12, 0.36, -0.6],
+  [1.65, 1.75, 0.46, 0.9],
+  [1.1, 3.0, 0.52, -1.3],
 ];
 
 const O = new Object3D();
+const E = new Euler();
+const SPIN = new Quaternion();
+const UP = new Vector3(0, 1, 0);
 
 export default function LoopAwakening() {
   const scene = useThree((s) => s.scene);
@@ -490,8 +484,26 @@ export default function LoopAwakening() {
   const sky = useRef();
   const crack = useRef();
   const aura = useRef();
-  const trail = useRef();
   const world = useRef({ on: false, lights: [], fog: new Color(), seed: 0, hit: 0, start: -1 });
+  const hidden = useRef({ on: false, list: [] });
+
+  // On the stage the island is switched off (its top-level objects hidden,
+  // the lights kept), the way the Aether domain does it.
+  const hideWorld = (on) => {
+    const h = hidden.current;
+    if (on === h.on) return;
+    h.on = on;
+    if (on) {
+      for (const o of scene.children) {
+        if (o === root.current || o.name === "seal" || o.isLight || !o.visible) continue;
+        o.visible = false;
+        h.list.push(o);
+      }
+    } else {
+      for (const o of h.list) o.visible = true;
+      h.list.length = 0;
+    }
+  };
 
   // Dim the island's lights and give its fog the sky's colour while the sky
   // is dark; everything is put back the frame the scene ends.
@@ -512,15 +524,16 @@ export default function LoopAwakening() {
       if (scene.fog) scene.fog.color.copy(w.fog);
       return;
     }
-    for (const [l, i] of w.lights) l.intensity = i * (1 - 0.5 * k);
+    for (const [l, i] of w.lights) l.intensity = i * (1 - 0.6 * k);
     if (scene.fog) scene.fog.color.copy(w.fog).lerp(HORIZON, k);
   };
 
   useEffect(
     () => () => {
       dimWorld(0);
+      hideWorld(false);
       for (const v of Object.values(kit)) if (v?.dispose) v.dispose();
-      for (const m of [kit.circles, kit.sparks, kit.debris]) {
+      for (const m of [kit.tongues, kit.circles, kit.sparks, kit.debris]) {
         m.geometry.dispose();
         m.material.dispose();
       }
@@ -536,6 +549,7 @@ export default function LoopAwakening() {
       if (g.visible) {
         g.visible = false;
         dimWorld(0);
+        hideWorld(false);
       }
       live.awake.on = false;
       return;
@@ -547,6 +561,8 @@ export default function LoopAwakening() {
     const ground = Math.max(heightAt(s.x, s.z), WATER_Y);
     const lift = liftAt(t);
     const qy = ground + lift;
+    const stage = onStage(t);
+    hideWorld(stage);
     live.awake.on = true;
     live.awake.x = s.x;
     live.awake.y = qy + 1.05; // its mouth, for the bubble's tail
@@ -564,7 +580,7 @@ export default function LoopAwakening() {
     const cell = 6 * state.gl.getPixelRatio();
     const power = auraAt(t);
     const dark = skyAt(t);
-    dimWorld(dark);
+    dimWorld(dark * (stage ? 0.25 : 1)); // on the stage only the pup is lit: keep it bright
 
     // the sky, round the camera
     sky.current.position.copy(state.camera.position);
@@ -587,31 +603,32 @@ export default function LoopAwakening() {
       world.current.seed = arrival.start;
       cu.uSeed.value = (arrival.start * 7.31) % 1;
     }
-    crack.current.position.set(s.x, ground + 0.03, s.z);
-    crack.current.visible = cu.uCrack.value > 0.002;
+    cu.uPower.value = auraAt(t);
+    crack.current.position.set(s.x, ground, s.z);
+    crack.current.visible = stage;
 
-    // the torrent: on the pup; the trail hangs below it in flight
-    aura.current.position.set(s.x, qy - 0.1, s.z);
+    // the torrent: on the pup; in flight it streams out below as the tail
+    const len = Math.min(11, Math.max(0, lift - 0.8) * 0.4);
+    const flying = smooth(AWAKE.rise[0] + 0.05, AWAKE.rise[0] + 0.45, t) * (1 - smooth(AWAKE.descend[0] + 0.6, AWAKE.descend[1], t));
+    aura.current.position.set(s.x, qy, s.z);
     aura.current.visible = power > 0.002;
-    const len = Math.min(42, Math.max(0, lift - 0.8) * 0.75);
-    for (const m of [kit.inkMat, kit.glowMat, kit.trailMat]) {
-      m.uniforms.uTime.value = tt;
-      m.uniforms.uPower.value = power;
-      m.uniforms.uCell.value = cell;
-    }
-    trail.current.visible = len > 0.4 && power > 0.01;
-    trail.current.position.set(s.x, qy + 0.6, s.z);
-    trail.current.scale.set(1.15, Math.max(len, 0.01), 1.15);
-    kit.trailMat.uniforms.uLen.value = len;
+    const tu = kit.tongues.material.uniforms;
+    tu.uTime.value = tt;
+    tu.uPower.value = power;
+    tu.uDown.value = flying;
+    tu.uLen.value = len;
+    tu.uCell.value = cell;
 
     // the circles, wheeling on twos; misregistered on the peaks
     const data = kit.circles.geometry.attributes.aData;
+    const camAz = Math.atan2(state.camera.position.x - s.x, state.camera.position.z - s.z);
     const mis = Math.exp(-((t - AWAKE.impactB) ** 2) / 0.05) + 0.7 * Math.exp(-((t - AWAKE.circles[0]) ** 2) / 0.02);
     for (let i = 0; i < 4; i++) {
       const [r, h, tilt, spin] = CIRCLES[i];
       const k = circleAt(t, i);
       O.position.set(s.x, i === 0 ? ground + 0.06 : qy + h, s.z);
-      O.rotation.set(tilt, spin * tt, tilt * 0.6);
+      // tipped toward the lens so the runes read, wheeling in their own plane
+      O.quaternion.setFromEuler(E.set(tilt, camAz, 0, "YXZ")).multiply(SPIN.setFromAxisAngle(UP, spin * tt));
       O.scale.setScalar(Math.max(k, 0.001) * r);
       O.updateMatrix();
       kit.circles.setMatrixAt(i, O.matrix);
@@ -622,8 +639,7 @@ export default function LoopAwakening() {
     kit.circles.instanceMatrix.needsUpdate = true;
     kit.circles.material.uniforms.uCell.value = cell;
 
-    // sparks: streaks rising through the torrent, or falling away down the trail
-    const flying = smooth(AWAKE.rise[0], AWAKE.rise[0] + 0.5, t);
+    // sparks: streaks rising through the torrent, or falling away down the tail
     const sparkK = power > 0.02 ? Math.min(1.2, power) : 0;
     for (let i = 0; i < SPARKS; i++) {
       const [a, r, ph, sp] = kit.sparkSeed[i];
@@ -631,8 +647,8 @@ export default function LoopAwakening() {
       const rr = r * (0.7 + 0.5 * Math.min(power, 1.2)) * (1 - 0.6 * u * (1 - flying));
       const y = flying > 0.5 ? qy + 1.2 - u * Math.max(len, 5) : ground + 0.1 + u * 6.2 * Math.min(power, 1.2);
       O.position.set(s.x + Math.cos(a + u * 1.5) * rr, y, s.z + Math.sin(a + u * 1.5) * rr);
-      O.rotation.set(0, 0, 0);
-      O.scale.set(1, (0.6 + 1.4 * flying) * (1 - u * 0.5), 1).multiplyScalar(sparkK);
+      O.quaternion.identity();
+      O.scale.set(1, (0.6 + 0.5 * flying) * (1 - u * 0.5), 1).multiplyScalar(sparkK * (1 - 0.45 * flying));
       O.updateMatrix();
       kit.sparks.setMatrixAt(i, O.matrix);
     }
@@ -659,12 +675,8 @@ export default function LoopAwakening() {
   return (
     <group ref={root} visible={false}>
       <mesh ref={sky} geometry={kit.sky} material={kit.skyMat} renderOrder={-10} frustumCulled={false} />
-      <mesh ref={crack} geometry={kit.crack} material={kit.crackMat} scale={CRACK_R} renderOrder={2} />
-      <group ref={aura}>
-        <mesh geometry={kit.lathe} material={kit.glowMat} scale={0.72} renderOrder={6} frustumCulled={false} />
-        <mesh geometry={kit.lathe} material={kit.inkMat} renderOrder={7} frustumCulled={false} />
-      </group>
-      <mesh ref={trail} geometry={kit.trail} material={kit.trailMat} renderOrder={6} frustumCulled={false} />
+      <mesh ref={crack} geometry={kit.crack} material={kit.crackMat} scale={FLOOR_R} renderOrder={-9} />
+      <primitive object={kit.tongues} ref={aura} renderOrder={4} />
       <primitive object={kit.circles} renderOrder={5} />
       <primitive object={kit.sparks} renderOrder={8} />
       <primitive object={kit.debris} />
