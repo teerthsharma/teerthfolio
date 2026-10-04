@@ -395,7 +395,7 @@ export default function SealD({ pose, near, drive, headRef }) {
       f.absorbFlash = Math.max(0, f.absorbFlash - dt / 0.35);
     }
     // A tint, not a lamp: a white pup at 0.22 read as a coloured blob.
-    mats.coat.emissiveIntensity = Math.max(hereDistrict ? 0.06 : 0, 0.35 * f.absorbFlash);
+    mats.coat.emissiveIntensity = cut ? 0 : Math.max(hereDistrict ? 0.06 : 0, 0.35 * f.absorbFlash); // no place tint on the pup inside a scene
 
     // Face. Blinks close fast and open a little slower; every fourth blink
     // while it rests is a slow, content one. A hard bump squeezes them shut,
@@ -410,8 +410,9 @@ export default function SealD({ pose, near, drive, headRef }) {
     const sitShut = cut && P.eyes > 0.5 ? P.blink : sit;
     let target = force === "blink" ? 1 : Math.max(d.blink, smooth(0.4, 0.6, sq), sitShut);
     if (t < f.hold) target = 1;
+    if (cut) target = P.blink; // a scene's pup is awake: eyes open for the whole move, never a nap, unless its move blinks (live.pose.blink)
     f.shut += (target - f.shut) * damp(target > f.shut ? (slow ? 14 : 45) : slow ? 4 : 11, dt);
-    const squint = force === "happy" ? 1 : Math.max(smooth(0.3, 0.55, d.happy), smooth(0.1, 0.25, squish), smooth(0.3, 0.55, f.districtFlash), flying ? 1 : 0);
+    const squint = cut ? 0 : force === "happy" ? 1 : Math.max(smooth(0.3, 0.55, d.happy), smooth(0.1, 0.25, squish), smooth(0.3, 0.55, f.districtFlash), flying ? 1 : 0);
     const happy = squint > 0.5;
     const closed = !happy && f.shut > 0.55;
     eyes.current.visible = !happy && !closed;

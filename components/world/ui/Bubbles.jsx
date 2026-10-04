@@ -145,7 +145,7 @@ export default function Bubbles() {
     if (!cam || !wrap.current || !cut) return;
     const s = live.seal;
     for (const el of wrap.current.querySelectorAll(".bubble")) {
-      anchorFor(el.dataset.who, cut.card, cut.place, s.x, s.z, V).project(cam);
+      anchorFor(el.dataset.who, cut.card, cut.place, s.x, s.z, V, el.dataset.slot, live.pupAt).project(cam);
       place(el, (V.x * 0.5 + 0.5) * innerWidth, (0.5 - V.y * 0.5) * innerHeight, el.dataset.slot, still);
     }
     if (ring.current) {
