@@ -41,6 +41,11 @@ export function giorno(parts, fres, goldMat) {
   hair.add(hm);
   const braid = new Mesh(giornoBraid(), fres);
   hair.add(braid);
+  // the gold pompadour on the crown, tilted forward, and three front ringlets over the brow
+  const GOLD = "#f5c518";
+  const pomp = P(new SphereGeometry(1, 14, 10).scale(0.42, 0.22, 0.36).rotateX(0.35).translate(0, 0.52, 0.12), GOLD);
+  const ring = (x) => P(new TorusGeometry(0.07, 0.025, 6, 12, Math.PI * 1.6).translate(x, 0.34, 0.5), GOLD);
+  hair.add(new Mesh(merge([pomp, ring(-0.16), ring(0), ring(0.16)]), fres));
   for (const g of [hair, jacket]) {
     g.traverse((o) => {
       if (o.isMesh) o.castShadow = false;

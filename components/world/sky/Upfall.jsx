@@ -210,8 +210,8 @@ export default function Upfall() {
       euler.set(lift * FACE + lift * 0.22 * Math.sin(1.3 * a + f.phase), f.spin + f.turn * a, lift * 0.3 * Math.sin(0.9 * a + 2 * f.phase));
       dummy.quaternion.setFromEuler(euler);
       dummy.position.set(x, y, z);
-      // a cutscene's lens sits among the flakes: one within 6 m of it is hidden, never over the pup or the bubbles
-      if (live.arrival.id && Math.hypot(x - camera.position.x, y - camera.position.y, z - camera.position.z) < 6) size = 0;
+      // a cutscene's lens sits among the flakes: one within 15 m of it is hidden, never over the pup or the bubbles
+      if (live.arrival.id && Math.hypot(x - camera.position.x, y - camera.position.y, z - camera.position.z) < 15) size = 0;
       dummy.scale.setScalar(size);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);

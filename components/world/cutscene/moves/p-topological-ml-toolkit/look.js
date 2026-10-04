@@ -36,6 +36,7 @@ function hairGeometry() {
   // all within a hand's width of the midline, so nothing reads as an ear
   let i = 0;
   for (const [y, z, n, len, spread, r, lift] of [
+    [0.5, 0.05, 7, 0.75, 0.34, 0.1, 1.5],
     [0.4, -0.12, 5, 0.9, 0.2, 0.09, 1.0],
     [0.34, -0.28, 6, 1.25, 0.28, 0.1, 0.85],
     [0.22, -0.44, 5, 1.0, 0.26, 0.085, 0.5],
