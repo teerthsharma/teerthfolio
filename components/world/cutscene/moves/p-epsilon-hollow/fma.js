@@ -102,7 +102,7 @@ const glowMat = (color) =>
 // the plaza: concentric bands of sunset stone with dark joints, and a ring of purple pillars at the rim
 export function plaza(mat) {
   const L = layer();
-  const bands = ["#e8863a", "#c9482b", "#f5b44e", "#d9622f", "#ffc86a", "#b83a2c"];
+  const bands = ["#d9561f", "#a82a3a", "#f08a24", "#c23a2a", "#e86a1a", "#8e2a4a"];
   for (let i = 0; i < 6; i++) L.add(ringShape(Math.max(0.4, 30 - (i + 1) * 5), 30 - i * 5 + 0.02, 0.1, 48).rotateX(-Math.PI / 2), bands[i], {});
   for (let k = 0; k < 24; k++) L.add(new BoxGeometry(0.06, 0.12, 29).translate(0, 0.05, 14.5), "#7a1f2a", {}, 0, 0.02, 0, (k / 24) * Math.PI * 2);
   for (let k = 0; k < 9; k++) {
@@ -141,11 +141,12 @@ export function circle(mat) {
   const m = mesh(mat, L.build());
   m.rotation.x = -Math.PI / 2;
   spin.add(m);
+  spin.position.y = 0.16;
   root.add(spin);
   const gm = glowMat("#1d6cff");
   const glow = new Mesh(new CircleGeometry(9, 40), gm);
   glow.rotation.x = -Math.PI / 2;
-  glow.position.y = 0.03;
+  glow.position.y = 0.2;
   glow.frustumCulled = false;
   root.add(glow);
   root.visible = false;
