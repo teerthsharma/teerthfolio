@@ -55,14 +55,14 @@ const FRAG = /* glsl */ `
     if (!gl_FrontFacing) n = -n;
     float d = dot(n, uKey);
     vec3 base = vC * uTint;
-    float band = d > 0.3 ? 1.0 : d > -0.2 ? 0.66 : 0.38;
+    float band = d > 0.3 ? 1.25 : d > -0.2 ? 0.92 : 0.62; // brighter cel bands: the hall read near-black
     vec3 col = base * band;
     // screen-space cross-hatching in the shadows (diagonal lines, a second set across them in the deepest band)
     vec2 fc = gl_FragCoord.xy;
     float h1 = step(0.55, fract((fc.x + fc.y) / 6.0));
     float h2 = step(0.55, fract((fc.x - fc.y) / 6.0));
-    if (band < 0.5) col = mix(col, uInk, max(h1, h2) * 0.85);
-    else if (band < 0.8) col = mix(col, uInk, h1 * 0.5);
+    if (band < 0.7) col = mix(col, uInk, max(h1, h2) * 0.5);
+    else if (band < 1.0) col = mix(col, uInk, h1 * 0.25);
     vec3 v = normalize(cameraPosition - vW);
     float rim = step(0.78, 1.0 - abs(dot(n, v))) * step(-0.2, d);
     col = mix(col, uRim, rim * 0.75);
