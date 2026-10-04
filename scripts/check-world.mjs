@@ -1,7 +1,7 @@
 // The rules the island has to keep, checked against the real motion code.
 // Run: npm run check
 
-import { GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
+import { FOUNTAIN_STREAM, FOUNTAIN_TRAVEL, GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { existsSync, readFileSync } from "node:fs";
@@ -1206,6 +1206,40 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
     assert.ok(thrown !== null && thrown <= (scheduled ? 0.3 : GEYSER.hold + 0.05), `the geyser did not throw a seal at its rim (${scheduled ? "the scheduled eruption" : "standing"})`);
     assert.ok(s.flight === 0 && s.water === 0 && !riverAt(s.x, s.z).inside && Math.abs(heightAt(s.x, s.z)) <= 0.3, `the geyser's throw left the seal at ${s.x.toFixed(1)}, ${s.z.toFixed(1)}`);
     for (const c of colliders) assert.ok(Math.hypot(s.x - c.x, s.z - c.z) >= c.radius, `the geyser's throw left the seal inside a collider at ${c.x}, ${c.z}`);
+  }
+}
+
+// The Fountain of Immortality (open2c/polychrom #79): its stream and both landings are dry, flat and clear of every
+// place and collider; once the arrival has been seen, a seal stepping into either basin is thrown to the other
+// end and comes to rest dry and clear, and it does not bounce back; unseen, it is not thrown.
+{
+  const F = FOUNTAIN_TRAVEL;
+  const curve = new CatmullRomCurve3(FOUNTAIN_STREAM.map(([x, z]) => new Vector3(x, 0, z)), false, "centripetal");
+  for (const { x, z } of curve.getPoints(200)) {
+    assert.ok(!riverAt(x, z).inside && Math.abs(heightAt(x, z)) <= 0.3 && Math.hypot(x, z) < ISLAND_RADIUS - 5, `the fountain's stream at ${x.toFixed(1)}, ${z.toFixed(1)} is not dry flat ground`);
+    for (const c of colliders) if (c.x !== F.nodes[0].x || c.z !== F.nodes[0].z) assert.ok(Math.hypot(x - c.x, z - c.z) >= c.radius + 1.5, `the fountain's stream runs into a collider at ${c.x}, ${c.z}`);
+    for (const q of PLACES) if (q.id !== "pr-polychrom-79" && !q.id.startsWith("pr-n") && q.id !== "pr-topograph-432") assert.ok(Math.hypot(x - q.x, z - q.z) >= q.radius + 3, `the fountain's stream runs into ${q.id}`);
+  }
+  assert.ok(Math.hypot(F.nodes[0].x - PLACE_BY_ID[F.seenId].x, F.nodes[0].z - PLACE_BY_ID[F.seenId].z) < 3 && Math.hypot(F.nodes[1].x - 46, F.nodes[1].z + 5) < 1, "the fountain's two ends are its basin and the moat's pad");
+  for (const n of F.nodes) {
+    const [lx, lz] = n.land;
+    assert.ok(!riverAt(lx, lz).inside && Math.abs(heightAt(lx, lz)) <= 0.3 && Math.hypot(lx, lz) < ISLAND_RADIUS - 4, `the fountain's landing ${lx}, ${lz} is not dry flat ground`);
+    for (const c of colliders) assert.ok(Math.hypot(lx - c.x, lz - c.z) >= c.radius + MOTION.sealRadius, `the fountain's landing ${lx}, ${lz} is inside a collider`);
+    for (const m of F.nodes) assert.ok(Math.hypot(lx - m.x, lz - m.z) >= m.reach + 1, "a landing is outside both basins");
+  }
+  for (const [seen, from, to] of [[true, 0, 1], [true, 1, 0], [false, 0, 0]]) {
+    const w = { ...world, fountain: F, fountainSeen: seen, time: 1 };
+    const s = createSeal(F.nodes[from].x, F.nodes[from].z);
+    let thrown = false;
+    for (let t = 0; t < 4; t += 1 / 120) {
+      stepSeal(s, {}, 1 / 120, w);
+      if (s.flight > 0) thrown = true;
+    }
+    if (!seen) {
+      assert.ok(!thrown && Math.hypot(s.x - F.nodes[from].x, s.z - F.nodes[from].z) < 0.5, "the fountain throws a seal before its arrival was seen");
+      continue;
+    }
+    assert.ok(thrown && Math.hypot(s.x - F.nodes[to].land[0], s.z - F.nodes[to].land[1]) < 0.5, `the fountain end ${from} did not carry the seal to end ${to}: it rests at ${s.x.toFixed(1)}, ${s.z.toFixed(1)}`);
   }
 }
 

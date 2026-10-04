@@ -5,7 +5,7 @@
 import { sceneT } from "../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
-import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
+import { FOUNTAIN_TRAVEL, GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
 import { arrivalHold, arrivalLength, beatAt, cutFor, cutsceneMode } from "../../lib/world/cutscene/timeline";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
 import { AWAKENING, mustFinish } from "../../lib/world/loop";
@@ -17,7 +17,7 @@ import { CARDS, cardFor } from "../../lib/world/cutscene/cards";
 const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 // live.props is created once and never reassigned (store.js), so the world
 // object can be built once too instead of every frame.
-export const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, places: PLACES, time: 0 };
+export const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, fountain: FOUNTAIN_TRAVEL, fountainSeen: false, places: PLACES, time: 0 };
 let seenBursts = 0;
 let seenWins = 0;
 // THE LOOP's hidden win (lib/world/loop.js AWAKENING): once per session, and
@@ -150,6 +150,7 @@ export default function Controller() {
     CONTROLS.boost = live.boost;
 
     WORLD.time = t;
+    WORLD.fountainSeen = live.seen.has(FOUNTAIN_TRAVEL.seenId); // the fountain's fast travel is armed once its arrival has played
     WORLD.hold = Boolean(holding); // an arrival hold: penguin bumps and bites wait (snack.js)
     WORLD.arriving = Boolean(arrival.id); // the whole arrival: TNT fuses wait (lib/world/toys.js)
     // While a cutscene holds the seal it stays put: no river current or
