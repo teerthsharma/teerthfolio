@@ -96,6 +96,9 @@ a {
    HUD layering — nothing here unmounts. [data-state] plays the
    enter/exit transition; each component sets its own --from.
    ============================================================ */
+html[data-hud="off"] .hud {
+  display: none;
+}
 .hud {
   position: fixed;
   inset: 0;
@@ -1813,36 +1816,39 @@ h2[tabindex="-1"]:focus {
    input the visitor is actually using; leaves once the seal has moved. */
 .coach {
   position: absolute;
-  left: 50%;
-  bottom: calc(18vh + env(safe-area-inset-bottom));
-  transform: translate(-50%, 12px);
+  left: var(--gutter);
+  bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+  transform: translateY(12px);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 12px;
-  padding: 16px 22px 14px;
-  border-radius: 22px;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
   background: rgba(251, 250, 247, 0.9);
-  box-shadow: 0 12px 40px rgba(28, 27, 25, 0.18);
+  box-shadow: 0 8px 24px rgba(28, 27, 25, 0.16);
   backdrop-filter: blur(8px);
   color: var(--ink);
-  text-align: center;
+  text-align: left;
   pointer-events: none;
   opacity: 0;
   transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
-  max-width: calc(100vw - 2 * var(--gutter));
+  max-width: min(220px, calc(100vw - 2 * var(--gutter)));
+}
+.coach-key {
+  display: none;
 }
 .coach[data-visible="true"] {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: none;
 }
 .coach p {
   margin: 0;
-  font-size: 17px;
+  font-size: 14px;
 }
 .coach p span {
   color: rgba(28, 27, 25, 0.6);
-  font-size: 14px;
+  font-size: 12px;
 }
 .coach-pad {
   position: relative;

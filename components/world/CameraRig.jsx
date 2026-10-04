@@ -55,6 +55,12 @@ const ARRIVAL_LOOK_Y = 2.2; // m: aim at the place's middle, not its foot
 const RAD_CREEP = 0.06; // share the view creeps in while radiation floods it
 const RAD_KICK = 0.05; // share it kicks back out at the mutation
 const RAD_TRAUMA = 0.45; // the mutation's shake
+// DOCKED: while the seal is at a place the follow aims at the landform
+// (place.look, lib/world/places.js), not the snow in front of the dock.
+const LOOK_DAMP = 2.5; // 1/s
+const DOCK_LEAN = 0.5; // share of the way the focus moves onto the landform; more than this pushes the seal off the bottom edge
+const LOOK_ELEVATION = (32 * Math.PI) / 180; // tall landforms need the higher view or they crop
+const LOOK_TALL = 6; // m: from this look.y up the elevation rises
 const UP = new Vector3(0, 1, 0);
 
 // The overview before Start: high over the island centre, swaying slowly.
@@ -109,6 +115,8 @@ export default function CameraRig() {
   const modeZoom = useRef(1);
   const userZoom = useRef(live.zoom);
 
+  const lookK = useRef(0);
+  const lookRef = useRef(null); // the last docked place's look target, kept while it eases out
   const trauma = useRef(0);
   const orbit = useRef(new Vector3());
   const radKicked = useRef(-100);
@@ -257,6 +265,17 @@ export default function CameraRig() {
       wanted.current.set(seal.x + leadSmooth.current.x, 0, seal.z + leadSmooth.current.z);
     }
 
+    // Docked: lean the view onto the landform (less than the arrival: the seal stays in shot).
+    const docked = ui.started && !ui.open && PLACE_BY_ID[ui.near] ? PLACE_BY_ID[ui.near] : null;
+    if (docked) lookRef.current = docked.look;
+    lookK.current += ((docked ? 1 : 0) - lookK.current) * damp(LOOK_DAMP, dt);
+    const dock = lookRef.current;
+    const lk = reduced.current ? 0 : lookK.current;
+    if (dock && lk > 0.001) {
+      wanted.current.x += (dock.x - wanted.current.x) * DOCK_LEAN * lk;
+      wanted.current.z += (dock.z - wanted.current.z) * DOCK_LEAN * lk;
+    }
+
     if (cutK > 0) {
       const place = PLACE_BY_ID[arrival.id];
       wanted.current.x += (place.x - wanted.current.x) * ARRIVAL_LEAN * cutK;
@@ -294,10 +313,11 @@ export default function CameraRig() {
       shake.current.set(0, 0, 0);
     }
 
-    const elevation = ELEVATION + (ARRIVAL_ELEVATION - ELEVATION) * cutK;
+    const dockTall = dock && dock.y >= LOOK_TALL ? lk : 0;
+    const elevation = ELEVATION + (LOOK_ELEVATION - ELEVATION) * dockTall + (ARRIVAL_ELEVATION - ELEVATION) * cutK;
     orbit.current.set(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(FOLLOW_DISTANCE).applyAxisAngle(UP, ARRIVAL_ORBIT * cutK * (cutU - 0.5));
     followPos.current.copy(orbit.current).multiplyScalar(dNow).add(focus.current).add(shake.current);
-    followLook.current.set(focus.current.x, 0.6 + (ARRIVAL_LOOK_Y - 0.6) * cutK, focus.current.z).add(shake.current);
+    followLook.current.set(focus.current.x, 0.6 + ((dock ? dock.y : 0.6) - 0.6) * lk + (ARRIVAL_LOOK_Y - 0.6) * cutK, focus.current.z).add(shake.current);
 
     if (!ui.started) {
       // The overview: the whole island and the sea round it.

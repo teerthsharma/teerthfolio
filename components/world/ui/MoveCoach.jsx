@@ -5,15 +5,13 @@
 // hint follows the input actually in use: a finger dragging on touch, WASD
 // keys pressing on a keyboard, a click on the snow with a mouse; it switches
 // live (a keyboard plugged into an iPad, a touch laptop). It appears once the
-// jump-in lands, leaves once the seal has slid a few metres, and comes back
+// first input after Start, leaves once the seal has slid a few metres, and comes back
 // if the visitor stands idle without ever having moved.
 
 import { useEffect, useState } from "react";
 import { live, useUi } from "../../../lib/world/store";
 
 const LEARNED_M = 4; // metres the seal must travel before the coach leaves
-const DELAY_MS = 1800; // after Start: let the jump-in land first
-
 
 export default function MoveCoach() {
   const started = useUi((s) => s.started);
@@ -39,16 +37,20 @@ export default function MoveCoach() {
     };
   }, []);
 
-  // Wait for the jump-in, then watch the seal until it has really moved.
+  // Wait for the first input after Start (so a ?play still has no card in
+  // it), then watch the seal until it has really moved.
   useEffect(() => {
     if (!started || learned) return undefined;
-    const t = setTimeout(() => setReady(true), DELAY_MS);
+    const arm = () => setReady(true);
+    window.addEventListener("keydown", arm, { once: true });
+    window.addEventListener("pointerdown", arm, { once: true });
     const from = { x: live.seal.x, z: live.seal.z };
     const poll = setInterval(() => {
       if (Math.hypot(live.seal.x - from.x, live.seal.z - from.z) > LEARNED_M) setLearned(true);
     }, 250);
     return () => {
-      clearTimeout(t);
+      window.removeEventListener("keydown", arm);
+      window.removeEventListener("pointerdown", arm);
       clearInterval(poll);
     };
   }, [started, learned]);

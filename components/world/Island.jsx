@@ -50,7 +50,7 @@ function Sun() {
 
 function NameInSnow() {
   return (
-    <group position={[0, 0.02, 3]} rotation={[-Math.PI / 2, 0, 0]}>
+    <group position={[34, 0.02, 20]} rotation={[-Math.PI / 2, 0, 0]}>
       <Center>
         <Text3D
           font="/fonts/helvetiker_bold.typeface.json"

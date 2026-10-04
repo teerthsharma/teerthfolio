@@ -172,6 +172,7 @@ export default function SealGame() {
     // point at one project.
     const params = new URLSearchParams(window.location.search);
     const place = PLACE_BY_ID[params.get("spawn")];
+    if (params.get("hud") === "off") document.documentElement.dataset.hud = "off";
     if (place) {
       const dock = dockPoint(place);
       Object.assign(live.seal, { x: dock.x, z: dock.z, vx: 0, vz: 0, heading: Math.PI });
