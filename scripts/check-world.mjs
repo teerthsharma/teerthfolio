@@ -1037,14 +1037,14 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   };
   const perfect = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1 }]);
   assert.deepEqual(perfect.seen, [[1, 1, 0], [1, 2, 0], [1, 0, 1]], `three perfect loops: ${JSON.stringify(perfect.seen)}`);
-  assert.equal(verdicts([{ gap: 0 }, { gap: 7 }, { gap: 7 }]).s.wins, 1, "three clean loops 7 s apart (inside the window) did not win");
+  assert.equal(verdicts([{ gap: 0 }, { gap: 11 }, { gap: 11 }]).s.wins, 1, "three clean loops 11 s apart (inside the window) did not win");
   assert.equal(perfect.s.wins, 1);
-  const two = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1, off: 0.8 }]);
-  assert.deepEqual(two.seen.at(-1), [0, 0, 0], `two clean loops and a sloppy third won or kept a streak: ${JSON.stringify(two.seen)}`);
-  const slow = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 9 }]);
-  assert.equal(slow.s.wins, 0, "three clean loops with a 9 s gap won");
+  const two = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1, vx: 6, at: ENTRY.x0 - 0.1 }]);
+  assert.deepEqual(two.seen.at(-1), [0, 0, 0], `two clean loops and a too-slow third won or kept a streak: ${JSON.stringify(two.seen)}`);
+  const slow = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 13 }]);
+  assert.equal(slow.s.wins, 0, "three clean loops with a 13 s gap won");
   assert.deepEqual(slow.seen.at(-1), [1, 1, 0], `a clean loop after a long gap should start a fresh streak at 1: ${JSON.stringify(slow.seen)}`);
-  const reset = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1, off: 0.8 }, { gap: 1 }, { gap: 1 }]);
+  const reset = verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1, vx: 6, at: ENTRY.x0 - 0.1 }, { gap: 1 }, { gap: 1 }]);
   assert.equal(reset.s.wins, 0, "a failed loop did not reset the streak");
   assert.equal(reset.s.loopStreak, 2);
   assert.equal(verdicts([{ gap: 0 }, { gap: 1 }, { gap: 1 }, { gap: 1 }, { gap: 1 }, { gap: 1 }]).s.wins, 2, "six perfect loops are two wins");
@@ -1065,6 +1065,121 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
     assert.equal(s.loops, 1);
     assert.equal(s.loopClean, 0, "a loop left crooked (steered across the ribbon) counted as clean");
   }
+}
+
+// THE LOOP, as a real player plays it. Scripted humans (seeded, so the check is
+// repeatable) run the real stepSeal over the owner's actual route: out of the
+// loop onto the south bank, west to the Spill Bridge, over it, east along the
+// north bank and a dive into the lane. Each decides every `react` seconds with
+// jitter. kb: digital keys (W/A/S/D) with reaction lag. stick: the touch
+// joystick's analog vector (SealGame useTouchStick). tap: tap-to-walk, a ground
+// point per decision (live.target; no input while on the ribbon). A session is
+// up to 8 loops; it wins when seal.wins rises. skilled = a practised player,
+// sloppy = one who wobbles, lags and aims badly. The ride must be winnable
+// by the first and not by the second, on all three controls.
+{
+const HDT = 1 / 120;
+// seeded rng
+const hmk = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+const hgauss = (r) => Math.sqrt(-2 * Math.log(r() || 1e-9)) * Math.cos(2 * Math.PI * r());
+const LZ = ENTRY.z;
+// route: waypoints of dry/wet travel, then the dive into the lane
+function humanPlay(kind, skill, seed, opts = {}) {
+  const r = hmk(seed);
+  const react = skill.react; // s between decisions
+  const seal = createSeal(31, -40.4);
+  seal.vx = 15; seal.water = 1; seal.clock = 100; seal.loopExitAt = seal.clock;
+  const route = [[31, -37.0, 1.2], [14.2, -37.2, 1.2], [13, -46.6, 1.3]];
+  const xd = opts.xd ?? 17.5;
+  let leg = 0, phase = "route", t = 0, nextDecide = 0;
+  let held = { x: 0, z: 0 }, stick = null, target = null, tapAt = 0;
+  const entries = [];
+  const maxT = opts.maxT ?? 120;
+  const cleanSeq = [];
+  let prevExit = seal.loopExitAt;
+  while (t < maxT && seal.wins === 0) {
+    const loopsB = seal.loops;
+    // phase logic
+    const px = seal.x, pz = seal.z;
+    let goal = null;
+    if (phase === "route") {
+      const w = route[leg];
+      goal = w;
+      if (Math.hypot(px - w[0], pz - w[1]) < w[2]) { leg++; if (leg >= route.length) phase = "stage"; }
+    }
+    if (phase === "stage") { goal = [xd, -46.4, 0.6]; if (px >= xd - 0.4) phase = "dive"; }
+    let want = null; // analog want vector
+    if (t >= nextDecide) {
+      nextDecide = t + react * (0.6 + 0.8 * r());
+      tapAt = t;
+      let wx = 0, wz = 0;
+      if (phase === "dive") {
+        // hold the lane: x pushes east until released, z steers toward lane line
+        const e = LZ + (skill.aimOff ?? 0) - pz;
+        const noise = hgauss(r) * skill.noise;
+        wz = e * skill.kp - seal.vz * skill.kd + noise;
+        wx = px < (opts.xr ?? 19.5) ? 1 : 0;
+        if (seal.ride) { wx = 0; wz = 0; }
+        if (seal.ride === 0 && px > ENTRY.x0 - 0.2 && opts.hold) { wx = 0; }
+      } else if (goal) {
+        const dx = goal[0] - px, dz = goal[1] - pz, d = Math.hypot(dx, dz) || 1;
+        wx = dx / d + hgauss(r) * skill.noise * 0.3; wz = dz / d + hgauss(r) * skill.noise * 0.3;
+      } else { // after a loop: back to the route
+      }
+      if (kind === "kb") {
+        const q = (v) => (Math.abs(v) < 0.5 ? 0 : Math.sign(v));
+        held = { x: q(wx), z: q(wz) };
+      } else if (kind === "stick") {
+        const m = Math.hypot(wx, wz);
+        const s = m > 1 ? 1 / m : 1;
+        stick = m < 0.05 ? null : { x: wx * s, z: wz * s };
+        if (phase === "dive" && !seal.ride && px >= (opts.xr ?? 19.5)) stick = { x: 0, z: Math.max(-1, Math.min(1, wz)) };
+      } else if (kind === "tap") {
+        // tap a ground point: in the dive, the tap is ahead at the lane
+        if (phase === "dive") target = { x: (opts.tapX ?? 30) + (skill.tapJit ?? 0) * (r() - 0.5) * 2, z: LZ + (skill.aimOff ?? 0) + hgauss(r) * skill.noise * 0.6 * (skill.tapZ ?? 1) };
+        else if (goal) { const dx = goal[0] - px, dz = goal[1] - pz, d = Math.hypot(dx, dz) || 1; target = { x: px + (dx / d) * 8, z: pz + (dz / d) * 8 }; if (d < 6) target = { x: goal[0], z: goal[1] }; }
+      }
+    }
+    const controls = { input: kind === "kb" ? (held.x || held.z ? held : null) : kind === "stick" ? stick : null, target: kind === "tap" && !seal.ride ? target : null, boost: false };
+    if (kind === "tap" && controls.target && seal.ride) controls.target = null;
+    stepSeal(seal, controls, HDT, world);
+    t += HDT;
+    if (seal.loops !== loopsB) {
+      // after the loop: reset route and wait for decisions
+      cleanSeq.push([seal.loopClean, seal.rideEntryV | 0, +seal.rideMaxOff.toFixed(2), +(seal.rideEntryAt - prevExit).toFixed(1)]); prevExit = seal.loopExitAt;
+      leg = 0; phase = "route"; target = null; stick = null; held = { x: 0, z: 0 };
+      nextDecide = t + react;
+      if (seal.loops >= (opts.maxLoops ?? 8)) break;
+    }
+    // missed the lane: past the entry without a ride -> go back round
+    if (phase === "dive" && !seal.ride && (px > ENTRY.x1 + 2 || t - tapAt > 6)) { leg = 0; phase = "route"; target = null; stick = null; held = { x: 0, z: 0 }; entries.push("miss"); }
+  }
+  return { win: seal.wins > 0, t, loops: seal.loops, cleanSeq, misses: entries.length };
+}
+function humanRate(kind, skill, opts, n = 200) {
+  let win = 0, clean = 0, loops = 0, miss = 0, tt = 0;
+  for (let i = 0; i < n; i++) { const o = humanPlay(kind, skill, 1000 + i, opts); if (o.win) { win++; tt += o.t; } loops += o.loops; clean += o.cleanSeq.filter((c) => c[0]).length; miss += o.misses; }
+  return { win: win / n, cleanPerLoop: loops ? clean / loops : 0, loops: loops / n, miss: miss / n, tWin: win ? tt / win : 0 };
+}
+const SKILL = {
+  skilled: { react: 0.16, kp: 2, kd: 0.35, noise: 0.15 },
+  average: { react: 0.26, kp: 2, kd: 0.35, noise: 0.3 },
+  sloppy: { react: 0.4, kp: 1, kd: 0.1, noise: 0.8, tapJit: 30, tapZ: 10 },
+};
+const DIVE = { kb: { xd: 17.5, xr: 22 }, stick: { xd: 15, xr: 22 }, tap: { xd: 15, tapX: 30 } };
+const N = Number(process.env.LOOP_RUNS) || 30;
+const table = {};
+for (const kind of ["kb", "stick", "tap"]) {
+  for (const k of process.env.LOOP_TABLE ? ["skilled", "average", "sloppy"] : ["skilled", "sloppy"]) {
+    table[`${kind} ${k}`] = humanRate(kind, SKILL[k], DIVE[kind], N);
+  }
+  const good = table[`${kind} skilled`];
+  const bad = table[`${kind} sloppy`];
+  assert.ok(good.win >= 0.6, `${kind}: a skilled player wins only ${(good.win * 100).toFixed(0)}% of sessions (needs 60%+)`);
+  assert.ok(bad.win <= 0.2, `${kind}: a sloppy player wins ${(bad.win * 100).toFixed(0)}% of sessions (must stay 20% or less)`);
+  assert.ok(good.tWin < 60, `${kind}: a skilled win takes ${good.tWin.toFixed(0)} s`);
+}
+if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row within 8 loops):\n" + Object.entries(table).map(([k, v]) => `${k.padEnd(14)} win ${(v.win * 100).toFixed(0).padStart(3)}%  clean/loop ${(v.cleanPerLoop * 100).toFixed(0).padStart(3)}%  loops ${v.loops.toFixed(1)}  missed lane ${v.miss.toFixed(2)}  win at ${v.tWin.toFixed(0)} s`).join("\n"));
 }
 
 // The geyser: every landing spot is dry, flat, on the island and clear; a
