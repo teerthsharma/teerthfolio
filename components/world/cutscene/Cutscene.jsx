@@ -11,6 +11,7 @@ import { CARDS } from "../../../lib/world/cutscene/cards";
 import { POSES, cutFor, cutsceneMode } from "../../../lib/world/cutscene/timeline";
 import { live, useUi } from "../../../lib/world/store";
 import { MOVES } from "./moves";
+import PupUpright from "./PupUpright";
 
 export default function Cutscene() {
   const gl = useThree((s) => s.gl);
@@ -30,5 +31,5 @@ export default function Cutscene() {
     live.stageOn = Boolean(live.arrival.id) && cutsceneMode(live.arrival.id) === "full";
   }, -1.3);
   const Move = cut ? MOVES[id] : null;
-  return <group name="cutscene">{Move ? <Move key={id} {...cut} mode={mode} /> : null}</group>;
+  return <group name="cutscene"><PupUpright id={id} />{Move ? <Move key={id} {...cut} mode={mode} /> : null}</group>;
 }
