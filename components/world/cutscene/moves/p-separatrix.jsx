@@ -152,7 +152,7 @@ export default function Move(cut) {
     const cam = state.camera;
     const u = m.fres.uniforms;
     // THE BANNER: unfurls the instant the scene starts, rolls up into the cinema bar (static with reduced motion)
-    m.banner.mesh.visible = full ? t < 2.8 : true;
+    m.banner.mesh.visible = full ? t < 40 : true;
     m.banner.mat.uniforms.uU.value = full ? unfurlAt(t) : 1;
     m.banner.mat.uniforms.uT.value = t;
     m.banner.setRect();
