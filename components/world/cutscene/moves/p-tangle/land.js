@@ -403,7 +403,6 @@ export function reeds(U) {
       m.setMatrixAt(i, D.matrix.makeScale(0, 0, 0)); // an identity left here would be a 1 m blade at the origin
       continue;
     }
-    if (false) continue; // the pup stands in a clearing: no grass round it, none across the lens' line
     const reed = z < -2.6 || hash(i, 3) > 0.8;
     D.position.set(x, y, z);
     D.rotation.set(0, hash(i, 4) * 6.28, 0);
