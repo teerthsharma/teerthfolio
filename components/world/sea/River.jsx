@@ -11,6 +11,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { MeshBasicMaterial, MeshStandardMaterial, Object3D, PlaneGeometry } from "three";
 import { riverAt } from "../../../lib/world/river";
+import { live } from "../../../lib/world/store";
 import { coastRadius } from "../../../lib/world/terrain";
 import { mat, SURFACE } from "../palette";
 import { buildLoopRibbon, buildWaterSurface, streakSpawn, surfaceY } from "./build";
@@ -51,6 +52,7 @@ export default function River() {
 
   // THE ANOMALY: the loop-the-loop, always on, by the spill (build.js's LOOP)
   const loop = useMemo(() => buildLoopRibbon(), []);
+  const glint = useRef(0);
   const loopMat = useMemo(() => mat("#ffffff", { vertexColors: true }), []);
 
   // the streaks: flat dashes riding the flow, each growing in and shrinking
@@ -77,6 +79,10 @@ export default function River() {
 
   useFrame(({ clock }, delta) => {
     time.value = clock.elapsedTime;
+    // the loop's hidden cue: the ribbon glints brighter, and pulses, with each clean loop in a row
+    const seal = live.seal;
+    glint.current += (seal.loopStreak - glint.current) * Math.min(1, delta * 3);
+    loopMat.color.setScalar(1 + glint.current * (0.35 + 0.15 * Math.sin(clock.elapsedTime * 6)));
     const mesh = streaks.current;
     if (!mesh) return;
     const dt = Math.min(delta, 0.05);

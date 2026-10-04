@@ -31,6 +31,7 @@ import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
 import Sea from "./Sea";
 import Domain from "./Domain";
+import LoopAwakening from "./LoopAwakening";
 import Seal from "./Seal";
 import Sound from "./Sound";
 import Trail from "./Trail";
@@ -137,6 +138,7 @@ export default function Scene() {
         <Props />
         <Seal />
         <Domain />
+        <LoopAwakening />
         <Trail />
         <Effects />
         <Penguins />
