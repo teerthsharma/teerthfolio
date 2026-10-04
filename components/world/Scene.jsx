@@ -33,6 +33,8 @@ import Props from "./Props";
 import Sea from "./Sea";
 import Toys from "./Toys";
 import LoopAwakening from "./LoopAwakening";
+import LoopBanner from "./LoopBanner";
+import LoopCounter from "./LoopCounter";
 import Cutscene from "./cutscene/Cutscene";
 import Seal from "./Seal";
 import Sound from "./Sound";
@@ -141,6 +143,8 @@ export default function Scene() {
         <Toys />
         <Seal />
         <LoopAwakening />
+        <LoopBanner />
+        <LoopCounter />
         <Cutscene />
         <Trail />
         <Effects />
