@@ -15,7 +15,7 @@ import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { applyFlatten, popAmounts } from "./look/popFlatten";
 import { MOTION } from "../../lib/world/motion";
-import { PLACE_BY_ID } from "../../lib/world/places";
+import { PLACE_BY_ID, SPAWN } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
 
 // Direction from the seal to the camera: 42 degrees of elevation, so the
@@ -62,6 +62,12 @@ const LOOK_DAMP = 2.5; // 1/s
 const DOCK_LEAN = 0.5; // share of the way the focus moves onto the landform; more than this pushes the seal off the bottom edge
 const LOOK_ELEVATION = (32 * Math.PI) / 180; // tall landforms need the higher view or they crop
 const LOOK_TALL = 6; // m: from this look.y up the elevation rises
+// The first frame: at the spawn the view leans north so the igloo, the
+// highway and the landforms behind them are the picture, not the snow; it
+// eases back once the seal has slid off the spawn.
+const SPAWN_LEAN = 16; // m
+const SPAWN_ZOOM = 0.55; // share the view pulls back by
+const SPAWN_RADIUS = 3; // m the seal may drift before the lean lets go
 const UP = new Vector3(0, 1, 0);
 const NO_POP = { push: 0, flat: 0 };
 
@@ -118,6 +124,7 @@ export default function CameraRig() {
   const userZoom = useRef(live.zoom);
 
   const lookK = useRef(0);
+  const spawnK = useRef(1);
   const lookRef = useRef(null); // the last docked place's look target, kept while it eases out
   const trauma = useRef(0);
   const orbit = useRef(new Vector3());
@@ -197,7 +204,15 @@ export default function CameraRig() {
     const kick = radSince >= RADIATION.mutateAt && radSince < RADIATION.mutateAt + 0.45 ? Math.sin((Math.PI * (radSince - RADIATION.mutateAt)) / 0.45) : 0;
     const radZoom = reduced.current ? 1 : 1 - RAD_CREEP * creep + RAD_KICK * kick;
 
-    const dNow = pull * zoom.current * userZoom.current * speedZoom.current * modeZoom.current * (1 - ARRIVAL_PUSH * cutK) * radZoom;
+    // Docked: lean the view onto the landform (less than the arrival: the seal stays in shot).
+    const docked = ui.started && !ui.open && PLACE_BY_ID[ui.near] ? PLACE_BY_ID[ui.near] : null;
+    if (docked) lookRef.current = docked.look;
+    lookK.current += ((docked ? 1 : 0) - lookK.current) * damp(LOOK_DAMP, dt);
+    const dock = lookRef.current;
+    const lk = reduced.current ? 0 : lookK.current;
+    const atSpawn = !ui.near && !ui.open && Math.hypot(seal.x - SPAWN.x, seal.z - SPAWN.z) < SPAWN_RADIUS;
+    spawnK.current += ((atSpawn && !reduced.current ? 1 : 0) - spawnK.current) * damp(LOOK_DAMP, dt);
+    const dNow = (1 + SPAWN_ZOOM * spawnK.current) * (1 + ((dock?.zoom ?? 1) - 1) * lk) * pull * zoom.current * userZoom.current * speedZoom.current * modeZoom.current * (1 - ARRIVAL_PUSH * cutK) * radZoom;
     const dTarget = pull * zoom.current * live.zoom * speedZoomTarget * modeZoomTarget;
 
     lead.current.set(seal.vx * LEAD_TIME, 0, seal.vz * LEAD_TIME * (seal.vz > 0 ? LEAD_Z : 1));
@@ -267,16 +282,12 @@ export default function CameraRig() {
       wanted.current.set(seal.x + leadSmooth.current.x, 0, seal.z + leadSmooth.current.z);
     }
 
-    // Docked: lean the view onto the landform (less than the arrival: the seal stays in shot).
-    const docked = ui.started && !ui.open && PLACE_BY_ID[ui.near] ? PLACE_BY_ID[ui.near] : null;
-    if (docked) lookRef.current = docked.look;
-    lookK.current += ((docked ? 1 : 0) - lookK.current) * damp(LOOK_DAMP, dt);
-    const dock = lookRef.current;
-    const lk = reduced.current ? 0 : lookK.current;
     if (dock && lk > 0.001) {
       wanted.current.x += (dock.x - wanted.current.x) * DOCK_LEAN * lk;
       wanted.current.z += (dock.z - wanted.current.z) * DOCK_LEAN * lk;
     }
+
+    wanted.current.z -= SPAWN_LEAN * spawnK.current;
 
     if (cutK > 0) {
       const place = PLACE_BY_ID[arrival.id];
@@ -316,7 +327,7 @@ export default function CameraRig() {
     }
 
     const dockTall = dock && dock.y >= LOOK_TALL ? lk : 0;
-    const elevation = ELEVATION + (LOOK_ELEVATION - ELEVATION) * dockTall + (ARRIVAL_ELEVATION - ELEVATION) * cutK;
+    const elevation = ELEVATION + ((dock?.elev ? (dock.elev * Math.PI) / 180 : LOOK_ELEVATION) - ELEVATION) * dockTall + (ARRIVAL_ELEVATION - ELEVATION) * cutK;
     orbit.current.set(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(FOLLOW_DISTANCE).applyAxisAngle(UP, ARRIVAL_ORBIT * cutK * (cutU - 0.5));
     followPos.current.copy(orbit.current).multiplyScalar(dNow).add(focus.current).add(shake.current);
     followLook.current.set(focus.current.x, 0.6 + ((dock ? dock.y : 0.6) - 0.6) * lk + (ARRIVAL_LOOK_Y - 0.6) * cutK, focus.current.z).add(shake.current);
