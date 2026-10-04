@@ -8,7 +8,7 @@ import { BoxGeometry, BufferAttribute, ConeGeometry, CylinderGeometry, PlaneGeom
 import { hash, merge, part, R } from "./ink";
 
 export const WY = -0.4; // the reservoir's surface, under the crest
-export const TOWER = { x: 3.9, z: -13.5, top: 5.2 };
+export const TOWER = { x: 7.6, z: -11.2, top: 2.8 }; // x is for a wide screen; the move narrows it with the screen
 const box = (w, h, d) => new BoxGeometry(w, h, d);
 const cyl = (rt, rb, h, s = 8) => new CylinderGeometry(rt, rb, h, s);
 
@@ -42,8 +42,14 @@ export function crestGeometry() {
   p.push(part(box(4.6, 0.55, 0.12), R.ink, { x: -10.5, y: 2.5, z: 0.55 }));
   p.push(part(box(0.9, 2.0, 0.12), R.ink, { x: -8.3, y: 1.0, z: 0.55 }));
   p.push(part(box(0.5, 4.5, 0.5), R.concreteDk, { x: -12.7, y: 5.4, z: -2.6 })); // its chimney stack
-  // the valve tower standing out of the water, with a stepped top, a gallery and rails
-  const T = TOWER;
+  return merge(p);
+}
+
+// the valve tower standing out of the water, with a stepped top, a gallery and rails: the rival's stand. Centred on
+// x 0, z 0 (the move places it, so a narrow screen can bring it in from the edge)
+export function towerGeometry() {
+  const p = [];
+  const T = { x: 0, z: 0, top: TOWER.top };
   p.push(part(cyl(1.9, 2.5, T.top - WY + 3, 8), R.concrete, { x: T.x, z: T.z, y: (T.top + WY - 3) / 2 }));
   for (let k = 0; k < 3; k++) p.push(part(cyl(2.0, 2.0, 0.22, 8), R.concreteDk, { x: T.x, z: T.z, y: WY + 0.6 + k * 1.9 }));
   p.push(part(cyl(2.9, 2.9, 0.5, 8), R.concreteDk, { x: T.x, z: T.z, y: T.top + 0.25 }));
@@ -51,7 +57,6 @@ export function crestGeometry() {
     const a = (k / 10) * Math.PI * 2;
     p.push(part(box(0.14, 0.8, 0.14), R.concreteDk, { x: T.x + Math.cos(a) * 2.7, z: T.z + Math.sin(a) * 2.7, y: T.top + 0.9 }));
   }
-  p.push(part(box(0.8, 5, 0.8), R.concrete, { x: T.x - 1.2, z: T.z + 0.6, y: T.top + 3.0 })); // a stub mast behind the rival
   return merge(p);
 }
 

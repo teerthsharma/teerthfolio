@@ -82,8 +82,17 @@ export const COMMON = /* glsl */ `
     if (q < uTear + 0.016) c = vec3(0.98, 0.95, 0.84);
     else if (q < uTear + 0.034) c = vec3(0.07, 0.04, 0.12);
   }
+  // the time-stop's colours: the scene reads through a deep violet and teal ramp (the picture turned over, never a
+  // wash), and the black ink stays black. Bright things stay the lightest teal so the pup and the Stand still read.
+  vec3 stopTone(vec3 c) {
+    float l = dot(c, vec3(0.3, 0.59, 0.11));
+    vec3 t = mix(vec3(0.03, 0.0, 0.1), vec3(0.24, 0.05, 0.5), smoothstep(0.1, 0.42, l));
+    t = mix(t, vec3(0.02, 0.36, 0.5), smoothstep(0.4, 0.68, l));
+    t = mix(t, vec3(0.4, 0.74, 0.9), smoothstep(0.72, 1.0, l));
+    return t;
+  }
   vec3 outc(vec3 c) {
-    c = mix(c, vec3(1.0) - c, uInvert);
+    c = mix(c, stopTone(c), uInvert);
     tearCut(c);
     return pow(max(c, vec3(0.0)), vec3(2.2));
   }

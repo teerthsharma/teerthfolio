@@ -19,7 +19,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, OctahedronGeometry, PlaneGeometry, Quaternion, Vector3, WebGLRenderTarget } from "three";
+import { BoxGeometry, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, OctahedronGeometry, PlaneGeometry, Quaternion, Vector3 } from "three";
 import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
@@ -29,17 +29,19 @@ import { R, hash, merge, part, setPalette, sharedUniforms, solidMaterial } from 
 import { rivalGeometry } from "./pr-tensorflow-124410/rival";
 import { reservoir, skyShell } from "./pr-tensorflow-124410/sky";
 import { fistGeometry, standGeometry } from "./pr-tensorflow-124410/stand";
-import { TOWER, WY, crestGeometry, lampGeometry, pylonGeometry, terrain } from "./pr-tensorflow-124410/world";
+import { TOWER, WY, crestGeometry, lampGeometry, pylonGeometry, terrain, towerGeometry } from "./pr-tensorflow-124410/world";
 
 const CORE_Y = 0.9;
-const K = 0.74; // the dimension is built at 1:1 and shown at 0.74 beside a pup grown to PUP, so the pup reads at the lens
-const PUP = 1.7;
+const PUP = 1.2; // the pup's size in the dimension: the same pup, a fifth larger, never the 1.7x it was
+const S = PUP / 1.7; // the dimension was composed beside a 1.7x pup at 0.74; shown at 0.52 it is the same picture, one 0.706 scale
+const K = 0.74 * S; // the dimension is built at 1:1 and shown at K beside a pup grown to PUP, so the pup reads at the lens
 // the clock (s from the arrival). Line A (the rival) is up at 3.0; the barrage 3.5 to 5.0; the stop 5.0 to 6.2; the
-// edge falls on the resume and drowns by 6.9; the clock's last tick and the tear at 6.95; the flex at 7.2.
-const T = { glyph: 1.5, rise: [1.9, 2.9], rival: 2.4, barrage: [3.5, 5.0], crack: [3.9, 4.9], stop: 5.0, resume: 6.2, fall: 6.2, drown: 6.85, tick: 7.0, tear: [7.15, 7.95], flex: 7.5 };
+// edge falls on the resume and drowns by 6.9; the flex line is up at 7.2 and the pose at 7.5, all in the dimension;
+// the clock's last tick at 10.3 and the tear at 10.4 take the picture off and the pup home for the credit.
+const T = { glyph: 1.5, rise: [1.9, 2.9], rival: 2.4, barrage: [3.5, 5.0], crack: [3.9, 4.9], stop: 5.0, resume: 6.2, fall: 6.2, drown: 6.85, tick: 10.3, tear: [10.4, 11.1], flex: 7.5 };
 // the palette beats: [t, palette]
-const BEATS = [[0, 0], [1.9, 1], [2.6, 2], [3.4, 3], [3.9, 2], [4.4, 1], [4.8, 3], [5.0, 0], [6.2, 2], [6.55, 3], [6.8, 1]];
-const PANELS = [[2.4, 0.64, 0.58], [3.5, 0.4, 0.66], [6.2, 0.7, 0.55], [6.62, 0.5, 0.6]]; // [t, x, y]: where the inverted sky panel cuts in
+const BEATS = [[0, 0], [1.9, 1], [2.6, 2], [3.4, 3], [3.9, 2], [4.4, 1], [4.8, 3], [5.0, 0], [6.2, 2], [6.55, 3], [6.8, 0], [7.5, 2], [8.6, 3], [9.6, 0], [10.3, 3]];
+const PANELS = [[2.4, 0.64, 0.58], [3.5, 0.4, 0.66], [6.2, 0.7, 0.55], [6.62, 0.5, 0.6], [7.5, 0.55, 0.6], [10.3, 0.5, 0.55]]; // [t, x, y]: where the inverted sky panel cuts in
 const FREEZE = [T.stop, T.resume];
 const STAND_AT = new Vector3(-0.3, 0, -5.2);
 const PX = 6.4; // the pylons' x on a wide screen
@@ -100,6 +102,8 @@ export default function Move(cut) {
   const pup = useRef(null);
   const ink = useRef(null);
   const island = useRef([]);
+  const snow = useRef([]);
+  const towerRef = useRef();
   const shake = useRef(new Vector3());
   const state = useRef({ pal: -1, shift: 0, tick1: false, tick2: false, tick3: false });
   const tickSnd = useRef(null);
@@ -119,6 +123,8 @@ export default function Move(cut) {
     const standG = standGeometry();
     const stand = solidPair(standG, U);
     const rivalG = rivalGeometry();
+    const towerG = towerGeometry();
+    const tower = solidPair(towerG, U);
     const rival = new Mesh(rivalG, solidMaterial(U, { rim: 1 }));
     rival.frustumCulled = false;
     const beamG = merge([part(new BoxGeometry(1, 1, 1), R.mint)]);
@@ -143,7 +149,7 @@ export default function Move(cut) {
     const flash = new Mesh(flashG, new MeshBasicMaterial({ color: "#fff0d8", transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false, fog: false }));
     flash.frustumCulled = false;
     flash.renderOrder = 40;
-    return { U, shell, water, land, landM, crestG, crest, lampG, lampM, pylG, pyl, standG, stand, rivalG, rival, mint, coral, fists, fistG, dropG, spray, sparkG, sparks, clockG, clockM, clockH, minG, hourG, glyph, flash, flashG, beamG, coralG };
+    return { U, shell, water, land, landM, crestG, crest, lampG, lampM, pylG, pyl, standG, stand, towerG, tower, rivalG, rival, mint, coral, fists, fistG, dropG, spray, sparkG, sparks, clockG, clockM, clockH, minG, hourG, glyph, flash, flashG, beamG, coralG };
   }, []);
 
   useEffect(() => {
@@ -152,25 +158,28 @@ export default function Move(cut) {
     pup.current = root ? { root } : null;
     ink.current = root ? inkPup(root, m.U) : null;
     tickSnd.current = ticker();
-    // compile every program now, under the approach, not on the bloom: show it all for one gl.compile, then hide it again
+    // the flakes that fall over the pup on the real island: found now, hidden while the pup holds its pose there
+    snow.current = [];
+    scene.traverse((o) => {
+      if (o.isPoints && o.material?.uniforms?.uCentre) snow.current.push(o);
+    });
+    // compile every program now, under the approach, and without a stall: show it all for the one call that gathers
+    // the materials, hand them to the driver to link in parallel, and hide it again before anything is drawn
     const g = rig.current;
-    const vis = [g, world.current, standRef.current, clockRef.current, menace.current, m.flash, shellRef.current];
+    const vis = [g, world.current, standRef.current, clockRef.current, menace.current, m.flash, shellRef.current, towerRef.current];
     const was = vis.map((o) => o.visible);
     vis.forEach((o) => (o.visible = true));
     ink.current?.set(true);
-    const rt = new WebGLRenderTarget(8, 8);
     try {
-      const prev = gl.getRenderTarget();
-      gl.setRenderTarget(rt);
-      gl.render(scene, camera); // one real draw into a tiny target: programs compile and the buffers upload now
-      gl.setRenderTarget(prev);
+      gl.compileAsync(scene, camera).catch(() => {}); // a failed warm-up only costs the first-frame hitch
     } catch {
-      /* a failed warm-up only costs the first-frame hitch */
+      /* no compileAsync: the programs build on first draw */
     }
-    rt.dispose();
     ink.current?.set(false);
     vis.forEach((o, i) => (o.visible = was[i]));
     return () => {
+      for (const o of snow.current) o.visible = true;
+      snow.current = [];
       ink.current?.dispose();
       ink.current = null;
       pup.current?.root.scale.setScalar(1);
@@ -178,9 +187,9 @@ export default function Move(cut) {
       tickSnd.current?.dispose();
       tickSnd.current = null;
       // everything the scene built goes with it
-      const geos = new Set([m.shell.g, m.water.g, m.land, m.crestG, m.lampG, m.pylG, m.standG, m.rivalG, m.beamG, m.coralG, m.fistG, m.dropG, m.sparkG, m.clockG, m.minG, m.hourG, m.glyph.ink.geometry, m.glyph.fill.geometry, m.flashG]);
+      const geos = new Set([m.shell.g, m.water.g, m.land, m.crestG, m.lampG, m.pylG, m.standG, m.towerG, m.rivalG, m.beamG, m.coralG, m.fistG, m.dropG, m.sparkG, m.clockG, m.minG, m.hourG, m.glyph.ink.geometry, m.glyph.fill.geometry, m.flashG]);
       const mats = new Set([m.shell.m, m.water.m, m.landM, m.lampM, m.rival.material, m.spray.material, m.sparks.material, m.clockM, m.clockH, m.glyph.ink.material, m.glyph.fill.material, m.flash.material]);
-      for (const o of [...m.crest, ...m.stand, ...m.pyl.flat(), m.mint.fill, m.mint.hull, m.coral.fill, m.coral.hull, m.fists.fill, m.fists.hull]) mats.add(o.material);
+      for (const o of [...m.crest, ...m.stand, ...m.tower, ...m.pyl.flat(), m.mint.fill, m.mint.hull, m.coral.fill, m.coral.hull, m.fists.fill, m.fists.hull]) mats.add(o.material);
       geos.forEach((g) => g.dispose());
       mats.forEach((x) => x.dispose());
       for (const x of [m.mint.fill, m.mint.hull, m.coral.fill, m.coral.hull, m.fists.fill, m.fists.hull, m.spray, m.sparks, m.glyph.ink, m.glyph.fill]) x.dispose();
@@ -196,12 +205,13 @@ export default function Move(cut) {
       menace.current.visible = false;
       ink.current?.set(false);
       p?.root.scale.setScalar(1);
+      for (const o of snow.current) o.visible = true;
       return;
     }
     if (!p?.root || mode !== "full") return;
     const t = st.clock.elapsedTime - live.arrival.start;
     p.root.position.add(shake.current);
-    p.root.scale.setScalar(1 + (PUP - 1) * smooth(tl.bloom[0], tl.bloom[1], t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t)));
+    p.root.scale.setScalar(1 + (PUP - 1) * smooth(tl.bloom[0], tl.bloom[1], t) * (1 - smooth(T.tear[0], T.tear[1], t)));
     const k = smooth(T.flex - 0.05, T.flex + 0.2, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
     // the pose: a twisted contrapposto, shoulders one way and hips the other, leaning back, a flipper across the face
     p.root.rotation.y -= 0.55 * k;
@@ -272,11 +282,12 @@ export default function Move(cut) {
     const barr = smooth(T.barrage[0], T.barrage[0] + 0.1, tt) * (1 - smooth(T.stop - 0.05, T.stop, tt));
     const odd = Math.floor(t * 12) % 2 ? 1 : -1;
     const amp = barr * 0.07 + hit(T.rival, 0.07) + hit(T.drown, 0.12) + hit(T.tick, 0.1);
-    shake.current.set(amp * odd, -amp * 0.6 * odd, 0);
+    shake.current.set(amp * odd * S, -amp * 0.6 * odd * S, 0);
     g.position.set(s.x + shake.current.x, shake.current.y, s.z);
     g.rotation.y = turn;
     menace.current.position.copy(g.position);
     menace.current.rotation.y = turn;
+    menace.current.scale.setScalar(S);
 
     // THE WORLD swells out of the pup with the stage, then holds as the backdrop until it tears
     const r = radiusAt(tl, t);
@@ -303,12 +314,22 @@ export default function Move(cut) {
     standRef.current.rotation.y = 0.12 * Math.sin((Math.floor(t * 6) / 6) * 1.3);
     standRef.current.scale.setScalar(sk);
 
-    // THE RIVAL pops in on the tower with the first impact, then holds, its cape fluttering on the world clock
+    // THE RIVAL pops in on the tower with the first impact, then holds, its cape fluttering on the world clock. The
+    // tower stands out in the reservoir to the right of the Stand and the pylons (and comes in with a narrow screen),
+    // so the figure is clear of the Stand and the bubble's tail, aimed at its torso, never lands on the pup.
     const rv = Math.min(1, Math.max(0, (tt - T.rival) / 0.25));
+    const tx = TOWER.x * fit;
+    const rs = wide ? 1.45 : 1.2;
+    towerRef.current.position.set(tx, 0, TOWER.z);
     m.rival.visible = rv > 0;
-    m.rival.position.set(TOWER.x, TOWER.top + 0.5, TOWER.z);
+    m.rival.position.set(tx, TOWER.top + 0.5, TOWER.z);
     m.rival.rotation.set(0, -0.35 + 0.03 * Math.sin(wt * 3), 0);
-    m.rival.scale.set(1.2 * rv, 1.2 * (0.3 + 0.7 * rv), 1.2 * rv);
+    m.rival.scale.set(rs * rv, rs * (0.3 + 0.7 * rv), rs * rv);
+    // the line A bubble's tail: the rival's chest, in the card's frame (the dimension's scale K about the pup)
+    const ta = card.tail.a;
+    ta[0] = tx * K;
+    ta[1] = (TOWER.top + 0.5 + 3.8 * rs) * K;
+    ta[2] = TOWER.z * K;
 
     // THE GANTRY: two fluted pylons, three mint edges (they glow once the fourth drowns), the coral one out over the water
     const px = PX * fit;
@@ -442,16 +463,20 @@ export default function Move(cut) {
       }
     }
 
-    // the flash: the rival, the stop, the resume and the last tick (tinted by the palette, never a white-out)
-    const fl = Math.max(0, 1 - Math.abs(tt - T.stop) / 0.09) * 0.4 + Math.max(0, 1 - Math.abs(tt - T.resume - 0.04) / 0.1) * 0.4 + Math.max(0, 1 - Math.abs(tt - T.tick - 0.04) / 0.1) * 0.5 + Math.max(0, 1 - Math.abs(tt - T.rival) / 0.09) * 0.3;
+    // the flash: the rival, the stop and the resume are a thin warm tint, the last tick a dark blink (ink black stays black
+    // in every one: never a white-out)
+    const warm = Math.max(0, 1 - Math.abs(tt - T.stop) / 0.09) * 0.3 + Math.max(0, 1 - Math.abs(tt - T.resume - 0.04) / 0.1) * 0.3 + Math.max(0, 1 - Math.abs(tt - T.rival) / 0.09) * 0.22;
+    const dark = Math.max(0, 1 - Math.abs(tt - T.tick - 0.04) / 0.1) * 0.4;
+    const fl = Math.max(Math.min(0.2, warm), dark);
     if (fl > 0.002) {
       m.flash.visible = true;
+      m.flash.material.color.set(dark > warm ? "#10092a" : "#fff0d8");
       cam.getWorldDirection(m.flash.position);
       m.flash.position.add(cam.position);
       m.flash.quaternion.copy(cam.quaternion);
       const h = 2 * Math.tan((cam.fov * Math.PI) / 360) * 1.2;
       m.flash.scale.set(h * cam.aspect, h, 1);
-      m.flash.material.opacity = Math.min(0.6, fl);
+      m.flash.material.opacity = fl;
     }
 
     // REALITY: the island the stage hid comes back under the tearing picture
@@ -460,6 +485,8 @@ export default function Move(cut) {
       const n = Math.ceil(island.current.length * Math.min(1, tearK * 2));
       for (let i = 0; i < n; i++) island.current[i].visible = true;
     }
+    // no flake falls across the face while the pup holds its pose on the island
+    for (const o of snow.current) o.visible = !(torn && tt < tl.collapse[1]);
 
     // the pup: the sign, fists as the Stand throws, a pointed finger on the stop, then the pose (its twist is the root, above)
     live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt)) + smooth(T.flex - 0.05, T.flex + 0.2, tt) * out;
@@ -496,6 +523,10 @@ export default function Move(cut) {
           <primitive object={m.mint.hull} />
           <primitive object={m.coral.fill} />
           <primitive object={m.coral.hull} />
+          <group ref={towerRef}>
+            <primitive object={m.tower[0]} />
+            <primitive object={m.tower[1]} />
+          </group>
           <group ref={standRef} visible={false}>
             <primitive object={m.stand[0]} />
             <primitive object={m.stand[1]} />

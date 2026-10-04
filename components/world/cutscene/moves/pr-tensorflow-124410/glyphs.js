@@ -61,7 +61,7 @@ const mat = (U, role) =>
       uniform float uInvert, uRole;
       void main() {
         vec3 c = uPal[int(uRole + 0.5)];
-        c = mix(c, vec3(1.0) - c, uInvert);
+        c = mix(c, vec3(0.45, 0.82, 0.92), uInvert * step(0.3, c.r + c.g + c.b));
         gl_FragColor = vec4(pow(c, vec3(2.2)), 1.0);
       }`,
   });
