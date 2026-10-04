@@ -82,6 +82,7 @@ const HERO = { x: 0, y: 0, z: 0, yaw: 0, bob: 0 };
 const GROUND = { y: 0 };
 const ANCHOR = { x: START[0], z: START[1] };
 const SM = { lx: 0, lz: 0, d: 0 };
+const TR = { lx: 0, lz: 0, d: 0 };
 const ROOFV = [0, 0, 0];
 const PUP = { seat: 0 };
 
@@ -91,7 +92,7 @@ function raceAt(t, out) {
   out.lz = heroZ(t);
   const v = heroSpeed(t);
   const vz = (heroZ(t + 0.03) - heroZ(t - 0.03)) / 0.06;
-  out.d = v > 1 ? clamp(1.9 * Math.atan2(vz, v + 4), -0.5, 0.5) : 0;
+  out.d = v > 1 ? clamp(2.8 * Math.atan2(vz, v + 4), -0.85, 0.85) : 0;
   return out;
 }
 
@@ -169,6 +170,7 @@ export default function Move(cut) {
     const poleMat = solid({ fogK: 0.0042 });
     const tangle = ribbons(NP * SEG + 8, "#ff6a55");
     const clean = ribbons(80, "#5dffc2", { additive: true });
+    const trail = ribbons(40, "#ffb347", { additive: true });
     const smoke = smokePool(PUFFS);
     const conf = confetti(240);
     const streak = streaks(120);
@@ -181,16 +183,16 @@ export default function Move(cut) {
     const pairs = [];
     for (let i = 0; i < NR; i++) for (let j = i + 1; j < NR; j++) pairs.push([i, j, hash(i * 31 + j, 7) * 6.28]);
     const arcSin = Array.from({ length: SEG + 1 }, (_, k) => Math.sin((Math.PI * k) / SEG));
-    return { dome, des, ov, stand, standMat, crowd, fp, flagMat, flags, banner, gan, tyre, rock, mesaGeo, heroMat, hero, wheels, rivalGeo, rivals, cactusGeo, cacti, poleMat, tangle, clean, smoke, conf, streak, shRiv, shHero, flash, boom, star, page, pairs, arcSin };
+    return { dome, des, ov, stand, standMat, crowd, fp, flagMat, flags, banner, gan, tyre, rock, mesaGeo, heroMat, hero, wheels, rivalGeo, rivals, cactusGeo, cacti, poleMat, tangle, clean, trail, smoke, conf, streak, shRiv, shHero, flash, boom, star, page, pairs, arcSin };
   }, []);
 
   useEffect(() => {
     island.current = islandList(scene);
     return () => {
       // everything the scene built goes with it
-      const geos = [m.dome.g, m.des.g, m.ov.g, m.stand, m.mesaGeo, m.gan, m.fp.poles, m.rivalGeo, m.cactusGeo, m.hero.body, m.hero.eyes, m.hero.wheel, m.hero.num.geo, m.tangle.geometry, m.clean.geometry, m.smoke.mesh.geometry, m.conf.geometry, m.streak.geometry, m.shRiv.geometry, m.shHero.geometry, m.flash.geometry, m.boom.geometry, m.star.geometry, m.page.geometry, m.tyre.geometry, m.rock.geometry, m.flags.geometry, m.banner.geometry, m.crowd.G.body, m.crowd.G.head, m.crowd.G.armR, m.crowd.G.armL];
+      const geos = [m.dome.g, m.des.g, m.ov.g, m.stand, m.mesaGeo, m.gan, m.fp.poles, m.rivalGeo, m.cactusGeo, m.hero.body, m.hero.eyes, m.hero.wheel, m.hero.num.geo, m.tangle.geometry, m.clean.geometry, m.trail.geometry, m.smoke.mesh.geometry, m.conf.geometry, m.streak.geometry, m.shRiv.geometry, m.shHero.geometry, m.flash.geometry, m.boom.geometry, m.star.geometry, m.page.geometry, m.tyre.geometry, m.rock.geometry, m.flags.geometry, m.banner.geometry, m.crowd.G.body, m.crowd.G.head, m.crowd.G.armR, m.crowd.G.armL];
       for (const g of new Set(geos)) g.dispose();
-      const mats = [m.dome.m, m.des.m, m.ov.m, m.standMat, m.flagMat, m.heroMat, m.rivals.material, m.cacti.material, m.poleMat, m.tangle.material, m.clean.material, m.smoke.mesh.material, m.conf.material, m.streak.material, m.shRiv.material, m.shHero.material, m.flash.material, m.boom.material, m.star.material, m.page.material, m.hero.num.m, m.tyre.material, m.rock.material, m.crowd.body.material, m.crowd.head.material, m.crowd.armR.material, m.crowd.armL.material];
+      const mats = [m.dome.m, m.des.m, m.ov.m, m.standMat, m.flagMat, m.heroMat, m.rivals.material, m.cacti.material, m.poleMat, m.tangle.material, m.clean.material, m.trail.material, m.smoke.mesh.material, m.conf.material, m.streak.material, m.shRiv.material, m.shHero.material, m.flash.material, m.boom.material, m.star.material, m.page.material, m.hero.num.m, m.tyre.material, m.rock.material, m.crowd.body.material, m.crowd.head.material, m.crowd.armR.material, m.crowd.armL.material];
       for (const x of new Set(mats)) x.dispose();
       m.hero.num.tex.dispose();
       m.boom.material.map?.dispose();
@@ -324,7 +326,7 @@ export default function Move(cut) {
       if (k > 0 && k < dur) blink = Math.max(blink, Math.sin((Math.PI * k) / dur));
     }
     eyesM.current.scale.set(1, 1 - 0.9 * blink, 1);
-    hero.visible = t > 1.55 && t < T.leave + 1.1 && out > 0.01;
+    hero.visible = t > 1.5 && t < T.leave + 1.1 && out > 0.01;
 
     // THE RIVALS: a grid, then a stream; they rock on their springs and fishtail as the guest goes by
     const hz0 = SM.lz;
@@ -386,17 +388,19 @@ export default function Move(cut) {
         const az = rivalZ(i, t);
         const bx = rivalX(j, t);
         const bz = rivalZ(j, t);
-        const h = 0.9 + 0.085 * Math.hypot(ax - bx, az - bz);
+        const dd = Math.hypot(ax - bx, az - bz);
+        if (dd > 15) continue; // a wire only between cars that are near: it reads as the pairs, not a net over the stands
+        const h = 0.2 + 0.025 * dd;
         let px = ax;
-        let py = 1.55;
+        let py = 1.0;
         let pz = az;
         for (let k = 1; k <= n; k++) {
           const u = k / SEG;
           const sn = m.arcSin[k];
           const qx = ax + (bx - ax) * u;
           const qz = az + (bz - az) * u + 0.28 * Math.sin(t * 2.1 + ph + u * 9) * sn;
-          const qy = 1.55 + h * sn + 0.18 * Math.sin(t * 3 + ph * 2 + u * 7) * sn;
-          tg.seg(px, py, pz, qx, qy, qz, 0.085, 0.9 * calm, clx, cly, clz);
+          const qy = 1.0 + h * sn + 0.18 * Math.sin(t * 3 + ph * 2 + u * 7) * sn;
+          tg.seg(px, py, pz, qx, qy, qz, 0.05, 0.9 * calm, clx, cly, clz);
           px = qx;
           py = qy;
           pz = qz;
@@ -438,6 +442,24 @@ export default function Move(cut) {
     }
     cl.end();
 
+    // THE LIGHT TRAIL: a hot ribbon along where the car has just been, bright through the drift and the Ka-chow
+    const tr2 = m.trail;
+    tr2.begin();
+    const trK = back ? 0 : smooth(T.kachow - 1.0, T.kachow - 0.5, t) * (1 - smooth(T.kachow + 0.5, T.kachow + 1.0, t));
+    if (trK > 0.01) {
+      raceAt(t, SM);
+      let px = SM.lx + 1.9 * CAR_S;
+      let pz = SM.lz;
+      for (let k = 1; k <= 14; k++) {
+        raceAt(t - 0.035 * k, TR);
+        const qx = TR.lx + 1.9 * CAR_S;
+        tr2.seg(px, 0.5, pz, qx, 0.5, TR.lz, 0.34 * (1 - k / 15), trK * (1 - k / 15), clx, cly, clz);
+        px = qx;
+        pz = TR.lz;
+      }
+    }
+    tr2.end();
+
     // SMOKE: puffs shed from the rear tyres on the launch and every drift, each on its own analytic path
     const puff = m.smoke.mesh;
     for (let k = 0; k < PUFFS; k++) {
@@ -454,12 +476,12 @@ export default function Move(cut) {
       }
       raceAt(tb, SM);
       const vzb = (heroZ(tb + 0.03) - heroZ(tb - 0.03)) / 0.06;
-      const e = Math.max(1 - ramp(tb, T.go + 0.6, T.go + 1.2), clamp(Math.abs(vzb) / 2.5) * (tb > 4.1 ? 1 : 0)) * (tb < T.cross ? 1 : 0);
+      const e = Math.max(1 - ramp(tb, T.go + 0.6, T.go + 1.2), clamp(Math.abs(vzb) / 1.6) * (tb > 4.0 ? 1 : 0)) * (tb < T.cross ? 1 : 0);
       const side = k % 2 ? 1 : -1;
       const sx = SM.lx + 1.2 * CAR_S * Math.cos(SM.d);
       const sz = SM.lz + side * 0.8 * CAR_S - 1.2 * CAR_S * Math.sin(SM.d);
       const life = age / 1.05;
-      const sc = (0.25 + 1.1 * Math.sqrt(life)) * (0.6 + 0.4 * e);
+      const sc = (0.3 + 1.7 * Math.sqrt(life)) * (0.6 + 0.4 * e);
       D.position.set(sx + 2.5 * age + 0.4 * side * hash(k, 3) * age, 0.3 + age + 0.5 * hash(k, 4) * age, sz + side * 0.9 * age * hash(k, 5));
       D.rotation.set(0, 0, 0);
       D.scale.set(sc, sc * 0.8, sc);
@@ -614,6 +636,7 @@ export default function Move(cut) {
             <primitive object={m.shRiv} />
             <primitive object={m.tangle.mesh} />
             <primitive object={m.clean.mesh} />
+            <primitive object={m.trail.mesh} />
             <primitive object={m.smoke.mesh} />
             <primitive object={m.conf} />
             <primitive object={m.streak} />

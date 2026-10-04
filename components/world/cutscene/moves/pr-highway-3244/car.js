@@ -133,7 +133,7 @@ function boltGeometry(hex, grow, depth, dir = 1) {
 
 // everything of the car that does not move on its own, in one geometry; hero: the guest's decals, eyes aside
 export function carGeometry({ hero = false, res = 1 } = {}) {
-  const red = "#dc1f1a";
+  const red = "#ff1530";
   const paintMask = hero ? 0 : 1;
   const L = [];
   const rows = Math.round(36 * res);
@@ -155,13 +155,13 @@ export function carGeometry({ hero = false, res = 1 } = {}) {
   L.push(paint(new SphereGeometry(1, 16, 8), "#2a2630", { gloss: 0.8, smooth: true, m4: at(1.5, 0.3, 0, 0, 0, 0, [0.34, 0.1, 0.5]) }));
   if (hero) {
     // the bumper's smile: a thin pale tube across the front
-    const sm = new CatmullRomCurve3([-0.34, -0.2, 0, 0.2, 0.34].map((z) => new Vector3(1.8, 0.26 + 0.1 * (z / 0.34) ** 2, z)));
-    L.push(paint(new TubeGeometry(sm, 14, 0.018, 5), "#fff6e8", { gloss: 1, smooth: true }));
+    const sm = new CatmullRomCurve3([-0.4, -0.2, 0, 0.2, 0.4].map((z) => new Vector3(1.8, 0.26 + 0.14 * (z / 0.4) ** 2, z)));
+    L.push(paint(new TubeGeometry(sm, 14, 0.04, 5), "#fff6e8", { gloss: 1, smooth: true }));
     // a lightning bolt down each flank (orange edge under yellow), and a small one on the hood
     for (const sz of [-1, 1]) {
       const flip = sz < 0 ? Math.PI : 0;
-      L.push(boltGeometry("#ff7a14", 0.12, 0.01, sz).applyMatrix4(at(0.1, 0.43, sz * 0.8 + (sz < 0 ? -0.004 : 0.004), 0, flip, 0)));
-      L.push(boltGeometry("#ffc820", 0, 0.02, sz).applyMatrix4(at(0.1, 0.43, sz * 0.8 + (sz < 0 ? -0.012 : 0.012), 0, flip, 0)));
+      L.push(boltGeometry("#ff7a14", 0.12, 0.01, sz).applyMatrix4(at(0.6, 0.43, sz * 0.8 + (sz < 0 ? -0.004 : 0.004), 0, flip, 0)));
+      L.push(boltGeometry("#ffc820", 0, 0.02, sz).applyMatrix4(at(0.6, 0.43, sz * 0.8 + (sz < 0 ? -0.012 : 0.012), 0, flip, 0)));
     }
     L.push(paint(new BoxGeometry(1.0, 0.012, 0.14), "#ffc820", { gloss: 1, m4: at(1.15, 0.775, 0, 0, 0, -0.1) }));
   }
@@ -173,11 +173,11 @@ export function carGeometry({ hero = false, res = 1 } = {}) {
 export function eyeGeometry() {
   const L = [];
   for (const sz of [-1, 1]) {
-    const z = sz * 0.21;
-    L.push(paint(new SphereGeometry(1, 18, 10), "#fffdf3", { gloss: 1, smooth: true, m4: at(0, 0, z, 0, 0, 0, [0.03, 0.19, 0.175]) }));
-    L.push(paint(new SphereGeometry(1, 14, 8), "#2e83e6", { gloss: 1, smooth: true, m4: at(0.026, -0.015, z + 0.03, 0, 0, 0, [0.012, 0.115, 0.105]) }));
-    L.push(paint(new SphereGeometry(1, 12, 8), "#0b0b16", { gloss: 1, smooth: true, m4: at(0.036, -0.015, z + 0.03, 0, 0, 0, [0.01, 0.062, 0.058]) }));
-    L.push(paint(new SphereGeometry(1, 8, 6), "#ffffff", { gloss: 1, smooth: true, m4: at(0.046, 0.025, z + 0.0, 0, 0, 0, [0.008, 0.026, 0.026]) }));
+    const z = sz * 0.25;
+    L.push(paint(new SphereGeometry(1, 18, 10), "#fffdf3", { gloss: 1, smooth: true, m4: at(0, 0, z, 0, 0, 0, [0.05, 0.3, 0.25]) }));
+    L.push(paint(new SphereGeometry(1, 14, 8), "#2e83e6", { gloss: 1, smooth: true, m4: at(0.045, -0.02, z + 0.03, 0, 0, 0, [0.02, 0.19, 0.16]) }));
+    L.push(paint(new SphereGeometry(1, 12, 8), "#0b0b16", { gloss: 1, smooth: true, m4: at(0.06, -0.02, z + 0.03, 0, 0, 0, [0.02, 0.1, 0.09]) }));
+    L.push(paint(new SphereGeometry(1, 8, 6), "#ffffff", { gloss: 1, smooth: true, m4: at(0.075, 0.07, z + 0.0, 0, 0, 0, [0.016, 0.045, 0.045]) }));
   }
   return merge(L);
 }
@@ -213,7 +213,7 @@ export function doorNumber() {
   const geo = new PlaneGeometry(0.86, 0.43);
   const meshes = [-1, 1].map((sz) => {
     const mesh = new Mesh(geo, m);
-    mesh.position.set(-0.52, 0.52, sz * 0.812);
+    mesh.position.set(-0.78, 0.6, sz * 0.812);
     mesh.rotation.y = sz > 0 ? 0 : Math.PI;
     return mesh;
   });
