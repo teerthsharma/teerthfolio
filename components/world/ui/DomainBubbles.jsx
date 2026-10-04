@@ -69,7 +69,7 @@ function place(el, mx, my, slot, still) {
   const tx = mx - left;
   const ty = my - top;
   const len = Math.hypot(tx - bx, ty - by);
-  const k = Math.min(0.62, (0.26 * H) / len);
+  const k = still ? Math.min(0.9, (0.4 * H) / len) : Math.min(0.62, (0.26 * H) / len); // still: the figure is small and far, so reach it
   const px = bx + (tx - bx) * k;
   const py = by + (ty - by) * k;
   const half = Math.min(30, w * 0.06);
