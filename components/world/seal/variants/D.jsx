@@ -21,7 +21,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CapsuleGeometry, Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, OctahedronGeometry, RingGeometry } from "three";
+import { CapsuleGeometry, Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, RingGeometry } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW } from "../../../../lib/world/moments";
 import { domainMode, signAt } from "../../../../lib/world/domain";
 import { PLACE_BY_ID, districtAt } from "../../../../lib/world/places";
@@ -52,13 +52,12 @@ const HALO_DEFAULT = "#ffd66b";
 // a lifebuoy (the owner: "seal halo not working perfectly").
 const HALO_AT = [0, 0.66, -0.06];
 const HALO_TILT = [-Math.PI / 2 + 0.3, 0, 0];
-// The hand sign's flipper (Euler YZX, see poseFlipper) and its glint at the tip.
-const SIGN = { twist: 1.5, back: -1.3, up: 1.45 };
+// The hand sign's flipper (Euler YZX, see poseFlipper).
+const SIGN = { twist: 1.5, back: -1.8, up: 0.52 }; // up and across, in front of the cheek: a raised hand, never an ear
 // The sign lifts the flipper's root forward and up, so the raised flipper
 // stands in front of the cheek instead of behind the big head.
-const SIGN_REACH = [0.06, 0.14, 0.4];
+const SIGN_REACH = [0.2, 0.02, 0.72];
 const SHOULDER = rel(PIVOT.shoulder, PIVOT.rear); // up beside the cheek (the head is too big to reach across), flat to the lens
-const GLINT_AT = [0.86, 0.07, 0];
 // Two little digits crossed at the flipper's tip, in its flat plane: the sign.
 const DIGITS_AT = [0.62, 0.06, 0];
 
@@ -110,9 +109,6 @@ export default function SealD({ pose, near, drive, headRef }) {
   // sides in case the seal is seen from behind it; the wide glow ring stays
   // additive, for the bloom. Unlit: cheap, no extra shadow-casting light.
   const haloGeo = useMemo(() => new RingGeometry(0.24, 0.32, 40), []);
-  // the sign's glint: a small four-point star, always facing out of the flipper
-  const glintGeo = useMemo(() => new OctahedronGeometry(1, 0).scale(0.35, 1, 0.35), []);
-  const glintMat = useMemo(() => new MeshBasicMaterial({ color: "#f4ecff", toneMapped: false }), []);
   const digitsGeo = useMemo(() => {
     const finger = (yaw, lift) => new CapsuleGeometry(0.036, 0.16, 4, 8).rotateZ(-Math.PI / 2).rotateY(yaw).translate(0.1, lift, 0); // crossed at their middles: an X
     const a = finger(0.42, 0.014);
@@ -139,14 +135,12 @@ export default function SealD({ pose, near, drive, headRef }) {
     for (const g of Object.values(parts)) g.dispose?.();
     for (const m of Object.values(mats)) m.dispose();
     haloGeo.dispose();
-    glintGeo.dispose();
-    glintMat.dispose();
     digitsGeo.dispose();
     digitsMat.dispose();
     haloSoftGeo.dispose();
     haloMat.dispose();
     haloSoftMat.dispose();
-  }, [parts, mats, haloGeo, haloSoftGeo, haloMat, haloSoftMat, glintGeo, glintMat, digitsGeo, digitsMat]);
+  }, [parts, mats, haloGeo, haloSoftGeo, haloMat, haloSoftMat, digitsGeo, digitsMat]);
   // ?sealface=happy|blink holds that expression, for close-up captures.
   const [force] = useState(() => new URLSearchParams(window.location.search).get("sealface"));
 
@@ -177,7 +171,6 @@ export default function SealD({ pose, near, drive, headRef }) {
   const shutEyes = useRef();
   const mouth = useRef();
   const halo = useRef();
-  const glint = useRef();
   const digits = useRef();
   const outfit = useRef();
   const haloSoft = useRef();
@@ -314,10 +307,9 @@ export default function SealD({ pose, near, drive, headRef }) {
     digits.current.visible = sign > 0.3;
     digits.current.scale.setScalar(smooth(0.3, 1, sign));
     outfit.current.visible = !domain; // the domain keeps the round head clean: no hat, no ear-like diamonds
-    glint.current.visible = sign > 0.97;
-    if (glint.current.visible) glint.current.scale.setScalar(0.12 + 0.05 * Math.sin(now * 9));
     poseFlipper(flipL.current, 1, d, shared);
     poseFlipper(flipR.current, -1, d, shared);
+    flipR.current.scale.setScalar(1 - 0.22 * sign); // a smaller hand, held at the chin below the eye
     flipR.current.position.set(SHOULDER[0] + SIGN_REACH[0] * sign, SHOULDER[1] + SIGN_REACH[1] * sign, SHOULDER[2] + SIGN_REACH[2] * sign);
 
     // THE STORY, show not tell: every place is radioactive. The coat glows
@@ -431,7 +423,6 @@ export default function SealD({ pose, near, drive, headRef }) {
             <group ref={flipR} position={shoulder}>
               <mesh geometry={parts.flipper} material={coat} castShadow receiveShadow />
               <mesh ref={digits} geometry={digitsGeo} material={digitsMat} position={DIGITS_AT} visible={false} castShadow />
-              <mesh ref={glint} geometry={glintGeo} material={glintMat} position={GLINT_AT} visible={false} />
             </group>
           </group>
           <group ref={tail} position={rel(PIVOT.tail, PIVOT.rear)}>
