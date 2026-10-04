@@ -332,6 +332,7 @@ function Links({ items }) {
           >
             {l.label}
             {external && <IconArrow />}
+            {external && <span className="sr-only"> (opens in new tab)</span>}
           </a>
         );
       })}
