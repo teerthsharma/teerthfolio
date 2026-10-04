@@ -252,15 +252,15 @@ export const INK_LIB = /* glsl */ `
   // ink for a tone v (1 paper .. 0 black) at css-pixel position f: x is dots and hatch lines, y is the solid black
   vec2 inkCov(float v, vec2 f, float ang) {
     float cov = clamp(1.0 - v, 0.0, 1.0);
-    vec2 p = mat2(0.7071, -0.7071, 0.7071, 0.7071) * f / 5.0;
+    vec2 p = mat2(0.7071, -0.7071, 0.7071, 0.7071) * f / 9.0;
     float d = length(fract(p) - 0.5);
     float rad = 0.64 * sqrt(clamp((cov - 0.06) / 0.5, 0.0, 1.0));
-    float aaD = 0.5 / (5.0 * uDpr) * 1.4 + 0.02;
+    float aaD = 0.5 / (9.0 * uDpr) * 1.4 + 0.02;
     float dots = (1.0 - smoothstep(rad - aaD, rad + aaD, d)) * (1.0 - smoothstep(0.5, 0.64, cov));
     float c = cos(ang), s = sin(ang);
-    float u1 = dot(f, vec2(c, s)) / 4.6;
-    float u2 = dot(f, vec2(-s, c)) / 4.6;
-    float aa = 0.5 / (4.6 * uDpr) * 1.4 + 0.02;
+    float u1 = dot(f, vec2(c, s)) / 8.0;
+    float u2 = dot(f, vec2(-s, c)) / 8.0;
+    float aa = 0.5 / (8.0 * uDpr) * 1.4 + 0.02;
     float hatch = lineM(u1, clamp((cov - 0.4) * 1.5, 0.0, 0.6), aa) * smoothstep(0.4, 0.46, cov);
     float cross_ = lineM(u2, clamp((cov - 0.6) * 1.7, 0.0, 0.55), aa) * smoothstep(0.6, 0.66, cov);
     float solid = smoothstep(0.85, 0.95, cov);

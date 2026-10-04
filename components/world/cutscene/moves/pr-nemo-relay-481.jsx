@@ -274,7 +274,7 @@ export default function Move(cut) {
           {[0, 1, 2, 3].map((k) => (
             <mesh key={k} ref={(x) => x && (ghosts.current[k] = x)} material={m.ghostM[k]} visible={false} frustumCulled={false} renderOrder={3} />
           ))}
-          <group ref={whisG} position={[LEDGE.x - 1.4, LEDGE.y, LEDGE.z + 0.2]} rotation={[0, -0.42, 0]} scale={1.25}>
+          <group ref={whisG} position={[LEDGE.x - 1.5, LEDGE.y, LEDGE.z + 0.2]} rotation={[0, -0.42, 0]} scale={1.8}>
             <mesh geometry={m.wh.ink} material={m.ink} frustumCulled={false} />
             <mesh geometry={m.wh.hull} material={m.hullG} frustumCulled={false} />
             <group ref={staff}>
@@ -284,7 +284,7 @@ export default function Move(cut) {
               <mesh geometry={m.wh.halo} material={m.haloF} position={[0, -2.45, 0.34]} frustumCulled={false} />
             </group>
           </group>
-          <group ref={beerusG} position={[LEDGE.x + 1.6, LEDGE.y, LEDGE.z + 0.6]} rotation={[0, -0.55, 0]} scale={1.3}>
+          <group ref={beerusG} position={[LEDGE.x + 1.6, LEDGE.y, LEDGE.z + 0.6]} rotation={[0, -0.55, 0]} scale={1.85}>
             <mesh geometry={m.wb.ink} material={m.ink} frustumCulled={false} />
             <mesh geometry={m.wb.hull} material={m.hullG} frustumCulled={false} />
             <mesh geometry={m.wb.accent} material={m.accB} frustumCulled={false} />
