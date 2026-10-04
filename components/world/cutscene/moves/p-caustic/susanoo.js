@@ -75,18 +75,31 @@ export function susanooGeometry() {
   dir.normalize();
   const qb = new Quaternion().setFromUnitVectors(UP, dir);
   const at = (g, k) => g.applyQuaternion(qb).translate(fist.x + dir.x * k, fist.y + dir.y * k, fist.z + dir.z * k);
-  add(at(new CylinderGeometry(0.06, 0.55, len - 1.4, 4, 1).scale(1, 1, 0.3).rotateY(Math.PI / 4).translate(0, (len - 1.4) / 2 + 0.9, 0), 0), -1); // the blade, diamond in section, tapering to the tip
-  add(at(box(2.2, 0.28, 0.6, 0, 0.75, 0), 0), 0.02); // the guard
+  add(at(new CylinderGeometry(0.06, 0.75, len - 1.4, 4, 1).scale(1, 1, 0.3).rotateY(Math.PI / 4).translate(0, (len - 1.4) / 2 + 0.9, 0), 0), -1); // the blade, diamond in section, tapering to the tip
+  add(at(box(3.2, 0.36, 0.7, 0, 0.75, 0), 0), 0.02); // the guard
+  add(at(new CylinderGeometry(0.05, 0.1, len - 3, 4, 1).scale(1, 1, 0.6).translate(0, (len - 3) / 2 + 1.4, 0.2), 0), 0.02); // the fuller ridge
+  add(at(new IcosahedronGeometry(0.3, 0).translate(0, -1.2, 0), 0), 0.02); // the pommel
   add(at(new CylinderGeometry(0.16, 0.18, 1.6, 6).translate(0, -0.3, 0), 0), 0.02); // the hilt in the fist
-  // the wings: two fans of long plates behind the shoulders, the outer plates flutter most
+  // the wings: two layered fans of blade-feathers behind the shoulders (a long row, a short row in front), outer ones flutter most
   for (const s of [-1, 1]) {
-    for (let k = 0; k < 6; k++) {
-      const a = 0.15 + k * 0.22;
-      const len = 5.5 + k * 0.6;
-      const g = new BoxGeometry(0.85, len, 0.12).translate(0, len / 2, 0).rotateZ(-s * a).rotateY(s * 0.35).translate(s * 2.1, 4.0, -1.8 - k * 0.12);
-      add(g, 0.5 + k * 0.1);
+    for (let row = 0; row < 2; row++) {
+      for (let k = 0; k < 8; k++) {
+        const a = 0.08 + k * 0.2 + row * 0.1;
+        const len = (6.5 + k * 0.85) * (row ? 0.7 : 1);
+        const g = new CylinderGeometry(0.02, 0.55 - row * 0.1, len, 4, 1).scale(1, 1, 0.16).rotateY(Math.PI / 4).translate(0, len / 2, 0).rotateZ(-s * a).rotateY(s * 0.35).translate(s * 2.1, 4.0 + row * 0.2, -1.8 - k * 0.12 - row * 0.45);
+        add(g, 0.5 + k * 0.08);
+      }
     }
   }
+  // the glowing core in the chest, with a ring of plate studs round it
+  add(new IcosahedronGeometry(0.6, 1).translate(0, 3.5, 1.85), -1);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    add(box(0.28, 0.28, 0.2, Math.cos(a) * 1.25, 3.5 + Math.sin(a) * 1.25, 1.9));
+  }
+  // more plate: a belt, knee-height skirt bands and a gorget
+  for (let k = 0; k < 3; k++) add(new CylinderGeometry(2.55 - k * 0.15, 2.7 - k * 0.15, 0.22, 8).scale(1, 1, 0.74).translate(0, 0.2 + k * 0.45, 0));
+  add(new CylinderGeometry(1.7, 1.9, 0.35, 8).scale(1, 1, 0.75).translate(0, 4.85, 0));
   return mergeGeometries(parts);
 }
 
@@ -155,6 +168,9 @@ export function susanooMaterials() {
         vec3 hot = vec3(0.35, 0.75, 1.0);
         vec3 c = mix(deep, hot, fire) * (f * 1.3 + fire * 0.55 + 0.07);
         c += vec3(0.8, 0.92, 1.0) * pow(f, 4.0) * 0.8; // the hot edge
+        // plate seams: dark lines between armour courses and panels (not on the blade or the core)
+        float seam = max(1.0 - smoothstep(0.0, 0.05, abs(fract(vL.y * 0.9) - 0.5) * 2.0 - 0.9 + 0.05), 1.0 - smoothstep(0.0, 0.05, abs(fract(vL.x * 0.7 + vL.z * 0.3) - 0.5) * 2.0 - 0.9 + 0.05));
+        c *= 1.0 - 0.55 * seam * (1.0 - vBlade);
         c *= (0.85 + 0.3 * brush()) * (1.0 + uFlare * 1.2);
         c += max(grain(uTime), 0.0) * 0.05;
         // the sword burns white-blue all along its length, the one bright thing in the war

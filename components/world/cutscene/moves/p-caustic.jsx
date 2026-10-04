@@ -38,6 +38,7 @@ const CORE_Y = 0.9;
 // the clock (s from the arrival); the card's beats put line A at 3.0 and line B at 6.6, on the shatter
 const T = { costume: [0.55, 1.15], rise: [1.7, 2.8], cast: 3.3, split: [3.45, 3.95], m1: [3.8, 4.7], m2in: 4.85, m2hang: 6.1, hit2: 6.42, moonCrack: [5.45, 6.2], web: [6.42, 6.6], brk: 6.6, reveal: 6.6, flex: 6.8 };
 const SUS_AT = [0.9, 0, -17];
+const SUS_S = 2.5; // a towering titan: ~32 m to the crest, ~45 m to the sword tip
 const M1 = { from: new Vector3(-32, 28, -105), to: new Vector3(HIT1[0], 0, HIT1[1]), r: 4.5 };
 // meteor two hangs right of the Susanoo's head on a wide screen, over it on a tall one
 const M2 = { from: new Vector3(40, 40, -120), hangWide: new Vector3(4, 14, -68), hangTall: new Vector3(3, 19, -72), to: new Vector3(HIT2[0], 0, HIT2[1]), r: 32 };
@@ -161,6 +162,7 @@ export default function Move(cut) {
       paint.current?.dispose();
       paint.current = null;
       pup.current = null;
+      window.__ccT = -1;
       // everything the scene built goes with it
       for (const g of [m.shell.g, m.ground.g, m.tsuki.g, m.sus.g, m.rockG, m.crowdA.geometry, m.crowdB.geometry, m.bands.geometry, m.threads.geometry, m.metG, m.boom.geometry, m.flash.geometry]) g.dispose();
       for (const x of [m.shell.m, m.ground.m, m.tsuki.m, m.sus.body, m.sus.rim, m.rock, m.ink, m.bands.material, m.threads.material, m.metM, m.boom.material, m.flash.material]) x.dispose();
@@ -184,6 +186,7 @@ export default function Move(cut) {
   }, -0.5);
 
   useCutFrame((t, state) => {
+    window.__ccT = mode === "full" ? t : -1; // the card's lens reads the scene clock
     const s = live.seal;
     const full = mode === "full";
     const g = rig.current;
@@ -287,7 +290,8 @@ export default function Move(cut) {
     su.uCell.value = cell;
     su.uShake.value = amp;
     sus.current.visible = rise > 0;
-    sus.current.position.set(SUS_AT[0], -13 * (1 - rise) + 0.25 * Math.sin(rise * Math.PI), SUS_AT[2]);
+    sus.current.scale.setScalar(SUS_S);
+    sus.current.position.set(SUS_AT[0], -13 * SUS_S * (1 - rise) + 0.25 * Math.sin(rise * Math.PI), SUS_AT[2]);
 
     // THE ALLIANCE on the ridge: they flinch back on twos at the rise and at each impact, staggered, and sway
     for (let i = 0; i < CROWD; i++) {
