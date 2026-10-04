@@ -10,23 +10,31 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Group, Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../../lib/world/places";
+import { sceneT } from "../../../../lib/world/cutscene/clock";
 import { cutsceneMode } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, smooth, useCutFrame } from "../kit";
 import { flashQuad, holdFlash, islandList } from "./p-caustic/parts";
 import { hash } from "./p-epsilon-hollow/slime";
 import { particles } from "./p-epsilon-hollow/fx";
-import { caveSky, floor, hollowSphere, human, makeRim, maw, ripple, sagePanel, fistMesh, veldora } from "./p-epsilon-hollow/slime";
+import { hollowSphere, makeRim, maw, ripple, sagePanel, fistMesh } from "./p-epsilon-hollow/slime";
+import { dust, human, veldora, vortex } from "./p-epsilon-hollow/figures";
+import { battlefield, caveWorld } from "./p-epsilon-hollow/world";
 
 const SEAL_AT = [3.1, 2.4, -1.5]; // Veldora's seal, beside the pup
 const MAW_AT = [0, 3.6, -9];
 const bump = (x, c, w) => Math.max(0, 1 - Math.abs(x - c) / w);
 const V = new Vector3();
+const EYE = new Vector3();
+const LOOK = new Vector3();
+const LOOK1 = new Vector3();
 
 function build() {
   const mat = makeRim();
-  const sky = caveSky();
-  const ground = floor(mat);
+  const cave = caveWorld();
+  const war = battlefield(mat);
+  const vor = vortex();
+  const reform = dust(mat, 14.6);
   const pool = ripple("#1fb8ff", "#7ff8ff", false);
   const portal = ripple("#8a3fff", "#ff5ad8", true);
   const vel = veldora(mat);
@@ -39,12 +47,13 @@ function build() {
   const spark = particles(mat, [
     { n: 50, at: [0, 0.2, 0], r: 2, t0: 0.8, spread: 2.2, speed: 2.5, up: 1.6, vy: 1.4, life: 1.6, g: 3, size: 0.14, colors: ["#3fdcff", "#ffffff", "#9fe6ff", "#ff7ae0"], seed: 1 },
     { n: 60, at: SEAL_AT, r: 1.4, t0: 4.0, spread: 3.0, speed: 3, up: 1.2, vy: 1.2, life: 1.4, g: 2, size: 0.16, colors: ["#ffd23a", "#3aa6ff", "#ffffff"], seed: 2 },
-    { n: 70, at: [0, 0.3, 0], r: 2.5, t0: 8.6, spread: 1.6, speed: 4, up: 2.2, vy: 1.8, life: 1.4, g: 2, size: 0.18, colors: ["#8a5bff", "#ffffff", "#ffd23a", "#3fdcff"], seed: 3 },
-    { n: 60, at: [0, 0.3, -2], r: 6, t0: 11.0, spread: 5.5, speed: 3, up: 1.4, vy: 1.2, life: 1.5, g: 8, size: 0.2, colors: ["#ffd37a", "#ffffff", "#ff9a3a"], seed: 4 },
+    { n: 70, at: [0, 0.3, 0], r: 2.5, t0: 8.9, spread: 1.6, speed: 4, up: 2.2, vy: 1.8, life: 1.4, g: 2, size: 0.18, colors: ["#8a5bff", "#ffffff", "#ffd23a", "#3fdcff"], seed: 3 },
+    { n: 60, at: [0, 0.3, -2], r: 6, t0: 10.6, spread: 5.5, speed: 3, up: 1.4, vy: 1.2, life: 1.5, g: 8, size: 0.2, colors: ["#ffd37a", "#ffffff", "#ff9a3a"], seed: 4 },
     { n: 60, at: [0, 0.3, 0], r: 4, t0: 24.4, spread: 1.0, speed: 5, up: 2.0, vy: 1.6, life: 1.2, g: 3, size: 0.16, colors: ["#3fdcff", "#ffffff", "#ff5ad8"], seed: 5 },
+    { n: 90, at: [0, 0.3, -6], r: 28, t0: 9.6, spread: 4.5, speed: 1.2, up: 1.6, vy: 1.6, life: 2.6, g: -0.8, size: 0.12, colors: ["#ff9a3a", "#ffd37a", "#ff5a1a"], seed: 6 },
   ]);
   const flash = flashQuad("#cfe6ff");
-  return { mat, sky, ground, pool, portal, vel, man, mw, hs, fist, notice1, notice2, spark, flash };
+  return { mat, cave, war, vor, reform, pool, portal, vel, man, mw, hs, fist, notice1, notice2, spark, flash };
 }
 
 // ---- PREWARM: near the dock the parts are built and every program compiled, drawn at scale ~0 for four frames, then taken away.
@@ -60,7 +69,7 @@ function warmUp(w) {
   const root = new Group();
   root.scale.setScalar(0.0001);
   root.position.set(live.seal.x, -400, live.seal.z);
-  const mine = [m.sky.mesh, m.ground, m.pool.mesh, m.portal.mesh, m.vel.root, m.man.root, m.mw.mesh, m.hs.root, m.fist.mesh, m.notice1.mesh, m.notice2.mesh, m.spark.mesh, m.flash];
+  const mine = [m.cave.root, m.war.root, m.vor.mesh, m.reform.mesh, m.pool.mesh, m.portal.mesh, m.vel.root, m.man.root, m.mw.mesh, m.hs.root, m.fist.mesh, m.notice1.mesh, m.notice2.mesh, m.spark.mesh, m.flash];
   const kept = [];
   for (const o of mine) {
     o.traverse((x) => kept.push([x, x.visible]));
@@ -95,8 +104,8 @@ function sage(p, cam, k, t) {
   const d = 6;
   const hh = d * Math.tan((cam.fov * Math.PI) / 360);
   const hw = hh * cam.aspect;
-  const w = Math.min(hw * 1.2, hh * 2 * 1.9);
-  V.set(-hw * 0.28, hh * 0.62 + 0.04 * Math.sin(t * 2), -d).applyMatrix4(cam.matrixWorld);
+  const w = Math.min(hw * 0.62, hh * 2 * 1.2); // smaller, and parked under the site header (top edge ~14% down the frame)
+  V.set(-hw * 0.94 + w / 2, hh * 0.72 - (w * 0.2545) / 2 + 0.03 * Math.sin(t * 2), -d).applyMatrix4(cam.matrixWorld);
   p.mesh.position.copy(V);
   p.mesh.quaternion.copy(cam.quaternion);
   p.mesh.scale.setScalar(w * (0.9 + 0.1 * k));
@@ -107,6 +116,7 @@ export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
   const rig = useRef();
+  const pg = useRef();
   const island = useRef([]);
   const cracks = useRef(null);
   const m = useMemo(takeParts, []);
@@ -114,8 +124,10 @@ export default function Move(cut) {
   useEffect(() => {
     island.current = islandList(scene);
     return () => {
-      m.sky.dispose();
-      m.ground.geometry.dispose();
+      m.cave.dispose();
+      m.war.dispose();
+      m.vor.dispose();
+      m.reform.dispose();
       m.pool.dispose();
       m.portal.dispose();
       m.vel.dispose();
@@ -157,10 +169,43 @@ export default function Move(cut) {
     };
   }, [mode]);
 
+  // the pup is engulfed (its body is replaced by Rimuru's): hidden from 9.35 to 15.3, restored whatever happens
+  const hid = useRef(null);
+  const showPup = () => {
+    if (hid.current) hid.current.visible = true;
+    hid.current = null;
+  };
+  useEffect(() => showPup, []);
+  // the camera closes on the Demon Lord while he stands (a low, close frame that he fills), then returns to the follow
+  useFrame((state) => {
+    const a = live.arrival;
+    if (!a.id || mode !== "full") return;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
+    const cam = state.camera;
+    const s = live.seal;
+    const dk = smooth(9.3, 10.0, t) * (1 - smooth(13.6, 14.3, t));
+    if (dk > 0.001) {
+      const d = 1.5 / Math.tan((cam.fov * Math.PI) / 360);
+      EYE.set(s.x + 0.15, 0.95, s.z + d);
+      cam.position.lerp(EYE, dk);
+      LOOK.set(s.x - 0.3, 1.5, s.z + 1.5).lerp(LOOK1.set(s.x, 1.2, s.z), dk);
+      cam.lookAt(LOOK);
+      cam.updateMatrixWorld();
+    }
+    const pup = state.scene.getObjectByName("seal");
+    const out = t > 9.35 && t < 15.3;
+    if (pup && out && !hid.current) {
+      hid.current = pup;
+      pup.visible = false;
+    } else if (!out) showPup();
+  }, 0.5);
+
   useFrame(() => {
     if (!live.arrival.id) {
+      showPup();
       if (cracks.current) cracks.current.style.opacity = 0;
       rig.current.visible = false;
+      pg.current.visible = false;
       m.notice1.mesh.visible = false;
       m.notice2.mesh.visible = false;
     }
@@ -178,18 +223,17 @@ export default function Move(cut) {
     g.position.set(s.x, 0, s.z);
     m.mat.uniforms.uTime.value = t;
     m.mat.uniforms.uGlow.value = 0.5 + 0.5 * Math.sin(t * 9);
-    const back = smooth(13.5, 14.0, t);
-    const BREAK = 12.2; // the punch lands
-
-    // ---- reality, until it is eaten (12.4 -> 13.9): the cave; all of it is gone when the island returns
-    const eat = smooth(12.4, 13.9, t);
-    const gone = smooth(12.6, 13.8, t);
-    m.sky.mesh.material.uniforms.uEat.value = Math.min(1, eat * 1.05);
-    m.ground.visible = gone < 0.995;
-    m.ground.scale.set(Math.max(0.001, 1 - gone), 1, Math.max(0.001, 1 - gone));
-    m.ground.rotation.y = gone * 7;
-    m.ground.position.y = -gone * 6;
+    const back = smooth(14.4, 14.8, t);
+    const BREAK = 13.5; // the punch lands
+    const war = smooth(9.2, 10.4, t); // the cave breaks open onto the battlefield
+    const eat = smooth(13.6, 14.8, t);
+    const gone = smooth(13.8, 14.6, t);
+    m.cave.update(t, war, gone, Math.min(1, eat * 1.05));
+    m.war.update(t, war, smooth(10.3, 11.8, t), 1 - gone);
     m.spark.update(t);
+    m.reform.update(t);
+    pg.current.position.set(s.x, s.y ?? 0, s.z);
+    pg.current.visible = t > 14.5;
     g.visible = back < 0.5;
 
     // ---- the cast: a void ring spreads under the pup and Epsilon Hollow (memory, files, scheduler) turns beside it
@@ -208,37 +252,44 @@ export default function Move(cut) {
 
     // ---- Veldora in his seal (2.0), drawn into the maw at the end
     const vk = smooth(2.0, 3.0, t);
-    const pull = smooth(12.6, 13.7, t);
+    const pull = smooth(13.7, 14.6, t);
     m.vel.root.visible = vk > 0.01 && pull < 0.995;
     m.vel.root.position.set(SEAL_AT[0] + (MAW_AT[0] - SEAL_AT[0]) * pull, SEAL_AT[1] + 0.12 * Math.sin(t * 1.4) + (MAW_AT[1] - SEAL_AT[1]) * pull, SEAL_AT[2] + (MAW_AT[2] - SEAL_AT[2]) * pull);
     m.vel.root.scale.setScalar(Math.max(0.001, vk * (1 - pull * 0.98)));
     m.vel.root.rotation.z = pull * 9;
     m.vel.update(t, vk);
 
-    // ---- Demon Lord Rimuru rises behind the pup in a spiral (9.4 -> 10.8) and towers until reality breaks
-    const mk = smooth(9.4, 10.8, t) * (1 - smooth(13.2, 13.7, t));
+    // ---- the Predator vortex engulfs the pup (8.8 -> 9.3), Demon Lord Rimuru rises from it where the pup stood (9.3 -> 10.1),
+    // stands for 2.5 s (to 12.6), draws back a fist (12.6 -> 13.1) and strikes the lens (13.05 -> 13.4)
+    const pk = smooth(8.8, 9.3, t) * (1 - smooth(10.1, 10.9, t));
+    m.vor.mesh.visible = pk > 0.01;
+    m.vor.mat.uniforms.uT.value = t;
+    m.vor.mat.uniforms.uK.value = pk;
+    m.vor.mesh.scale.set(1 + 0.25 * (1 - pk), 1, 1 + 0.25 * (1 - pk));
+    const mk = smooth(9.3, 10.1, t) * (1 - smooth(13.5, 13.8, t));
     m.man.root.visible = mk > 0.01;
-    m.man.root.position.set(-1.7, 0, -1.8);
-    m.man.root.scale.setScalar(Math.max(0.001, 1.2 * mk));
-    m.man.root.rotation.y = (1 - smooth(9.4, 10.9, t)) * 9;
+    m.man.root.position.set(0, 0, 0);
+    m.man.root.scale.set(0.5 + 0.5 * mk, Math.max(0.001, mk), 0.5 + 0.5 * mk);
+    m.man.root.rotation.y = (1 - smooth(9.3, 10.2, t)) * 7;
+    m.man.update(t, smooth(12.6, 13.1, t), smooth(13.05, 13.4, t));
 
-    // ---- the punch: the fist flies at the lens (11.5 -> 12.2), then the glass cracks and shatters
-    const fk = smooth(11.5, 12.2, t) * (1 - smooth(12.2, 12.5, t));
+    // ---- the punch: the fist flies at the lens, then the glass cracks and shatters
+    const fk = smooth(13.0, 13.45, t) * (1 - smooth(13.5, 13.8, t));
     m.fist.mesh.visible = fk > 0.01;
     const hh = 5 * Math.tan((cam.fov * Math.PI) / 360);
-    V.set(0.0, -hh * 0.1, -(9 - 6.8 * smooth(11.5, 12.2, t))).applyMatrix4(cam.matrixWorld);
+    V.set(0.0, -hh * 0.1, -(9 - 6.8 * smooth(13.0, 13.45, t))).applyMatrix4(cam.matrixWorld);
     m.fist.mesh.position.copy(V);
     m.fist.mesh.quaternion.copy(cam.quaternion);
     m.fist.mesh.scale.setScalar(Math.max(0.001, 1.3 * fk));
     if (cracks.current) {
-      const ck = smooth(BREAK, BREAK + 0.1, t) * (1 - smooth(13.3, 13.9, t));
-      const sh = smooth(13.0, 13.9, t);
+      const ck = smooth(BREAK, BREAK + 0.1, t) * (1 - smooth(14.2, 14.7, t));
+      const sh = smooth(13.9, 14.7, t);
       cracks.current.style.opacity = ck.toFixed(2);
       cracks.current.style.transform = `scale(${(1 + sh * 0.5).toFixed(3)}) rotate(${(sh * 4).toFixed(2)}deg)`;
     }
 
     // ---- the void maw: opens behind the pup at the punch, swells, devours, and is gone with reality
-    const wk = smooth(12.4, 13.4, t) * (1 - smooth(13.7, 14.2, t));
+    const wk = smooth(13.6, 14.3, t) * (1 - smooth(14.5, 14.9, t));
     m.mw.mesh.visible = wk > 0.01;
     m.mw.mesh.position.set(MAW_AT[0] + s.x, MAW_AT[1], MAW_AT[2] + s.z);
     m.mw.mesh.quaternion.copy(cam.quaternion);
@@ -253,8 +304,8 @@ export default function Move(cut) {
     live.pose.sign = smooth(0.3, 0.9, t) * (1 - smooth(3.0, 3.6, t));
 
     // ---- flashes: the cast, the punch, the devouring, the return of the island
-    m.flash.material.color.set(t > 11 ? "#e6b8ff" : "#9fe6ff");
-    holdFlash(m.flash, cam, bump(t, 1.6, 0.15) * 0.35 + bump(t, BREAK + 0.05, 0.12) * 0.9 + bump(t, 13.9, 0.25) * 0.7);
+    m.flash.material.color.set(t > 13 ? "#e6b8ff" : "#9fe6ff");
+    holdFlash(m.flash, cam, bump(t, 1.6, 0.15) * 0.35 + bump(t, BREAK + 0.05, 0.12) * 0.9 + bump(t, 14.5, 0.25) * 0.7 + bump(t, 9.4, 0.2) * 0.4);
 
     // the island the stage hid comes back: reality is eaten and this is what remains
     if (back > 0.9 && t < c1 + 0.4) for (const o of island.current) o.visible = true;
@@ -266,9 +317,13 @@ export default function Move(cut) {
       <primitive object={m.flash} />
       <primitive object={m.notice1.mesh} />
       <primitive object={m.notice2.mesh} />
+      <group ref={pg} visible={false}>
+        <primitive object={m.reform.mesh} />
+      </group>
       <group ref={rig} visible={false}>
-        <primitive object={m.sky.mesh} />
-        <primitive object={m.ground} />
+        <primitive object={m.cave.root} />
+        <primitive object={m.war.root} />
+        <primitive object={m.vor.mesh} />
         <primitive object={m.pool.mesh} />
         <primitive object={m.portal.mesh} />
         <primitive object={m.vel.root} />
