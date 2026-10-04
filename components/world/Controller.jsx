@@ -138,8 +138,16 @@ export default function Controller() {
     WORLD.time = t;
     WORLD.hold = Boolean(holding); // an arrival hold: penguin bumps and bites wait (snack.js)
     WORLD.arriving = Boolean(arrival.id); // the whole arrival: TNT fuses wait (lib/world/toys.js)
+    // While a cutscene holds the seal it stays put: no river current or
+    // leftover momentum carrying it away from the scene staged around it
+    // (the owner: the awakening's aura drifted off the seal in the river).
+    if (holding) {
+      live.seal.vx = 0;
+      live.seal.vz = 0;
+      live.seal.speed = 0;
+    }
     // Fixed small steps so a slow frame cannot tunnel the seal through a wall.
-    let remaining = Math.min(delta, 0.1);
+    let remaining = holding ? 0 : Math.min(delta, 0.1);
     while (remaining > 0) {
       const dt = Math.min(remaining, 1 / 120);
       stepSeal(live.seal, CONTROLS, dt, WORLD);
