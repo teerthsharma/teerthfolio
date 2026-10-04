@@ -44,8 +44,8 @@ const wideLook = rigPoint([6, 0, -8], { P: SEAT, psi: PSI, off: [0, 0, 0] });
 export const VIEW = {
   close: { wide: [[0.3, 0.35, 0], [0.9, 0.55, 5.2]], tall: [[0.3, 0.35, 0], [0.9, 0.6, 6.4]] },
   estab: { wide: [wideLook, [0, 44, 88]], tall: [wideLook, [0, 52, 108]] },
-  med: { wide: [[0.4, -3.6, 0], [0, 10.5, 21]], tall: [[0.4, -4.6, 0], [0, 13.5, 30]] },
-  mid: { wide: [[0.4, -6, 0], [0, 18, 34]], tall: [[0.4, -7, 0], [0, 22, 44]] }, // the stamps across the plaza, the pup in its window
+  med: { wide: [[0.4, -3.0, 0], [0, 8.0, 15.5]], tall: [[0.4, -3.8, 0], [0, 10.5, 22]] },
+  mid: { wide: [[0.4, -5, 0], [0, 14, 27]], tall: [[0.4, -6, 0], [0, 18, 36]] }, // the stamps across the plaza, the pup in its window
   gate: { wide: [gateLook, [20.1, 22, 34.6]], tall: [gateLook, [25.8, 26, 45.2]] }, // from the south along the avenue
 };
 const ss = (a, b, t) => {

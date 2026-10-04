@@ -215,8 +215,9 @@ export function treeGeometry() {
   const m = new Mesher();
   m.add(new CylinderGeometry(0.16, 0.26, 2.6, 6), S.WARM, M.makeTranslation(0, 1.3, 0));
   m.add(new CylinderGeometry(0.1, 0.14, 1.2, 5), S.WARM, new Matrix4().makeRotationZ(0.7).setPosition(0.5, 2.7, 0));
-  for (const [x, y, z, r] of [[0, 3.9, 0, 1.9], [1.25, 3.4, 0.35, 1.3], [-1.15, 3.55, -0.3, 1.4], [0.2, 4.7, -0.4, 1.2]]) {
-    m.add(new IcosahedronGeometry(r, 1), S.ROSE, M.makeTranslation(x, y, z));
+  // a smooth rounded crown: eight fine-subdivided blobs, flattened a little at the base so it reads as a billow, not facets
+  for (const [x, y, z, r, sy] of [[0, 4.0, 0, 1.8, 0.8], [1.35, 3.5, 0.35, 1.25, 0.8], [-1.3, 3.6, -0.3, 1.3, 0.8], [0.25, 4.9, -0.4, 1.15, 0.85], [-0.5, 3.4, 1.1, 1.05, 0.8], [0.9, 4.4, -1.0, 1.0, 0.85], [-1.0, 4.5, 0.8, 0.95, 0.85], [0.3, 3.3, -1.2, 1.0, 0.8]]) {
+    m.add(new IcosahedronGeometry(r, 4).scale(1, sy, 1), S.ROSE, M.makeTranslation(x, y, z));
   }
   return m.build();
 }
