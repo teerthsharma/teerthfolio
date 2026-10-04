@@ -16,7 +16,7 @@ import { SHARD_FRAG, SHARD_VERT, flat, hash, shardify } from "./parts";
 // rig frame: low over the field, left of the Susanoo on a wide screen, above its sword arm on a tall one
 export const MOON_WIDE = new Vector3(-30, 14, -118);
 export const MOON_TALL = new Vector3(-10, 23, -118);
-export const MOON_R = 19;
+export const MOON_R = 57;
 export const CRATERS = [
   [-26, -52, 6, 0.9],
   [22, -60, 7, 0.9],
@@ -63,7 +63,7 @@ export function skyShell() {
     uniforms: {
       uCell: u(6), uTime: u(0), uBreak: u(-1), uPull: u(1), uCrack: u(0), uCrackDir: u(new Vector3(0, 0, -1)),
       uMoon: u(new Vector3()), uSplit: u(0), uSplitDir: u(new Vector3(-0.3, 0.8, -0.5)), uPulse: u(0), uAlpha: u(1), uInside: u(0),
-      uTop: u(sr("#2a241f")), uMid: u(sr("#6a5c4d")), uHaze: u(sr("#bfa98b")), uLow: u(sr("#4a3f34")), uRed: u(sr("#b3122a")), uPink: u(sr("#e0559b")),
+      uTop: u(sr("#120a2e")), uMid: u(sr("#4a1a4a")), uHaze: u(sr("#ff3b3b")), uLow: u(sr("#2a0f2e")), uRed: u(sr("#b3122a")), uPink: u(sr("#e0559b")),
     },
     side: DoubleSide,
     transparent: true,
@@ -174,7 +174,7 @@ export function battlefield() {
     uniforms: {
       uCell: u(6), uTime: u(0), uBreak: u(-1), uPull: u(0), uMoon: u(new Vector3()), uPulse: u(0), uCrack: u(0), uCrackDir: u(new Vector3(0, 0, -1)),
       uC1: u(new Vector3(HIT1[0], 0, HIT1[1])), uC2: u(new Vector3(HIT2[0], 0, HIT2[1])), uK1: u(0), uK2: u(0), uHot1: u(0), uHot2: u(0),
-      uAsh: u(sr("#9c8a72")), uSoot: u(sr("#433a30")), uHaze: u(sr("#bfa98b")), uRed: u(sr("#b3122a")), uEmber: u(sr("#e8c9a0")), uDot: u(sr("#2a231c")),
+      uAsh: u(sr("#3b2a5c")), uSoot: u(sr("#1e1432")), uHaze: u(sr("#ff3b3b")), uRed: u(sr("#b3122a")), uEmber: u(sr("#ff2d55")), uDot: u(sr("#2a231c")),
     },
     transparent: true,
     vertexShader: /* glsl */ `
@@ -269,7 +269,7 @@ export function moon() {
         vec2 p = vUv2;
         float r = length(p);
         float ang = atan(p.y, p.x);
-        vec3 red = vec3(0.72, 0.04, 0.09) * (0.85 + 0.25 * uPulse);
+        vec3 red = vec3(0.72, 0.04, 0.09) * 2.0 * (0.85 + 0.25 * uPulse);
         vec3 c = mix(red * 1.25, red * 0.55, smoothstep(0.2, 1.0, r)); // limb darkening
         c += vec3(0.25, 0.02, 0.04) * (1.0 - r) * fbm(p * 5.0) ;
         float ink = 0.0;
