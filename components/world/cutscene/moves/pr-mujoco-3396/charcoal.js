@@ -54,20 +54,20 @@ export const INK = /* glsl */ `
   // tone 0 black .. 1 paper: how much graphite lands here
   float graphite(float tone) {
     vec2 q = gl_FragCoord.xy / uPx;
-    float ink = strokes(q, 0.95, 5.0, 0.22) * (1.0 - smoothstep(0.46, 0.7, tone));
-    ink = max(ink, strokes(q, -0.7, 5.0, 0.24) * (1.0 - smoothstep(0.26, 0.42, tone)));
-    ink = max(ink, strokes(q, 0.12, 3.6, 0.42) * (1.0 - smoothstep(0.08, 0.24, tone)));
-    float smudge = pow(1.0 - clamp(tone, 0.0, 1.0), 2.0) * 0.55;
+    float ink = strokes(q, 0.95, 8.0, 0.18) * (1.0 - smoothstep(0.34, 0.56, tone));
+    ink = max(ink, strokes(q, -0.7, 8.0, 0.2) * (1.0 - smoothstep(0.16, 0.3, tone)));
+    ink = max(ink, strokes(q, 0.12, 6.0, 0.3) * (1.0 - smoothstep(0.04, 0.14, tone)));
+    float smudge = pow(1.0 - clamp(tone, 0.0, 1.0), 2.0) * 0.4;
     return clamp(max(ink * 0.82, smudge), 0.0, 1.0);
   }
   // the paper, washed (burnt orange) or kept in a colour, then the graphite over it
   vec3 drawn(float tone, float wash, vec3 keep, float keepK) {
     float t = tooth();
-    vec3 paper = vec3(0.80, 0.765, 0.705) * (0.93 + 0.1 * t);
-    paper = mix(paper, vec3(0.95, 0.56, 0.26), clamp(wash, 0.0, 1.0));
+    vec3 paper = vec3(0.98, 0.82, 0.62) * (0.93 + 0.1 * t);
+    paper = mix(paper, vec3(1.0, 0.45, 0.12), clamp(wash * 1.4, 0.0, 1.0));
     paper = mix(paper, keep * (0.75 + 0.35 * clamp(tone, 0.0, 1.0)), keepK);
     float ink = graphite(tone) * (0.78 + 0.42 * t);
-    return mix(paper, vec3(0.16, 0.145, 0.135), clamp(ink * 0.85, 0.0, 1.0));
+    return mix(paper, vec3(0.22, 0.04, 0.06), clamp(ink * 0.6, 0.0, 1.0));
   }
   // the drawing burning off: discard inside the hole, a charred band and an ember edge round it
   vec3 burn(vec3 c) {
