@@ -28,7 +28,7 @@ import { EffectComposer, N8AO, ToneMapping } from "@react-three/postprocessing";
 import { SelectiveBloomEffect, ToneMappingMode } from "postprocessing";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackSide } from "three";
-import { TIERS, TOP, classify, dprFor, recall, remember } from "../../lib/world/quality";
+import { TIERS, TOP, classify, climbCost, dprFor, recall, remember } from "../../lib/world/quality";
 import { getUi, setUi, useUi } from "../../lib/world/store";
 import { RadiationPovEffect, stepRadiationPov } from "./look/RadiationPov";
 import { C, LIGHT } from "./palette";
@@ -175,12 +175,13 @@ export default function Look() {
     return () => mq.removeEventListener("change", moved);
   }, [deviceDpr]);
 
+  const [squeeze, setSqueeze] = useState(1);
   useEffect(() => {
     if (tier === null) return;
-    const dpr = dprFor(tier, size.width, size.height, deviceDpr);
+    const dpr = dprFor(tier, size.width, size.height, deviceDpr, tier === 0 ? squeeze : 1);
     setDpr(dpr);
-    window.__world = { ...(window.__world || {}), look: tier, dpr, gpu: renderer };
-  }, [tier, size.width, size.height, deviceDpr, setDpr, renderer]);
+    window.__world = { ...(window.__world || {}), look: tier, dpr, squeeze, gpu: renderer };
+  }, [tier, squeeze, size.width, size.height, deviceDpr, setDpr, renderer]);
 
   // Judge the device only once the first shaders have compiled (the load
   // always stutters), and again a little after each change of rung, whose
@@ -190,17 +191,30 @@ export default function Look() {
     if (!ready || tierFrom === "pin") return undefined;
     const t = setTimeout(() => setWatching(true), 3000);
     return () => clearTimeout(t);
-  }, [ready, tierFrom, tier]);
+  }, [ready, tierFrom, tier, squeeze]);
 
-  // A rung that failed once is not tried again this visit (tierCap): each
-  // probe of a rung this GPU cannot hold is a visible hitch, so the climb
-  // gets one try per rung, never a swing.
+  // A rung that failed once is not tried again this visit (tierCap), and a
+  // climb is tried only with the headroom the next rung costs (climbCost):
+  // each failed try is a visible hitch and a burst of new shaders. Below T0
+  // the pixel budget itself shrinks (squeeze), down to T0's DPR floor.
   const step = (d) => () => {
     const { tier: now, tierCap } = getUi();
+    if (now === 0 && (d < 0 || squeeze < 1)) {
+      const next = Math.min(1, Math.max(0.5, d < 0 ? squeeze * 0.8 : squeeze / 0.8));
+      if (next !== squeeze) return setSqueeze(next);
+      if (d < 0) return undefined;
+    }
     const next = Math.max(0, Math.min(tierCap, now + d));
-    if (next === now) return;
+    if (next === now) return undefined;
     setUi(d < 0 ? { tier: next, tierCap: next } : { tier: next });
     remember(renderer, next);
+    return undefined;
+  };
+  const upper = (hz) => {
+    const now = getUi().tier;
+    const need = 50 * (now === 0 && squeeze < 1 ? 1 / 0.8 : climbCost(now, size.width, size.height, deviceDpr));
+    // a display this slow cannot show the headroom a climb needs
+    return need > hz * 0.95 ? Infinity : need;
   };
 
   if (tier === null) return null;
@@ -209,7 +223,7 @@ export default function Look() {
       <Sky />
       <Post rung={rung} />
       {watching ? (
-        <PerformanceMonitor bounds={(hz) => [50, Math.min(hz * 0.95, 75)]} onDecline={step(-1)} onIncline={step(1)} />
+        <PerformanceMonitor bounds={(hz) => [50, upper(hz)]} onDecline={step(-1)} onIncline={step(1)} />
       ) : null}
     </>
   );
