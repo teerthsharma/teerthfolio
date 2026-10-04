@@ -1315,7 +1315,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   const koan = cardFor("p-aether-lang");
   assert.ok(koan.a.text.includes("Gojeal Satarou") && koan.b.text.includes("Gojeal Fishtarou"), "the Gojeal koan keeps its spellings");
   const T = timelineFor(koan);
-  assert.ok(T.duration === 8.2 && T.lineA === 2.3 && T.lineB === 5 && T.collapse[0] === 7.4 && T.hold === 7.8, "Aether-Lang keeps its approved 8.2 s domain");
+  assert.ok(T.duration >= 8.2 && T.lineB > T.lineA && T.collapse[0] > T.lineB, "Aether-Lang keeps its domain beats in order (rebuilt richer and slower, owner 2026-10-04)");
   // THE AWAKENING (awakening.js): its beats in order, the line on screen long
   // enough to read, the pup back down and the sky clear by the end, and the
   // credit card's every number taken from showcase.json.

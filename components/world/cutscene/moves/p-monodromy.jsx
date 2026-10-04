@@ -1,400 +1,438 @@
-// Monodromy: Steins;Gate (treatments/g4.md). The upper sheet speaks as land.
-// The pup answers on the phone (a flipper at its head, held the whole of line
-// A) in a cream lab coat; a lab-coat witness with long hair and a cream
-// microwave facepalms; two nixie tubes sit above. On the move the REAL pup
-// runs the floor loop (its display transform carried round the ring, the
-// world position untouched; a leg-wheel blur and a dust trail) and lands home.
-// The world line shifts (a ring sweeps out, everything jitters one drawing),
-// the Transport ramp's upper sheet lights coral and a small copy of the pup
-// stands halfway up it: the loop closed below, not above. For one drawing the
-// two pups miss each other. The witness drops the microwave. A second lap in
-// four drawings: the copy rides the ramp to the top and drops into the tower,
-// the sheet goes mint, the tubes lock on 2.
-// Cost: the upper copy is ~16 meshes of the pup clone; the rest is two tube
-// meshes, one instanced dust mesh, the witness (about ten), three coat flaps,
-// three rings, two words, two nixie quads.
-// Card: lib/world/cutscene/cards/p-monodromy.js.
+// monodromy: Magi, Sinbad and Baal's Baararaq Saiqa, in shape and colour only. The island becomes SINDRIA in
+// Magi's Arabian Nights: a white-and-gold palace on a cliff over a turquoise sea (gold onion domes, turquoise
+// towers, a star-tiled terrace with a patterned border, fountains), palms, a harbour of dhows with lateen sails and
+// a festival crowd under strings of lanterns, all in warm anime cel (look.js). The pup becomes SINBAD (a long
+// dark-violet ponytail, a gold circlet, hoop earrings, glowing ring vessels and a sword hilt), equips the djinn BAAL
+// (lightning armour, glowing tattoos, a blue-white storm wreathing it) while Ja'far panics, and fires BAARARAQ SAIQA:
+// city-scale lightning from a vortex over the palace that is so big it BREAKS THE FOURTH WALL: the HUD frame, the
+// letterbox and the Skip chip shudder, a crack runs across the lens, the pup looks at the viewer. The crack IS the
+// loop (monodromy): the pup steps into it and the whole world folds shut along it, and the island is back exactly
+// where we left it, the loop closed (a ring on the ground closes too), the pup giving a sheepish wave.
+// No post pass: the crack is one quad on the lens, the fold is a vertex squeeze, the HUD shudder is CSS variables.
+// Card: lib/world/cutscene/cards/p-monodromy.js. Parts: ./p-monodromy/.
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, CanvasTexture, CatmullRomCurve3, CircleGeometry, Color, CylinderGeometry, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, Object3D, PlaneGeometry, RingGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from "three";
-import { Stage, onTwos, smooth, useCutFrame } from "../kit";
-import { turnFor } from "../../../../lib/world/cutscene/timeline";
+import { Color, InstancedMesh, Mesh, Object3D, Vector2, Vector3 } from "three";
+import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
-import { rampAngle, rampTopY } from "../../monuments/parts/transport-ramp";
-import { PupClone } from "./g4/clone";
-import { ball, flap, hullOf, inkPair, join, limb, makeWord, swayMaterial, tintInk } from "./g4/ink";
-import { Rig, glow, pulse, useInk } from "./g4/parts";
+import { place as placeBubble } from "../../ui/Bubbles";
+import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
+import { Motes } from "./_g1";
+import { flashQuad, holdFlash, islandList, pupParts } from "./p-caustic/parts";
+import { boltMaterial, burstGeometry, megaBoltGeometry, wreathGeometry } from "./p-monodromy/bolt";
+import { crackLens, foldPlane, loopRing, placeLens } from "./p-monodromy/crack";
+import { jafar, sinbad, stormColumn } from "./p-monodromy/hero";
+import { U, celMat, hash, pupCel } from "./p-monodromy/look";
+import { FLEET, LANTERN_COLORS, PALM_AT, ROBES, SEA_Y, landscape, lanternGeometry, palmGeometry, personGeometry, sea, shipGeometry, skyShell, strings } from "./p-monodromy/world";
 
-const R = 1.8; // m: the floor loop, through the pup's own spot
-const C = [0, -1.8]; // its centre, in the pup's frame (x, z)
-const TURN = Math.PI * 2;
-const NIXIE = "#ff9a3c";
-const MINT = "#6ff2c0";
-const CORAL = "#ff6b6b";
-const RAMP_R = 1.18; // the marble's own track on the Transport ramp
-const COPY_S = 0.42; // the upper copy's size against the pup
-const DUST = 20;
-const ENTER = [[1.3, 0.5], [0.86, 1.14], [1.05, 0.96]];
+const CORE_Y = 0.9;
+// the clock (s from the arrival). The card's beats: Relax 4.6, Oops 7.0, the flex 9.6, the credit 12.0, out 13.6
+const T = {
+  costume: [0.9, 1.5],
+  equip: [1.9, 3.1],
+  panic: [2.3, 2.7], // Ja'far's panic ramps up; his bubble is up 2.3 .. 4.6
+  charge: [4.9, 6.3], // the flippers rise, the vortex winds up
+  strike: 6.4, // BAARARAQ SAIQA
+  lens: 6.5, // it comes out of the screen: the lens cracks
+  stare: [6.8, 7.7],
+  step: [7.7, 8.4], // the pup steps into the crack
+  fold: [8.3, 9.5], // the world folds shut along it
+  home: 9.5, // the island, exactly where we left it; the pup is back
+  heal: [9.5, 9.9],
+  ring: [9.55, 10.2],
+};
+const FLASHES = [3.35, 3.95, 4.9, 5.35, 5.8, 6.1]; // far lightning in the clouds as the storm builds
+const CROWD = 72;
+const LAMPS = 48;
+const CRACK_AT = new Vector2(0.1, 0.06); // where the lens breaks (screen, aspect-centred units)
+const CRACK_ANG = 1.12;
 
-// Where the pup is on the loop at 0..1 (0 and 1 are home), in the pup's frame.
-const loopAt = (u) => [C[0] + R * Math.sin(u * TURN), C[1] + R * Math.cos(u * TURN)];
-// Lap 2 in four drawings: a quarter more each, ending home.
-const stepped = (x) => Math.min(1, Math.floor(Math.min(0.999, Math.max(0, x)) * 4) / 4 + 0.25);
+const V = new Vector3();
+const W = new Vector3();
+const N = new Vector3();
+const O = new Object3D();
+const COL = new Color();
+const hudVars = (x, y, r) => {
+  const s = document.documentElement.style;
+  s.setProperty("--mono-x", `${x.toFixed(1)}px`);
+  s.setProperty("--mono-y", `${y.toFixed(1)}px`);
+  s.setProperty("--mono-r", `${r.toFixed(2)}deg`);
+};
 
-// A spiral through the ramp's own maths, t0..t1 along its two laps.
-function sheetCurve(t0, t1, lift) {
-  const pts = [];
-  for (let i = 0; i <= 40; i++) {
-    const t = t0 + ((t1 - t0) * i) / 40;
-    const a = rampAngle(t);
-    pts.push(new Vector3(Math.sin(a) * RAMP_R, rampTopY(t) + lift, Math.cos(a) * RAMP_R));
-  }
-  return new CatmullRomCurve3(pts);
-}
+// the HUD's own shudder: its frame, the cinema bars, the Skip chip, driven by CSS variables (one rule, no DOM walk)
+const SHUDDER_CSS = `html[data-mono-shake] .hud-top, html[data-mono-shake] .cut-skip, html[data-mono-shake] .cut-title { translate: var(--mono-x, 0) var(--mono-y, 0); rotate: var(--mono-r, 0deg); }
+html[data-mono-shake] .hud-letterbox::before, html[data-mono-shake] .hud-letterbox::after { translate: var(--mono-x, 0) var(--mono-y, 0); }`;
 
-// The witness: a lab coat to the knee, long straight hair, a cream microwave under one arm.
-function witnessParts() {
-  const body = [
-    limb([-0.1, 0, 0.02], [-0.12, 0.85, 0], 0.075, 0.1),
-    limb([0.1, 0, 0.02], [0.12, 0.85, 0], 0.075, 0.1),
-    limb([0, 0.42, 0], [0, 1.6, 0], 0.36, 0.23, 7, 1.05, 0.78), // the coat, flared at the hem
-    limb([-0.32, 1.57, 0], [0.32, 1.57, 0], 0.085, 0.085),
-    limb([0, 1.58, 0], [0, 1.78, 0.01], 0.07, 0.06),
-    ball([0, 1.9, 0.02], 0.16, 0.94, 1.12, 1),
-    limb([0, 1.98, -0.1], [0, 1.0, -0.2], 0.19, 0.1, 6, 1.15, 0.5), // long straight hair down the back
-    limb([-0.15, 1.9, -0.02], [-0.17, 1.35, -0.14], 0.05, 0.04),
-    limb([0.15, 1.9, -0.02], [0.17, 1.35, -0.14], 0.05, 0.04),
-    limb([0.3, 1.55, 0], [0.42, 1.25, 0.1], 0.085, 0.07), // the arm under the microwave
-    limb([0.42, 1.25, 0.1], [0.12, 1.12, 0.3], 0.07, 0.065),
-  ];
-  const down = [limb([-0.3, 1.55, 0], [-0.4, 1.22, 0.04], 0.085, 0.07), limb([-0.4, 1.22, 0.04], [-0.38, 0.92, 0.1], 0.07, 0.065), ball([-0.38, 0.9, 0.1], 0.07)];
-  const palm = [limb([-0.3, 1.55, 0], [-0.46, 1.34, 0.14], 0.085, 0.07), limb([-0.46, 1.34, 0.14], [-0.1, 1.84, 0.22], 0.07, 0.062), ball([-0.08, 1.86, 0.23], 0.075)]; // the hand to the brow
-  return { body: join(body), down: join(down), palm: join(palm) };
-}
-
-// A digit strip, 0 to 9 top to bottom, in nixie amber.
-function digitStrip() {
-  const c = document.createElement("canvas");
-  c.width = 64;
-  c.height = 640;
-  const g = c.getContext("2d");
-  g.fillStyle = "#1a0d05";
-  g.fillRect(0, 0, 64, 640);
-  g.font = "700 56px monospace";
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.shadowColor = NIXIE;
-  g.shadowBlur = 14;
-  g.fillStyle = "#ffd29a";
-  for (let d = 0; d < 10; d++) g.fillText(String(d), 32, d * 64 + 34);
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  return t;
+// Ja'far's own bubble (the shared bubbles hold three lines): the kit's markup and layout, aimed at his mouth
+function panicBubble() {
+  const wrap = document.createElement("div");
+  wrap.className = "comic";
+  wrap.style.cssText = "--accent:#1fbdb4;--deep:#0e8a94;";
+  wrap.innerHTML = `<div class="bubble" data-slot="p" data-who="land" data-kind="oval"><svg class="bubble-art" aria-hidden="true"><path class="bubble-tail bubble-ink"></path><path class="bubble-body bubble-ink"></path><path class="bubble-tail bubble-fill"></path></svg><p class="bubble-text">My king, you can't fire that <b>inside a portfolio</b>!</p></div>`;
+  wrap.hidden = true;
+  return wrap;
 }
 
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
-  const { p } = useInk(card);
-  const S = tl.move[1]; // the world line shifts as the lap closes
-  const LAP2 = [tl.lineB + 0.6, tl.lineB + 0.93]; // four drawings
-  const portrait = useThree((st) => st.size.width < st.size.height);
-  const run = useRef({ dx: 0, dz: 0, yaw: 0, k: 0 }).current;
-  const sealRef = useRef(null);
+  const scene = useThree((s) => s.scene);
+  const rig = useRef();
+  const shellRef = useRef();
+  const world = useRef();
+  const dust = useRef();
+  const pup = useRef(null);
+  const st = useRef({ shake: new Vector3(), step: new Vector3(), scale: 1, faceTo: 0, faceK: 0, bubble: null, lastTt: -1 });
 
-  const geo = useMemo(
-    () => ({
-      loop: new TubeGeometry(new CatmullRomCurve3(Array.from({ length: 49 }, (_, i) => new Vector3(loopAt(i / 48)[0], 0.06, loopAt(i / 48)[1]))), 72, 0.045, 5, true),
-      lower: new TubeGeometry(sheetCurve(0, 0.5, 0.1), 40, 0.1, 6),
-      upper: new TubeGeometry(sheetCurve(0.5, 1, 0.1), 40, 0.15, 6),
-      witness: witnessParts(),
-      dust: new IcosahedronGeometry(1, 0),
-      ring: new RingGeometry(0.9, 1, 40),
-      flat: new RingGeometry(0.9, 1, 40).rotateX(-Math.PI / 2),
-      fan: new CircleGeometry(0.3, 8),
-      mw: new BoxGeometry(0.5, 0.32, 0.38),
-      door: new PlaneGeometry(0.28, 0.2),
-      tube: new CylinderGeometry(0.17, 0.17, 0.62, 12, 1, true),
-      plate: new BoxGeometry(1.1, 0.8, 0.08),
-      quad: new PlaneGeometry(0.2, 0.3),
-      coat: flap(0.24, 0.42),
-      witnessCoat: flap(0.5, 0.7),
-    }),
-    [],
-  );
-  const hulls = useMemo(() => ({ body: hullOf(geo.witness.body), down: hullOf(geo.witness.down), palm: hullOf(geo.witness.palm) }), [geo]);
-  const mats = useMemo(
-    () => ({
-      loop: glow(MINT),
-      lower: glow(MINT),
-      upper: glow(CORAL),
-      shift: glow("#ffffff"),
-      ring: glow(MINT),
-      fan: glow("#fbfaf7"),
-      dust: new MeshBasicMaterial({ color: "#fbfaf7", transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false, fog: false }),
-      cream: new MeshBasicMaterial({ color: "#fbfaf7", toneMapped: false, fog: false }),
-      glass: new MeshBasicMaterial({ color: "#241414", toneMapped: false, fog: false }),
-      plate: new MeshBasicMaterial({ color: new Color(p.ink), toneMapped: false, fog: false }),
-      tube: glow(NIXIE),
-      coat: swayMaterial("#fbfaf7"),
-      witnessCoat: swayMaterial("#fbfaf7"),
-    }),
-    [p],
-  );
-  const strip = useMemo(() => (typeof document === "undefined" ? null : digitStrip()), []);
-  const digits = useMemo(() => [0, 1].map(() => (strip ? new MeshBasicMaterial({ map: strip.clone(), toneMapped: false, fog: false }) : null)), [strip]);
-  useEffect(() => {
-    for (const m of digits) {
-      if (!m?.map) continue;
-      m.map.repeat.set(1, 0.1);
-      m.map.needsUpdate = true;
+  const m = useMemo(() => {
+    const cel = celMat();
+    const palmMat = celMat({ wind: true });
+    const shell = skyShell();
+    const seaM = sea();
+    const land = landscape();
+    const palmG = palmGeometry();
+    const palms = new InstancedMesh(palmG, palmMat, PALM_AT.length);
+    PALM_AT.forEach(([x, z, y], i) => {
+      O.position.set(x, y, z);
+      O.rotation.set(0, hash(i, 1) * 6.28, 0);
+      O.scale.setScalar(0.85 + 0.45 * hash(i, 2));
+      O.updateMatrix();
+      palms.setMatrixAt(i, O.matrix);
+    });
+    const shipG = shipGeometry();
+    const ships = new InstancedMesh(shipG, cel, FLEET.length);
+    const sails = ["#fff3d6", "#1fbdb4", "#e4566a", "#f2b52e", "#ffffff", "#7d4fc4"];
+    FLEET.forEach((_, i) => ships.setColorAt(i, COL.set(sails[i % sails.length])));
+    const personG = personGeometry();
+    const crowd = new InstancedMesh(personG, cel, CROWD);
+    const folk = Array.from({ length: CROWD }, (_, i) => {
+      const side = i % 2 ? 1 : -1;
+      const z = -9.4 + 6.4 * hash(i, 1);
+      const x = side * (2.5 + hash(i, 2) ** 1.3 * 6.8);
+      crowd.setColorAt(i, COL.set(ROBES[Math.floor(hash(i, 3) * ROBES.length)]));
+      return { x, z, yaw: Math.atan2(-x, 9 - z) * 0.8 + (hash(i, 4) - 0.5) * 0.4, s: 0.9 + 0.22 * hash(i, 5), lag: hash(i, 6) * 0.35, ph: hash(i, 7) * 6.28 };
+    });
+    const str = strings();
+    const ropes = new Mesh(str.rope, cel);
+    const lampG = lanternGeometry();
+    const lampList = str.lamps.slice(0, LAMPS);
+    const lamps = new InstancedMesh(lampG, cel, lampList.length);
+    lampList.forEach((l, i) => lamps.setColorAt(i, COL.set(LANTERN_COLORS[l.hue])));
+    for (const im of [palms, ships, crowd, lamps]) im.frustumCulled = false;
+    const landMesh = new Mesh(land, cel);
+    landMesh.frustumCulled = false;
+    ropes.frustumCulled = false;
+    const mega = new Mesh(megaBoltGeometry(), boltMaterial());
+    const wreath = new Mesh(wreathGeometry(), boltMaterial());
+    const burst = new Mesh(burstGeometry(), boltMaterial());
+    for (const b of [mega, wreath, burst]) {
+      b.frustumCulled = false;
+      b.renderOrder = 6;
+      b.visible = false;
     }
-  }, [digits]);
-  const words = useMemo(() => ({ zaap: makeWord("ZAAAP", p.accent, 0.5), huh: makeWord("!?", "#fbfaf7", 0.5) }), [p]);
-  const dust = useMemo(() => {
-    const m = new InstancedMesh(geo.dust, mats.dust, DUST);
-    m.frustumCulled = false;
-    return m;
-  }, [geo, mats]);
-  const o = useMemo(() => new Object3D(), []);
+    mega.material.uniforms.uJit.value = 0.45;
+    wreath.material.uniforms.uJit.value = 0.05;
+    burst.material.uniforms.uJit.value = 0.12;
+    const storm = stormColumn();
+    const ja = jafar(cel);
+    const lens = crackLens();
+    lens.m.uniforms.uC.value = CRACK_AT;
+    lens.m.uniforms.uAng.value = CRACK_ANG;
+    const ring = loopRing();
+    const flash = flashQuad("#cfe6ff");
+    return { cel, palmMat, shell, seaM, land, landMesh, palmG, palms, shipG, ships, personG, crowd, folk, str, lampList, ropes, lampG, lamps, mega, wreath, burst, storm, ja, lens, ring, flash };
+  }, []);
 
-  const g = {
-    jit: useRef(),
-    witness: useRef(),
-    palm: useRef(),
-    down: useRef(),
-    mw: useRef(),
-    copy: useRef(),
-    world: useRef(),
-    shift: useRef(),
-    ring1: useRef(),
-    ring2: useRef(),
-    fan: useRef(),
-    fanMesh: useRef(),
-    coat: useRef(),
-    meter: useRef(),
-  };
+  const costume = useRef(null);
+  const skin = useRef(null);
+  const island = useRef([]);
+  useEffect(() => {
+    const state = st.current;
+    island.current = islandList(scene);
+    const p = pupParts(scene);
+    pup.current = p;
+    skin.current = p?.root ? pupCel(p.root) : null;
+    if (p?.head && p.rear) {
+      costume.current = sinbad(p, m.cel);
+      costume.current.attach();
+    }
+    // the HUD shudder's rule, and Ja'far's own bubble: only while the scene is up
+    let style = null;
+    let bubble = null;
+    if (mode === "full") {
+      style = document.createElement("style");
+      style.textContent = SHUDDER_CSS;
+      document.head.append(style);
+      bubble = panicBubble();
+      document.querySelector(".hud")?.append(bubble);
+    }
+    state.bubble = bubble;
+    return () => {
+      costume.current?.dispose();
+      costume.current = null;
+      pup.current?.root.scale.setScalar(1);
+      skin.current?.dispose();
+      skin.current = null;
+      pup.current = null;
+      style?.remove();
+      bubble?.remove();
+      state.bubble = null;
+      document.documentElement.removeAttribute("data-mono-shake");
+      const s = document.documentElement.style;
+      for (const k of ["--mono-x", "--mono-y", "--mono-r"]) s.removeProperty(k);
+      U.uFold.value = U.uStorm.value = U.uFlash.value = 0;
+      for (const g of [m.shell.g, m.seaM.g, m.land, m.palmG, m.shipG, m.personG, m.str.rope, m.lampG, m.mega.geometry, m.wreath.geometry, m.burst.geometry, m.lens.mesh.geometry, m.ring.mesh.geometry, m.flash.geometry]) g.dispose();
+      for (const x of [m.cel, m.palmMat, m.shell.m, m.seaM.m, m.mega.material, m.wreath.material, m.burst.material, m.lens.m, m.ring.m, m.flash.material]) x.dispose();
+      for (const x of [m.palms, m.ships, m.crowd, m.lamps]) x.dispose();
+      m.storm.dispose();
+      m.ja.dispose();
+    };
+  }, [scene, m, mode]);
+
+  // the strike shakes the pup, the step carries it into the crack, the stare turns it to the lens (after Seal.jsx
+  // places it); a skip clears the arrival: nothing of the scene draws after
+  useFrame(() => {
+    const p = pup.current;
+    const S = st.current;
+    if (!live.arrival.id) {
+      rig.current.visible = false;
+      p?.root?.scale.setScalar(1);
+      skin.current?.set(false);
+      m.lens.mesh.visible = false;
+      m.flash.visible = false;
+      if (costume.current) costume.current.hair.visible = costume.current.armour.visible = false;
+      document.documentElement.removeAttribute("data-mono-shake");
+      return;
+    }
+    if (p?.root && mode === "full") {
+      p.root.position.add(S.shake).add(S.step);
+      p.root.scale.setScalar(S.scale);
+      if (S.faceK > 0) {
+        const y = p.root.rotation.y;
+        p.root.rotation.y = y + Math.atan2(Math.sin(S.faceTo - y), Math.cos(S.faceTo - y)) * S.faceK;
+      }
+    }
+  }, -0.5);
 
   useCutFrame((t, state) => {
-    if (mode !== "full") return;
-    const fade = 1 - smooth(tl.collapse[0], tl.collapse[1], t);
-    const R0 = tl.move[0];
-    const lock = LAP2[1] + 0.3;
-    const k = tintInk(card, (card.stage?.halftone ?? 6) * 0.6 * state.gl.getPixelRatio());
-    void k;
-    mats.coat.uniforms.uT.value = mats.witnessCoat.uniforms.uT.value = t;
-    const turn = turnFor(card, place, live.seal.x, live.seal.z);
-
-    // THE POSE: the flipper-phone held the whole of line A, dropped only for the run
-    live.pose.sign = smooth(tl.sign[0], tl.sign[1], t) * (1 - smooth(R0 - 0.2, R0 - 0.05, t));
-    live.pose.crouch = 0.8 * smooth(R0 - 0.35, R0 - 0.15, t) * (1 - smooth(R0 - 0.1, R0 + 0.05, t));
-
-    // THE RUN: the pup's display transform goes once round the loop on lap 1, and again, in four drawings, on lap 2
-    const lap2 = t >= LAP2[0] && t <= LAP2[1];
-    const u = t < R0 ? 0 : t <= S ? smooth(R0, S, t) : lap2 ? stepped((t - LAP2[0]) / (LAP2[1] - LAP2[0])) : 0;
-    const [lx0, lz0] = loopAt(u);
-    const K = portrait ? 0.6 : 1; // the loop narrows on a portrait screen so the run stays in frame
-    const lx = lx0 * K;
-    const lz = lz0;
-    const c = Math.cos(turn);
-    const sn = Math.sin(turn);
-    run.dx = lx * c + lz * sn;
-    run.dz = lz * c - lx * sn;
-    run.k = u > 0 && u < 1 ? 1 : 0;
-    // facing along the loop (the pup faces +z at yaw 0, so yaw = atan2(heading))
-    const hx = Math.cos(u * TURN);
-    const hz = -Math.sin(u * TURN);
-    run.yaw = Math.atan2(hx * c + hz * sn, hz * c - hx * sn);
-
-    // a one-drawing jitter at the shift
-    const jit = t >= S && t < S + 1 / 12 ? 1 : 0;
-    g.jit.current.position.set(jit * 0.07, jit * 0.05, 0);
-
-    // the floor loop, and the ramp's two sheets
-    const up = smooth(tl.enter - 0.1, tl.enter + 0.6, t) * fade;
-    const shifted = smooth(S, S + 0.2, t);
-    const home = t > LAP2[1] + 0.05 ? 1 : 0;
-    mats.loop.opacity = 0.85 * onTwos(up);
-    geo.loop.setDrawRange(0, Math.round(smooth(tl.enter, tl.enter + 0.8, t) * 72) * 5 * 6);
-    mats.lower.opacity = 0.75 * shifted * fade;
-    mats.upper.color.set(home ? MINT : CORAL);
-    mats.upper.opacity = 0.95 * shifted * fade;
-
-    // the world-line shift: a ring sweeps out from the pup's chest
-    const e = Math.max(0, t - S);
-    const sr = g.shift.current;
-    sr.position.set(0, 1.0, 0.3);
-    sr.lookAt(state.camera.position);
-    sr.scale.setScalar(Math.max(0.001, onTwos(Math.min(1, e / 0.8)) * 14));
-    mats.shift.opacity = e > 0 ? 0.55 * Math.max(0, 1 - e / 0.8) * fade : 0;
-
-    // a dust ring where the lap starts, a mint ring where the pup lands
-    const a1 = Math.max(0, t - R0);
-    g.ring1.current.scale.setScalar(Math.max(0.001, onTwos(Math.min(1, a1 / 0.5)) * 1.3));
-    g.ring1.current.visible = a1 > 0 && a1 < 0.6;
-    const a2 = Math.max(0, t - S);
-    g.ring2.current.scale.setScalar(Math.max(0.001, onTwos(Math.min(1, a2 / 0.5)) * 1.1));
-    g.ring2.current.visible = a2 > 0 && a2 < 0.6;
-    mats.ring.opacity = 0.7 * fade;
-
-    // the dust: puffs along the path the pup has just run
-    for (let i = 0; i < DUST; i++) {
-      const age = 0.04 + i * 0.035;
-      const tt = t - age;
-      const ok = (tt > R0 && tt < S) || (tt >= LAP2[0] && tt <= LAP2[1]);
-      const v = tt <= S ? smooth(R0, S, tt) : stepped((tt - LAP2[0]) / (LAP2[1] - LAP2[0]));
-      const [px, pz] = ok ? loopAt(v) : [0, 0];
-      const life = ok ? Math.sin(Math.PI * Math.min(1, age / 0.7)) : 0;
-      o.position.set(px, 0.1 + 0.18 * (age / 0.7), pz);
-      o.scale.setScalar(Math.max(0.0001, 0.13 * life * fade));
-      o.updateMatrix();
-      dust.setMatrixAt(i, o.matrix);
+    const S = st.current;
+    const s = live.seal;
+    const full = mode === "full";
+    const g = rig.current;
+    g.visible = full;
+    m.flash.visible = false;
+    const c = costume.current;
+    if (!full) {
+      m.lens.mesh.visible = false;
+      if (c) c.hair.visible = c.armour.visible = false;
+      skin.current?.set(false);
+      S.shake.set(0, 0, 0);
+      S.step.set(0, 0, 0);
+      S.scale = 1;
+      return;
     }
-    dust.instanceMatrix.needsUpdate = true;
+    const tt = onTwos(t);
+    const cam = state.camera;
+    const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
+    const struck = tt - T.strike;
+    const folding = tt >= T.fold[0];
+    const done = tt >= T.home;
+    const odd = Math.floor(t * 12) % 2 ? 1 : -1;
 
-    // the nixie tubes: still until the shift, then rolling, locked on 2
-    const rolling = t > S && t < lock;
-    const roll = (i) => Math.floor(onTwos(t) * 12 * (i + 1) * 1.7) % 10;
-    const d = [rolling ? roll(0) : 0, rolling ? roll(1) : t >= lock ? 2 : 0];
-    d.forEach((v, i) => {
-      if (digits[i]?.map) digits[i].map.offset.y = (9 - v) / 10;
-    });
-    const mp = pulse(t, tl.enter, tl.collapse[1], 0.4);
-    g.meter.current.scale.setScalar(Math.max(0.001, onTwos(mp)));
-    mats.tube.opacity = 0.35 * mp;
+    // the rig: the pup at the origin, turned so the landform stands where the figure would
+    const turn = turnFor(card, place, s.x, s.z);
+    const amp = Math.max(0, 1 - Math.abs(struck - 0.05) / 0.5) * 0.16 + Math.max(0, 1 - Math.abs(tt - T.lens) / 0.3) * 0.1;
+    S.shake.set(amp * odd, -amp * 0.5 * odd, 0);
+    g.position.set(s.x + S.shake.x, S.shake.y, s.z);
+    g.rotation.y = turn;
 
-    // the witness steps in on twos, facepalms, drops the microwave
-    const w = g.witness.current;
-    const inF = Math.floor((t - tl.enter) * 12);
-    const outF = Math.floor((t - tl.collapse[0]) * 12);
-    const frame = outF >= 0 ? 2 - outF : inF;
-    w.visible = frame >= 0;
-    const [sx, sy] = ENTER[frame] ?? [1, 1];
-    w.scale.set(1.15 * sx, 1.15 * sy, 1.15 * sx);
-    w.rotation.set(0, -0.42, 0.012 * Math.sin(onTwos(t) * 2.2));
-    const palm = t > tl.lineA + 0.1 && t < S + 0.1 && Math.floor(t * 12) % 14 < 11;
-    g.palm.current.visible = palm;
-    g.down.current.visible = !palm;
-    const drop = t - (S + 0.3);
-    const bounce = drop < 0 ? 0 : Math.abs(Math.sin(Math.min(drop, 1) * 3.6)) * Math.max(0, 1 - drop * 1.1) * 0.8;
-    g.mw.current.position.set(0.2, drop < 0 ? 1.18 : 0.19 + bounce, 0.36);
-    g.mw.current.rotation.set(0, 0.5, drop < 0 ? 0.05 : 0.15 * Math.min(1, drop * 3));
-    mats.witnessCoat.uniforms.uWind.value = 0.25 + 0.5 * smooth(S, S + 0.4, t);
-    const huh = words.huh;
-    huh.position.set(1.45, 2.9, -2.5);
-    huh.quaternion.copy(state.camera.quaternion);
-    huh.material.opacity = pulse(t, S + 0.15, S + 1.3, 0.12) * fade;
-    const zp = words.zaap;
-    zp.position.set(-1.5, 1.6, 0.6);
-    zp.quaternion.copy(state.camera.quaternion);
-    zp.material.opacity = pulse(t, R0 + 0.1, S - 0.1, 0.12) * fade;
+    // THE WORLD swells out of the pup with the stage, then holds as the backdrop until the fold has shut
+    const r = radiusAt(tl, t);
+    V.set(s.x, CORE_Y, s.z);
+    const inside = r > cam.position.distanceTo(V) + 0.3;
+    shellRef.current.visible = r > 0.02 && !done;
+    shellRef.current.scale.setScalar(inside ? 140 : Math.max(r, 0.02));
+    m.shell.m.uniforms.uInside.value = inside ? 1 : 0;
+    world.current.visible = inside && !done;
+    dust.current.visible = !folding;
 
-    // the upper copy: halfway up the ramp after the shift, riding to the top on lap 2, dropped into the tower
-    const cp = g.copy.current;
-    const ride = smooth(LAP2[0], LAP2[1], t);
-    const tt = 0.5 + 0.5 * ride;
-    const a = rampAngle(tt);
-    const glitch = t >= S + 0.4 && t < S + 0.4 + 1 / 12;
-    const gone = smooth(LAP2[1] + 0.05, LAP2[1] + 0.35, t);
-    cp.visible = t > S + 0.1 && gone < 1 && !glitch && fade > 0;
-    cp.position.set(Math.sin(a) * RAMP_R + (t >= S + 0.55 && t < S + 0.55 + 1 / 12 ? 0.3 : 0), rampTopY(tt) + 0.06 - 0.3 * gone, Math.cos(a) * RAMP_R);
-    cp.rotation.y = a + Math.PI / 2;
-    cp.scale.setScalar(Math.max(0.001, COPY_S * (1 - gone) * onTwos(smooth(S + 0.1, S + 0.4, t))));
+    // the shared sky and light: the storm winds up with the equip and the charge; the flashes
+    const storm = smooth(T.equip[0], 3.4, tt) * 0.45 + smooth(T.charge[0], T.charge[1], tt) * 0.55;
+    let flash = struck >= 0 ? Math.max(0, 1 - struck / 0.4) * 0.5 + (struck > 0.7 && struck < 1.6 ? 0.18 * (Math.floor(t * 12) % 2) : 0) : 0;
+    for (const f of FLASHES) if (tt >= f && tt < f + 0.17) flash = Math.max(flash, 0.22);
+    flash = Math.max(flash, Math.max(0, 1 - Math.abs(tt - T.equip[0]) / 0.18) * 0.3);
+    U.uTime.value = t;
+    U.uStorm.value = tt >= T.strike ? 1 : storm;
+    U.uFlash.value = folding ? 0 : Math.min(flash, 0.5);
+    U.uGust.value = 0.14 + 0.35 * U.uStorm.value + Math.max(0, 1 - Math.abs(struck) / 0.8) * 0.5;
+    m.seaM.m.uniforms.uSurge.value = 0.1 + 0.9 * U.uStorm.value;
+
+    // THE CRACK'S PLANE and THE FOLD
+    foldPlane(cam, CRACK_AT, CRACK_ANG, N);
+    U.uFoldN.value.copy(N);
+    U.uFoldC.value.copy(cam.position);
+    U.uFold.value = smooth(T.fold[0], T.fold[1], tt);
+    if (folding && tt < tl.collapse[0]) for (const o of island.current) o.visible = true; // the island the stage hid, under the closing world
+
+    // THE PUP: Sinbad, then Baal; the real pup drawn in the dimension's cel until it is home
+    skin.current?.set((inside || tt > tl.bloom[1]) && !done);
+    const costumeK = done ? 0 : smooth(T.costume[0], T.costume[1], tt) * (1 - smooth(T.step[0] + 0.4, T.step[1], tt));
+    const equipK = done ? 0 : smooth(T.equip[0], T.equip[1], tt) * (1 - smooth(T.step[0] + 0.3, T.step[1], tt));
+    const flare = Math.max(0, 1 - Math.abs(struck - 0.1) / 0.5);
+    if (c) c.tick(t, costumeK, equipK, flare);
+    // the storm round the pup: the column grows with the equip and flares with the strike, gone as it steps through
+    const col = done ? 0 : (equipK * 0.7 + smooth(T.charge[0], T.charge[1], tt) * 0.5 + flare * 0.6) * (1 - smooth(T.step[0] + 0.2, T.step[1], tt));
+    m.storm.tick(t, Math.min(col, 1.2));
+    const wr = m.wreath.material.uniforms;
+    m.wreath.visible = equipK > 0.02 && !folding;
+    wr.uGrow.value = 2;
+    wr.uFade.value = 0.55 * equipK * (0.8 + 0.2 * odd) + 0.5 * flare;
+    wr.uStep.value = Math.floor(t * 12);
+    m.wreath.rotation.y = t * 1.5;
+
+    // BAARARAQ SAIQA: the trunks and the sheets grow out of the vortex in three drawings, hold, then crawl and fade
+    const mu = m.mega.material.uniforms;
+    m.mega.visible = struck >= 0 && !folding;
+    mu.uGrow.value = struck / 0.2;
+    mu.uFade.value = Math.min(1, 1.3 - struck * 0.55) * (0.78 + 0.22 * odd) * (1 - smooth(1.4, 2.0, struck));
+    mu.uStep.value = Math.floor(t * 12);
+    // out of the screen: the fan of bolts at the lens
+    const bs = tt - T.lens;
+    const bu = m.burst.material.uniforms;
+    m.burst.visible = bs >= 0 && bs < 1.1;
+    bu.uGrow.value = bs / 0.12;
+    bu.uFade.value = Math.min(1, 1.2 - bs * 0.9) * (0.8 + 0.2 * odd);
+    bu.uStep.value = Math.floor(t * 12);
+
+    // THE LENS: the crack grows from the impact, opens into a seam as the world folds, heals from its ends
+    const L = m.lens;
+    L.mesh.visible = tt >= T.lens && tt < T.heal[1] + 0.1;
+    if (L.mesh.visible) {
+      placeLens(L.mesh, cam);
+      const u = L.m.uniforms;
+      u.uAspect.value = cam.aspect;
+      u.uGrow.value = smooth(T.lens, T.lens + 0.45, tt);
+      u.uGap.value = smooth(T.step[0], T.fold[1], tt);
+      u.uHeal.value = smooth(T.heal[0], T.heal[1], tt);
+      u.uTime.value = t;
+      u.uStep.value = Math.floor(t * 12);
+      u.uFlash.value = Math.max(0, 1 - (tt - T.lens) / 0.25);
+    }
+    // the HUD shudders with the strike and the crack, then sags crooked until the loop closes
+    const hit = Math.max(0, 1 - Math.abs(struck - 0.05) / 0.9) + Math.max(0, 1 - Math.abs(tt - T.lens - 0.1) / 0.7);
+    const hold = smooth(T.lens, T.lens + 0.4, tt) * (1 - smooth(T.heal[0], T.heal[1], tt));
+    const root = document.documentElement;
+    if (hit > 0.01 || hold > 0.01) {
+      if (!root.hasAttribute("data-mono-shake")) root.setAttribute("data-mono-shake", "");
+      if (S.lastTt !== tt) {
+        S.lastTt = tt; // on twos: the variables change twelve times a second, not every frame
+        hudVars((hit * 9 + hold * 1.5) * odd, hit * 5 * -odd, hit * 1.6 * odd + hold * -1.4);
+      }
+    } else root.removeAttribute("data-mono-shake");
+
+    // THE STEP THROUGH: the pup walks into the crack (its plane through the lens) and shrinks to nothing; home, it is back
+    V.set(s.x, 0.6, s.z);
+    const sk = done ? 0 : smooth(T.step[0], T.step[1], tt);
+    const dist = W.copy(V).sub(cam.position).dot(N);
+    S.step.copy(N).multiplyScalar(-dist * sk);
+    const pop = done ? Math.min(1, (tt - T.home) / 0.25) : 1;
+    S.scale = done ? Math.max(0.01, pop * (1 + 0.2 * Math.sin(pop * Math.PI))) : Math.max(0.02, 1 - 0.97 * sk);
+    S.faceTo = turn;
+    S.faceK = smooth(T.strike + 0.1, T.stare[0], tt);
+
+    // the pup's poses: the sign, the grip on the hilt, flippers up for the strike, the battle cry, the sheepish wave
+    live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt));
+    live.pose.fist = smooth(T.equip[0], T.equip[0] + 0.3, tt) * (1 - smooth(T.charge[0], T.charge[0] + 0.3, tt)) * out;
+    const wave = done ? 0.55 * (Math.floor(t * 4) % 2) * smooth(T.home + 0.2, T.home + 0.5, tt) : 0;
+    live.pose.raise = (smooth(T.charge[0], T.charge[0] + 0.5, tt) * (1 - smooth(T.stare[0], T.stare[0] + 0.3, tt)) + wave) * out;
+    live.pose.mouth = Math.max(smooth(T.strike - 0.1, T.strike + 0.05, tt) * (1 - smooth(T.strike + 0.5, T.strike + 0.8, tt)), 0.6 * smooth(7.0, 7.2, tt) * (1 - smooth(T.step[0], T.step[0] + 0.2, tt)));
+    live.pose.crouch = (smooth(T.strike, T.strike + 0.1, tt) * (1 - smooth(T.strike + 0.5, T.strike + 0.8, tt)) * 0.7 + (done ? 0.35 * smooth(T.home, T.home + 0.3, tt) : 0)) * out;
+
+    // SINDRIA, moving: lanterns swing, ships rock, the crowd ducks, palms whip (in the shader)
+    const sw = 0.12 + 0.5 * U.uStorm.value;
+    for (let i = 0; i < m.lampList.length; i++) {
+      const l = m.lampList[i];
+      O.position.set(l.p.x + Math.sin(t * 2.2 + l.ph) * sw * 0.5, l.p.y - 0.42, l.p.z + Math.cos(t * 1.7 + l.ph) * sw * 0.2);
+      O.rotation.set(0, 0, Math.sin(t * 2.2 + l.ph) * sw * 0.6);
+      O.scale.setScalar(1);
+      O.updateMatrix();
+      m.lamps.setMatrixAt(i, O.matrix);
+    }
+    m.lamps.instanceMatrix.needsUpdate = true;
+    const ro = 0.04 + 0.16 * U.uStorm.value;
+    for (let i = 0; i < FLEET.length; i++) {
+      const [x, z, yaw] = FLEET[i];
+      O.position.set(x, SEA_Y + 0.4 + Math.sin(t * 1.3 + i * 1.9) * (0.15 + 0.5 * U.uStorm.value), z);
+      O.rotation.set(Math.sin(t * 1.1 + i) * ro, yaw, Math.sin(t * 0.9 + i * 2.3) * ro);
+      O.scale.setScalar(1);
+      O.updateMatrix();
+      m.ships.setMatrixAt(i, O.matrix);
+    }
+    m.ships.instanceMatrix.needsUpdate = true;
+    for (let i = 0; i < CROWD; i++) {
+      const f = m.folk[i];
+      const d = struck - f.lag;
+      const duck = d > 0 ? Math.min(1, d / 0.18) * (1 - smooth(1.0, 1.6, d)) : 0;
+      const cheer = Math.max(0, Math.sin(t * 5 + f.ph));
+      const jump = cheer * (tt > 2.2 && tt < T.strike ? 0.12 : 0.05) * (1 - duck);
+      O.position.set(f.x, jump, f.z);
+      O.rotation.set(0.4 * duck, f.yaw, 0.05 * Math.sin(t * 2 + f.ph));
+      O.scale.set(f.s, f.s * (1 - 0.3 * duck), f.s);
+      O.updateMatrix();
+      m.crowd.setMatrixAt(i, O.matrix);
+    }
+    m.crowd.instanceMatrix.needsUpdate = true;
+    // JA'FAR panics as the storm rises, cowers at the strike
+    m.ja.tick(t, smooth(T.panic[0], T.panic[1], tt) * (1 - 0.3 * smooth(T.strike + 0.5, T.strike + 1.0, tt)), smooth(T.strike, T.strike + 0.25, tt));
+    // his own bubble: up while the storm rises, aimed at his mouth
+    const bub = S.bubble;
+    if (bub) {
+      const on = tt >= 2.3 && tt < tl.lineA;
+      bub.hidden = !on;
+      if (on) {
+        m.ja.root.userData.head.getWorldPosition(V);
+        V.project(cam);
+        placeBubble(bub.firstElementChild, (V.x * 0.5 + 0.5) * innerWidth, (0.5 - V.y * 0.5) * innerHeight, "a", false);
+      }
+    }
+
+    // the loop, closed: a ring round the pup's feet draws itself to meet where it began
+    m.ring.mesh.visible = tt >= T.ring[0] && tt < tl.collapse[0];
+    m.ring.m.uniforms.uClose.value = smooth(T.ring[0], T.ring[1], tt);
+    m.ring.m.uniforms.uFade.value = 1 - smooth(tl.credit - 0.4, tl.credit + 0.4, tt);
+
+    // the flash: cold, never a white-out
+    holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(struck - 0.03) / 0.12) * 0.4 + Math.max(0, 1 - Math.abs(tt - T.equip[0]) / 0.12) * 0.15);
   });
-
-  // the tower: the ramp is the Transport sculpture's own, standing where the place is
-  useFrame(() => {
-    const wg = g.world.current;
-    const on = Boolean(live.arrival.id) && mode === "full" && live.inStage;
-    wg.visible = on;
-    if (on) wg.position.set(place.x, 0, place.z);
-  }, -1.19);
-
-  // the pup: carried round the loop by its display transform (after Seal.jsx's reset), with its coat and wheel
-  useFrame((state) => {
-    const seal = (sealRef.current ??= state.scene.getObjectByName("seal"));
-    const on = Boolean(live.arrival.id) && mode === "full" && live.inStage && Boolean(seal);
-    g.coat.current.visible = on;
-    g.fan.current.visible = on && run.k === 1;
-    if (!on) return;
-    if (run.k) {
-      seal.position.x += run.dx;
-      seal.position.z += run.dz;
-      seal.rotation.y = run.yaw;
-    }
-    for (const r of [g.coat, g.fan]) {
-      r.current.position.copy(seal.position);
-      r.current.rotation.y = seal.rotation.y;
-    }
-    g.fanMesh.current.rotation.set(0, Math.PI / 2, state.clock.elapsedTime * 38);
-    mats.fan.opacity = 0.32;
-  }, 0.15);
 
   return (
     <>
-      <Stage {...cut} />
-      <Rig cut={cut}>
-        <group ref={g.jit}>
-          <mesh geometry={geo.loop} material={mats.loop} />
-          <mesh ref={g.shift} geometry={geo.ring} material={mats.shift} />
-          <mesh ref={g.ring1} geometry={geo.flat} material={mats.ring} position={[0, 0.05, 0]} visible={false} />
-          <mesh ref={g.ring2} geometry={geo.flat} material={mats.ring} position={[0, 0.05, 0]} visible={false} />
-          <primitive object={dust} />
-          <group ref={g.witness} position={[1.35, 0, -2.5]} visible={false}>
-            <mesh geometry={hulls.body} material={inkPair().rim} />
-            <mesh geometry={geo.witness.body} material={inkPair().body} />
-            <group ref={g.palm}>
-              <mesh geometry={hulls.palm} material={inkPair().rim} />
-              <mesh geometry={geo.witness.palm} material={inkPair().body} />
-            </group>
-            <group ref={g.down}>
-              <mesh geometry={hulls.down} material={inkPair().rim} />
-              <mesh geometry={geo.witness.down} material={inkPair().body} />
-            </group>
-            <group ref={g.mw}>
-              <mesh geometry={geo.mw} material={mats.cream} />
-              <mesh geometry={geo.door} material={mats.glass} position={[-0.06, 0, 0.195]} />
-            </group>
-            <mesh geometry={geo.witnessCoat} material={mats.witnessCoat} position={[0, 1.57, -0.2]} rotation={[0.1, 0, 0]} />
-          </group>
-          {words.huh ? <primitive object={words.huh} /> : null}
-          {words.zaap ? <primitive object={words.zaap} /> : null}
-          <group ref={g.meter} position={[-2.2, 2.5, -1.2]}>
-            <mesh geometry={geo.plate} material={mats.plate} position={[0, 0, -0.1]} />
-            {[-0.27, 0.27].map((x, i) => (
-              <group key={x} position={[x, 0, 0]}>
-                <mesh geometry={geo.tube} material={mats.tube} />
-                {digits[i] ? <mesh geometry={geo.quad} material={digits[i]} position={[0, 0, 0.02]} /> : null}
-              </group>
-            ))}
-          </group>
-        </group>
-      </Rig>
-      <group ref={g.world} visible={false}>
-        <mesh geometry={geo.lower} material={mats.lower} />
-        <mesh geometry={geo.upper} material={mats.upper} />
-        <group ref={g.copy} visible={false}>
-          <PupCopy />
-        </group>
+      <Stage {...cut} bare skip={() => true} />
+      <group ref={dust}>
+        <Motes mode={mode} tl={tl} n={150} span={[30, 10, 30]} center={[0, 0, -8]} dir={[0.5, 0.3, 0.1]} size={0.09} color={["#f2b52e", "#e4566a", "#1fbdb4", "#fff3d6"]} sway={0.8} shape="diamond" />
       </group>
-      <group ref={g.coat} visible={false}>
-        {[-0.25, 0, 0.25].map((x) => (
-          <mesh key={x} geometry={geo.coat} material={mats.coat} position={[x, 0.55, -0.5]} rotation={[0.8, 0, x * 0.4]} />
-        ))}
-      </group>
-      <group ref={g.fan} visible={false}>
-        <mesh ref={g.fanMesh} geometry={geo.fan} material={mats.fan} position={[0.5, 0.3, -0.1]} />
+      <primitive object={m.flash} />
+      <primitive object={m.lens.mesh} />
+      <group ref={rig} visible={false}>
+        <mesh ref={shellRef} geometry={m.shell.g} material={m.shell.m} position={[0, CORE_Y, 0]} renderOrder={-3} frustumCulled={false} />
+        <group ref={world}>
+          <mesh geometry={m.seaM.g} material={m.seaM.m} position={[0, SEA_Y, -80]} renderOrder={-2} frustumCulled={false} />
+          <primitive object={m.landMesh} />
+          <primitive object={m.palms} />
+          <primitive object={m.ships} />
+          <primitive object={m.crowd} />
+          <primitive object={m.ropes} />
+          <primitive object={m.lamps} />
+          <group position={[2.9, 0, -2.0]} rotation={[0, -0.85, 0]}>
+            <primitive object={m.ja.root} />
+          </group>
+          <primitive object={m.mega} />
+          <primitive object={m.burst} />
+        </group>
+        <primitive object={m.storm.g} />
+        <primitive object={m.wreath} />
+        <primitive object={m.ring.mesh} />
       </group>
     </>
-  );
-}
-
-// the upper copy: the real pup, small (its transforms follow the pup's)
-function PupCopy() {
-  const ref = useRef();
-  return (
-    <group ref={ref}>
-      <PupClone gref={ref} />
-    </group>
   );
 }
