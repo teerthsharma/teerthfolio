@@ -195,7 +195,7 @@ const WALL_CHUNK = paint(
     ],
     false,
   ),
-  C.warmWhite,
+  "#fbd0ff",
 );
 
 // The accent roof's front-pitch width, hugging the door bay (not the old
