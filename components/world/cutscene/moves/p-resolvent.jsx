@@ -31,7 +31,7 @@ import { PLACE_BY_ID } from "../../../../lib/world/places";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { islandList, lettering, pupParts } from "./p-caustic/parts";
-import { AURA, BEAM, CHAIN, FERN_AT, FULCRUM, HAND, SCALE_K, STARK_AT, aura, fern, scalePieces, soldier, stark } from "./p-resolvent/cast";
+import { AURA, BEAM, CHAIN, FERN_AT, FULCRUM, HAND, SCALE_K, STARK_AT, aura, fern, frierenKit, scalePieces, soldier, stark } from "./p-resolvent/cast";
 import { column, flame, flashQuad, leaves, shards, sprites, stones } from "./p-resolvent/fx";
 import { U, celMaterial, hash, inst, pupCel } from "./p-resolvent/toon";
 import { CASTERS, ground, groundY, shadows, shafts, skyMaterial, statics } from "./p-resolvent/world";
@@ -328,6 +328,9 @@ export default function Move(cut) {
     pup.current = p;
     m.cel = m.cel ?? (p?.root ? pupCel(p.root, m.glow) : null);
     cel.current = m.cel;
+    // Frieren's twin tails, earrings and staff, from t = 0
+    const kit = p?.root && p.head ? frierenKit() : null;
+    if (kit) (p.head.add(kit.head), p.root.add(kit.staff));
     // the return, said on screen: why the court unmakes itself and we are home
     const cap = document.createElement("p");
     cap.textContent = "The scale broke, so Aura's judgement is void. The court unmakes itself, and this is home.";
@@ -335,6 +338,7 @@ export default function Move(cut) {
     document.body.appendChild(cap);
     capRef.current = cap;
     return () => {
+      if (kit) (kit.head.removeFromParent(), kit.staff.removeFromParent(), kit.dispose());
       cap.remove();
       capRef.current = null;
       cel.current = null;
@@ -535,8 +539,15 @@ export default function Move(cut) {
     // THE COLUMN: a narrow cylinder of silver and gold behind the pup, soft to nothing at its edge; it is gone before the kneel
     const pulse = 0.92 + 0.08 * Math.sin(tt * 13);
     colO.current.visible = colI.current.visible = grow > 0.01 && colK > 0.005 && !gone;
-    colO.current.scale.set(1.7 * grow + 0.1, 46, 1.7 * grow + 0.1);
-    colI.current.scale.set(0.7 * grow + 0.05, 46, 0.7 * grow + 0.05);
+    // rise from the pup itself, wide enough to wrap it
+    if (pup.current?.root) {
+      pup.current.root.getWorldPosition(V);
+      g.worldToLocal(V);
+      colO.current.position.set(V.x, 0, V.z);
+      colI.current.position.set(V.x, 0, V.z);
+    }
+    colO.current.scale.set(2.72 * grow + 0.16, 46, 2.72 * grow + 0.16);
+    colI.current.scale.set(1.12 * grow + 0.08, 46, 1.12 * grow + 0.08);
     m.col.outer.uniforms.uA.value = 0.8 * grow * colK * pulse;
     m.col.inner.uniforms.uA.value = 0.95 * grow * colK * pulse;
 
