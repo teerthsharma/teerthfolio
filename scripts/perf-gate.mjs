@@ -4,7 +4,7 @@
 // lets the quality monitor settle the way a visitor's would, drives the seal,
 // and fails unless the laptop holds the iPad's frame time.
 //
-//   node scripts/perf-gate.mjs [--url http://localhost:3402/?play] [--secs 6] [--only laptop] [--gpu intel|nvidia]
+//   node scripts/perf-gate.mjs [--url http://localhost:3402/?play] [--secs 6] [--rounds 3] [--only laptop] [--gpu intel|nvidia]
 //   Every row prints the WebGL renderer string; never compare rows across adapters.
 //
 // On this machine (Intel UHD integrated graphics) the numbers are a low-end,
@@ -30,7 +30,7 @@ const PROFILES = {
   ipad: { viewport: { width: 1180, height: 820 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   laptop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
 };
-// Laptop must hold the iPad's frame time (10 % slack for noise) and 50 fps,
+// Laptop must hold the iPad's mean frame time (10 % slack for noise) and 50 fps,
 // the same bound Look.jsx's monitor holds every device to.
 const SLACK = 1.1;
 const LAPTOP_MAX_MS = 20;
@@ -45,6 +45,18 @@ if (!chrome) throw new Error("real Chrome not found; the bundled chromium fakes 
 
 async function measure(browser, name) {
   const context = await browser.newContext(PROFILES[name]);
+  // Draw calls per frame, counted at the WebGL entry points.
+  await context.addInitScript(() => {
+    window.__draws = 0;
+    const C = window.WebGL2RenderingContext.prototype;
+    for (const fn of ["drawElements", "drawArrays", "drawElementsInstanced", "drawArraysInstanced"]) {
+      const orig = C[fn];
+      C[fn] = function (...a) {
+        window.__draws += 1;
+        return orig.apply(this, a);
+      };
+    }
+  });
   const page = await context.newPage();
   try {
     await page.goto(url, { waitUntil: "domcontentloaded" });
@@ -65,6 +77,7 @@ async function measure(browser, name) {
     const first = (await frameTimes(3000)).sort((a, b) => a - b);
     const startLook = await page.evaluate(() => window.__world?.look);
     await page.waitForTimeout(Math.max(0, settle - 3) * 1000);
+    const draws0 = await page.evaluate(() => window.__draws);
     const sampling = frameTimes(secs * 1000);
     await page.keyboard.down("KeyW");
     await page.waitForTimeout(secs * 400);
@@ -72,36 +85,52 @@ async function measure(browser, name) {
     await page.keyboard.down("KeyD");
     await page.waitForTimeout(secs * 400);
     await page.keyboard.up("KeyD");
-    const times = (await sampling).slice(5).sort((a, b) => a - b);
+    const raw = (await sampling).slice(5);
+    const drawsPerFrame = Math.round(((await page.evaluate(() => window.__draws)) - draws0) / (raw.length + 5));
+    const times = raw.slice().sort((a, b) => a - b);
+    const meanMs = +(raw.reduce((a, b) => a + b, 0) / raw.length).toFixed(1);
     const pct = (p) => +times[Math.min(times.length - 1, Math.floor(times.length * p))].toFixed(1);
     const state = await page.evaluate(() => {
       const c = document.querySelector("canvas");
       const gl = document.createElement("canvas").getContext("webgl2");
       const info = gl?.getExtension("WEBGL_debug_renderer_info");
       const w = window.__world || {};
-      return { look: w.look, dpr: w.dpr, buffer: c ? `${c.width}x${c.height}` : null, gpu: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : "unknown" };
+      return { look: w.look, dpr: w.dpr, squeeze: w.squeeze, buffer: c ? `${c.width}x${c.height}` : null, gpu: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : "unknown" };
     });
     const mpx = state.buffer ? +(state.buffer.split("x").reduce((a, b) => a * b, 1) / 1e6).toFixed(2) : null;
-    return { name, startLook, firstP50ms: +first[first.length >> 1].toFixed(1), ...state, mpx, frames: times.length, p50ms: pct(0.5), p90ms: pct(0.9), fpsP50: +(1000 / pct(0.5)).toFixed(1) };
+    return { name, startLook, firstP50ms: +first[first.length >> 1].toFixed(1), ...state, mpx, drawsPerFrame, meanMs, frames: times.length, p50ms: pct(0.5), p90ms: pct(0.9), fpsP50: +(1000 / pct(0.5)).toFixed(1) };
   } finally {
     await context.close();
   }
 }
 
 const browser = await chromium.launch({ executablePath: chrome, headless: true, args: [...BASE_FLAGS, ...(await adapterFlags(chromium, chrome, args.gpu))] });
-const results = {};
+// Frame times here are vsync-quantised (on a 164 Hz panel a p50 is 6.1, 12.2,
+// 18.3 or 24.4 ms: a 1 ms change can move it 50 %), and other pages share the
+// GPU, so the verdict uses mean frame time, and the devices are measured in
+// interleaved rounds so a slow minute hits all of them alike.
+const rounds = Number(args.rounds || 3);
+const names = args.only ? [args.only] : ["phone", "ipad", "laptop"];
+const runs = Object.fromEntries(names.map((n) => [n, []]));
 try {
-  for (const name of args.only ? [args.only] : ["phone", "ipad", "laptop"]) {
-    results[name] = await measure(browser, name);
-    console.log(JSON.stringify(results[name]));
+  for (let r = 0; r < rounds; r++) {
+    for (const name of names) {
+      const row = await measure(browser, name);
+      runs[name].push(row);
+      console.log(JSON.stringify({ round: r + 1, ...row }));
+    }
   }
 } finally {
   await browser.close();
 }
 
-const { ipad, laptop } = results;
+const median = (xs) => xs.slice().sort((a, b) => a - b)[xs.length >> 1];
+const mean = (name) => (runs[name]?.length ? median(runs[name].map((x) => x.meanMs)) : null);
+const ipad = mean("ipad");
+const laptop = mean("laptop");
+console.log(JSON.stringify({ medianMeanMs: Object.fromEntries(names.map((n) => [n, mean(n)])) }));
 const fails = [];
-if (laptop && laptop.p50ms > LAPTOP_MAX_MS) fails.push(`laptop p50 ${laptop.p50ms} ms > ${LAPTOP_MAX_MS} ms`);
-if (laptop && ipad && laptop.p50ms > ipad.p50ms * SLACK) fails.push(`laptop p50 ${laptop.p50ms} ms > iPad ${ipad.p50ms} ms x ${SLACK}`);
+if (laptop !== null && laptop > LAPTOP_MAX_MS) fails.push(`laptop mean ${laptop} ms > ${LAPTOP_MAX_MS} ms`);
+if (laptop !== null && ipad !== null && laptop > ipad * SLACK) fails.push(`laptop mean ${laptop} ms > iPad ${ipad} ms x ${SLACK}`);
 console.log(fails.length ? `RED perf-gate: ${fails.join("; ")}` : "GREEN perf-gate: laptop holds iPad-level frame time");
 process.exitCode = fails.length ? 1 : 0;
