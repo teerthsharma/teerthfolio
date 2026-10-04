@@ -5,7 +5,7 @@ import "./globals.css";
 // 400/500/600/700, mono 500/800.
 const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
-// The comic lettering of the domain's bubbles (ui/DomainBubbles.jsx): its
+// The comic lettering of the cutscenes' bubbles (ui/Bubbles.jsx): its
 // bounce and informal axes give hand lettering in mixed case. Not preloaded:
 // it is first needed seconds into a walk.
 const comic = Shantell_Sans({ subsets: ["latin"], variable: "--font-comic", display: "swap", axes: ["BNCE", "INFM"], preload: false });

@@ -134,10 +134,10 @@ export function stepRadiationPov(effect, t, aspect, reduced) {
     effect.colorHex = rad.color;
     u.get("uColor").value.set(rad.color);
   }
-  if (live.domainOn) strength = 0; // the domain owns the view; the coat still mutates
+  if (live.stageOn) strength = 0; // the cutscene owns the view; the coat still mutates
   u.get("uStrength").value = reduced ? strength * 0.4 : strength;
-  u.get("uAmbient").value = rad.id && !live.inDomain ? 1 : 0; // the domain is its own colour
-  u.get("uRing").value = reduced || live.domainOn ? -1 : ring;
+  u.get("uAmbient").value = rad.id && !live.inStage ? 1 : 0; // the stage is its own colour
+  u.get("uRing").value = reduced || live.stageOn ? -1 : ring;
   u.get("uTime").value = t;
   u.get("uAspect").value = aspect;
 }

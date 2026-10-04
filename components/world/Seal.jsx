@@ -20,9 +20,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CustomBlending, ShaderMaterial, SrcColorFactor, ZeroFactor } from "three";
-import { heroMoveFor, heroPose } from "../../lib/world/heroMoves";
-import { arrivalLength } from "../../lib/world/domain";
-import { PLACE_BY_ID } from "../../lib/world/places";
+import { PUP_YAW, cutFor, cutsceneMode, smooth, turnFor } from "../../lib/world/cutscene/timeline";
 import { live, useUi } from "../../lib/world/store";
 import { createDrive, stepDrive } from "./seal/drive";
 // The judge picked D (verification/J-seal-sheet.jpg): cutest of the four
@@ -32,10 +30,6 @@ import Variant from "./seal/variants/D";
 // Soft occlusion under the body. It multiplies the snow toward the lavender
 // of snow in shade (never black): a tight core where the belly touches and a
 // wider skirt, so it reads as contact, not as a painted oval.
-// The showcase's hero move (lib/world/heroMoves.js) redraws the seal along
-// its path; the physics seal stays at the dock.
-const HERO = {};
-
 function contactShadow() {
   return new ShaderMaterial({
     transparent: true,
@@ -80,19 +74,15 @@ export default function Seal() {
     stepDrive(drive, s, near, state.clock.elapsedTime, delta);
     root.current.position.set(s.x, (s.air || 0) * (s.airHeight || 3.2), s.z); // air: a whirlpool or geyser throw (motion.js)
     root.current.rotation.y = s.heading + drive.bodyYaw;
+    // THE CUTSCENE (lib/world/cutscene/): the pup turns three-quarters to the
+    // lens, toward its speaker, as the scene opens, and back as it closes.
     const arrival = live.arrival;
-    const place = arrival.id ? PLACE_BY_ID[arrival.id] : null;
-    if (place) {
-      const move = heroMoveFor(place);
-      const u = Math.min((state.clock.elapsedTime - arrival.start) / arrivalLength(place.id), 1);
-      heroPose(move, u, place, s.x, s.z, HERO);
-      if (HERO.k > 0) {
-        root.current.position.set(HERO.x, HERO.y, HERO.z);
-        // turns onto the move's facing as the move takes over (k eases)
-        if (HERO.yaw !== null) root.current.rotation.y += Math.atan2(Math.sin(HERO.yaw - root.current.rotation.y), Math.cos(HERO.yaw - root.current.rotation.y)) * HERO.k;
-      }
-      // the smash lands: the camera takes the thump (CameraRig reads impact)
-      if (move === "smash" && u >= 0.6 && u < 0.64) s.impact = Math.max(s.impact, 0.95);
+    const cut = arrival.id && cutsceneMode(arrival.id) ? cutFor(arrival.id) : null;
+    if (cut) {
+      const u = Math.min((state.clock.elapsedTime - arrival.start) / cut.tl.duration, 1);
+      const k = smooth(0, 0.06, u) * (1 - smooth(0.95, 1, u));
+      const yaw = PUP_YAW + turnFor(cut.card, cut.place, s.x, s.z);
+      if (k > 0) root.current.rotation.y += Math.atan2(Math.sin(yaw - root.current.rotation.y), Math.cos(yaw - root.current.rotation.y)) * k;
     }
     // The chest lifting off the snow thins the contact under it.
     shadow.uniforms.strength.value = 1 - drive.hump * 0.35;
