@@ -20,7 +20,7 @@ import { PLACE_BY_ID, PLACES, PROFILE, districtAt, dockPoint } from "../../lib/w
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import Minimap from "./ui/Minimap";
 import MoveCoach from "./ui/MoveCoach";
-import DomainBubbles from "./ui/DomainBubbles";
+import Bubbles from "./ui/Bubbles";
 import Sheet from "./ui/Sheet";
 import { IconArrow, IconCheck, IconChevron, IconSoundOff, IconSoundOn, IconTrefoil } from "./ui/icons";
 
@@ -89,11 +89,11 @@ function useDistrictBanner(active) {
   return district;
 }
 
-// The showcase's title (moments.js ARRIVAL), in the lower cinema bar at
+// The cutscene's title (lib/world/cutscene/), in the lower cinema bar at
 // every place: the area banner only fires on entering an area and waits 20 s
 // before it repeats, so places sharing an area showed no name.
 function CutsceneTitle({ id }) {
-  // While a domain plays (domain.js) its bubbles own the lower half, so the
+  // While a cutscene plays its bubbles own the lower half, so the
   // place name moves up into the top cinema bar and comes back.
   const top = useUi((s) => s.beat > 0);
   const place = id ? PLACE_BY_ID[id] : null;
@@ -614,7 +614,7 @@ export default function Hud() {
     <div className="hud" data-cutscene={cutscene ? "on" : undefined} onKeyDown={onHudKeyDown}>
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
-      <DomainBubbles />
+      <Bubbles />
       <CutsceneTitle id={cutscene} />
       {cutscene && (
         <button type="button" className="cut-skip" onClick={() => (live.arrival.skip = true)}>

@@ -5,7 +5,7 @@
 import { useFrame } from "@react-three/fiber";
 import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
 import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
-import { arrivalHold, arrivalLength, domainBeat, domainMode } from "../../lib/world/domain";
+import { arrivalHold, arrivalLength, beatAt, cutFor, cutsceneMode } from "../../lib/world/cutscene/timeline";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
 import { AWAKENING } from "../../lib/world/loop";
 import { WHIRLPOOL } from "../../lib/world/river";
@@ -49,8 +49,7 @@ function nearestUnseen(seal) {
   return best;
 }
 
-// Places whose arrival showcase already played this session (moments.js
-// ARRIVAL). Storage can be missing or blocked (private windows): then every
+// Places whose arrival cutscene already played this session (lib/world/cutscene/). Storage can be missing or blocked (private windows): then every
 // place plays once per page load instead.
 const SEEN_KEY = "seal:seen";
 function loadSeen() {
@@ -104,16 +103,16 @@ export default function Controller() {
   useFrame((state, delta) => {
     const ui = getUi();
     const t = state.clock.elapsedTime;
-    // THE ARRIVAL (moments.js): for its first `hold` seconds the seal takes
-    // no input and no click target, so it stops to look round.
+    // THE ARRIVAL (lib/world/cutscene/): for its first `hold` seconds the
+    // seal takes no input and no click target, so it stops for the scene.
     const arrival = live.arrival;
     if (arrival.id && (t - arrival.start >= arrivalLength(arrival.id) || ui.open || freshInput(arrival))) {
       arrival.id = null;
       setUi({ cutscene: null, beat: 0 });
     }
     if (arrival.id) {
-      // the domain's beat (domain.js); a skip above clears it in the same frame
-      const beat = domainMode(arrival.id) ? domainBeat(t - arrival.start) : 0;
+      // the cutscene's beat (timeline.js); a skip above clears it in the same frame
+      const beat = cutsceneMode(arrival.id) ? beatAt(cutFor(arrival.id)?.tl, t - arrival.start) : 0;
       if (beat !== ui.beat) setUi({ beat });
     }
     const holding = arrival.id && t - arrival.start < arrivalHold(arrival.id);
@@ -185,8 +184,10 @@ export default function Controller() {
     // building's panel opens. The place the seal spawns beside (the first
     // 1.5 s, ?spawn= stills) is marked seen without playing; after that a
     // place only counts as seen once its arrival has actually started, so an
-    // open panel or another arrival never burns it.
-    const approach = nearestUnseen(seal)?.id ?? null;
+    // open panel or another arrival never burns it. With no cutscene to play
+    // (?hud=off, for captures) nothing fires and nothing is burnt.
+    const near0 = nearestUnseen(seal)?.id ?? null;
+    const approach = near0 && cutsceneMode(near0) ? near0 : null;
     if (approach && ui.started && !live.seen.has(approach) && t <= 1.5) {
       live.seen.add(approach);
       saveSeen();

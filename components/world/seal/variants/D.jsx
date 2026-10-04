@@ -18,12 +18,23 @@
 // comes to a stop, the hop, and THE BUDDHA SEAL: left alone it sits up on
 // its tail, breathes slow, closes its eyes into a soft curve and grows a
 // halo in the area's radiation colour (live.seal.calm, 0..1).
+//
+// THE POSE HOOKS (cutscene/kit.jsx): a cutscene's move writes live.pose,
+// 0..1 each, and the pup blends into them over its own motion:
+//   sign    the right flipper up in front of the cheek, two digits crossed
+//   fist    a raised fist before the cheek, the chest leaning in
+//   raise   both flippers up and out, a ta-da (never above the head: no ears)
+//   point   the near flipper across the chest, toward the speaker
+//   crouch  squashed down onto the snow, ready to spring
+//   sit     up on its tail, like the meditation
+//   spin    one full turn about its feet at 1
+// During a scene the outfit is hidden: the round head stays clean.
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CapsuleGeometry, Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, RingGeometry } from "three";
-import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW } from "../../../../lib/world/moments";
-import { domainMode, signAt } from "../../../../lib/world/domain";
+import { JUMP_IN, RADIATION, SKIP_WINDOW } from "../../../../lib/world/moments";
+import { cutsceneMode } from "../../../../lib/world/cutscene/timeline";
 import { PLACE_BY_ID, districtAt } from "../../../../lib/world/places";
 import { getUi, live, useUi } from "../../../../lib/world/store";
 import { glow } from "../../palette";
@@ -60,6 +71,16 @@ const SIGN_REACH = [0.2, 0.02, 0.72];
 const SHOULDER = rel(PIVOT.shoulder, PIVOT.rear); // up beside the cheek (the head is too big to reach across), flat to the lens
 // Two little digits crossed at the flipper's tip, in its flat plane: the sign.
 const DIGITS_AT = [0.62, 0.06, 0];
+// The other flipper hooks, as the flipper's Euler (twist, back, up) to blend
+// into, per side (+1 left, the far one; -1 right, the near one, facing the
+// lens three-quarters), and how far the root reaches forward.
+const HOOKS = {
+  fist: { near: { twist: 1.5, back: -1.4, up: 0.9 }, reach: [0.2, 0.05, 0.6] }, // a raised fist before the cheek
+  raise: { near: { twist: 0, back: -0.4, up: 1.0 }, far: { twist: 0, back: -0.4, up: 1.0 } }, // ta-da, both out and up
+  point: { near: { twist: 0.6, back: -2.0, up: 0.15 }, reach: [0.2, 0, 0.6] }, // across the chest, toward the speaker
+};
+// The pup's look-round on an arrival with no stage (reduced motion), seconds.
+const LOOK_ROUND = 5.4;
 
 function materials() {
   return {
@@ -91,10 +112,22 @@ function poseFlipper(o, side, d, x) {
   const swim = x.water * Math.sin(d.t * 5 + side * 1.6);
   const back = FLIPPER_REST.back - 0.4 * reach + 0.5 * push + (1.3 - FLIPPER_REST.back) * d.boost - 0.6 * wave + Math.sin(d.t * 16) * 0.35 * wave + 0.6 * swim - 0.55 * x.calm;
   const down = FLIPPER_REST.down + 0.12 * reach - (FLIPPER_REST.down - 0.2) * d.boost - 1.8 * wave - 0.5 * flap - 1.2 * x.fly + 0.2 * x.crouch - 0.3 * x.water + 0.35 * x.calm;
-  // THE HAND SIGN (domain.js): the right flipper (screen left, facing the
+  // THE HAND SIGN (live.pose.sign): the right flipper (screen left, facing the
   // viewer) rises in front of the cheek, tip up, flat to the lens.
   const sign = side < 0 ? x.sign : 0;
-  o.rotation.set(Math.sin(d.t * 16) * 0.3 * wave * (1 - sign) + SIGN.twist * sign, back + (SIGN.back - back) * sign, -down + (SIGN.up + down) * sign, "YZX");
+  let rx = Math.sin(d.t * 16) * 0.3 * wave * (1 - sign) + SIGN.twist * sign;
+  let ry = back + (SIGN.back - back) * sign;
+  let rz = -down + (SIGN.up + down) * sign;
+  // the other hooks blend in over whatever the sign left
+  for (const name in HOOKS) {
+    const w = x[name];
+    const to = w > 0 && (side < 0 ? HOOKS[name].near : HOOKS[name].far);
+    if (!to) continue;
+    rx += (to.twist - rx) * w;
+    ry += (to.back - ry) * w;
+    rz += (to.up - rz) * w;
+  }
+  o.rotation.set(rx, ry, rz, "YZX");
 }
 
 export default function SealD({ pose, near, drive, headRef }) {
@@ -174,7 +207,7 @@ export default function SealD({ pose, near, drive, headRef }) {
   const digits = useRef();
   const outfit = useRef();
   const haloSoft = useRef();
-  const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0, sign: 0 }), []);
+  const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0, sign: 0, fist: 0, raise: 0, point: 0 }), []);
 
   useFrame((state, delta) => {
     const d = drive;
@@ -184,14 +217,16 @@ export default function SealD({ pose, near, drive, headRef }) {
     const water = clamp(pose.current.water || 0, 0, 1);
     const now = state.clock.elapsedTime;
 
-    // THE ARRIVAL (moments.js): the first time at a place the pup looks
-    // round, left, then right, then settles on the place, and smiles.
+    // THE ARRIVAL (lib/world/cutscene/): in a cutscene the pup holds still
+    // for its pose hooks; with reduced motion (no stage) it looks round,
+    // left, then right, then settles on the place, and smiles.
     const arrival = live.arrival;
     const arrivalPlace = arrival.id ? PLACE_BY_ID[arrival.id] : null;
-    const domain = arrivalPlace && domainMode(arrival.id) === "full";
-    const sign = domain ? signAt(now - arrival.start) : 0;
-    const au = arrivalPlace && !domain ? (now - arrival.start) / ARRIVAL.duration : -1;
-    if (domain) d.lookYaw = 0;
+    const cut = arrivalPlace && cutsceneMode(arrival.id) === "full";
+    const P = live.pose;
+    const sign = cut ? P.sign : 0;
+    const au = arrivalPlace && !cut ? (now - arrival.start) / LOOK_ROUND : -1;
+    if (cut) d.lookYaw = 0;
     if (au >= 0 && au < 1) {
       const p = pose.current;
       const toPlace = clamp(wrap(Math.atan2(arrivalPlace.x - p.x, arrivalPlace.z - p.z) - p.heading), -1.2, 1.2);
@@ -214,7 +249,7 @@ export default function SealD({ pose, near, drive, headRef }) {
       }
     }
     const u = f.hopAt < 0 ? Infinity : t - f.hopAt;
-    const crouch = u < JUMP_IN.hopAt ? smooth(JUMP_IN.hopAt - 0.45, JUMP_IN.hopAt - 0.05, u) : 0;
+    const crouch = Math.max(u < JUMP_IN.hopAt ? smooth(JUMP_IN.hopAt - 0.45, JUMP_IN.hopAt - 0.05, u) : 0, 0.6 * P.crouch); // a held crouch, not the hop's full wind-up
     const flying = u >= JUMP_IN.hopAt && u < JUMP_IN.landAt;
     const fly = flying ? (u - JUMP_IN.hopAt) / (JUMP_IN.landAt - JUMP_IN.hopAt) : 0;
     if (!f.landed && u >= JUMP_IN.landAt) {
@@ -248,14 +283,15 @@ export default function SealD({ pose, near, drive, headRef }) {
     // moves idle back to 0. live.seal.calm is the eased 0..1 the rest of the
     // world may read (motes, a Geiger-to-chime cue); it never touches the
     // seal's own health, just its pose.
-    const calmTarget = domain ? 0 : smooth(3.4, 4.4, d.idle); // no meditation mid-domain
+    const calmTarget = cut ? 0 : smooth(3.4, 4.4, d.idle); // no meditation mid-scene
     f.calm += (calmTarget - f.calm) * damp(calmTarget > f.calm ? 2.2 : 6, dt);
-    const sit = Math.max(f.calm, arrivalSit);
+    const sit = Math.max(f.calm, arrivalSit, P.sit);
     live.seal.calm = f.calm; // the showcase's sit-up is not meditation
 
     const h = hop.current;
     h.position.y = (flying ? 4 * HOP_HEIGHT * fly * (1 - fly) : 0) - 0.62 * water;
     h.rotation.x = flying ? -0.35 * (1 - 2 * fly) : 0;
+    h.rotation.y = P.spin * TAU;
 
     const b = body.current;
     const stretch = flying ? 0.12 * (1 - Math.sin(Math.PI * fly) * 0.6) : 0;
@@ -273,7 +309,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     // its tail instead of bowing its chin into the snow.
     const r = rear.current;
     r.position.y = 0.07 * liftH + 0.05 * sit;
-    r.rotation.set(-0.32 * liftC + 0.05 * liftH - 0.12 * water - 0.6 * sit - 0.22 * sign, d.turn * 0.06 + d.lookYaw * 0.15, 0);
+    r.rotation.set(-0.32 * liftC + 0.05 * liftH - 0.12 * water - 0.6 * sit - 0.22 * sign + 0.08 * P.fist - 0.2 * P.raise, d.turn * 0.06 + d.lookYaw * 0.15, 0);
 
     // Head: the drive's look, the face tipped up toward the lens (the camera
     // sits 50 degrees up; a big-headed pup looking down shows only forehead),
@@ -304,13 +340,22 @@ export default function SealD({ pose, near, drive, headRef }) {
     shared.water = water;
     shared.calm = sit;
     shared.sign = sign;
+    shared.fist = P.fist;
+    shared.raise = P.raise;
+    shared.point = P.point;
     digits.current.visible = sign > 0.3;
     digits.current.scale.setScalar(smooth(0.3, 1, sign));
-    outfit.current.visible = !domain; // the domain keeps the round head clean: no hat, no ear-like diamonds
+    outfit.current.visible = !cut; // a scene keeps the round head clean: no hat, no ear-like diamonds
     poseFlipper(flipL.current, 1, d, shared);
     poseFlipper(flipR.current, -1, d, shared);
     flipR.current.scale.setScalar(1 - 0.22 * sign); // a smaller hand, held at the chin below the eye
-    flipR.current.position.set(SHOULDER[0] + SIGN_REACH[0] * sign, SHOULDER[1] + SIGN_REACH[1] * sign, SHOULDER[2] + SIGN_REACH[2] * sign);
+    const fr = HOOKS.fist.reach;
+    const pr = HOOKS.point.reach;
+    flipR.current.position.set(
+      SHOULDER[0] + SIGN_REACH[0] * sign + fr[0] * P.fist + pr[0] * P.point,
+      SHOULDER[1] + SIGN_REACH[1] * sign + fr[1] * P.fist + pr[1] * P.point,
+      SHOULDER[2] + SIGN_REACH[2] * sign + fr[2] * P.fist + pr[2] * P.point,
+    );
 
     // THE STORY, show not tell: every place is radioactive. The coat glows
     // in whichever area's colour the seal stands in, and flashes brighter

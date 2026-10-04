@@ -32,8 +32,8 @@ import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
 import Sea from "./Sea";
 import Toys from "./Toys";
-import Domain from "./Domain";
 import LoopAwakening from "./LoopAwakening";
+import Cutscene from "./cutscene/Cutscene";
 import Seal from "./Seal";
 import Sound from "./Sound";
 import Trail from "./Trail";
@@ -140,8 +140,8 @@ export default function Scene() {
         <Props />
         <Toys />
         <Seal />
-        <Domain />
         <LoopAwakening />
+        <Cutscene />
         <Trail />
         <Effects />
         <Blast />

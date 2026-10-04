@@ -4,14 +4,13 @@
 import { GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
-import { ARRIVAL } from "../lib/world/moments.js";
-import { DOMAIN, domainBeat, radiusAt, signAt } from "../lib/world/domain.js";
+import { CARDS, cardFor } from "../lib/world/cutscene/cards/index.js";
+import { BUILDS, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
 import { TIERS, classify, dprFor } from "../lib/world/quality.js";
 import { CLEAN, ENTRY, LOOP, RIDE_LENGTH } from "../lib/world/loop.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
-import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { tickSnack } from "../components/world/life/snack.js";
@@ -1157,36 +1156,48 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   }
 }
 
-// Punch lines (punch.js): every place has one, and every number in a line is
-// in data/showcase.json (the JSON wins; rewrite the line, not the data).
+// Cutscenes (lib/world/cutscene/): every place has a card and a move, every
+// number in a line is in data/showcase.json (the JSON wins; rewrite the
+// line, not the data), the beats run in order and each line is up long
+// enough to be read.
 {
   const json = readFileSync(new URL("../data/showcase.json", import.meta.url), "utf8");
-  assert.deepEqual([...PUNCH_IDS].sort(), PLACES.map((p) => p.id).sort(), "punch lines cover exactly the places");
-  const VOICES = ["seal", "sil", "land"];
-  for (const p of PLACES) {
-    const { a, b, num, sub } = punchFor(p.id);
-    assert.ok(a.text && b.text && VOICES.includes(a.who) && VOICES.includes(b.who), `${p.id} needs two voices`);
-    for (const n of `${a.text} ${b.text} ${num ?? ""} ${sub ?? ""}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) assert.ok(n === "0" || json.includes(n), `${p.id}'s punch line says ${n}, which showcase.json does not`);
+  const ids = PLACES.map((p) => p.id).sort();
+  assert.deepEqual(CARDS.map((c) => c.id).sort(), ids, "a card for exactly the places");
+  const moves = readFileSync(new URL("../components/world/cutscene/moves/index.js", import.meta.url), "utf8");
+  for (const id of ids) {
+    assert.ok(existsSync(new URL(`../lib/world/cutscene/cards/${id}.js`, import.meta.url)), `${id} has no card file`);
+    assert.ok(existsSync(new URL(`../components/world/cutscene/moves/${id}.jsx`, import.meta.url)) && moves.includes(`"${id}": `), `${id} has no move`);
   }
-  const koan = punchFor("p-aether-lang");
+  for (const c of CARDS) {
+    const { id, a, b, speaker, move } = c;
+    assert.ok(c.homage && c.why && c.stage?.sfx, `${id} card is missing its homage, why or onomatopoeia`);
+    const figure = speaker !== "land";
+    if (figure) assert.ok(BUILDS[speaker?.build] && typeof speaker.prop === "string" && speaker.pose, `${id}'s speaker needs a build, one prop and a pose`);
+    for (const l of [a, b]) {
+      assert.ok(l?.text && ["seal", "sil", "land"].includes(l.who), `${id} needs two voices`);
+      assert.ok(l.who !== "sil" || figure, `${id}: a line from "sil" needs a figure speaker`);
+      assert.ok(l.who !== "land" || !figure, `${id}: a line from "land" needs speaker "land"`);
+      assert.ok(!l.kind || ["oval", "burst", "whisper"].includes(l.kind), `${id}: bubble kind ${l.kind}`);
+    }
+    assert.ok(POSES.includes(move?.pose) && (!move.then || POSES.includes(move.then)), `${id}'s move pose is not a pose hook`);
+    for (const n of `${a.text} ${b.text} ${c.num ?? ""} ${c.sub ?? ""}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) assert.ok(n === "0" || json.includes(n), `${id}'s line says ${n}, which showcase.json does not`);
+    const T = timelineFor(c);
+    const w = [T.sign[0], T.sign[1], T.impact, T.bloom[1], T.enter, T.lineA, T.move[0], T.lineB, T.collapse[0], T.collapse[1], T.duration];
+    assert.ok(w.every((v, i) => i === 0 || v > w[i - 1]) && T.move[1] > T.move[0] && T.move[1] <= T.lineB && T.hold >= T.collapse[0], `${id}'s beats are out of order`);
+    assert.ok(T.lineB - T.lineA >= READ && T.collapse[0] - T.lineB >= READ, `${id}: each line gets ${READ} s to be read`);
+    let beat = 0;
+    for (let t = 0; t < T.duration; t += 0.01) {
+      const k = beatAt(T, t);
+      assert.ok(k >= beat, `${id}'s beat goes back at ${t.toFixed(2)} s`);
+      beat = k;
+    }
+    assert.ok(signAt(T, T.impact) > 0.99 && radiusAt(T, T.lineA) > 10 && radiusAt(T, T.duration - 0.01) === 0 && beatAt(T, T.duration) === 0, `${id}: the sign opens the stage and the stage closes`);
+  }
+  const koan = cardFor("p-aether-lang");
   assert.ok(koan.a.text.includes("Gojeal Satarou") && koan.b.text.includes("Gojeal Fishtarou"), "the Gojeal koan keeps its spellings");
-  // The domain (domain.js): beats in order, the sign up before the bloom,
-  // closed again by the end, and the bubbles' lines in reading time.
-  const D = DOMAIN;
-  const w = [D.sign[0], D.sign[1], D.impact, D.bloom[1], D.enter, D.lineA, D.lineB, D.collapse[0], D.collapse[1], D.duration];
-  assert.ok(w.every((v, i) => i === 0 || v > w[i - 1]) && D.hold >= D.collapse[0] && D.duration > ARRIVAL.duration, "domain beats are in order");
-  let beat = 0;
-  for (let t = 0; t < D.duration; t += 0.01) {
-    const b = domainBeat(t);
-    assert.ok(b >= beat, `domain beat goes back at ${t.toFixed(2)} s`);
-    beat = b;
-  }
-  assert.ok(signAt(D.impact) > 0.99 && radiusAt(D.lineA) > 10 && radiusAt(D.duration - 0.01) === 0 && domainBeat(D.duration) === 0, "the sign opens the domain and the domain closes");
-  assert.ok(D.lineB - D.lineA >= 2.4 && D.collapse[0] - D.lineB >= 2.4, "each line gets 2.4 s to be read");
-  for (const p of PLACES) {
-    const c = punchFor(p.id);
-    assert.ok(c.seal.pose1 && c.seal.pose2 && c.panel && c.homage && c.why && c.move, `${p.id} card is missing a field`);
-  }
+  const T = timelineFor(koan);
+  assert.ok(T.duration === 8.2 && T.lineA === 2.3 && T.lineB === 5 && T.collapse[0] === 7.4 && T.hold === 7.8, "Aether-Lang keeps its approved 8.2 s domain");
 }
 
 // Quality ladder: the renderer string picks the right first rung, and a rung
@@ -1257,4 +1268,4 @@ for (let tier = 0; tier < TIERS.length; tier++) {
   for (const p of PLACES) assert.ok(!inRock(dockPoint(p).x, dockPoint(p).z), `${p.id}'s dock is inside MujoRush`);
 }
 
-console.log(`world check passed: quality ladder, punch lines, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, toys (TNT, stack, pins, cones), throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks`);
+console.log(`world check passed: quality ladder, cutscene cards and moves, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, toys (TNT, stack, pins, cones), throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks`);
