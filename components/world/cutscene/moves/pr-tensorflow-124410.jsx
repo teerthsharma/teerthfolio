@@ -19,7 +19,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, OctahedronGeometry, PlaneGeometry, Quaternion, Vector3, WebGLRenderTarget } from "three";
+import { BackSide, BoxGeometry, AdditiveBlending, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, OctahedronGeometry, PlaneGeometry, Quaternion, Vector3, WebGLRenderTarget } from "three";
 import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
@@ -46,9 +46,11 @@ const PX = 6.4; // the pylons' x on a wide screen
 const GZ = -8.6; // the gantry's plane: out over the reservoir
 const BEAM_Y = [4.3, 5.4, 6.5];
 const CORAL = { y: 7.75, z: GZ + 1.1 };
-const JABS = 40;
+const JABS = 72; // dozens of afterimages, thirty-six per fist
 const SPRAY = 130;
-const GLYPHS = 20;
+const GLYPHS = 30;
+const AURA = ["#22d3ee", "#fde047", "#f0abfc", "#fb923c"]; // the Stand's glow follows the palette beat
+const ROLL = [[0, 0], [1.9, -0.12], [2.4, 0.2], [3.5, -0.3], [3.9, 0.3], [4.4, -0.3], [4.8, 0.34], [5.0, -0.42], [6.2, 0.26], [6.62, -0.2], [7.2, 0.1], [7.5, 0]]; // the diagonal lens, a hard cut every beat (radians)
 const SPARKS = 18;
 
 const O = new Object3D();
@@ -57,6 +59,7 @@ const V = new Vector3();
 const D = new Vector3();
 const X1 = new Vector3(1, 0, 0);
 const Z1 = new Vector3(0, 0, 1);
+const Y1 = new Vector3(0, 1, 0);
 
 // an outlined instanced pair: the fill and its ink hull share one matrix buffer
 function pair(geo, U, n, fillOpts = {}) {
@@ -118,6 +121,9 @@ export default function Move(cut) {
     const pyl = [solidPair(pylG, U), solidPair(pylG, U)];
     const standG = standGeometry();
     const stand = solidPair(standG, U);
+    const aura = new Mesh(standG, new MeshBasicMaterial({ color: AURA[0], side: BackSide, transparent: true, opacity: 0.55, blending: AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
+    aura.frustumCulled = false;
+    aura.scale.setScalar(1.1);
     const rivalG = rivalGeometry();
     const rival = new Mesh(rivalG, solidMaterial(U, { rim: 1 }));
     rival.frustumCulled = false;
@@ -143,7 +149,7 @@ export default function Move(cut) {
     const flash = new Mesh(flashG, new MeshBasicMaterial({ color: "#fff0d8", transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false, fog: false }));
     flash.frustumCulled = false;
     flash.renderOrder = 40;
-    return { U, shell, water, land, landM, crestG, crest, lampG, lampM, pylG, pyl, standG, stand, rivalG, rival, mint, coral, fists, fistG, dropG, spray, sparkG, sparks, clockG, clockM, clockH, minG, hourG, glyph, flash, flashG, beamG, coralG };
+    return { U, aura, shell, water, land, landM, crestG, crest, lampG, lampM, pylG, pyl, standG, stand, rivalG, rival, mint, coral, fists, fistG, dropG, spray, sparkG, sparks, clockG, clockM, clockH, minG, hourG, glyph, flash, flashG, beamG, coralG };
   }, []);
 
   useEffect(() => {
@@ -174,12 +180,13 @@ export default function Move(cut) {
       ink.current?.dispose();
       ink.current = null;
       pup.current?.root.scale.setScalar(1);
+      camera.up.set(0, 1, 0); // the diagonal lens ends with the scene, however it ends
       pup.current = null;
       tickSnd.current?.dispose();
       tickSnd.current = null;
       // everything the scene built goes with it
       const geos = new Set([m.shell.g, m.water.g, m.land, m.crestG, m.lampG, m.pylG, m.standG, m.rivalG, m.beamG, m.coralG, m.fistG, m.dropG, m.sparkG, m.clockG, m.minG, m.hourG, m.glyph.ink.geometry, m.glyph.fill.geometry, m.flashG]);
-      const mats = new Set([m.shell.m, m.water.m, m.landM, m.lampM, m.rival.material, m.spray.material, m.sparks.material, m.clockM, m.clockH, m.glyph.ink.material, m.glyph.fill.material, m.flash.material]);
+      const mats = new Set([m.shell.m, m.water.m, m.landM, m.lampM, m.rival.material, m.spray.material, m.sparks.material, m.clockM, m.clockH, m.glyph.ink.material, m.glyph.fill.material, m.flash.material, m.aura.material]);
       for (const o of [...m.crest, ...m.stand, ...m.pyl.flat(), m.mint.fill, m.mint.hull, m.coral.fill, m.coral.hull, m.fists.fill, m.fists.hull]) mats.add(o.material);
       geos.forEach((g) => g.dispose());
       mats.forEach((x) => x.dispose());
@@ -194,8 +201,12 @@ export default function Move(cut) {
     if (!live.arrival.id) {
       rig.current.visible = false;
       menace.current.visible = false;
-      ink.current?.set(false);
-      p?.root.scale.setScalar(1);
+      camera.up.set(0, 1, 0);
+      ink.current?.set(false); // every frame with no arrival: the pup is back on its own materials, at scale 1, shown
+      if (p?.root) {
+        p.root.scale.setScalar(1);
+        p.root.visible = true;
+      }
       return;
     }
     if (!p?.root || mode !== "full") return;
@@ -227,6 +238,12 @@ export default function Move(cut) {
     const tt = onTwos(t);
     const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
     const cam = st.camera;
+    // THE DIAGONAL LENS: the camera rolls about its own view axis (the rig's lookAt honours camera.up), cutting on twos
+    let roll = 0;
+    for (const [rt, rv] of ROLL) if (tt >= rt) roll = rv;
+    cam.getWorldDirection(D);
+    V.copy(D).cross(Y1).normalize();
+    cam.up.copy(Y1).multiplyScalar(Math.cos(roll)).addScaledVector(V, Math.sin(roll)).normalize();
     const wide = st.size.width / st.size.height >= 1;
     const fit = wide ? 1 : 0.62;
     // THE WORLD CLOCK: it stops for the time-stop (the pup and the Stand stay free), then runs on
@@ -302,6 +319,9 @@ export default function Move(cut) {
     standRef.current.position.set(STAND_AT.x * fit + Math.sin(t * 2.2) * 0.04, -9.5 * (1 - rise) + 0.12 * Math.sin(rise * Math.PI), STAND_AT.z);
     standRef.current.rotation.y = 0.12 * Math.sin((Math.floor(t * 6) / 6) * 1.3);
     standRef.current.scale.setScalar(sk);
+    m.aura.material.color.set(AURA[pi]);
+    m.aura.material.opacity = (0.4 + 0.3 * (Math.floor(t * 14) % 2) + 0.3 * barr) * rise;
+    m.aura.scale.setScalar(1.1 + 0.05 * (Math.floor(t * 10) % 2) + 0.04 * barr);
 
     // THE RIVAL pops in on the tower with the first impact, then holds, its cape fluttering on the world clock
     const rv = Math.min(1, Math.max(0, (tt - T.rival) / 0.25));
@@ -402,7 +422,7 @@ export default function Move(cut) {
 
     // THE GLYPHS: ゴゴゴゴ rises round the pup (and stays on after the tear: it is the menace the pup carries home)
     const gl = smooth(T.glyph, T.glyph + 0.4, tt) * out * (1 - smooth(T.tear[0], T.tear[0] + 0.5, tt));
-    const pulse = 1 + 0.16 * (Math.floor(t * 12) % 2);
+    const pulse = 1 + 0.28 * (Math.floor(t * 12) % 2);
     for (let i = 0; i < GLYPHS; i++) {
       const side = i % 2 ? 1 : -1;
       const span = 4.2;
@@ -499,6 +519,7 @@ export default function Move(cut) {
           <group ref={standRef} visible={false}>
             <primitive object={m.stand[0]} />
             <primitive object={m.stand[1]} />
+            <primitive object={m.aura} />
           </group>
           <primitive object={m.fists.fill} />
           <primitive object={m.fists.hull} />
