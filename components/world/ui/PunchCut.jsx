@@ -69,7 +69,7 @@ export default function PunchCut() {
     return () => cancelAnimationFrame(raf);
   }, [flat]);
 
-  const look = LOOK_BY_ID[id];
+  const look = id === "home" ? "none" : LOOK_BY_ID[id];
   const sil = card?.sil;
   const afterMove = pop >= 6;
   const sealPose = afterMove ? card?.seal.pose2 : card?.seal.pose1;

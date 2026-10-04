@@ -25,7 +25,8 @@ export const POSES = {
 };
 
 const Look = ({ look, accent }) => {
-  if (look === "flame") return <path d="M110 10 C86 36 98 44 90 62 C112 56 132 44 110 10Z" fill="#ff8a1f" stroke={INK} strokeWidth="4" strokeLinejoin="round" />;
+  if (look === null || look === "none") return null;
+  if (look === "flame") return <path d="M110 6 L96 46 L124 46Z" fill="#ff9a3c" stroke={INK} strokeWidth="4" strokeLinejoin="round" />;
   if (look === "spikes") return <path d="M70 46 L78 12 L92 38 L110 6 L128 38 L142 12 L150 46Z" fill={accent} stroke={INK} strokeWidth="4" strokeLinejoin="round" />;
   if (look === "ninja") {
     return (
@@ -51,32 +52,59 @@ const Look = ({ look, accent }) => {
       </g>
     );
   }
-  return null;
+  return (
+    <g stroke={INK} strokeWidth="4">
+      <rect x="60" y="48" width="100" height="9" rx="4" fill="#3a3a52" />
+      <circle cx="84" cy="48" r="11" fill="#bfe6ff" />
+      <circle cx="136" cy="48" r="11" fill="#bfe6ff" />
+    </g>
+  );
 };
 
-// The cutout seal, front on, with the island look the real seal wears.
+// The cutout of the real pup (variants/D.jsx), front on: lavender-blue back and
+// flippers, cream face and muzzle, big glossy eyes with highlights, blush, a
+// nose with whisker dots, two small gold sparkles, and the island look on top.
 export function SealArt({ look, accent, pose, rim }) {
   const p = POSES[pose] ?? POSES.still;
   const o = { transformBox: "fill-box", transition: "transform 220ms cubic-bezier(0.2, 1.5, 0.4, 1)" };
+  const BACK = "#b4aee8";
+  const BACK2 = "#9690d6";
+  const CREAM = "#fdf3ee";
   return (
     <svg className="punch-seal-art" viewBox="0 0 220 190" aria-hidden="true" focusable="false">
       <ellipse cx="110" cy="22" rx="46" ry="9" fill="none" stroke={rim ?? "#ffd84a"} strokeWidth="5" />
       <g style={{ ...o, transformOrigin: "50% 100%", transform: p.body }}>
-        <ellipse cx="110" cy="140" rx="64" ry="40" fill="#e3eaf4" stroke={INK} strokeWidth="5" />
-        <ellipse cx="110" cy="150" rx="40" ry="26" fill={PAPER} />
+        <ellipse cx="110" cy="144" rx="66" ry="38" fill={BACK} stroke={INK} strokeWidth="5" />
+        <ellipse cx="110" cy="152" rx="40" ry="24" fill={CREAM} />
         <g style={{ ...o, transformOrigin: "100% 0%", transform: p.fl }}>
-          <ellipse cx="42" cy="142" rx="30" ry="12" fill="#cfd9e8" stroke={INK} strokeWidth="5" />
+          <ellipse cx="40" cy="146" rx="30" ry="12" fill={BACK2} stroke={INK} strokeWidth="5" />
         </g>
         <g style={{ ...o, transformOrigin: "0% 0%", transform: p.fr }}>
-          <ellipse cx="178" cy="142" rx="30" ry="12" fill="#cfd9e8" stroke={INK} strokeWidth="5" />
+          <ellipse cx="180" cy="146" rx="30" ry="12" fill={BACK2} stroke={INK} strokeWidth="5" />
         </g>
-        <circle cx="110" cy="84" r="46" fill="#e3eaf4" stroke={INK} strokeWidth="5" />
+        <path d="M66 70 L52 40 L86 52Z M154 70 L168 40 L134 52Z" fill={BACK2} stroke={INK} strokeWidth="5" strokeLinejoin="round" />
+        <ellipse cx="110" cy="92" rx="56" ry="48" fill={BACK} stroke={INK} strokeWidth="5" />
+        <ellipse cx="110" cy="108" rx="40" ry="32" fill={CREAM} />
         <Look look={look} accent={accent} />
-        <circle cx="92" cy="82" r="6" fill={INK} />
-        <circle cx="128" cy="82" r="6" fill={INK} />
-        <ellipse cx="110" cy="98" rx="9" ry="6" fill={INK} />
-        <circle cx="76" cy="98" r="6" fill="#f5a3a3" opacity="0.8" />
-        <circle cx="144" cy="98" r="6" fill="#f5a3a3" opacity="0.8" />
+        <g>
+          <ellipse cx="84" cy="90" rx="13" ry="15" fill="#2b2338" stroke={INK} strokeWidth="2" />
+          <ellipse cx="136" cy="90" rx="13" ry="15" fill="#2b2338" stroke={INK} strokeWidth="2" />
+          <circle cx="79" cy="84" r="5" fill="#fff" />
+          <circle cx="131" cy="84" r="5" fill="#fff" />
+          <circle cx="89" cy="96" r="2.5" fill="#fff" />
+          <circle cx="141" cy="96" r="2.5" fill="#fff" />
+        </g>
+        <path d="M60 76 l5 -6 l5 6 l-5 6Z M158 70 l5 -6 l5 6 l-5 6Z" fill="#ffd84a" />
+        <ellipse cx="68" cy="112" rx="10" ry="6" fill="#f7a5b0" opacity="0.85" />
+        <ellipse cx="152" cy="112" rx="10" ry="6" fill="#f7a5b0" opacity="0.85" />
+        <ellipse cx="110" cy="110" rx="9" ry="6" fill="#4a3a52" />
+        <path d="M110 116 Q110 126 100 126 M110 116 Q110 126 120 126" stroke="#4a3a52" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <g fill="#7a6a86">
+          <circle cx="94" cy="120" r="1.8" />
+          <circle cx="90" cy="125" r="1.8" />
+          <circle cx="126" cy="120" r="1.8" />
+          <circle cx="130" cy="125" r="1.8" />
+        </g>
       </g>
     </svg>
   );
@@ -92,7 +120,7 @@ const Person = ({ arm, scale = 1, children }) => (
   </g>
 );
 const dots = (pts, c = PAPER, r = 4) => pts.map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r={r} fill={c} />);
-const lit = (r, i) => (r === 3 && i === 1) || (r === 1 && i === 0);
+const PATH = new Set(["0-0", "1-0", "2-1", "3-1", "4-2"]); // the scheduled blocks
 
 // One drawing per guest.prop (punch.js). `a` is the place's own colour.
 const ART = {
@@ -173,11 +201,13 @@ const ART = {
       <path d="M176 100 L160 130 L184 150 L166 190" stroke={a} strokeWidth="8" fill="none" strokeLinejoin="round" />
     </g>
   ),
+  // the causal-attention triangle: every block starts lit, then on the seal's
+  // snap (CSS .tri-dead under .punch[data-pop=5|6]) all but the scheduled path go dark
   triangle: (a) => (
     <g>
-      {[1, 2, 3, 4].flatMap((n, r) =>
+      {[1, 2, 3, 4, 5].flatMap((n, r) =>
         Array.from({ length: n }, (_, i) => (
-          <rect key={`${r}-${i}`} x={100 - n * 21 + i * 42} y={40 + r * 42} width="36" height="36" fill={lit(r, i) ? a : INK} stroke={INK} strokeWidth="3" opacity={lit(r, i) ? 1 : 0.55} />
+          <rect key={`${r}-${i}`} className={PATH.has(`${r}-${i}`) ? "tri-live" : "tri-dead"} x={100 - n * 21 + i * 42} y={20 + r * 42} width="36" height="36" fill={a} stroke={INK} strokeWidth="3" />
         )),
       )}
     </g>
