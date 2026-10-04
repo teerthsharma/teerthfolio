@@ -25,7 +25,7 @@ import { radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, smooth, useCutFrame } from "../kit";
 import { islandList, pupParts } from "./p-caustic/parts";
-import { flipperAt, usePupFront, usePupPost } from "./g3/common";
+import { flipperAt, pupRig, usePupFront, usePupPost } from "./g3/common";
 import { cape, pupPrint, vAura } from "./pr-openxla-46539/hero";
 import { nearMovers } from "./pr-openxla-46539/island";
 import { applyPunch } from "./pr-openxla-46539/punch";
@@ -58,6 +58,7 @@ export default function Move(cut) {
   const shake = useRef(new Vector3());
   const fist = useRef(FIST_REST);
   const pupY = useRef(0);
+  const yaw = useRef(0);
   const clock = useRef(0); // the scene's own time (scrubbable), for the pup's post pass
 
   // the screen decides how wide the street is: a portrait lens sees a narrow slice
@@ -147,6 +148,12 @@ export default function Move(cut) {
   }, -0.5);
 
   usePupFront(cut, 1.5, 2.0);
+  // the dash turns the pup side-on to its path (toward the Nomu), then back to the lens
+  useFrame(() => {
+    if (!live.arrival.id || mode !== "full" || yaw.current <= 0.001) return;
+    const rig = pupRig(scene);
+    if (rig) rig.seal.rotation.y += (Math.PI * 0.78 - rig.seal.rotation.y) * yaw.current;
+  }, -0.5);
 
   // the fist: where the right flipper's tip is, in the rig's space; the punch thrusts it straight up
   usePupPost(cut, (t, r) => {
@@ -178,7 +185,8 @@ export default function Move(cut) {
     clock.current = t;
     const o = w.update({ t, cam: state.camera, width: state.size.width, height: state.size.height, dpr: state.gl.getPixelRatio(), seal: live.seal, r: radiusAt(tl, t), fist: fist.current, out: 1 - smooth(tl.collapse[0], tl.collapse[1], onTwos(t)) });
     w.punch = o.punch;
-    shake.current.set(o.shakeX, o.shakeY, 0);
+    shake.current.set(o.shakeX + o.dashX, o.shakeY, o.dashZ);
+    yaw.current = o.yaw;
     pupY.current = o.pupY;
     for (const k in o.pose) live.pose[k] = o.pose[k];
     paint.current?.set(o.paint);
