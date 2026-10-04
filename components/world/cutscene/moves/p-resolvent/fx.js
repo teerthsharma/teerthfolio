@@ -5,7 +5,7 @@
 // built once; the move writes matrices into pooled instances (nothing allocates
 // per frame, no post pass).
 
-import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, NormalBlending, PlaneGeometry, ShaderMaterial, TetrahedronGeometry } from "three";
+import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, NormalBlending, PlaneGeometry, ShaderMaterial, TetrahedronGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { NOISE, U, hash, inst, join, part } from "./toon";
 
@@ -164,45 +164,54 @@ export function flame() {
   return { g: geo, m: mat };
 }
 
-// ---- the mana column: streaks that run up it in a slow helix
+// ---- the mana column: a narrow cylinder of light, brightest down its middle and soft to nothing at its
+// edge (the falloff is the surface's own turn from the lens, so there is no seam to see), streaks running up it.
+// Gold round the outside, silver in the core; it lights only a few metres round it, and the court darkens round it.
 function columnMat(core) {
   return new ShaderMaterial({
     uniforms: { uTime: U.uTime, uA: { value: 0 }, uDis: U.uDis },
     transparent: true,
     depthWrite: false,
     blending: AdditiveBlending,
-    side: BackSide,
+    side: DoubleSide,
     vertexShader: /* glsl */ `
-      varying vec2 vUv;
       varying float vH;
       varying vec3 vN;
+      varying vec3 vW;
       void main() {
-        vUv = uv;
         vH = position.y;
         vN = normalize(mat3(modelMatrix) * normal);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vec4 w = modelMatrix * vec4(position, 1.0);
+        vW = w.xyz;
+        gl_Position = projectionMatrix * viewMatrix * w;
       }`,
     fragmentShader: /* glsl */ `
       uniform float uTime, uA, uDis;
-      varying vec2 vUv;
       varying float vH;
       varying vec3 vN;
+      varying vec3 vW;
       ${NOISE}
       void main() {
-        float ang = vUv.x * 40.0 + vH * 7.0;
-        float s1 = vn(vec2(ang, vH * 2.6 - uTime * ${core ? "7.0" : "4.5"}));
-        float s2 = vn(vec2(ang * 2.3 + 9.0, vH * 7.0 - uTime * ${core ? "11.0" : "8.0"}));
-        float streak = smoothstep(0.32, 0.9, s1 * 0.65 + s2 * 0.5);
-        float a = (${core ? "0.5" : "0.2"} + streak * ${core ? "0.9" : "0.7"}) * (1.0 - smoothstep(0.55, 1.0, vH)) * smoothstep(0.0, 0.04, vH);
-        vec3 silver = vec3(0.86, 0.92, 1.0);
-        vec3 gold = vec3(1.0, 0.8, 0.42);
-        vec3 c = ${core ? "mix(silver, vec3(1.0, 0.95, 0.85), streak * 0.5)" : "mix(gold, silver, smoothstep(0.0, 0.7, vH) * 0.4)"};
+        vec3 v = normalize(cameraPosition - vW);
+        vec3 n = normalize(vN);
+        float f = abs(dot(n, v));
+        vec3 side = normalize(cross(vec3(0.0, 1.0, 0.0), v));
+        float s = dot(n, side); // -1 .. 1 across the column as the lens sees it
+        float y = vW.y;
+        float s1 = vn(vec2(s * 4.5 + sin(y * 0.22 + uTime * 0.8) * 0.8, y * 0.16 - uTime * ${core ? "5.0" : "3.2"}));
+        float s2 = vn(vec2(s * 9.0 + 7.0, y * 0.4 - uTime * ${core ? "8.0" : "5.5"}));
+        float streak = smoothstep(0.3, 0.85, s1 * 0.7 + s2 * 0.45);
+        float body = pow(f, ${core ? "1.7" : "2.6"});
+        float a = body * (${core ? "0.45" : "0.2"} + streak * ${core ? "0.8" : "0.55"}) * (1.0 - smoothstep(0.35, 1.0, vH)) * smoothstep(0.0, 0.03, vH);
+        vec3 silver = vec3(0.88, 0.94, 1.0);
+        vec3 gold = vec3(1.0, 0.76, 0.34);
+        vec3 c = ${core ? "mix(silver, vec3(1.0, 0.93, 0.78), streak * 0.5)" : "mix(gold, vec3(0.95, 0.85, 0.7), smoothstep(0.0, 0.8, vH) * 0.5)"};
         gl_FragColor = vec4(pow(c, vec3(2.2)) * a * uA * (1.0 - clamp(uDis * 2.4, 0.0, 1.0)), 1.0);
       }`,
   });
 }
 export function column() {
-  const g = new CylinderGeometry(1, 1, 1, 40, 20, true).translate(0, 0.5, 0);
+  const g = new CylinderGeometry(1, 1, 1, 40, 1, true).translate(0, 0.5, 0);
   return { g, outer: columnMat(false), inner: columnMat(true) };
 }
 

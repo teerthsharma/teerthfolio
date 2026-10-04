@@ -12,7 +12,10 @@ const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const GOLD = "#e9b84a";
 
 // ------------------------------------------------------------------ Aura
-export const AURA = { at: [2.4, 0.9, -6.0], yaw: -0.25, scale: 1.15 };
+export const AURA = { at: [2.3, 0.9, -5.0], yaw: -0.25, scale: 1.4 };
+// Fern and Stark on their walls, drawn in close to Aura so the pair reads in a portrait frame too
+export const FERN_AT = [-0.2, 2.3, -13.4];
+export const STARK_AT = [5.6, 1.9, -14.2];
 export const HAND = [1.2, 1.95, 0.12]; // the raised hand, in her local frame
 export const MOUTH = [0, 1.7, 0.12];
 
@@ -142,6 +145,7 @@ export function stark() {
 export const FULCRUM = 0.78;
 export const BEAM = 0.9;
 export const CHAIN = 0.78;
+export const SCALE_K = 1.75; // the scale is drawn oversize, as key-art draws a prop that carries the story
 export function scalePieces() {
   const stem = join([
     part(new ConeGeometry(0.1, 0.14, 8), GOLD, { kind: 3 }).rotateX(Math.PI).translate(0, 0.07, 0),
@@ -156,15 +160,17 @@ export function scalePieces() {
       part(new IcosahedronGeometry(0.052, 1), GOLD, { kind: 3 }).translate(s * BEAM, 0, 0),
       part(new TorusGeometry(0.05, 0.011, 4, 10), GOLD, { kind: 3 }).translate(s * BEAM * 0.55, 0.06, 0),
     ]);
+  // a pan's origin is the middle of its dish (it is thrown and spins about that); the chains rise to CHAIN above it
   const pan = () => {
-    const P = [part(new CylinderGeometry(0.46, 0.2, 0.1, 16), GOLD, { kind: 3 }).translate(0, -CHAIN - 0.05, 0)];
-    P.push(put(part(new TorusGeometry(0.46, 0.017, 5, 18), "#fff0b8", { kind: 3 }), 0, -CHAIN, 0, Math.PI / 2));
+    const P = [part(new CylinderGeometry(0.46, 0.2, 0.1, 16), GOLD, { kind: 3 }).translate(0, -0.05, 0)];
+    P.push(put(part(new TorusGeometry(0.46, 0.017, 5, 18), "#fff0b8", { kind: 3 }), 0, 0, 0, Math.PI / 2));
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2 + 0.5;
-      P.push(part(limb([0, 0, 0], [Math.cos(a) * 0.44, -CHAIN, Math.sin(a) * 0.44], 0.009, 0.009, 4), GOLD, { kind: 3 }));
+      P.push(part(limb([0, CHAIN, 0], [Math.cos(a) * 0.44, 0, Math.sin(a) * 0.44], 0.009, 0.009, 4), GOLD, { kind: 3 }));
     }
     return join(P);
   };
-  return { stem, left: half(-1), right: half(1), pan: pan() };
+  const mote = part(new IcosahedronGeometry(0.075, 1), "#fff4d6", { kind: 4 });
+  return { stem, left: half(-1), right: half(1), pan: pan(), mote };
 }
 

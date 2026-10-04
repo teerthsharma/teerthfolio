@@ -5,8 +5,9 @@
 // Frame: the move's rig (the pup at the origin, the lens out along +z, the sun
 // behind and left). Statics are one mesh with one cel material; nothing animates here.
 
-import { BoxGeometry, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, PlaneGeometry, ShaderMaterial, TorusGeometry, BufferAttribute, BufferGeometry, AdditiveBlending, Vector3 } from "three";
-import { NOISE, SHADOW, SUN, U, UNMAKE, celMaterial, hash, join, limb, part, put } from "./toon";
+import { BoxGeometry, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, PlaneGeometry, RingGeometry, ShaderMaterial, TorusGeometry, BufferAttribute, BufferGeometry, AdditiveBlending, Vector3 } from "three";
+import { FERN_AT, STARK_AT, AURA } from "./cast";
+import { DIM, NOISE, SHADOW, SUN, U, UNMAKE, celMaterial, hash, join, limb, part, put } from "./toon";
 
 export const groundY = (x, z) => {
   const r = Math.hypot(x - 1, z + 12);
@@ -17,7 +18,7 @@ export const groundY = (x, z) => {
 // ---------------------------------------------------------------- the sky
 export function skyMaterial() {
   return new ShaderMaterial({
-    uniforms: { uTime: U.uTime, uSun: U.uSun, uDis: U.uDis, uCrack: U.uCrack, uOriginDir: U.uOriginDir },
+    uniforms: { uTime: U.uTime, uSun: U.uSun, uDis: U.uDis, uCrack: U.uCrack, uOriginDir: U.uOriginDir, uDim: U.uDim },
     side: DoubleSide,
     depthWrite: false,
     vertexShader: /* glsl */ `
@@ -28,7 +29,7 @@ export function skyMaterial() {
         gl_Position = projectionMatrix * viewMatrix * w;
       }`,
     fragmentShader: /* glsl */ `
-      uniform float uTime, uDis, uCrack;
+      uniform float uTime, uDis, uCrack, uDim;
       uniform vec3 uSun, uOriginDir;
       varying vec3 vW;
       ${NOISE}
@@ -66,6 +67,7 @@ export function skyMaterial() {
         float win = step(0.86, h21(floor(vec2(az * 90.0, h * 400.0)))) * (1.0 - smoothstep(r3 - 0.01, r3 - 0.002, h)) * smoothstep(r3 - 0.02, r3 - 0.012, h);
         c += vec3(1.0, 0.7, 0.3) * win * 0.9;
         if (h < -0.01) c = mix(c, hor * 0.95, smoothstep(-0.01, -0.08, h));
+        c *= mix(vec3(1.0), vec3(0.42, 0.4, 0.62), uDim);
         float e = uDis > 0.0 ? (1.0 - smoothstep(0.0, 0.07, edge)) : 0.0;
         c += vec3(1.0, 0.78, 0.38) * e * 2.2;
         if (uCrack > 0.0) {
@@ -85,7 +87,7 @@ export function ground() {
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) p.setY(i, groundY(p.getX(i), p.getZ(i)) - 0.02);
   const m = new ShaderMaterial({
-    uniforms: { uTime: U.uTime, uDis: U.uDis, uCrack: U.uCrack, uOrigin: U.uOrigin, uHaze: U.uHaze },
+    uniforms: { uTime: U.uTime, uDis: U.uDis, uCrack: U.uCrack, uOrigin: U.uOrigin, uHaze: U.uHaze, uDim: U.uDim, uAxis: U.uAxis },
     polygonOffset: true,
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
@@ -102,6 +104,7 @@ export function ground() {
       varying vec3 vW;
       ${NOISE}
       ${UNMAKE}
+      ${DIM}
       void main() {
         vec3 em = unmake(vW);
         vec2 p = vW.xz;
@@ -133,6 +136,7 @@ export function ground() {
         vec3 c = base * mix(vec3(0.7, 0.62, 0.86), vec3(1.14, 1.02, 0.8), pool);
         float d = length(cameraPosition - vW);
         c = mix(c, uHaze, (1.0 - exp(-d * d * 0.00011 - d * 0.004)) * 0.9);
+        c = dimmed(c, vW);
         c += em;
         gl_FragColor = vec4(pow(max(c, 0.0), vec3(2.2)), 1.0);
       }`,
@@ -141,11 +145,14 @@ export function ground() {
 }
 
 // ---------------------------------------------------------------- the statics
+// the fountain's place and the break in its lip (a gap facing the lens)
+export const FOUNTAIN = [-4.4, -4.6];
+const GAP = 0.34;
 export const TREES = [[-17, -6, 9], [-16.5, -14, 10], [-21, -2, 9], [16, -7, 8], [15.5, -14, 10], [19, -3, 9], [16, -24, 9], [23, -16, 10], [-12, -29, 11], [-20, -24, 10]];
 // what throws a long shadow: [x, z, width, height, yaw, alpha]
 export const CASTERS = [
-  [-3.6, -13.4, 5.6, 2.6, 0.05, 0.5], [7.2, -14.2, 5.6, 2.2, -0.06, 0.5], [-13, -22, 8, 6.5, 0, 0.55], [-17, -18, 1.6, 6, Math.PI / 2, 0.5],
-  [-11, -8.5, 1.1, 5.6, 0, 0.5], [-6.6, -9.6, 1.1, 4.2, 0, 0.5], [-5.4, -4.2, 4, 1.0, 0, 0.35], [-5.4, -4.2, 0.9, 3.1, 0, 0.4],
+  [FERN_AT[0] - 0.2, -13.4, 5.6, 2.6, 0.05, 0.5], [STARK_AT[0] - 0.2, -14.2, 5.6, 2.2, -0.06, 0.5], [-13, -22, 8, 6.5, 0, 0.55], [-17, -18, 1.6, 6, Math.PI / 2, 0.5],
+  [-11, -8.5, 1.1, 5.6, 0, 0.5], [-6.6, -9.6, 1.1, 4.2, 0, 0.5], [FOUNTAIN[0], FOUNTAIN[1], 5.0, 1.2, 0, 0.35], [FOUNTAIN[0], FOUNTAIN[1], 1.2, 4.2, 0, 0.45],
   [-10, -42, 11, 22, 0, 0.5], [-19, -40, 8, 28, 0, 0.5], [24, -37, 6.6, 15, 0, 0.5], [0, -35, 60, 9, 0, 0.35],
   ...TREES.map(([x, z, h]) => [x, z, h * 0.55, h * 0.95, 0, 0.45]),
 ];
@@ -192,25 +199,41 @@ export function statics() {
   add(put(part(new BoxGeometry(0.7, 1.4, 0.3), "#3b2a30"), -14, 12, -37.4), put(part(new BoxGeometry(0.7, 1.4, 0.3), "#3b2a30"), -6, 12, -37.4));
   // --- the near ruins: a corner of wall on the left, the arch, wall ends flanking the army
   add(block(8, 6.5, 1.6, -13, 0, -22, 0, STONE[0], 2.6), block(1.6, 6, 8, -17, 0, -18, 0, STONE[3], 2.2));
-  add(block(5.6, 2.6, 1.3, -3.6, 0, -13.4, 0.05, STONE[1], 0.35)); // Fern's wall
-  add(block(5.6, 2.2, 1.3, 7.2, 0, -14.2, -0.06, STONE[2], 0.3)); // Stark's wall
+  add(block(5.6, 2.6, 1.3, FERN_AT[0] - 0.2, 0, -13.4, 0.05, STONE[1], 0.35)); // Fern's wall
+  add(block(5.6, 2.2, 1.3, STARK_AT[0] - 0.2, 0, -14.2, -0.06, STONE[2], 0.3)); // Stark's wall
   add(block(1.1, 5.6, 1.1, -11, 0, -8.5, 0, STONE[0], 0.8), block(1.1, 4.2, 1.1, -6.6, 0, -9.6, 0, STONE[1], 1.4));
   add(put(part(new TorusGeometry(2.4, 0.5, 5, 12, 1.5), STONE[2], { kind: 1, flat: true }), -9.5, 5.2, -8.9, 0, 0, 0.55)); // half an arch
-  add(block(6.2, 0.45, 3.8, 2.6, 0, -6.0, 0, "#bfa27a", 0.12), block(4.2, 0.45, 2.6, 2.6, 0.45, -6.0, 0, "#c8ab82", 0.15)); // the dais
+  add(block(7.0, 0.45, 4.4, AURA.at[0], 0, AURA.at[2], 0, "#bfa27a", 0.12), block(4.8, 0.45, 3.0, AURA.at[0], 0.45, AURA.at[2], 0, "#c8ab82", 0.15)); // the dais
   add(block(2.2, 1.0, 1.1, 13, 0, -4, 0.3, STONE[3], 0.4), block(1.6, 0.7, 1.2, 9.4, 0, -1.0, 0.7, STONE[0], 0.3));
   // a fallen column, drums in the grass
-  add(put(part(new CylinderGeometry(0.5, 0.5, 2.4, 10).rotateZ(Math.PI / 2), STONE[2], { kind: 1, flat: true }), 5.8, 0.5, -2.2, 0, 0.35), put(part(new CylinderGeometry(0.5, 0.5, 1.2, 10).rotateZ(Math.PI / 2), STONE[0], { kind: 1, flat: true }), 3.9, 0.48, -2.9, 0, 0.9));
-  // --- the cracked fountain
-  const F = [-5.4, -4.2];
-  add(put(part(new CylinderGeometry(1.9, 2.0, 0.8, 18, 2), STONE[2], { kind: 1, flat: true }), F[0], 0.4, F[1]));
-  add(put(part(new CylinderGeometry(1.62, 1.62, 0.1, 18), "#9a7a52", { kind: 0 }), F[0], 0.66, F[1])); // the dry floor
-  add(put(part(new CylinderGeometry(0.9, 0.9, 0.06, 14), "#8fd0c8", { kind: 0 }), F[0] + 0.5, 0.72, F[1] + 0.35)); // a puddle of sky
-  add(drum(0.34, 0.46, 1.9, F[0], 0.7, F[1], STONE[0], 0));
-  add(drum(1.15, 0.5, 0.42, F[0], 2.45, F[1], STONE[2], 0.22));
-  add(put(part(new BoxGeometry(0.08, 0.8, 0.6), "#3a2a30"), F[0] + 1.96, 0.5, F[1] + 0.1, 0, 0.1, 0.05)); // the crack through the basin
-  add(put(part(new BoxGeometry(0.6, 0.05, 0.06), "#3a2a30"), F[0] + 1.7, 0.84, F[1] + 0.1, 0, 0.1, 0.1));
-  add(put(part(new ConeGeometry(0.2, 0.7, 6), STONE[2], { flat: true, kind: 1 }), F[0] + 0.3, 3.0, F[1], 0.5, 0, 0.7)); // the finial, tipped
-  for (let i = 0; i < 9; i++) add(put(part(new IcosahedronGeometry(0.12 + 0.1 * hash(i, 2), 0), i % 2 ? "#b4502a" : "#e0993a", { flat: true }), F[0] + (hash(i, 3) - 0.5) * 2.6, 0.73 + 0.05 * hash(i, 5), F[1] + (hash(i, 4) - 0.5) * 2.6)); // leaves in the basin
+  add(put(part(new CylinderGeometry(0.5, 0.5, 2.4, 10).rotateZ(Math.PI / 2), STONE[2], { kind: 1, flat: true }), 9.6, 0.5, -2.6, 0, 0.35), put(part(new CylinderGeometry(0.5, 0.5, 1.2, 10).rotateZ(Math.PI / 2), STONE[0], { kind: 1, flat: true }), 8.0, 0.48, -3.3, 0, 0.9));
+  // --- the cracked fountain: a round basin on a plinth, a broken lip, a stepped pillar with two bowls, a crack right through it
+  const [FX, FZ] = FOUNTAIN;
+  const wall = (r, h, y0, hex, flat = true) => put(part(new CylinderGeometry(r, r, h, 28, 2, true, GAP, Math.PI * 2 - 2 * GAP), hex, { kind: 1, flat }), FX, y0 + h / 2, FZ);
+  add(put(part(new CylinderGeometry(2.95, 3.05, 0.22, 28, 1), STONE[3], { kind: 1, flat: true }), FX, 0.11, FZ)); // the plinth step
+  add(wall(2.5, 1.0, 0.2, STONE[2]), wall(2.06, 1.0, 0.2, STONE[1])); // the basin wall, outside and in
+  add(put(part(new RingGeometry(2.06, 2.5, 28, 1, -Math.PI / 2 + GAP, Math.PI * 2 - 2 * GAP).rotateX(-Math.PI / 2), STONE[0], { kind: 1, flat: true }), FX, 1.2, FZ)); // the rim
+  add(put(part(new CylinderGeometry(2.06, 2.06, 0.1, 28), "#8b6e4c", { kind: 0 }), FX, 0.55, FZ)); // the dry floor
+  add(put(part(new CylinderGeometry(0.95, 0.95, 0.05, 16), "#8fd0c8", { kind: 0 }), FX - 0.7, 0.62, FZ + 0.7)); // a puddle of sky
+  add(drum(0.62, 0.78, 0.6, FX, 0.6, FZ, STONE[1], 0)); // the pillar's foot
+  add(drum(0.34, 0.5, 1.9, FX, 1.2, FZ, STONE[0], 0)); // the shaft
+  add(drum(1.45, 0.56, 0.5, FX, 2.7, FZ, STONE[2], 0.2)); // the lower bowl
+  add(drum(0.2, 0.3, 0.9, FX, 3.15, FZ, STONE[1], 0)); // the upper shaft
+  add(drum(0.8, 0.28, 0.36, FX, 4.0, FZ, STONE[2], 0.18)); // the upper bowl
+  add(put(part(new ConeGeometry(0.2, 0.7, 6), STONE[2], { flat: true, kind: 1 }), FX + 0.35, 4.55, FZ, 0.5, 0, 0.7)); // the finial, tipped
+  // the break in the lip, where it has fallen into the court
+  for (let i = 0; i < 4; i++) add(put(part(new IcosahedronGeometry(0.28 + 0.12 * hash(i, 2), 0), STONE[i % 4], { kind: 1, flat: true }), FX + (hash(i, 3) - 0.5) * 1.8, 0.24 + 0.1 * hash(i, 4), FZ + 2.75 + 0.5 * hash(i, 5), hash(i, 6) * 6, hash(i, 7) * 6, 0));
+  // the crack: a dark jag from the gap's edge up the basin wall, across the dry floor, and up the shaft and the bowl
+  const crack = (pts, w) => {
+    for (let i = 0; i < pts.length - 1; i++) add(part(limb([pts[i][0] + FX, pts[i][1], pts[i][2] + FZ], [pts[i + 1][0] + FX, pts[i + 1][1], pts[i + 1][2] + FZ], w, w, 4), "#2a1c26", { flat: true }));
+  };
+  crack([[0.9, 1.2, 2.3], [1.15, 0.95, 2.22], [1.0, 0.7, 2.28], [1.3, 0.4, 2.14]], 0.055); // down the wall from the gap
+  crack([[1.2, 1.22, 2.0], [1.55, 1.22, 1.85], [1.8, 1.22, 1.7]], 0.05); // across the lip
+  crack([[0.9, 0.62, 1.95], [0.55, 0.62, 1.4], [0.85, 0.62, 1.0], [0.45, 0.62, 0.7]], 0.045); // across the floor to the pillar
+  crack([[-1.0, 0.62, 1.6], [-0.6, 0.62, 1.0], [-0.5, 0.62, 0.6]], 0.04);
+  crack([[0.0, 1.0, 0.53], [0.12, 1.5, 0.5], [-0.06, 2.0, 0.46], [0.1, 2.45, 0.42]], 0.034); // up the shaft
+  crack([[-0.5, 3.12, 1.2], [-0.2, 2.96, 1.0], [-0.35, 2.8, 0.66]], 0.04); // across the bowl
+  for (let i = 0; i < 9; i++) add(put(part(new IcosahedronGeometry(0.12 + 0.1 * hash(i, 2), 0), i % 2 ? "#b4502a" : "#e0993a", { flat: true }), FX + (hash(i, 3) - 0.5) * 3.0, 0.64 + 0.05 * hash(i, 5), FZ + (hash(i, 4) - 0.5) * 3.0)); // leaves in the basin
   // --- autumn trees: a trunk, two limbs, a cloud of blobs
   const leaf = ["#b84a22", "#e08a2e", "#f0b840", "#9e2f26", "#d8702a", "#c89a30"];
   const tree = (x, z, h, s = 1, seed = 0) => {
@@ -234,7 +257,7 @@ export function statics() {
   for (let i = 0; i < 26; i++) {
     const x = -14 + 34 * hash(i, 1);
     const z = -26 + 24 * hash(i, 2);
-    if (Math.hypot(x, z) < 2.2 || Math.hypot(x - 2.6, z + 6) < 3.4) continue;
+    if (Math.hypot(x, z) < 2.2 || Math.hypot(x - 2.3, z + 5) < 4.2 || Math.hypot(x - FOUNTAIN[0], z - FOUNTAIN[1]) < 3.4) continue;
     const s = 0.2 + 0.5 * hash(i, 3) ** 2;
     P.push(put(part(new IcosahedronGeometry(s, 0).scale(1.3, 0.7, 1), STONE[i % 4], { kind: 1, flat: true }), x, groundY(x, z) + s * 0.3, z, hash(i, 4), hash(i, 5) * 6, 0));
   }

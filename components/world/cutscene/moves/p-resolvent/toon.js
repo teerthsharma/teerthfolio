@@ -30,7 +30,20 @@ export const U = {
   uSun: { value: SUN },
   uWindDir: { value: WIND },
   uHaze: { value: v3("#f3bf8c") },
+  uDim: { value: 0 }, // 0 .. 1: the court darkens round the pup's column, so the gold and silver read against it
+  uAxis: { value: new Vector3() }, // world: the foot of the column (the dimming gives way to it)
 };
+// the dimming: a cool violet dusk everywhere but near the column; applied last, before the emissive unmaking
+export const DIM = /* glsl */ `
+  uniform float uDim;
+  uniform vec3 uAxis;
+  vec3 dimmed(vec3 c, vec3 w) {
+    if (uDim <= 0.0) return c;
+    float d = length(w.xz - uAxis.xz);
+    float near = exp(-d * d / 26.0);
+    vec3 dusk = c * vec3(0.4, 0.36, 0.56);
+    return mix(dusk, c * 0.92, near * 0.45) * uDim + c * (1.0 - uDim);
+  }`;
 
 export const NOISE = /* glsl */ `
   float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -163,6 +176,7 @@ const FRAG = /* glsl */ `
   varying float vKind;
   ${NOISE}
   ${UNMAKE}
+  ${DIM}
   void main() {
     vec3 em = vec3(0.0);
     #ifndef NO_DIS
@@ -208,6 +222,7 @@ const FRAG = /* glsl */ `
     c = mix(c, vec3(0.95, 0.96, 1.0), uGlow * 0.55) + vec3(1.0, 0.8, 0.4) * rim * uGlow * 0.9;
     float d = length(cameraPosition - vW);
     c = mix(c, uHaze, (1.0 - exp(-d * d * 0.00011 - d * 0.004)) * 0.9);
+    c = dimmed(c, vW);
     c += em;
     gl_FragColor = vec4(pow(max(c, 0.0), vec3(2.2)), uOpacity);
   }`;
@@ -217,7 +232,7 @@ export function celMaterial({ base = null, vertexColors = true, transparent = fa
   const b = base ? base.clone().convertLinearToSRGB() : { r: 1, g: 1, b: 1 };
   return new ShaderMaterial({
     uniforms: {
-      uTime: U.uTime, uWind: U.uWind, uWindDir: U.uWindDir, uSun: U.uSun, uHaze: U.uHaze, uDis: U.uDis, uCrack: U.uCrack, uOrigin: U.uOrigin,
+      uTime: U.uTime, uWind: U.uWind, uWindDir: U.uWindDir, uSun: U.uSun, uHaze: U.uHaze, uDis: U.uDis, uCrack: U.uCrack, uOrigin: U.uOrigin, uDim: U.uDim, uAxis: U.uAxis,
       uBase: { value: new Vector3(b.r, b.g, b.b) },
       uOpacity: { value: opacity },
       uGlow: glow ?? { value: 0 },
