@@ -222,13 +222,8 @@ export default function Controller() {
     if (approach && ui.started && !live.seen.has(approach) && t <= 1.5) {
       seeAll(approach);
       saveSeen();
-<<<<<<< HEAD
     } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id && !mustFinish(seal)) {
-      live.seen.add(approach);
-=======
-    } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id) {
       seeAll(approach);
->>>>>>> scene2/mujo
       saveSeen();
       arrival.id = approach;
       arrival.start = t;

@@ -21,10 +21,7 @@
 //
 // Card: lib/world/cutscene/cards/p-separatrix.js. Parts: ./p-separatrix/.
 
-<<<<<<< HEAD
 import { sceneT } from "../../../../lib/world/cutscene/clock";
-=======
->>>>>>> scene2/sep
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Matrix4, Object3D, Quaternion, Vector3 } from "three";
@@ -143,11 +140,7 @@ export default function Move(cut) {
   // that lives in the lens's own frame follows it
   useFrame((state) => {
     if (!live.arrival.id || mode !== "full") return;
-<<<<<<< HEAD
     const t = sceneT(live.arrival.id, state.clock.elapsedTime - live.arrival.start);
-=======
-    const t = state.clock.elapsedTime - live.arrival.start;
->>>>>>> scene2/sep
     state.camera.rotateZ(0.06 * viewAt(tl, t));
     m.hud.position.copy(state.camera.position);
     m.hud.quaternion.copy(state.camera.quaternion);
@@ -160,11 +153,7 @@ export default function Move(cut) {
     const cam = state.camera;
     const u = m.fres.uniforms;
     // THE BANNER: unfurls the instant the scene starts, rolls up into the cinema bar (static with reduced motion)
-<<<<<<< HEAD
-    m.banner.mesh.visible = full ? t < 2.8 : true;
-=======
     m.banner.mesh.visible = full ? t < 40 : true;
->>>>>>> scene2/sep
     m.banner.mat.uniforms.uU.value = full ? unfurlAt(t) : 1;
     m.banner.mat.uniforms.uT.value = t;
     m.banner.setRect();

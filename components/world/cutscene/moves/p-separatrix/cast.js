@@ -189,19 +189,11 @@ export function giornoHair() {
   const parts = [];
   // three curls side by side along the forehead, each a rolled sausage curling up and back
   for (const x of [-0.2, 0, 0.2]) {
-<<<<<<< HEAD
     parts.push(P(new TorusGeometry(0.1, 0.052, 7, 14, Math.PI * 1.55).rotateY(Math.PI * 0.5).rotateZ(0.2).translate(x, 0.44, 0.33), gold));
     parts.push(P(ball(0.058, x, 0.36, 0.4), hi));
   }
   // the little cap of hair between and behind the curls
   parts.push(P(new SphereGeometry(0.5, 12, 6, 0, Math.PI * 2, 0, 0.55).scale(1, 0.95, 1).rotateX(-0.4).translate(0, 0.08, 0.0), gold));
-=======
-    parts.push(P(new TorusGeometry(0.1, 0.052, 7, 14, Math.PI * 1.55).rotateY(Math.PI * 0.5).rotateZ(0.2).translate(x, 0.38, 0.33), gold));
-    parts.push(P(ball(0.058, x, 0.3, 0.4), hi));
-  }
-  // the little cap of hair between and behind the curls
-  parts.push(P(new SphereGeometry(0.5, 12, 6, 0, Math.PI * 2, 0, 0.55).scale(1, 0.95, 1).rotateX(-0.5).translate(0, 0.02, 0.0), gold));
->>>>>>> scene2/sep
   return merge(parts);
 }
 export function giornoBraid() {

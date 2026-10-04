@@ -8,11 +8,7 @@
 import { CanvasTexture, DoubleSide, Mesh, PlaneGeometry, ShaderMaterial, SRGBColorSpace } from "three";
 
 const BAR = 0.09; // the cinema bar, a fraction of the screen's height
-<<<<<<< HEAD
-export const BANNER = { unfurl: 0.35, hold: 1.8 };
-=======
 export const BANNER = { unfurl: 0.35, hold: 30 };
->>>>>>> scene2/sep
 
 // The rectangle in fractions of the screen, for this viewport.
 export function bannerRect(W) {
