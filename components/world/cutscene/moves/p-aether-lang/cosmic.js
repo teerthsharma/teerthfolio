@@ -16,12 +16,12 @@ const srgb = (c) => new Color().copy(c).convertLinearToSRGB();
 // opts: color (a three Color, linear), vertexColors, transparent, opacity, flat (facets from derivatives, for the
 // low-poly silhouette), sway (hair: attributes aW along each spike and aPh a phase), keep (how much of the
 // original hue survives), glow (a tip glow on the hair, 0..1)
-export function cosmicMaterial({ color, vertexColors = false, transparent = false, opacity = 1, flat = false, sway = false, keep = 0.16, glow = 0, rim = 1 }) {
+export function cosmicMaterial({ color, vertexColors = false, transparent = false, opacity = 1, flat = false, sway = false, keep = 0.16, glow = 0, rim = 1, dots = 1, edge = 0, smooth = false }) {
   return new ShaderMaterial({
-    uniforms: { ...SHARED, uBase: { value: srgb(color) }, uOpacity: { value: opacity }, uKeep: { value: keep }, uGlow: { value: glow }, uRim: { value: rim } },
+    uniforms: { ...SHARED, uBase: { value: srgb(color) }, uOpacity: { value: opacity }, uKeep: { value: keep }, uGlow: { value: glow }, uRim: { value: rim }, uDots: { value: dots }, uEdge: { value: edge } },
     vertexColors,
     transparent,
-    defines: { FLAT: flat ? 1 : 0, SWAY: sway ? 1 : 0 },
+    defines: { FLAT: flat && !smooth ? 1 : 0, SWAY: sway ? 1 : 0 },
     vertexShader: /* glsl */ `
       uniform float uTime, uSway;
       varying vec3 vN;
@@ -55,7 +55,7 @@ export function cosmicMaterial({ color, vertexColors = false, transparent = fals
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 uBase, uCore;
-      uniform float uOpacity, uKeep, uGlow, uRim, uTime, uLock;
+      uniform float uOpacity, uKeep, uGlow, uRim, uTime, uLock, uDots, uEdge;
       varying vec3 vN;
       varying vec3 vP;
       varying vec3 vCol;
@@ -94,9 +94,12 @@ export function cosmicMaterial({ color, vertexColors = false, transparent = fals
         col = mix(col, alb * (0.55 + 0.9 * band), uKeep);
         // krackle dots where the tones turn
         float turn = smoothstep(0.25, 0.4, t) * (1.0 - smoothstep(0.4, 0.6, t));
-        col = mix(col, vec3(0.97, 0.94, 1.0), (uCell > 0.0 ? halftone(turn * 0.8) : 0.0) * 0.4);
+        col = mix(col, vec3(0.97, 0.94, 1.0), (uCell > 0.0 ? halftone(turn * 0.8) : 0.0) * 0.4 * uDots);
         float rim = pow(1.0 - nv, 2.4) * (0.3 + 0.9 * smoothstep(-0.1, 0.6, ndl)) * uRim;
         col += vec3(0.86, 0.78, 1.0) * rim * 0.9;
+        // the white-violet rim light of the domain: along the jaw, collar and shoulders (faces turned up and to the edge)
+        float edge = pow(1.0 - nv, 1.7) * (0.45 + 0.55 * smoothstep(-0.4, 0.5, ndl)) + 0.55 * smoothstep(0.35, 0.95, n.y) * (0.5 + 0.5 * nv);
+        col = mix(col, vec3(0.80, 0.74, 1.0), clamp(edge * uEdge, 0.0, 0.9));
         col += vec3(0.8, 0.7, 1.0) * uGlow * pow(vW, 2.5) * 0.7;
         col += vec3(0.8, 0.7, 1.0) * uLock * 0.18 * (0.4 + rim);
         gl_FragColor = vec4(pow(max(col, 0.0), vec3(2.2)), uOpacity);

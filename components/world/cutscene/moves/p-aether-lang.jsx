@@ -21,6 +21,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Mesh, Vector3 } from "three";
+import { PLACE_BY_ID } from "../../../../lib/world/places";
 import { figureAt, figureScale, radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Speaker, Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
@@ -38,8 +39,9 @@ function warm(gl, obj, camera, scene) {
   gl.compileAsync(obj, camera, scene).catch(() => {});
   gl.setRenderTarget(prev);
 }
-// the clock (s from the arrival). The card's beats put line A at 2.3, line B at 6.0 (the glints), the flex at 9.6.
-const T = { fade: [1.45, 2.15], freeze: 7.4, ring: [7.5, 8.3], lock: 8.3, still: [8.3, 9.2], contract: [8.95, 9.75], flex: 9.7, bite: 0.17 };
+// the clock (s from the arrival). The card's beats put line A at 2.3, line B at 6.6 (the glints), the flex at 10.8,
+// the credit at 17.0: the stop and the contraction fill the 4.2 s line B is read in, the flex lands on the island.
+const T = { fade: [1.45, 2.15], freeze: 8.6, ring: [8.7, 9.5], lock: 9.5, still: [9.5, 10.4], contract: [10.15, 10.95], flex: 10.9, bite: 0.17 };
 const GALAXIES = [
   { at: [-40, 27, -108], size: 72, rot: [-0.7, 0, 0.5], a: [0.56, 0.36, 0.96], b: [0.92, 0.46, 0.86], arms: 2, seed: 3 },
   { at: [48, 14, -120], size: 58, rot: [-1.0, 0, -0.6], a: [0.4, 0.6, 1.0], b: [0.7, 0.5, 1.0], arms: 3, seed: 8 },
@@ -49,6 +51,50 @@ const ENTER = [[1.3, 0.5], [0.86, 1.14], [1.05, 0.96]]; // squash, stretch, sett
 const V = new Vector3();
 const CORE_W = new Vector3();
 const CENTRE = new Vector3();
+
+function buildVoid() {
+  const nebula = nebulaShell();
+  const stars = starField();
+  const gal = GALAXIES.map((spec) => {
+    const x = galaxy(spec.a, spec.b, spec.arms, spec.seed);
+    const mesh = new Mesh(x.g, x.m);
+    mesh.rotation.set(...spec.rot);
+    mesh.scale.setScalar(spec.size);
+    mesh.renderOrder = -2.9;
+    mesh.frustumCulled = false;
+    return { ...x, mesh, spec };
+  });
+  const glint = glintSprite();
+  const glints = [0, 1].map((i) => {
+    const mat = glint.m.clone();
+    const mesh = new Mesh(glint.g, mat);
+    mesh.position.set(i ? 0.055 : -0.055, 1.925, 0.2);
+    mesh.rotation.y = 0.4;
+    mesh.renderOrder = 20;
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    return mesh;
+  });
+  return { nebula, stars, gal, core: coreSprite(), fl: flood(), ring: closingRing(), kr: krackle(), floor: glassFloor(), gj: gojo(), glint, glints, still: lettering("STILL", "#9b6bff", -0.1), flash: flashQuad("#cdbdff") };
+}
+
+// THE APPROACH: every mesh, geometry and material of the void is built while the seal walks up to the dock,
+// not on the arrival frame (a build at mount stalled the first frames). A 0.4 s watch builds it once the seal is
+// within 45 m of the dock and the arrival takes it; the next approach builds a fresh one.
+let ready = null;
+let watch = 0;
+const DOCK = PLACE_BY_ID["p-aether-lang"];
+function approach() {
+  if (ready || live.arrival.id) return;
+  const s = live.seal;
+  if (Math.hypot(s.x - DOCK.x, s.z - DOCK.z) < 45) ready = buildVoid();
+}
+if (typeof window !== "undefined" && !watch) watch = window.setInterval(approach, 400);
+function takeVoid() {
+  const m = ready ?? buildVoid();
+  ready = null;
+  return m;
+}
 
 export default function Move(cut) {
   const { card, tl, mode } = cut;
@@ -63,33 +109,10 @@ export default function Move(cut) {
   const pup = useRef(null);
   const paint = useRef(null);
   const island = useRef([]);
+  const upfall = useRef(null);
   const clock = useRef({ flow: 0 });
 
-  const m = useMemo(() => {
-    const nebula = nebulaShell();
-    const stars = starField();
-    const gal = GALAXIES.map((spec) => {
-      const x = galaxy(spec.a, spec.b, spec.arms, spec.seed);
-      const mesh = new Mesh(x.g, x.m);
-      mesh.rotation.set(...spec.rot);
-      mesh.scale.setScalar(spec.size);
-      mesh.renderOrder = -2.9;
-      mesh.frustumCulled = false;
-      return { ...x, mesh, spec };
-    });
-    const glint = glintSprite();
-    const glints = [0, 1].map((i) => {
-      const mat = glint.m.clone();
-      const mesh = new Mesh(glint.g, mat);
-      mesh.position.set(i ? 0.055 : -0.055, 1.925, 0.2);
-      mesh.rotation.y = 0.4;
-      mesh.renderOrder = 20;
-      mesh.visible = false;
-      mesh.frustumCulled = false;
-      return mesh;
-    });
-    return { nebula, stars, gal, core: coreSprite(), fl: flood(), ring: closingRing(), kr: krackle(), floor: glassFloor(), gj: gojo(), glint, glints, still: lettering("STILL", "#9b6bff", -0.1), flash: flashQuad("#cdbdff") };
-  }, []);
+  const m = useMemo(takeVoid, []);
 
   // the flood sits on layer 2, which only the main pass's lens draws: the post stack's own re-renders of the scene never see it
   const camera = useThree((s) => s.camera);
@@ -112,6 +135,10 @@ export default function Move(cut) {
 
   useEffect(() => {
     island.current = islandList(scene);
+    // the island's magenta upfall flakes would grow over the pup and the credit card on the return: they sit out the scene
+    scene.traverse((o) => {
+      if (o.isInstancedMesh && o.material?.customProgramCacheKey?.() === "sky-upfall") upfall.current = o;
+    });
     const p = pupParts(scene);
     pup.current = p;
     paint.current = p?.root ? pupCosmic(p.root) : null;
@@ -122,6 +149,8 @@ export default function Move(cut) {
       paint.current.set(false);
     }
     return () => {
+      if (upfall.current) upfall.current.visible = true;
+      upfall.current = null;
       paint.current?.dispose();
       paint.current = null;
       pup.current = null;
@@ -144,6 +173,7 @@ export default function Move(cut) {
 
   useCutFrame((t, state, dt) => {
     const full = mode === "full";
+    if (upfall.current) upfall.current.visible = false;
     const g = rig.current;
     g.visible = full;
     if (!full) {

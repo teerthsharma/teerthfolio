@@ -1315,7 +1315,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   const koan = cardFor("p-aether-lang");
   assert.ok(koan.a.text.includes("Gojeal Satarou") && koan.b.text.includes("Gojeal Fishtarou"), "the Gojeal koan keeps its spellings");
   const T = timelineFor(koan);
-  assert.ok(T.lineA === 2.3 && T.lineB === 6 && T.lineC > T.lineB && T.credit > T.lineC && T.collapse[0] > T.credit, "Aether-Lang: the koan, then the flex on the real island, then the credit card");
+  assert.ok(T.lineA === 2.3 && T.lineB === 6.6 && T.lineC > T.lineB && T.credit > T.lineC && T.collapse[0] > T.credit, "Aether-Lang: the koan, then the flex on the real island, then the credit card");
   // THE AWAKENING (awakening.js): its beats in order, the line on screen long
   // enough to read, the pup back down and the sky clear by the end, and the
   // credit card's every number taken from showcase.json.

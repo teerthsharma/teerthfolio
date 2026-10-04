@@ -14,20 +14,20 @@ const UP = new Vector3(0, 1, 0);
 const A = new Vector3();
 const B = new Vector3();
 const Q = new Quaternion();
-const prep = (g) => {
+const prep = (g, keepN = false) => {
   const n = g.index ? g.toNonIndexed() : g;
   n.deleteAttribute("uv");
-  n.deleteAttribute("normal");
+  if (!keepN) n.deleteAttribute("normal");
   return n;
 };
-function limb(a, b, r1, r2, sx = 1, sz = 1, seg = 7) {
+function limb(a, b, r1, r2, sx = 1, sz = 1, seg = 14, keepN = true) {
   A.fromArray(a);
   B.fromArray(b);
   const len = A.distanceTo(B);
   const g = new CylinderGeometry(r2, r1, len, seg, 1).scale(sx, 1, sz);
   g.applyQuaternion(Q.setFromUnitVectors(UP, B.clone().sub(A).normalize()));
   g.translate((A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2);
-  return prep(g);
+  return prep(g, keepN);
 }
 
 const HEAD = [0, 1.9, 0.02];
@@ -101,7 +101,7 @@ function bodyGeometry() {
 
 export function gojo() {
   const body = bodyGeometry();
-  const skin = prep(new IcosahedronGeometry(HR, 1).scale(0.94, 1.12, 1).translate(...HEAD));
+  const skin = prep(new IcosahedronGeometry(HR, 2).scale(0.94, 1.12, 1).translate(...HEAD), true);
   const neck = limb([0, 1.62, 0.01], [0, 1.82, 0.02], 0.065, 0.06);
   const skinAll = mergeGeometries([skin, neck]);
   skin.dispose();
@@ -109,8 +109,8 @@ export function gojo() {
   const hair = hairGeometry();
   const band = prep(new CylinderGeometry(HR + 0.011, HR + 0.011, 0.066, 16, 1, true).scale(0.96, 1, 1.04).translate(HEAD[0], HEAD[1] + 0.022, HEAD[2]));
   const mats = {
-    body: cosmicMaterial({ color: new Color("#171433"), flat: true, keep: 0.1, rim: 1.25 }),
-    skin: cosmicMaterial({ color: new Color("#cfc8ea"), flat: true, keep: 0.2, rim: 0.8 }),
+    body: cosmicMaterial({ color: new Color("#2a2560"), flat: true, smooth: true, dots: 0, edge: 1.0, keep: 0.14, rim: 1.4 }),
+    skin: cosmicMaterial({ color: new Color("#cfc8ea"), flat: true, smooth: true, dots: 0, edge: 1.2, keep: 0.2, rim: 1.0 }),
     hair: cosmicMaterial({ color: new Color("#f1f2ff"), flat: true, sway: true, keep: 0.3, glow: 1, rim: 1.1 }),
     band: cosmicMaterial({ color: new Color("#0b0a1c"), flat: true, keep: 0.05, rim: 1.0 }),
   };
