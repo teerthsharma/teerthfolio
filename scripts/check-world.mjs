@@ -15,7 +15,7 @@ import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { tickSnack } from "../components/world/life/snack.js";
-import { CAR_BAYS, ROAD_Y, createCar, onDrawnAsphalt, stepCar } from "../lib/world/highwayCars.js";
+import { CAR_BAYS, CAR_R, ROAD_Y, createCar, onDrawnAsphalt, stepCar, stepCars } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
 
@@ -367,6 +367,70 @@ assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
     }
   }
   log.forEach((l, k) => assert.ok(l.cycles >= 2 && l.ring && l.town, `car ${k} did not loop bay -> ring -> town -> bay (${JSON.stringify(l)})`));
+}
+
+// Cars and the seal (Bruno-style): a car brakes and waits a couple of metres
+// short of a seal standing in its lane, carries on once the seal has left, and
+// a seal that walks into a car gets the prop bump (motion.js) and never
+// overlaps it. Seal radius plus the car's half-length is the closest they may be.
+{
+  const gap = MOTION.sealRadius + CAR_R;
+  const dt = 1 / 60;
+  const home = (k) => createCar(k);
+  const spotsOf = (k, every) => {
+    const ghost = createCar(k);
+    const spots = [];
+    for (let i = 0; i < 60 * 150; i++) {
+      stepCar(ghost, dt, false);
+      if (i % (60 * every) === 0 && ghost.phase !== "park" && Math.hypot(ghost.x - CAR_BAYS[k], ghost.z - home(k).z) > gap + 0.5) spots.push([ghost.x, ghost.z, i * dt]);
+    }
+    return spots;
+  };
+  let waits = 0;
+  for (let k = 0; k < CAR_BAYS.length; k++) {
+    for (const [sx, sz, at] of spotsOf(k, 6)) {
+      // a seal standing in the car's lane: it never gets closer than `gap`, and stops
+      const car = createCar(k);
+      const seal = { x: sx, z: sz };
+      let nearest = Infinity;
+      for (let i = 0; i < 60 * (at + 12); i++) {
+        stepCars([car], seal, dt);
+        nearest = Math.min(nearest, Math.hypot(car.x - sx, car.z - sz));
+      }
+      const where = `car ${k} and a seal standing at ${sx.toFixed(1)}, ${sz.toFixed(1)}`;
+      assert.ok(nearest >= gap, `${where}: ${nearest.toFixed(2)} m apart, under ${gap.toFixed(2)} m`);
+      assert.ok(Math.hypot(car.vx, car.vz) < 0.3, `${where}: the car never stopped (${Math.hypot(car.vx, car.vz).toFixed(2)} m/s)`);
+      if (nearest < gap + 4) waits++;
+      // ... and once the seal leaves, it carries on
+      const px = car.x;
+      const pz = car.z;
+      seal.x = 1e4;
+      for (let i = 0; i < 60 * 5; i++) stepCars([car], seal, dt);
+      assert.ok(Math.hypot(car.x - px, car.z - pz) > 2, `${where}: the car did not carry on after the seal left`);
+    }
+    for (const [sx, sz] of spotsOf(k, 24)) {
+      // a seal charging a car at full tilt: bumped, never inside it
+      const car = createCar(k);
+      const seal = createSeal(sx, sz);
+      const w = { ...world, props: [car] };
+      let bumped = false;
+      let nearest = Infinity;
+      let charging = false;
+      for (let i = 0; i < 60 * 200 && (!charging || i < charging + 60 * 4); i++) {
+        const d = Math.hypot(car.x - seal.x, car.z - seal.z);
+        if (!charging && d < 8) charging = i;
+        stepCars([car], seal, dt);
+        for (let j = 0; j < 2; j++) stepSeal(seal, { input: charging ? { x: (car.x - seal.x) / (d || 1), z: (car.z - seal.z) / (d || 1) } : null }, 1 / 120, w);
+        nearest = Math.min(nearest, Math.hypot(car.x - seal.x, car.z - seal.z));
+        if (car.hit > 0) bumped = true;
+      }
+      const where = `a seal charging car ${k} from ${sx.toFixed(1)}, ${sz.toFixed(1)}`;
+      assert.ok(charging, `${where}: the car never came near`);
+      assert.ok(nearest >= gap - 0.02, `${where}: overlapped it, ${nearest.toFixed(2)} m apart, under ${gap.toFixed(2)} m`);
+      assert.ok(bumped, `${where}: no bump`);
+    }
+  }
+  assert.ok(waits >= 20, `only ${waits} of the cars' waits were exercised`);
 }
 
 // Throttle: set while input is held, cleared shortly after release.

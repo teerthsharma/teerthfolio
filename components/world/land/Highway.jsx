@@ -5,14 +5,14 @@
 // highway's place, into the car park under the three faces (layout:
 // lib/world/land.js HIGHWAY; the seal slides 30% faster on it, motion.js).
 // Show, never tell: the cars pull out of the car park's bays, loop the ring and
-// the town leg, and park again; one waits when the seal is in front of it.
+// the town leg, and park again; one waits when the seal is in front of it, and bumps off the seal that walks into it.
 // THE ANOMALY, the area's radiation made visible: the lane paint crawls along
 // the road by itself, every lane's dashes in step, glowing in its colour.
 // Static parts are merged into a few meshes; dashes and cars are instanced
 // and move without allocating.
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   BoxGeometry,
   BufferGeometry,
@@ -34,7 +34,7 @@ import { PLACE_BY_ID } from "../../../lib/world/places";
 import { live, useUi } from "../../../lib/world/store";
 import { C, lamp, mat } from "../palette";
 import { mulberry32 } from "../life/spawn";
-import { BAY_Z, CAR_BAYS, LEGS, ROAD_Y, STATIC_BAYS, along, createCar, stepCar } from "../../../lib/world/highwayCars";
+import { BAY_Z, CAR_BAYS, LEGS, ROAD_Y, STATIC_BAYS, along, createCar, createParked, stepCars } from "../../../lib/world/highwayCars";
 
 const PLACE = PLACE_BY_ID["pr-highway-3244"];
 const RADIATION = PLACE?.radiation ?? "#ff4d6a";
@@ -243,6 +243,18 @@ export default function Highway() {
   const geo = useMemo(buildStatic, []);
   const car = useMemo(carGeometry, []);
   const cars = useMemo(() => CAR_BAYS.map((_, k) => createCar(k)), []);
+  const parked = useMemo(() => PARKED.map(([x]) => createParked(x)), []);
+  // every car is a prop, so the seal bumps it instead of driving through it (motion.js)
+  useEffect(() => {
+    const all = [...cars, ...parked];
+    live.props.push(...all);
+    return () => {
+      for (const p of all) {
+        const i = live.props.indexOf(p);
+        if (i !== -1) live.props.splice(i, 1);
+      }
+    };
+  }, [cars, parked]);
   const carCount = cars.length + PARKED.length;
   const dashGeo = useMemo(() => new BoxGeometry(0.14, 0.012, 1.2), []);
   const dashMat = useMemo(() => lamp(RADIATION, 0.9).clone(), []);
@@ -291,17 +303,9 @@ export default function Highway() {
       wheels.current.setMatrixAt(n, dummy.matrix);
       n++;
     };
-    for (const c of cars) {
-      // brake for the seal ahead of the car
-      const fx = Math.sin(c.h);
-      const fz = Math.cos(c.h);
-      const rx = seal.x - c.x;
-      const rz = seal.z - c.z;
-      const ahead = rx * fx + rz * fz;
-      stepCar(c, Math.min(dt, 0.1), c.phase === "drive" && ahead > 0 && ahead < 3.2 && Math.abs(rx * fz - rz * fx) < 1.3);
-      place(c.x, c.z, c.h, 1);
-    }
-    for (const [x] of PARKED) place(x, BAY_Z, Math.PI, 1);
+    stepCars(cars, seal, Math.min(dt, 0.1));
+    for (const c of cars) place(c.x, c.z, c.h, 1);
+    for (const c of parked) place(c.x, BAY_Z, Math.PI, 1);
     b.instanceMatrix.needsUpdate = true;
     cabins.current.instanceMatrix.needsUpdate = true;
     wheels.current.instanceMatrix.needsUpdate = true;
