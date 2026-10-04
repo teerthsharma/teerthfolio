@@ -127,7 +127,7 @@ export function landMaterial() {
       float up = N.y;
       vec3 rock = mix(vec3(0.40, 0.47, 0.61), vec3(0.58, 0.55, 0.69), n1);
       rock = mix(rock, vec3(0.64, 0.50, 0.50), smoothstep(0.55, 0.8, n2) * 0.35);
-      vec3 turf = mix(vec3(0.50, 0.61, 0.42), vec3(0.67, 0.62, 0.40), n1);
+      vec3 turf = mix(vec3(0.37, 0.75, 0.29), vec3(0.50, 0.78, 0.30), n1);
       turf = mix(turf, vec3(0.62, 0.50, 0.36), smoothstep(0.6, 0.85, n2) * 0.4);
       vec3 shingle = mix(vec3(0.82, 0.73, 0.60), vec3(0.58, 0.58, 0.64), smoothstep(0.45, 0.78, vnoise(W.xz * 4.5)));
       vec3 bed = vec3(0.20, 0.34, 0.50);
@@ -183,8 +183,8 @@ export function waterMaterial() {
         R.y = abs(R.y);
         vec3 sky = skyCol(R, uTime);
         float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
-        vec3 deepC = vec3(0.19, 0.33, 0.50);
-        vec3 shalC = vec3(0.45, 0.68, 0.75);
+        vec3 deepC = vec3(0.12, 0.56, 0.72);
+        vec3 shalC = vec3(0.35, 0.78, 0.80);
         float dep = smoothstep(0.0, 1.9, vD);
         vec3 body = mix(shalC, deepC, dep);
         float blot = fbm(vW.xz * vec2(0.1, 0.07) + 4.0);

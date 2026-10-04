@@ -42,9 +42,9 @@ export const LIGHT = /* glsl */ `
   uniform vec2 uCone;
   uniform float uKeyOn, uScreenGlow, uTime, uCrack, uToll, uDoorK;
   vec3 ramp(float v) {
-    vec3 umber = vec3(0.040, 0.025, 0.017);
-    vec3 half_ = vec3(0.42, 0.22, 0.09);
-    vec3 light = vec3(0.97, 0.88, 0.70);
+    vec3 umber = vec3(0.025, 0.022, 0.030);
+    vec3 half_ = vec3(0.60, 0.04, 0.10);
+    vec3 light = vec3(0.96, 0.96, 0.97);
     vec3 c = mix(umber, half_, smoothstep(0.015, 0.30, v));
     return mix(c, light, smoothstep(0.30, 0.88, v));
   }
@@ -63,7 +63,7 @@ export const LIGHT = /* glsl */ `
     vec3 H = normalize(L + V);
     float nh = max(dot(N, H), 0.0);
     float lit = spot * fall * uKeyOn * step(0.0, dot(N, L));
-    col += vec3(1.0, 0.80, 0.52) * (pow(nh, 12.0) * 0.16 + pow(nh, 70.0) * (0.12 + 0.6 * wet)) * lit * 1.7;
+    col += vec3(1.0, 0.12, 0.18) * (pow(nh, 12.0) * 0.16 + pow(nh, 70.0) * (0.12 + 0.6 * wet)) * lit * 1.7;
     // the screens' cold glow: a weak rim from the broadcast towers, no fill
     vec3 toS = uScreenAt - P;
     float ds = length(toS);
@@ -72,10 +72,10 @@ export const LIGHT = /* glsl */ `
     // the doorway's candle-amber, small and close: the colony under the eave, the step, the hut's face
     vec3 toD = uDoor - P;
     float dd = length(toD);
-    col += vec3(1.0, 0.55, 0.22) * max(dot(N, toD / dd), 0.0) * uDoorK / (1.0 + 0.45 * dd * dd) * mix(vec3(1.0), albedo, 0.7);
+    col += vec3(1.0, 0.15, 0.2) * max(dot(N, toD / dd), 0.0) * uDoorK / (1.0 + 0.45 * dd * dd) * mix(vec3(1.0), albedo, 0.7);
     // the city's glow from beneath the cloud ceiling: only the things hung in the sky catch it (under > 0)
-    col += vec3(0.62, 0.34, 0.13) * max(-N.y * 0.8 + 0.2, 0.0) * under * albedo;
-    col += albedo * vec3(0.045, 0.028, 0.018) * 0.5; // the umber of the canvas, never grey
+    col += vec3(0.62, 0.05, 0.10) * max(-N.y * 0.8 + 0.2, 0.0) * under * albedo;
+    col += albedo * vec3(0.02, 0.02, 0.03) * 0.5; // the umber of the canvas, never grey
     return col;
   }
   float crackLine(vec3 bary, float width) {

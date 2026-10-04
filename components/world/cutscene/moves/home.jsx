@@ -37,7 +37,7 @@ import { flashQuad, hash, hide, holdFlash, inst, islandList, put } from "./p-cau
 
 const CORE_Y = 0.9;
 // the clock (s from the arrival, paced to read: ~30 s). Line A (Thors) 2.3, orca 5-12.6, line B 12.8, the flex 18.8, the credit 25.0, the collapse 29.4
-const T = { plop: 2.6, rise: [5.0, 5.9], circle: [5.8, 10.6], spy: [10.7, 11.3], sink: [11.6, 12.6], bloop: 12.0, gull: 4.5, beacon: 19.0, step: 0.5, rain: [24.4, 25.8], run: [25.6, 29.2], end: 29.4 };
+const T = { plop: 2.6, rise: [5.0, 5.9], circle: [5.8, 10.6], spy: [10.7, 11.3], sink: [11.6, 12.6], bloop: 12.0, gull: 4.5, beacon: 19.0, step: 0.5, rain: [24.4, 25.8], run: [25.6, 27.4], end: 29.4 };
 const OC = { cx: 0.5, cz: -0.3, rx: 3.3, rz: 2.7 }; // the orca's circle round the pup
 export const THORS_AT = [-2.4, 0, -0.5]; // from the pup: behind it on the jetty (the card's speaker.at)
 const NFLOE = 26;

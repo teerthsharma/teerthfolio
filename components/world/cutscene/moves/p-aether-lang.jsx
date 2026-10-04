@@ -20,7 +20,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Mesh, Vector3 } from "three";
+import { AdditiveBlending, Mesh, MeshBasicMaterial, NormalBlending, SphereGeometry, Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../../lib/world/places";
 import { figureAt, figureScale, radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
@@ -42,7 +42,7 @@ function warm(gl, obj, camera, scene) {
 }
 // the clock (s from the arrival). The card's beats put line A at 2.3, line B at 6.6 (the glints), the flex at 10.8,
 // the credit at 17.0: the stop and the contraction fill the 4.2 s line B is read in, the flex lands on the island.
-const T = { fade: [1.45, 2.15], freeze: 8.6, ring: [8.7, 9.5], lock: 9.5, still: [9.5, 10.4], contract: [10.15, 10.95], flex: 10.9, bite: 0.17 };
+const T = { fade: [1.45, 2.15], freeze: 8.6, ring: [8.7, 9.5], lock: 9.5, still: [9.5, 10.4], contract: [16.0, 16.8], flex: 16.85, bite: 0.17 };
 const GALAXIES = [
   { at: [-40, 27, -108], size: 72, rot: [-0.7, 0, 0.5], a: [0.56, 0.36, 0.96], b: [0.92, 0.46, 0.86], arms: 2, seed: 3 },
   { at: [48, 14, -120], size: 58, rot: [-1.0, 0, -0.6], a: [0.4, 0.6, 1.0], b: [0.7, 0.5, 1.0], arms: 3, seed: 8 },
@@ -76,7 +76,21 @@ function buildVoid() {
     mesh.frustumCulled = false;
     return mesh;
   });
-  return { nebula, stars, gal, core: coreSprite(), fl: flood(), ring: closingRing(), kr: krackle(), floor: glassFloor(), gj: gojo(), glint, glints, still: lettering("STILL", "#9b6bff", -0.1), flash: flashQuad("#cdbdff") };
+  const basic = (hex, r, add) => {
+    const mesh = new Mesh(new SphereGeometry(r, 20, 14), new MeshBasicMaterial({ color: hex, toneMapped: false, transparent: add, blending: add ? AdditiveBlending : NormalBlending, depthWrite: !add }));
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 15;
+    return mesh;
+  };
+  // Hollow Purple: a red and a blue sphere converge into one purple one
+  const hp = { red: basic("#ff3355", 0.35), blue: basic("#3a7bff", 0.35), purple: basic("#a64dff", 0.9, true) };
+  const eyes = [-1, 1].map((sd) => {
+    const e = basic("#7fd8ff", 0.03);
+    e.position.set(sd * 0.055, 1.925, 0.16);
+    return e;
+  });
+  return { hp, eyes, nebula, stars, gal, core: coreSprite(), fl: flood(), ring: closingRing(), kr: krackle(), floor: glassFloor(), gj: gojo(), glint, glints, still: lettering("STILL", "#9b6bff", -0.1), flash: flashQuad("#cdbdff") };
 }
 
 // THE APPROACH: the shared prewarm (../prewarm.js) builds the void while the seal walks up to the dock; the arrival takes it.
@@ -92,6 +106,7 @@ export default function Move(cut) {
   const coreRef = useRef();
   const ringRef = useRef();
   const gojoRef = useRef();
+  const bandRef = useRef();
   const pup = useRef(null);
   const paint = useRef(null);
   const island = useRef([]);
@@ -114,9 +129,9 @@ export default function Move(cut) {
   useEffect(() => {
     const g = rig.current;
     if (!g) return;
-    for (const o of [g, voidRig.current, content.current, gojoRef.current, ...m.glints, m.still]) o.visible = true;
+    for (const o of [g, voidRig.current, content.current, gojoRef.current, ...m.glints, m.still, ...m.eyes, ...Object.values(m.hp)]) o.visible = true;
     warm(gl, g, camera, scene);
-    for (const o of [g, voidRig.current, gojoRef.current, ...m.glints, m.still]) o.visible = false;
+    for (const o of [g, voidRig.current, gojoRef.current, ...m.glints, m.still, ...m.eyes, ...Object.values(m.hp)]) o.visible = false;
   }, [gl, camera, scene, m]);
 
   useEffect(() => {
@@ -141,8 +156,8 @@ export default function Move(cut) {
       paint.current = null;
       pup.current = null;
       // everything the scene built goes with it
-      for (const g of [m.nebula.g, m.stars.g, m.core.g, m.fl.g, m.ring.g, m.kr.g, m.floor.g, m.glint.g, m.still.geometry, m.flash.geometry, ...m.gal.map((x) => x.g), ...Object.values(m.gj.geo)]) g.dispose();
-      for (const x of [m.nebula.m, m.stars.m, m.core.m, m.fl.m, m.ring.m, m.kr.m, m.glint.m, m.still.material, m.flash.material, m.floor.floor.material, ...m.glints.map((x) => x.material), ...m.gal.map((x) => x.m), ...Object.values(m.gj.mats)]) x.dispose();
+      for (const g of [m.nebula.g, m.stars.g, m.core.g, m.fl.g, m.ring.g, m.kr.g, m.floor.g, m.glint.g, m.still.geometry, ...m.eyes.map((x) => x.geometry), ...Object.values(m.hp).map((x) => x.geometry), m.flash.geometry, ...m.gal.map((x) => x.g), ...Object.values(m.gj.geo)]) g.dispose();
+      for (const x of [m.nebula.m, m.stars.m, m.core.m, m.fl.m, m.ring.m, m.kr.m, m.glint.m, m.still.material, ...m.eyes.map((x) => x.material), ...Object.values(m.hp).map((x) => x.material), m.flash.material, m.floor.floor.material, ...m.glints.map((x) => x.material), ...m.gal.map((x) => x.m), ...Object.values(m.gj.mats)]) x.dispose();
       m.still.material.map?.dispose();
       m.floor.floor.getRenderTarget().dispose();
       m.kr.mesh.dispose();
@@ -261,7 +276,15 @@ export default function Move(cut) {
       const lean = smooth(tl.move[0], tl.move[1], tt) * 0.07;
       gj.position.set(at[0], at[1] + 0.03 * Math.sin(flow * 1.3), at[2]);
       gj.scale.set(sc * sx, sc * sy, sc * sx);
-      gj.rotation.set(0, -0.4, 0.015 * Math.sin(flow * 2.0) + lean);
+      // at the stop he turns to face the lens (on twos), then the band lifts on the lock and two blue eyes show
+      const turn = smooth(T.freeze, T.freeze + 0.3, tt);
+      gj.rotation.set(0, -0.4 + Math.PI * turn, 0.015 * Math.sin(flow * 2.0) + lean);
+      const lift = smooth(T.lock, T.lock + 0.4, tt);
+      bandRef.current.position.y = 0.12 * lift;
+      for (const e of m.eyes) {
+        e.visible = lift > 0.5;
+        e.material.opacity = 1;
+      }
     }
     // line B: two glints flare on the band, light only
     const gk = smooth(tl.lineB, tl.lineB + 0.12, tt) * (1 - smooth(tl.lineB + 0.55, tl.lineB + 1.05, tt));
@@ -281,7 +304,18 @@ export default function Move(cut) {
     // THE REAL ISLAND is under the pup the moment the void has drawn in past the lens
     if (reveal && tt < tl.collapse[0]) for (const o of island.current) o.visible = true;
 
-    // the lettering at the stop, flat to the lens
+    // HOLLOW PURPLE: the pup points, a red and a blue sphere close from either side into a purple one that fires at the lens
+    const hq = Math.min(1, Math.max(0, (tt - T.still[0]) / 0.6));
+    const fire = Math.min(1, Math.max(0, (tt - 10.1) / 0.5));
+    const on = tt >= T.still[0] && tt < 10.6;
+    live.pose.point = on ? 1 : 0;
+    const { red, blue, purple } = m.hp;
+    red.visible = blue.visible = on && hq < 1;
+    red.position.set(-1.1 * (1 - hq), CHEST + 0.5, 0.5);
+    blue.position.set(1.1 * (1 - hq), CHEST + 0.5, 0.5);
+    purple.visible = on && hq >= 1;
+    purple.position.set(0, CHEST + 0.5, 0.5 + 7 * fire * fire);
+    purple.scale.setScalar(1 + 0.4 * fire);
     const st = tt - T.still[0];
     m.still.visible = st > 0 && tt < T.still[1];
     if (m.still.visible) {
@@ -293,7 +327,7 @@ export default function Move(cut) {
     }
 
     // a soft tinted pulse as the last of the void goes into the core (never a white-out)
-    holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(t - T.contract[1]) / 0.13) * 0.34);
+    holdFlash(m.flash, cam, Math.max(Math.max(0, 1 - Math.abs(t - T.contract[1]) / 0.13) * 0.34, Math.max(0, 1 - Math.abs(t - 10.5) / 0.12) * 0.8));
   });
 
   const body = m.gj.geo;
@@ -320,7 +354,10 @@ export default function Move(cut) {
               <mesh geometry={body.body} material={mats.body} frustumCulled={false} />
               <mesh geometry={body.skin} material={mats.skin} frustumCulled={false} />
               <mesh geometry={body.hair} material={mats.hair} frustumCulled={false} />
-              <mesh geometry={body.band} material={mats.band} frustumCulled={false} />
+              <mesh ref={bandRef} geometry={body.band} material={mats.band} frustumCulled={false} />
+              {m.eyes.map((x, i) => (
+                <primitive key={i} object={x} />
+              ))}
               {m.glints.map((x, i) => (
                 <primitive key={i} object={x} />
               ))}

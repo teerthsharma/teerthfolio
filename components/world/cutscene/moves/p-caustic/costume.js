@@ -6,10 +6,10 @@
 // group, `armour` the body group (pupParts in parts.js); built from the body
 // mesh's own bounds so it fits whatever the pup's proportions are.
 
-import { Box3, BoxGeometry, Color, DoubleSide, ConeGeometry, CylinderGeometry, Group, Mesh, Quaternion, ShaderMaterial, SphereGeometry, Vector3 } from "three";
+import { Box3, BoxGeometry, Color, DoubleSide, ConeGeometry, CylinderGeometry, Group, Mesh, Quaternion, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { paintedMaterial } from "./painted";
-import { EYE_R, SKULL } from "../../../seal/variants/D-parts";
+import { EYE_R, SKULL, skullPoint } from "../../../seal/variants/D-parts";
 import { flat, hash } from "./parts";
 
 const UP = new Vector3(0, 1, 0);
@@ -24,14 +24,22 @@ const lit = (g) => {
 // head frame: the skull centre, +z the nose, +y up; skull radii ~ (0.52, 0.47, 0.5)
 function hairGeometry() {
   const parts = [];
-  // a cap over the crown and the back of the skull, a little proud of it; the face stays bare
-  parts.push(flat(new SphereGeometry(0.555, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.62).rotateX(-0.3).translate(0, 0.1, -0.02)));
   const spike = (from, dir, len, r) => {
     const g = new ConeGeometry(r, len, 5).translate(0, len / 2, 0);
     g.applyQuaternion(Q.setFromUnitVectors(UP, dir.clone().normalize()));
     g.translate(...from);
     parts.push(flat(g));
   };
+  // THE BACK-SWEPT MANE: 18 cones on the skull, tips raked back 35 degrees and down, 6 long enough to reach the shoulders
+  for (let k = 0; k < 18; k++) {
+    const az = (k / 18) * Math.PI * 2;
+    const el = 0.35 + 0.5 * hash(k, 7); // up the skull hemisphere, never on the face
+    const d = new Vector3(Math.cos(az) * Math.cos(el), Math.sin(el) * 0.9 + 0.1, -Math.abs(Math.sin(az)) * Math.cos(el) - 0.15).normalize();
+    const p = skullPoint(d, new Vector3());
+    const long = k % 3 === 0;
+    const back = new Vector3(d.x * 0.6, -Math.tan(0.61) * 0.6 - (long ? 0.7 : 0.1), -1);
+    spike([p.x, p.y, p.z], back, long ? 1.1 : 0.55, 0.09);
+  }
   // THE MANE: three layers of big spikes from the nape, flaring wide and sweeping DOWN past the shoulders and the
   // back, the long ones lowest and widest (a lion's mane of black spikes, Madara's); nothing points up
   let i = 0;
@@ -86,6 +94,7 @@ function armourGeometry(bb) {
   const bar = upright(new BoxGeometry(0.07, 0.86, 0.08).translate(0, 0, 0));
   const handle = new CylinderGeometry(0.05, 0.055, 0.8, 6).rotateX(0.18).rotateZ(0.28).translate(c.x - 0.18, top - 0.1, fz);
   const sash = new BoxGeometry(s.x * 1.25, 0.05, 0.06).rotateZ(0.5).translate(c.x, c.y + s.y * 0.25, fz + 0.05);
+  plates.push(flat(new TorusGeometry(0.42, 0.06, 8, 24).translate(c.x, c.y + s.y * 0.1, c.z + s.z * 0.5))); // the red armour collar
   plates.push(flat(fan));
   lace.push(flat(ring), flat(bar), flat(handle), flat(sash));
   return { plates: mergeGeometries(plates), lace: mergeGeometries(lace), rim: flat(rim) };
@@ -146,7 +155,7 @@ export function madara(parts) {
   body.geometry.computeBoundingBox();
   const bb = new Box3().copy(body.geometry.boundingBox).applyMatrix4(body.matrix);
   const a = armourGeometry(bb);
-  const mats = { hair: paint("#33293d", 0.15), plate: paint("#b3202e", 0.9), lace: paint("#e8dcc2", 0.3), rim: paint("#17120f", 0) };
+  const mats = { hair: paint("#14101c", 0.15), plate: paint("#b3202e", 0.9), lace: paint("#e8dcc2", 0.3), rim: paint("#17120f", 0) };
   const hair = new Group();
   hair.add(new Mesh(lit(hairGeometry()), mats.hair));
   const armour = new Group();

@@ -151,9 +151,9 @@ export function susanooMaterials() {
         // spirit-fire licking upward through the armour
         float fire = vn(vec2(vL.x * 0.9 + vL.z * 0.4, vL.y * 0.6 - uTime * 1.6)) * vn(vec2(vL.x * 2.1, vL.y * 1.3 - uTime * 2.4));
         // blue fire: the one cold colour in the war (with the moon's red)
-        vec3 deep = vec3(0.12, 0.3, 1.0);
+        vec3 deep = vec3(0.18, 0.48, 1.0);
         vec3 hot = vec3(0.35, 0.75, 1.0);
-        vec3 c = mix(deep, hot, fire) * (f * 1.3 + fire * 0.55 + 0.07);
+        vec3 c = mix(deep, hot, fire) * 1.6 * (f * 1.3 + fire * 0.55 + 0.07);
         c += vec3(0.8, 0.92, 1.0) * pow(f, 4.0) * 0.8; // the hot edge
         c *= (0.85 + 0.3 * brush()) * (1.0 + uFlare * 1.2);
         c += max(grain(uTime), 0.0) * 0.05;

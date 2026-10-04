@@ -10,7 +10,7 @@ import { smooth } from "../../../../../lib/world/cutscene/timeline";
 const GLIDE = 0.9;
 const A_WIDE = [[1.5, 1.25, 4.6], [-1.1, 0.95, -0.6]]; // the card's two-shot
 const A_TALL = [[1.0, 1.4, 6.4], [-0.9, 0.95, -0.6]];
-const B = [[0.8, 1.5, 15.5], [0.5, 0.5, -0.3]]; // the orca's circle, whole, from low on the water
+const B = [[4.8, 1.5, 13.0], [0.5, 0.5, -0.3]]; // the orca's circle, whole, from low on the water
 const C = [[2.2, 1.7, 9], [-1, 3.4, -100]]; // out past the pup to the horizon: Vinland
 const E_ = [[-2.5, 3.0, 6.5], [-12.6, 3.6, -7]]; // the igloo at the head of the farm, the longship beside it
 const D = [[7, 3.6, 17], [-5, 1.6, -7]]; // the high diagonal: ship, longhouses, igloo, the rim beacons
