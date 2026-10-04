@@ -2,11 +2,12 @@
 
 // THE AWAKENING, in the world (lib/world/awakening.js): the secret scene for
 // three clean loops. Everything is drawn in the scene, nothing in a post
-// pass, and it costs eight draw calls:
+// pass, and it costs six draw calls (about 5.2k triangles):
 //   sky      a dome round the camera, deep violet night that fractures into
 //            glowing shards (drawn first, behind the whole island)
-//   cracks   a disc on the water or snow under the pup: violet fissures
-//            racing out from it, over a halftone scorch
+//   floor    the stage's ground, shown while the island is hidden (from the
+//            first impact frame to the take-off's): violet fissures racing
+//            out from under the pup over a halftone pool of its light
 //   aura     the torrent: thirty cel-shaded flame tongues round the pup
 //            (instanced), black cores in violet with pale outlines; in
 //            flight they stream out below it like a comet's tail
