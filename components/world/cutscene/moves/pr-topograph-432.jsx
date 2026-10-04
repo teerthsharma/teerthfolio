@@ -49,6 +49,7 @@ function buildWorld() {
   return { root: getAssets().root, dispose: () => disposeAssets() };
 }
 registerWarm("pr-topograph-432", buildWorld);
+let killer = 0; // a dev remount runs the cleanup at once: the assets go only if nothing re-mounts within a beat
 
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
@@ -68,6 +69,7 @@ export default function Move(cut) {
 
   useEffect(() => {
     if (!full) return undefined;
+    clearTimeout(killer);
     const G = getGear();
     pup.current = G?.p ?? null;
     if (G) {
@@ -81,9 +83,7 @@ export default function Move(cut) {
       pup.current = null;
       const b = banner();
       if (b) b.dataset.off = "1";
-      flash.geometry.dispose();
-      flash.material.dispose();
-      disposeAssets();
+      killer = setTimeout(disposeAssets, 80);
     };
   }, [full, A, flash]);
 

@@ -14,30 +14,30 @@ const BANNERS = ["#b3122b", "#f0b429", "#5a2aa8", "#1f7a6e", "#c8561a", "#2a4fa8
 
 export function buildHall() {
   const l = [];
-  l.push(box(60, 0.4, 60, "#150b26", [0, -0.2, -10])); // floor
+  l.push(box(60, 0.4, 60, "#4a2f7e", [0, -0.2, -10])); // floor
   for (let i = 0; i < STEPS; i++) {
-    l.push(box(7, 0.4 * (i + 1), 0.7, i % 2 ? "#2a1450" : "#35195f", [0, 0.2 * (i + 1), -3 - 0.7 * i]));
+    l.push(box(7, 0.4 * (i + 1), 0.7, i % 2 ? "#6b45b5" : "#7d52cc", [0, 0.2 * (i + 1), -3 - 0.7 * i]));
     l.push(box(2.6, 0.06, 0.7, "#a3112a", [0, 0.4 * (i + 1) + 0.03, -3 - 0.7 * i])); // crimson carpet
     l.push(box(7.1, 0.05, 0.1, "#f0b429", [0, 0.4 * (i + 1), -2.68 - 0.7 * i]));
   }
-  l.push(box(12, TOP_Y, 6.4, "#2a1450", [0, TOP_Y / 2, -10.4]), box(2.6, 0.06, 6.4, "#a3112a", [0, TOP_Y + 0.03, -10.4]));
+  l.push(box(12, TOP_Y, 6.4, "#6b45b5", [0, TOP_Y / 2, -10.4]), box(2.6, 0.06, 6.4, "#a3112a", [0, TOP_Y + 0.03, -10.4]));
   // the throne: base, seat, tall pointed back with gold fins and spikes, arms
   const tz = THRONE_Z - 0.6;
-  l.push(box(3.6, 0.9, 2.2, "#1a0b30", [0, TOP_Y + 0.45, THRONE_Z]), box(3.7, 0.12, 2.3, "#f0b429", [0, TOP_Y + 0.92, THRONE_Z]));
-  l.push(box(3.0, 6.4, 0.6, "#12081f", [0, TOP_Y + 4.0, tz - 0.4]), box(3.2, 0.1, 0.7, "#f0b429", [0, TOP_Y + 1.2, tz - 0.4]));
-  l.push(P(new ConeGeometry(1.7, 3.2, 4), "#12081f", [0, TOP_Y + 8.9, tz - 0.4], [0, Math.PI / 4, 0], [1, 1, 0.35]));
+  l.push(box(3.6, 0.9, 2.2, "#3a2166", [0, TOP_Y + 0.45, THRONE_Z]), box(3.7, 0.12, 2.3, "#f0b429", [0, TOP_Y + 0.92, THRONE_Z]));
+  l.push(box(3.0, 6.4, 0.6, "#241044", [0, TOP_Y + 4.0, tz - 0.4]), box(3.2, 0.1, 0.7, "#f0b429", [0, TOP_Y + 1.2, tz - 0.4]));
+  l.push(P(new ConeGeometry(1.7, 3.2, 4), "#241044", [0, TOP_Y + 8.9, tz - 0.4], [0, Math.PI / 4, 0], [1, 1, 0.35]));
   for (const s of [-1, 1]) {
-    l.push(box(0.5, 1.2, 1.9, "#1a0b30", [s * 1.75, TOP_Y + 1.5, THRONE_Z - 0.1]), box(0.55, 0.1, 2.0, "#f0b429", [s * 1.75, TOP_Y + 2.15, THRONE_Z - 0.1]));
-    for (let k = 0; k < 4; k++) l.push(P(new ConeGeometry(0.28, 3.4 + k * 0.6, 4), k % 2 ? "#12081f" : "#f0b429", [s * (2.2 + k * 0.55), TOP_Y + 4.5 + k * 0.45, tz - 0.5], [0, 0, -s * (0.1 + k * 0.1)], [1, 1, 0.3]));
+    l.push(box(0.5, 1.2, 1.9, "#3a2166", [s * 1.75, TOP_Y + 1.5, THRONE_Z - 0.1]), box(0.55, 0.1, 2.0, "#f0b429", [s * 1.75, TOP_Y + 2.15, THRONE_Z - 0.1]));
+    for (let k = 0; k < 4; k++) l.push(P(new ConeGeometry(0.28, 3.4 + k * 0.6, 4), k % 2 ? "#241044" : "#f0b429", [s * (2.2 + k * 0.55), TOP_Y + 4.5 + k * 0.45, tz - 0.5], [0, 0, -s * (0.1 + k * 0.1)], [1, 1, 0.3]));
   }
   // pillars: gothic, in rows, gold bases and capitals, a pointed top
   for (const s of [-1, 1])
     for (let z = 5; z > -16; z -= 4.5) {
       const x = s * 8;
-      l.push(box(1.7, 0.5, 1.7, "#f0b429", [x, 0.25, z]), box(1.2, 15, 1.2, "#1f0f3a", [x, 7.9, z]), box(1.6, 0.4, 1.6, "#f0b429", [x, 15.2, z]), P(new ConeGeometry(0.9, 2.0, 4), "#12081f", [x, 16.4, z], [0, Math.PI / 4, 0]));
-      l.push(box(0.2, 15, 0.2, "#6a2ab0", [x - s * 0.62, 7.9, z + 0.62]));
+      l.push(box(1.7, 0.5, 1.7, "#f0b429", [x, 0.25, z]), box(1.2, 15, 1.2, "#5b389c", [x, 7.9, z]), box(1.6, 0.4, 1.6, "#f0b429", [x, 15.2, z]), P(new ConeGeometry(0.9, 2.0, 4), "#241044", [x, 16.4, z], [0, Math.PI / 4, 0]));
+      l.push(box(0.2, 15, 0.2, "#9a62e8", [x - s * 0.62, 7.9, z + 0.62]));
     }
-  l.push(box(40, 40, 0.6, "#0e0618", [0, 17, -17.6]), box(0.6, 40, 60, "#0e0618", [-12.6, 17, -8]), box(0.6, 40, 60, "#0e0618", [12.6, 17, -8]), box(60, 0.6, 60, "#07030d", [0, 21, -8]));
+  l.push(box(40, 40, 0.6, "#34205f", [0, 17, -17.6]), box(0.6, 40, 60, "#34205f", [-12.6, 17, -8]), box(0.6, 40, 60, "#34205f", [12.6, 17, -8]), box(60, 0.6, 60, "#22123f", [0, 21, -8]));
   // the 41 banners: 13 on the back wall, 14 on each side wall; a gold bar, cloth, a swallowtail
   const flag = (x, y, z, ry, k, h) => {
     const c = BANNERS[k % BANNERS.length];
@@ -55,8 +55,8 @@ export function buildHall() {
     flag(-12.2, 14.5, 4 - i * 1.5, Math.PI / 2, n++, 5.5);
     flag(12.2, 14.5, 4 - i * 1.5, -Math.PI / 2, n++, 5.5);
   }
-  const root = inked(fuse(l));
-  const dome = new Mesh(new CylinderGeometry(90, 90, 120, 8, 1, true), new MeshBasicMaterial({ color: "#07030d", side: BackSide, fog: false }));
+  const root = inked(fuse(l), { hull: false }); // hulls on room-sized boxes cross the near plane: the figures carry the ink
+  const dome = new Mesh(new CylinderGeometry(90, 90, 120, 8, 1, true), new MeshBasicMaterial({ color: "#22123f", side: BackSide, fog: false }));
   dome.frustumCulled = false;
   root.add(dome);
   const mk = (gold) => {

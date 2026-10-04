@@ -111,12 +111,13 @@ export function paint(geo, hex, sway = 0) {
 export const fuse = (list) => mergeGeometries(list, false);
 
 // a lit mesh with its ink hull as a child: one Group, both share the transform
-export function inked(geo, { sway = false, side = false } = {}) {
+export function inked(geo, { sway = false, side = false, hull: ink = true } = {}) {
   const g = new Group();
   const lit = new Mesh(geo, toon({ sway, side }));
   const hg = hullGeo(geo);
   const hull = new Mesh(hg, inkMat({ sway }));
-  g.add(lit, hull);
+  g.add(lit);
+  if (ink) g.add(hull);
   g.userData = { lit, hull, geos: [geo, hg] };
   g.traverse((o) => (o.frustumCulled = false));
   return g;
