@@ -18,7 +18,7 @@ import { hash } from "./p-epsilon-hollow/slime";
 import { particles } from "./p-epsilon-hollow/fx";
 import { caveSky, floor, hollowSphere, human, makeRim, maw, ripple, sagePanel, fistMesh, veldora } from "./p-epsilon-hollow/slime";
 
-const SEAL_AT = [4.2, 2.7, -1.5]; // Veldora's seal, beside the pup
+const SEAL_AT = [3.1, 2.4, -1.5]; // Veldora's seal, beside the pup
 const MAW_AT = [0, 3.6, -9];
 const bump = (x, c, w) => Math.max(0, 1 - Math.abs(x - c) / w);
 const V = new Vector3();
@@ -218,8 +218,8 @@ export default function Move(cut) {
     // ---- Demon Lord Rimuru rises behind the pup in a spiral (9.4 -> 10.8) and towers until reality breaks
     const mk = smooth(9.4, 10.8, t) * (1 - smooth(13.2, 13.7, t));
     m.man.root.visible = mk > 0.01;
-    m.man.root.position.set(0, 0, -2.4);
-    m.man.root.scale.setScalar(Math.max(0.001, 1.75 * mk));
+    m.man.root.position.set(-1.7, 0, -1.8);
+    m.man.root.scale.setScalar(Math.max(0.001, 1.2 * mk));
     m.man.root.rotation.y = (1 - smooth(9.4, 10.9, t)) * 9;
 
     // ---- the punch: the fist flies at the lens (11.5 -> 12.2), then the glass cracks and shatters

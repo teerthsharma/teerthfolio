@@ -240,16 +240,16 @@ export function human(mat) {
   const COAT = "#14101f";
   L.add(new ConeGeometry(0.55, 1.7, 10).translate(0, 0.85, 0), COAT, {}, 0, 0.5, 0, 0, 0, 0, 1, 1, 0.7);
   L.add(new CylinderGeometry(0.62, 0.62, 0.12, 10), "#d4a63a", {}, 0, 1.05, 0, 0, 0, 0, 1, 1, 0.7);
-  L.add(new SphereGeometry(0.34, 14, 12), "#ffe9d8", {}, 0, 2.55, 0);
-  L.add(new SphereGeometry(0.4, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), HAIR, {}, 0, 2.62, -0.04);
+  L.add(new SphereGeometry(0.34, 14, 12), "#ffe9d8", {}, 0, 2.4, 0);
+  L.add(new SphereGeometry(0.4, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), HAIR, {}, 0, 2.47, -0.04);
   // the long hair falls behind the shoulders in blue-silver ribbons
   for (let i = 0; i < 7; i++) {
     const x = (i - 3) * 0.14;
-    L.add(new ConeGeometry(0.16, 1.9 - Math.abs(i - 3) * 0.12, 6).translate(0, -0.95, 0).rotateX(Math.PI), i % 2 ? HAIR : "#2b2060", {}, x, 2.5, -0.22, 0, 0, 0, 1, 1, 0.8);
+    L.add(new ConeGeometry(0.16, 1.9 - Math.abs(i - 3) * 0.12, 6).translate(0, -0.95, 0), i % 2 ? HAIR : "#2b2060", {}, x, 2.38, -0.22, 0, 0, 0, 1, 1, 0.8);
   }
   for (const sx of [-1, 1]) {
-    L.add(new SphereGeometry(0.055, 8, 6), "#ffd23a", GLOW, sx * 0.13, 2.58, 0.32);
-    L.add(new ConeGeometry(0.1, 0.7, 6).translate(0, -0.35, 0).rotateX(Math.PI), COAT, {}, sx * 0.62, 1.95, 0, 0, 0, sx * 0.25);
+    L.add(new SphereGeometry(0.055, 8, 6), "#ffd23a", GLOW, sx * 0.13, 2.43, 0.32);
+    L.add(new ConeGeometry(0.1, 0.7, 6).translate(0, -0.35, 0), COAT, {}, sx * 0.62, 1.95, 0, 0, 0, sx * 0.25);
   }
   const g = new Group();
   const body = mesh(mat, L.build());
