@@ -1,24 +1,23 @@
 "use client";
 
-// THE DOMAIN, on the page (lib/world/domain.js): the comic-print layer over
-// the 3D world. Two flat impact frames (deep violet, halftone, a ring with
-// its inks a little off register), the hand-lettered "VOID" as the domain
-// opens, and the silhouette's two lines in comic bubbles in the lower half,
-// tails reaching up to it. Bubbles and lettering move on twos. Nothing here
-// covers the render for more than two drawings. ui.beat is the clock (the
-// Controller clears it with the arrival, so a skip removes all of this in
-// one frame). Hidden with ?hud=off (domainMode is null there); with reduced
-// motion both bubbles stand still beside the standing silhouette.
+// THE CUTSCENE, on the page (lib/world/cutscene/): the comic-print layer
+// over the 3D world, for every place, from its card. Two flat impact frames
+// (the stage's deep ink, halftone, a ring with its inks a little off
+// register), the one hand-lettered onomatopoeia as the stage opens, and the
+// two lines in comic bubbles in the lower half, each tail reaching up to
+// whoever says it: the figure's mouth, the landform, or the pup. Bubbles
+// are an oval, a burst or a whisper (dashed). Everything moves on twos.
+// Nothing here covers the render for more than two drawings. ui.beat is the
+// clock (the Controller clears it with the arrival, so a skip removes all of
+// this in one frame). With reduced motion both bubbles stand still.
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Vector3 } from "three";
-import { FIGURE_AT, FIGURE_SCALE, domainMode } from "../../../lib/world/domain";
-import { PLACE_BY_ID } from "../../../lib/world/places";
-import { punchFor } from "../../../lib/world/punch";
+import { paletteFor } from "../../../lib/world/cutscene/look";
+import { BEAT, anchorFor, cutFor, cutsceneMode } from "../../../lib/world/cutscene/timeline";
 import { live, useUi } from "../../../lib/world/store";
 
 const V = new Vector3();
-const MOUTH_Y = 1.78; // m above the silhouette's feet, before its scale: just under the band
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
 function Lettering({ text, bold = [] }) {
@@ -27,7 +26,7 @@ function Lettering({ text, bold = [] }) {
   return parts.map((p, i) => (bold.includes(p) ? <b key={i}>{p}</b> : p));
 }
 
-// A burst outline round a w x h box (line B): spikes on an ellipse.
+// A burst outline round a w x h box: spikes on an ellipse.
 function burst(w, h) {
   const n = 26;
   const cx = w / 2;
@@ -41,7 +40,7 @@ function burst(w, h) {
   return `${d}Z`;
 }
 
-// Lay a bubble out (left, bottom in px) and draw its tail toward the mouth
+// Lay a bubble out (left, bottom in px) and draw its tail toward the speaker
 // (mx, my in px). Its body is the ellipse inscribed in its box.
 export function place(el, mx, my, slot, still) {
   const W = innerWidth;
@@ -61,7 +60,7 @@ export function place(el, mx, my, slot, still) {
   el.style.left = `${left}px`;
   el.style.bottom = `${bottom}px`;
   const top = H - bottom - h;
-  // the tail: from the body's upper edge toward the mouth, stopping short
+  // the tail: from the body's upper edge toward the speaker, stopping short
   const rx = w / 2;
   const ry = h / 2;
   const bx = clamp(mx - left, w * 0.25, w * 0.75);
@@ -89,9 +88,9 @@ export function place(el, mx, my, slot, still) {
   else for (const b of body) b.setAttribute("d", `M0 ${ry}A${rx} ${ry} 0 1 0 ${w} ${ry}A${rx} ${ry} 0 1 0 0 ${ry}Z`);
 }
 
-export function Bubble({ slot, kind, line, bold }) {
+export function Bubble({ slot, who, kind, line, bold, sub }) {
   return (
-    <div className="bubble" data-slot={slot} data-kind={kind}>
+    <div className="bubble" data-slot={slot} data-who={who} data-kind={kind}>
       <svg className="bubble-art" aria-hidden="true">
         <defs>
           <pattern id={`ht-${slot}`} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -112,40 +111,40 @@ export function Bubble({ slot, kind, line, bold }) {
       </svg>
       <p className="bubble-text">
         <Lettering text={line} bold={bold} />
+        {sub ? <small>{sub}</small> : null}
       </p>
     </div>
   );
 }
 
-export default function DomainBubbles() {
+export default function Bubbles() {
   const beat = useUi((s) => s.beat);
   const id = useUi((s) => s.cutscene);
-  const mode = domainMode(id);
-  const card = mode ? punchFor(id) : null;
+  const mode = cutsceneMode(id);
+  const cut = mode ? cutFor(id) : null;
   const wrap = useRef(null);
   const ring = useRef(null);
   const still = mode === "still";
-  const accent = id ? PLACE_BY_ID[id]?.radiation ?? "#e94bff" : "#e94bff";
 
   useEffect(() => {
     const root = document.documentElement;
-    if (mode) root.dataset.domain = mode;
-    else delete root.dataset.domain;
+    if (mode) root.dataset.cutscene = mode;
+    else delete root.dataset.cutscene;
     return () => {
-      delete root.dataset.domain;
+      delete root.dataset.cutscene;
     };
   }, [mode]);
 
-  // On twos: the tails and the impact ring follow the silhouette and the pup
+  // On twos: the tails and the impact ring follow the speakers and the pup
   // twelve times a second; a new beat lays out at once, before its first paint.
   const draw = () => {
     const cam = window.__world?.camera;
-    if (!cam || !wrap.current) return;
+    if (!cam || !wrap.current || !cut) return;
     const s = live.seal;
-    V.set(s.x + FIGURE_AT[0], FIGURE_AT[1] + MOUTH_Y * FIGURE_SCALE, s.z + FIGURE_AT[2]).project(cam);
-    const mx = (V.x * 0.5 + 0.5) * innerWidth;
-    const my = (0.5 - V.y * 0.5) * innerHeight;
-    for (const el of wrap.current.querySelectorAll(".bubble")) place(el, mx, my, el.dataset.slot, still);
+    for (const el of wrap.current.querySelectorAll(".bubble")) {
+      anchorFor(el.dataset.who, cut.card, cut.place, s.x, s.z, V).project(cam);
+      place(el, (V.x * 0.5 + 0.5) * innerWidth, (0.5 - V.y * 0.5) * innerHeight, el.dataset.slot, still);
+    }
     if (ring.current) {
       V.set(s.x, 0.8, s.z).project(cam);
       ring.current.style.setProperty("--x", `${((V.x * 0.5 + 0.5) * 100).toFixed(1)}%`);
@@ -155,6 +154,7 @@ export default function DomainBubbles() {
   const drawRef = useRef(draw);
   drawRef.current = draw;
   useLayoutEffect(() => drawRef.current(), [beat]);
+  const card = cut?.card ?? null;
   useEffect(() => {
     if (!card) return undefined;
     let raf = 0;
@@ -170,24 +170,27 @@ export default function DomainBubbles() {
     return () => cancelAnimationFrame(raf);
   }, [card]);
 
-  if (!card) return null;
-  const showA = still ? beat > 0 && beat < 8 : beat === 5;
-  const showB = still ? beat > 0 && beat < 8 : beat === 6;
-  const impact = !still && (beat === 2 || beat === 7);
+  if (!cut) return null;
+  const ink = paletteFor(card);
+  const showA = still ? beat > 0 && beat < BEAT.out : beat === BEAT.lineA || beat === BEAT.move;
+  const showB = still ? beat > 0 && beat < BEAT.out : beat === BEAT.lineB;
+  const impact = !still && (beat === BEAT.impact || beat === BEAT.collapse);
+  const sfx = card.stage?.sfx;
+  const line = (slot, l, fallback) => <Bubble slot={slot} who={l.who} kind={l.kind ?? fallback} line={l.text} bold={card.bold} sub={slot === "b" ? card.sub : null} />;
   return (
-    <div className="domain" ref={wrap} data-beat={beat} style={{ "--accent": accent }} aria-live="polite">
+    <div className="comic" ref={wrap} data-beat={beat} style={{ "--accent": ink.accent, "--deep": ink.deep, "--paper-dots": ink.paperDots }} aria-live="polite">
       {impact ? (
-        <div className="domain-impact" ref={ring} key={beat} aria-hidden="true">
+        <div className="comic-impact" ref={ring} key={beat} aria-hidden="true">
           <i />
         </div>
       ) : null}
-      {!still && beat === 3 ? (
-        <div className="domain-sfx" data-text="VOID" aria-hidden="true">
-          VOID
+      {!still && beat === BEAT.bloom && sfx ? (
+        <div className="comic-sfx" data-text={sfx} aria-hidden="true">
+          {sfx}
         </div>
       ) : null}
-      {showA ? <Bubble slot="a" kind="oval" line={card.a.text} bold={card.bold} /> : null}
-      {showB ? <Bubble slot="b" kind="burst" line={card.b.text} bold={card.bold} /> : null}
+      {showA ? line("a", card.a, "oval") : null}
+      {showB ? line("b", card.b, "burst") : null}
     </div>
   );
 }

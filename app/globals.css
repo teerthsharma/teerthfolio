@@ -2042,19 +2042,20 @@ h2[tabindex="-1"]:focus {
   .coach-hand, .coach-trail, .coach-key kbd, .coach-arrow { animation: none; }
 }
 
-/* While a domain plays (domain.js, ui/DomainBubbles.jsx) its bubbles own the
-   lower half, so the place name moves into the top cinema bar. */
+/* While a cutscene plays (lib/world/cutscene/, ui/Bubbles.jsx) its bubbles
+   own the lower half, so the place name moves into the top cinema bar. */
 .cut-title[data-top="true"] {
   bottom: auto;
   top: 1.2vh;
   transition-delay: 0ms;
 }
 
-/* The domain's comic layer (ui/DomainBubbles.jsx): flat impact frames, the
-   hand-lettered VOID, and the silhouette's bubbles in the lower half. Every
-   animation here is stepped, on twos (83 ms a drawing). The inks: the site's
-   cream and ink, the place colour, and a cyan plate a little off register. */
-.domain {
+/* The cutscene's comic layer (ui/Bubbles.jsx): flat impact frames, the
+   one hand-lettered onomatopoeia, and the two lines' bubbles in the lower
+   half. Every animation here is stepped, on twos (83 ms a drawing). The
+   inks: the site's cream and ink, the place colour (--accent), the stage's
+   deep ink (--deep, --paper-dots), and a cyan plate a little off register. */
+.comic {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -2062,18 +2063,18 @@ h2[tabindex="-1"]:focus {
   --cream: #fbfaf7;
   --cyan: #2ec5ff;
 }
-html[data-domain] .minimap {
+html[data-cutscene] .minimap {
   opacity: 0;
 }
-.domain-impact {
+.comic-impact {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle, rgba(206, 186, 255, 0.5) 0 1.7px, transparent 2.2px) 0 0 / 9px 9px, #1d1240;
-  animation: domain-impact 167ms steps(1, end) both;
+  background: radial-gradient(circle, color-mix(in srgb, var(--paper-dots) 50%, transparent) 0 1.7px, transparent 2.2px) 0 0 / 9px 9px, var(--deep);
+  animation: comic-impact 167ms steps(1, end) both;
 }
-.domain-impact i,
-.domain-impact::before,
-.domain-impact::after {
+.comic-impact i,
+.comic-impact::before,
+.comic-impact::after {
   content: "";
   position: absolute;
   left: var(--x, 50%);
@@ -2084,25 +2085,25 @@ html[data-domain] .minimap {
   border-radius: 50%;
   border: 1.4vmin solid var(--cream);
 }
-.domain-impact::before {
+.comic-impact::before {
   border-color: var(--cyan);
   translate: -6px 3px;
   opacity: 0.8;
 }
-.domain-impact::after {
+.comic-impact::after {
   border-color: var(--accent);
   translate: 5px -3px;
   opacity: 0.8;
 }
-.domain-impact i {
+.comic-impact i {
   z-index: 1;
 }
-@keyframes domain-impact {
+@keyframes comic-impact {
   0% { opacity: 1; }
   50% { opacity: 1; scale: 1.06; }
   100% { opacity: 0; }
 }
-.domain-sfx {
+.comic-sfx {
   position: absolute;
   left: 7vw;
   top: 15vh;
@@ -2116,10 +2117,10 @@ html[data-domain] .minimap {
   -webkit-text-stroke: 0.06em var(--cream);
   paint-order: stroke fill;
   rotate: -9deg;
-  animation: domain-sfx 500ms steps(1, end) both;
+  animation: comic-sfx 500ms steps(1, end) both;
 }
-.domain-sfx::before,
-.domain-sfx::after {
+.comic-sfx::before,
+.comic-sfx::after {
   content: attr(data-text);
   position: absolute;
   inset: 0;
@@ -2127,24 +2128,24 @@ html[data-domain] .minimap {
   -webkit-text-stroke: 0;
   opacity: 0.85;
 }
-.domain-sfx::before {
+.comic-sfx::before {
   color: var(--cyan);
   translate: -0.045em 0.03em;
-  animation: domain-misreg 500ms steps(1, end) both;
+  animation: comic-misreg 500ms steps(1, end) both;
 }
-.domain-sfx::after {
+.comic-sfx::after {
   color: #1c1b19;
   translate: 0.05em 0.06em;
   z-index: -2;
 }
-@keyframes domain-sfx {
+@keyframes comic-sfx {
   0% { scale: 0.45; opacity: 1; }
   17% { scale: 1.18; }
   34% { scale: 0.96; }
   50%, 84% { scale: 1; }
   100% { scale: 1.04; opacity: 1; }
 }
-@keyframes domain-misreg {
+@keyframes comic-misreg {
   0% { translate: -0.09em 0.05em; }
   34% { translate: -0.045em 0.03em; }
   67%, 100% { translate: -0.025em 0.015em; }
@@ -2206,26 +2207,38 @@ html[data-domain] .minimap {
 .bubble[data-kind="burst"] .bubble-text {
   rotate: -1.5deg;
 }
+/* a whisper: the outline breaks into dashes */
+.bubble[data-kind="whisper"] .bubble-ink {
+  stroke-dasharray: 9 7;
+}
+.bubble-text small {
+  display: block;
+  margin-top: 0.35em;
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  opacity: 0.8;
+}
 @keyframes bubble-in {
   0% { scale: 0.62; translate: 0 18px; }
   34% { scale: 1.08; translate: 0 -4px; }
   67% { scale: 0.98; translate: 0 0; }
   100% { scale: 1; }
 }
-html[data-domain="still"] .bubble {
+html[data-cutscene="still"] .bubble {
   animation: none;
 }
-html[data-hud="off"] .domain {
+html[data-hud="off"] .comic {
   display: none;
 }
 
-/* The awakening's layer (ui/AwakeningLayer.jsx) borrows the domain's: its
+/* The awakening's layer (ui/AwakeningLayer.jsx) borrows the comic layer's: its
    peak impact frame is the inverse (cream paper, ink rings), and the credit
    card is the HUD's cream card, holding the whole body of work. */
-.domain-impact[data-invert] {
+.comic-impact[data-invert] {
   background: radial-gradient(circle, rgba(28, 27, 25, 0.22) 0 1.7px, transparent 2.2px) 0 0 / 9px 9px, var(--cream);
 }
-.domain-impact[data-invert] i {
+.comic-impact[data-invert] i {
   border-color: #1c1b19;
 }
 .awake-sfx {
@@ -2312,7 +2325,7 @@ html[data-hud="off"] .domain {
   font-size: 15px;
   text-align: right;
 }
-html[data-domain="still"] .awake-card {
+html[data-cutscene="still"] .awake-card {
   animation: none;
 }
 @media (min-width: 900px) {

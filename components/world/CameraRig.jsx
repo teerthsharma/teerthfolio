@@ -12,8 +12,8 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
-import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
-import { domainMode, domainView, viewAt } from "../../lib/world/domain";
+import { JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
+import { cutFor, cutView, cutsceneMode, viewAt } from "../../lib/world/cutscene/timeline";
 import { awakeFov, awakeMode, awakeView } from "../../lib/world/awakening";
 import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { MOTION } from "../../lib/world/motion";
@@ -48,18 +48,11 @@ const TRAUMA_IMPACT_MIN = 0.3;
 const TRAUMA_GAIN = 1.4;
 const LANDING_TRAUMA = 0.55; // the camera's share of the seal's landing thump
 const SHAKE_AMPLITUDE = 0.25; // m
-// The showcase is a slow dolly round the place from a lower, heroic angle,
-// aimed at the place's middle rather than the snow (the owner: "the
-// cutscene doesn't focus well"): at 42 degrees looking at the ground, tall
-// places were cropped and the name banner sat on top of them.
-const ARRIVAL_ORBIT = 0.7; // rad the view pans round the place over the showcase
-const ARRIVAL_PUSH = 0.35; // share of the distance it eases in by
-const ARRIVAL_LEAN = 0.72; // the focus moves most of the way onto the place: the place is the star, the seal stays in shot
-const ARRIVAL_ELEVATION = (26 * Math.PI) / 180;
-const ARRIVAL_LOOK_Y = 2.2; // m: aim at the place's middle, not its foot
 const RAD_CREEP = 0.06; // share the view creeps in while radiation floods it
 const RAD_KICK = 0.05; // share it kicks back out at the mutation
 const RAD_TRAUMA = 0.45; // the mutation's shake
+const BOOM_TRAUMA = 0.8; // a TNT blast beside the seal: a small cartoon shake
+const BOOM_EARSHOT = 30; // m: the shake fades out over this distance
 // DOCKED: while the seal is at a place the follow aims at the landform
 // (place.look, lib/world/places.js), not the snow in front of the dock.
 const LOOK_DAMP = 2.5; // 1/s
@@ -72,9 +65,8 @@ const LOOK_TALL = 6; // m: from this look.y up the elevation rises
 const SPAWN_LEAN = 16; // m
 const SPAWN_ZOOM = 0.55; // share the view pulls back by
 const SPAWN_RADIUS = 3; // m the seal may drift before the lean lets go
-const UP = new Vector3(0, 1, 0);
-const DOM_EYE = new Vector3();
-const DOM_LOOK = new Vector3();
+const CUT_EYE = new Vector3();
+const CUT_LOOK = new Vector3();
 
 // The overview before Start: high over the island centre, swaying slowly.
 const OVERVIEW_CENTRE = new Vector3(0, 0, -10);
@@ -135,6 +127,7 @@ export default function CameraRig() {
   const orbit = useRef(new Vector3());
   const radKicked = useRef(-100);
   const prevImpact = useRef(live.seal.impact);
+  const boomSeen = useRef(live.boom.n);
   const baseFov = useRef(null); // the lens the awakening's flight widens
 
   // The open building's panel: looked up by class each time `open` changes
@@ -198,13 +191,9 @@ export default function CameraRig() {
     const modeRate = 3 / (modeZoomTarget < modeZoom.current ? ZOOM_IN.duration : ZOOM_OUT.duration);
     modeZoom.current += (modeZoomTarget - modeZoom.current) * damp(modeRate, dt);
 
-    // THE ARRIVAL (moments.js): 0 -> 1 -> 0 over the moment; the view leans
-    // toward the place, swings round it and eases in, then settles back.
+    // THE CUTSCENE (lib/world/cutscene/) frames its own two-shot, below.
     const arrival = live.arrival;
-    const cutU = clamp((t - arrival.start) / ARRIVAL.duration, 0, 1);
-    // a domain (domain.js) frames its own two-shot instead, below
-    const domain = arrival.id && domainMode(arrival.id) === "full";
-    const cutK = !reduced.current && !domain && arrival.id && PLACE_BY_ID[arrival.id] ? Math.sin(Math.PI * cutU) ** 0.6 : 0;
+    const cutscene = arrival.id && cutsceneMode(arrival.id) === "full" ? cutFor(arrival.id) : null;
     // THE RADIATION beat (moments.js): the view creeps in while the area's
     // radiation floods it, then kicks back out at the mutation.
     const radSince = t - live.rad.start;
@@ -220,7 +209,7 @@ export default function CameraRig() {
     const lk = reduced.current ? 0 : lookK.current;
     const atSpawn = !ui.near && !ui.open && Math.hypot(seal.x - SPAWN.x, seal.z - SPAWN.z) < SPAWN_RADIUS;
     spawnK.current += ((atSpawn && !reduced.current ? 1 : 0) - spawnK.current) * damp(LOOK_DAMP, dt);
-    const dNow = (1 + SPAWN_ZOOM * spawnK.current) * (1 + ((dock?.zoom ?? 1) - 1) * lk) * pull * zoom.current * userZoom.current * speedZoom.current * modeZoom.current * (1 - ARRIVAL_PUSH * cutK) * radZoom;
+    const dNow = (1 + SPAWN_ZOOM * spawnK.current) * (1 + ((dock?.zoom ?? 1) - 1) * lk) * pull * zoom.current * userZoom.current * speedZoom.current * modeZoom.current * radZoom;
     const dTarget = pull * zoom.current * live.zoom * speedZoomTarget * modeZoomTarget;
 
     lead.current.set(seal.vx * LEAD_TIME, 0, seal.vz * LEAD_TIME * (seal.vz > 0 ? LEAD_Z : 1));
@@ -298,12 +287,6 @@ export default function CameraRig() {
     wanted.current.z -= SPAWN_LEAN * spawnK.current;
     wanted.current.y = seal.ride && !reduced.current ? seal.rideY * RIDE_RISE : 0;
 
-    if (cutK > 0) {
-      const place = PLACE_BY_ID[arrival.id];
-      wanted.current.x += (place.x - wanted.current.x) * ARRIVAL_LEAN * cutK;
-      wanted.current.z += (place.z - wanted.current.z) * ARRIVAL_LEAN * cutK;
-    }
-
     if (cut) focus.current.copy(wanted.current);
     else focus.current.lerp(wanted.current, damp(FOCUS_DAMP, dt));
 
@@ -321,6 +304,11 @@ export default function CameraRig() {
       if (rise >= TRAUMA_RISE_MIN && impact >= TRAUMA_IMPACT_MIN) {
         trauma.current = Math.min(1, trauma.current + rise * TRAUMA_GAIN);
       }
+      if (live.boom.n !== boomSeen.current) {
+        boomSeen.current = live.boom.n;
+        const away = Math.hypot(live.boom.x - seal.x, live.boom.z - seal.z);
+        if (away < BOOM_EARSHOT) trauma.current = Math.max(trauma.current, BOOM_TRAUMA * (1 - away / BOOM_EARSHOT));
+      }
       if (!s.landed && since >= JUMP_IN.landAt) trauma.current = Math.max(trauma.current, LANDING_TRAUMA);
       if (live.rad.id && radSince >= RADIATION.mutateAt && radKicked.current !== live.rad.start) {
         radKicked.current = live.rad.start;
@@ -336,10 +324,10 @@ export default function CameraRig() {
     }
 
     const dockTall = dock && dock.y >= LOOK_TALL ? lk : 0;
-    const elevation = ELEVATION + ((dock?.elev ? (dock.elev * Math.PI) / 180 : LOOK_ELEVATION) - ELEVATION) * dockTall + (ARRIVAL_ELEVATION - ELEVATION) * cutK;
-    orbit.current.set(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(FOLLOW_DISTANCE).applyAxisAngle(UP, ARRIVAL_ORBIT * cutK * (cutU - 0.5));
+    const elevation = ELEVATION + ((dock?.elev ? (dock.elev * Math.PI) / 180 : LOOK_ELEVATION) - ELEVATION) * dockTall;
+    orbit.current.set(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(FOLLOW_DISTANCE);
     followPos.current.copy(orbit.current).multiplyScalar(dNow).add(focus.current).add(shake.current);
-    followLook.current.set(focus.current.x, focus.current.y + 0.6 + ((dock ? dock.y : 0.6) - 0.6) * lk + (ARRIVAL_LOOK_Y - 0.6) * cutK, focus.current.z).add(shake.current);
+    followLook.current.set(focus.current.x, focus.current.y + 0.6 + ((dock ? dock.y : 0.6) - 0.6) * lk, focus.current.z).add(shake.current);
 
     if (!ui.started) {
       // The overview: the whole island and the sea round it.
@@ -372,13 +360,13 @@ export default function CameraRig() {
       camera.position.copy(followPos.current);
       lookAt.current.copy(followLook.current);
     }
-    // THE DOMAIN (domain.js): ease onto the two-shot of the pup and the
-    // silhouette, same lens, and back to the follow as it collapses.
-    if (domain) {
-      const k = viewAt(t - arrival.start);
-      domainView(seal.x, seal.z, camera.aspect, DOM_EYE, DOM_LOOK);
-      camera.position.lerp(DOM_EYE, k);
-      lookAt.current.lerp(DOM_LOOK, k);
+    // THE CUTSCENE: ease onto the two-shot of the pup and its speaker, same
+    // lens, and back to the follow as the stage collapses.
+    if (cutscene) {
+      const k = viewAt(cutscene.tl, t - arrival.start);
+      cutView(cutscene.card, cutscene.place, seal.x, seal.z, camera.aspect, CUT_EYE, CUT_LOOK);
+      camera.position.lerp(CUT_EYE, k);
+      lookAt.current.lerp(CUT_LOOK, k);
     }
     // THE AWAKENING (awakening.js): the calm close-up, the low angle under
     // the circles, the take-off and the flight high over the island; it
@@ -393,9 +381,9 @@ export default function CameraRig() {
       camera.updateProjectionMatrix();
     }
     if (awake) {
-      const k = awakeView(t - arrival.start, seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y), seal.z, camera.aspect, DOM_EYE, DOM_LOOK);
-      camera.position.lerp(DOM_EYE, k);
-      lookAt.current.lerp(DOM_LOOK, k);
+      const k = awakeView(t - arrival.start, seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y), seal.z, camera.aspect, CUT_EYE, CUT_LOOK);
+      camera.position.lerp(CUT_EYE, k);
+      lookAt.current.lerp(CUT_LOOK, k);
       camera.position.addScaledVector(shake.current, 2 * k);
       high = Math.max(0, camera.position.y);
     }

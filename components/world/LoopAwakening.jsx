@@ -568,8 +568,8 @@ export default function LoopAwakening() {
     live.awake.x = s.x;
     live.awake.y = qy + 1.05; // its mouth, for the bubble's tail
     live.awake.z = s.z;
-    live.domainOn = true; // the radiation flood waits (look/RadiationPov.js)
-    live.inDomain = true;
+    live.stageOn = true; // the radiation flood waits (look/RadiationPov.js)
+    live.inStage = true;
 
     // the impacts and the take-off land in the camera (CameraRig's shake)
     const w = world.current;

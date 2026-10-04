@@ -21,6 +21,7 @@ import Atmosphere from "./Atmosphere";
 import CameraRig from "./CameraRig";
 import Districts from "./Districts";
 import Controller from "./Controller";
+import Blast from "./Blast";
 import Effects from "./Effects";
 import Harbour from "./Harbour";
 import Island from "./Island";
@@ -30,8 +31,9 @@ import Penguins from "./Penguins";
 import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
 import Sea from "./Sea";
-import Domain from "./Domain";
+import Toys from "./Toys";
 import LoopAwakening from "./LoopAwakening";
+import Cutscene from "./cutscene/Cutscene";
 import Seal from "./Seal";
 import Sound from "./Sound";
 import Trail from "./Trail";
@@ -136,11 +138,13 @@ export default function Scene() {
         <Districts />
         <Buildings />
         <Props />
+        <Toys />
         <Seal />
-        <Domain />
         <LoopAwakening />
+        <Cutscene />
         <Trail />
         <Effects />
+        <Blast />
         <Penguins />
         <FirstFrame />
       </Suspense>

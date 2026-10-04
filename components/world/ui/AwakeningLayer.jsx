@@ -5,7 +5,7 @@
 // the take-off, the peak's inverted to cream and ink), the one hand-lettered sound in the loop's
 // colour, the line in a cream bubble in the lower half with its tail on the
 // flying pup, and the credit card for the whole body of work. Stepped, on
-// twos, like the domain's layer it borrows its bubble from. ui.beat is the
+// twos, like the cutscene kit's layer (ui/Bubbles.jsx) it borrows its bubble from. ui.beat is the
 // clock, so a skip removes all of it in one frame. With reduced motion the
 // bubble and the card stand still for the whole moment; ?hud=off never
 // shows it (awakeMode is null there).
@@ -15,7 +15,7 @@ import { Vector3 } from "three";
 import { LINE, SFX, awakeCredit, awakeMode } from "../../../lib/world/awakening";
 import { LOOP } from "../../../lib/world/loop";
 import { live, useUi } from "../../../lib/world/store";
-import { Bubble, place } from "./DomainBubbles";
+import { Bubble, place } from "./Bubbles";
 
 const V = new Vector3();
 
@@ -62,9 +62,9 @@ export default function AwakeningLayer() {
   useEffect(() => {
     if (!mode) return undefined;
     const root = document.documentElement;
-    root.dataset.domain = mode; // the minimap steps aside; a still bubble does not bounce in
+    root.dataset.cutscene = mode; // the minimap steps aside; a still bubble does not bounce in
     return () => {
-      delete root.dataset.domain;
+      delete root.dataset.cutscene;
     };
   }, [mode]);
 
@@ -108,18 +108,18 @@ export default function AwakeningLayer() {
   const showLine = still ? beat > 0 : beat === 9;
   const showCard = still ? beat > 0 : beat === 10;
   return (
-    <div className="domain awake" ref={wrap} data-beat={beat} style={{ "--accent": LOOP.color }} aria-live="polite">
+    <div className="comic awake" ref={wrap} data-beat={beat} style={{ "--accent": LOOP.color }} aria-live="polite">
       {impact ? (
-        <div className="domain-impact" data-invert={beat === 5 || undefined} ref={ring} key={beat} aria-hidden="true">
+        <div className="comic-impact" data-invert={beat === 5 || undefined} ref={ring} key={beat} aria-hidden="true">
           <i />
         </div>
       ) : null}
       {!still && beat === 3 ? (
-        <div className="domain-sfx awake-sfx" data-text={SFX} aria-hidden="true">
+        <div className="comic-sfx awake-sfx" data-text={SFX} aria-hidden="true">
           {SFX}
         </div>
       ) : null}
-      {showLine ? <Bubble slot="a" kind="oval" line={LINE.text} bold={LINE.bold} /> : null}
+      {showLine ? <Bubble slot="a" who="seal" kind="oval" line={LINE.text} bold={LINE.bold} /> : null}
       {showCard ? <Credit still={still} /> : null}
     </div>
   );
