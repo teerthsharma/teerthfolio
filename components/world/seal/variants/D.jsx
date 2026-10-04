@@ -85,7 +85,7 @@ const HOOKS = {
   fist: { near: { twist: 1.5, back: -1.4, up: 0.9 }, reach: [0.2, 0.05, 0.6] }, // a raised fist before the cheek
   raise: { near: { twist: 0, back: -0.4, up: 1.0 }, far: { twist: 0, back: -0.4, up: 1.0 } }, // ta-da, both out and up
   point: { near: { twist: 0.6, back: -2.0, up: 0.15 }, reach: [0.2, 0, 0.6] }, // across the chest, toward the speaker
-  pray: { near: { twist: 1.2, back: -2.0, up: 0.3 }, far: { twist: 1.2, back: -2.0, up: 0.3 }, reach: [-0.12, -0.08, 0.55] }, // both flippers together before the chest, palms pressed
+  pray: { near: { twist: 1.2, back: -1.75, up: 0.6 }, far: { twist: 1.2, back: -1.75, up: 0.6 }, reach: [-0.17, 0.0, 0.5] }, // both flippers together before the chest, palms pressed
 };
 // The pup's look-round on an arrival with no stage (reduced motion), seconds.
 const LOOK_ROUND = 5.4;
@@ -315,7 +315,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     const h = hop.current;
     h.position.y = (flying ? 4 * HOP_HEIGHT * fly * (1 - fly) : 0) - 0.62 * water;
     h.rotation.x = flying ? -0.35 * (1 - 2 * fly) : 0;
-    h.rotation.y = P.spin * TAU;
+    h.rotation.y = P.spin * TAU + -0.45 * P.pray; // the chest turns to the lens for the mudra
 
     const b = body.current;
     const stretch = flying ? 0.12 * (1 - Math.sin(Math.PI * fly) * 0.6) : 0;
@@ -379,6 +379,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     const fr = HOOKS.fist.reach;
     const pr = HOOKS.point.reach;
     const py = HOOKS.pray.reach;
+    flipL.current.position.set(SHOULDER[0] + py[0] * P.pray, SHOULDER[1] + py[1] * P.pray, SHOULDER[2] + py[2] * P.pray); // the far flipper meets the near one at the midline
     flipR.current.position.set(
       SHOULDER[0] + SIGN_REACH[0] * sign + fr[0] * P.fist + pr[0] * P.point + py[0] * P.pray,
       SHOULDER[1] + SIGN_REACH[1] * sign + fr[1] * P.fist + pr[1] * P.point + py[1] * P.pray,
