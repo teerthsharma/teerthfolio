@@ -58,11 +58,19 @@ export function place(el, mx, my, slot, still, fixed) {
     if (still && slot === "a") bottom = floor + el.nextElementSibling.offsetHeight + 0.02 * H;
     if (still && slot === "c") bottom = floor + el.previousElementSibling.offsetHeight + el.previousElementSibling.previousElementSibling.offsetHeight + 0.04 * H;
   }
+  if (live.frame.flip) left = W - left - w; // FrameGuard: the pup is under the bubble, so it takes the opposite lower side
   left = clamp(left, 0.03 * W, W - 0.03 * W - w);
   bottom = Math.min(bottom, H * 0.5 - h); // the lower half, always
   el.style.left = `${left}px`;
   el.style.bottom = `${bottom}px`;
   const top = H - bottom - h;
+  const si = slot === "b" ? 1 : slot === "c" ? 2 : 0;
+  const F = live.frame;
+  F.r[si * 4] = left;
+  F.r[si * 4 + 1] = top;
+  F.r[si * 4 + 2] = left + w;
+  F.r[si * 4 + 3] = top + h;
+  F.at[si] = performance.now();
   // the tail: from the body's upper edge toward the speaker, stopping short
   const rx = w / 2;
   const ry = h / 2;
