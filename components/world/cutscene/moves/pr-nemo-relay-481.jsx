@@ -39,11 +39,11 @@ export default function Move(cut) {
   const { card, place, tl, mode } = cut;
   const g = useRef();
   const f = useMemo(() => {
-    const dots = inst(new OctahedronGeometry(1, 0).scale(0.45, 1, 0.45), mat(), 6, Array(6).fill(CREAM));
+    const dots = inst(new OctahedronGeometry(1, 0).scale(0.45, 1, 0.45), mat(), 6, Array(6).fill(VIOLET));
     const shell = inst(new IcosahedronGeometry(1, 1), mat({ transparent: true, opacity: 0.55, depthWrite: false }), 3, [RED, BLUE, VIOLET]);
     const core = inst(new IcosahedronGeometry(1, 1), mat(), 3, Array(3).fill(CREAM));
     const tear = inst(new OctahedronGeometry(1, 0), mat({ transparent: true, opacity: 0.8, blending: AdditiveBlending, depthWrite: false }), 2, [VIOLET, CREAM]);
-    const cards = inst(new BoxGeometry(0.36, 0.48, 0.03), mat(), CARDS, Array.from({ length: CARDS }, (_, i) => new Color(i % 2 ? "#fbf6ec" : "#e6e0d2")));
+    const cards = inst(new BoxGeometry(0.3, 0.4, 0.03), mat(), CARDS, Array.from({ length: CARDS }, (_, i) => new Color(i % 2 ? "#fbf6ec" : "#e6e0d2")));
     return { dots, shell, core, tear, cards };
   }, []);
 
@@ -65,13 +65,13 @@ export default function Move(cut) {
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + tt * 0.9;
       const k = wake * fade;
-      put(f.dots, i, 0.55 * Math.cos(a), 1.3 + 0.08 * Math.sin(a * 2), 0.25 + 0.55 * Math.sin(a), 0.07 * k, 0.17 * k, 0.07 * k);
+      put(f.dots, i, 0.55 * Math.cos(a), 1.3 + 0.08 * Math.sin(a * 2), 0.25 + 0.55 * Math.sin(a), 0.1 * k, 0.17 * k, 0.1 * k);
     }
     f.dots.instanceMatrix.needsUpdate = true;
 
     // red left, blue right, either side of the pup; they close on the merge into one violet sphere
     const y = 1.55 + 0.06 * Math.sin(tt * 3);
-    const r = (0.1 + 0.2 * gather) * fade;
+    const r = (0.1 + 0.26 * gather) * fade;
     const open = (1 - merge) * (0.8 + 0.1 * Math.sin(tt * 4));
     const k0 = r * (1 - merge);
     put(f.shell, 0, 0.1 - open, y, 0.6, k0);
@@ -82,13 +82,13 @@ export default function Move(cut) {
     const px = 0.1 + (TO[0] - 0.1) * rip;
     const py = y + (TO[1] - y) * rip;
     const pz = 0.6 + (TO[2] - 0.6) * rip;
-    const purple = (0.1 + 0.4 * merge) * (1 + 0.5 * rip) * fade * (merge > 0 ? 1 : 0);
+    const purple = (0.15 + 0.55 * merge) * (1 + 0.5 * rip) * fade * (merge > 0 ? 1 : 0);
     put(f.shell, 2, px, py, pz, purple);
     put(f.core, 2, px, py, pz, purple * 0.5);
     for (const m of [f.shell, f.core]) m.instanceMatrix.needsUpdate = true;
 
     // the tear it cuts behind it: a violet blade with a thin cream edge, from the pup to the sphere
-    const th = 0.2 * rip * (1 - rip * 0.4) * fade;
+    const th = 0.34 * rip * (1 - rip * 0.4) * fade;
     for (let i = 0; i < 2; i++) {
       D.position.set((0.1 + px) / 2, (y + py) / 2, (0.6 + pz) / 2);
       D.lookAt(px, py, pz);
@@ -107,7 +107,7 @@ export default function Move(cut) {
       const ring = 2.4 + 0.5 * Math.sin(i * 1.7);
       const gx = SCAF[0] + ((i % 4) - 1.5) * 0.4;
       const gy = 0.3 + Math.floor(i / 4) * 0.5;
-      put(f.cards, i, (1 - stack) * ring * Math.cos(h) + stack * gx, (1 - stack) * (0.6 + 1.6 * ((i * 0.37) % 1)) + stack * gy, (1 - stack) * (ring * Math.sin(h) * 0.5 - 0.6) + stack * SCAF[2], a, a, a, (1 - stack) * 0.4 * Math.sin(i), (1 - stack) * 0.3 * Math.cos(i));
+      put(f.cards, i, (1 - stack) * ring * Math.cos(h) + stack * gx, (1 - stack) * (0.6 + 1.6 * ((i * 0.37) % 1)) + stack * gy, (1 - stack) * (-1.1 - ring * 0.5 * (0.6 + 0.4 * Math.sin(h))) + stack * SCAF[2], a, a, a, (1 - stack) * 0.4 * Math.sin(i), (1 - stack) * 0.3 * Math.cos(i));
     }
     f.cards.instanceMatrix.needsUpdate = true;
   });

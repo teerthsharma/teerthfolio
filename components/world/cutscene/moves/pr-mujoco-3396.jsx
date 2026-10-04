@@ -123,7 +123,7 @@ export default function Move(cut) {
 
     // one tiny blue cube remains at the titan's foot
     const q = smooth(tl.collapse[0] - 1.0, tl.collapse[0] - 0.4, tt) * fade;
-    put(f.cube, 0, -2.5, 0.3 + 0.04 * Math.sin(tt * 3), 1.6, 0.3 * q, 0.3 * q, 0.3 * q, 0, tt * 0.6, 0);
+    put(f.cube, 0, -2.5, 0.3 + 0.04 * Math.sin(tt * 3), 1.6, 0.42 * q, 0.42 * q, 0.42 * q, 0, tt * 0.6, 0);
     f.cube.instanceMatrix.needsUpdate = true;
   });
 

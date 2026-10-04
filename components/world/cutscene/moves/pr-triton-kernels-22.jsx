@@ -33,7 +33,7 @@ const LIT = new Color("#fff3c4");
 const TMP = new Color();
 const TRI_AT = [4.0, 0.2, -5.4]; // the triangle stands right of the figure, a little back
 const LENS = [1.56, 2.08, -3.0]; // the scouter's lens on the figure (Speaker.jsx), offset from the pup
-const FROM = [0.6, 0.7, 0.7]; // the cupped flippers
+const FROM = [1.05, 0.62, 0.8]; // the cupped flippers, just past the snout
 const BLOCK = 0.62;
 
 export default function Move(cut) {
@@ -87,7 +87,7 @@ export default function Move(cut) {
     const yaw = Math.atan2(bx, bz);
     const pitch = -Math.asin(by / L);
     const pulse = 1 + 0.12 * Math.sin(tt * 40);
-    const w = 0.3 * fire * (1 - 0.6 * smooth(tl.collapse[0] - 0.6, tl.collapse[0], tt)) * pulse * out;
+    const w = 0.17 * fire * (1 - 0.6 * smooth(tl.collapse[0] - 0.6, tl.collapse[0], tt)) * pulse * out;
     const mx = FROM[0] + bx * 0.5 * fire;
     const my = FROM[1] + by * 0.5 * fire;
     const mz = FROM[2] + bz * 0.5 * fire;
@@ -95,7 +95,7 @@ export default function Move(cut) {
     put(f.beam, 0, mx, my, mz, w, w, (L * fire) / 2 + 0.001, pitch, yaw, 0);
     put(f.beam, 1, mx, my, mz, w * 0.42, w * 0.42, (L * fire) / 2 + 0.002, pitch, yaw, 0);
     D.rotation.order = "XYZ";
-    put(f.flare, 0, FROM[0], FROM[1], FROM[2], full ? smooth(2.3, 3.0, tt) * (0.12 + 0.3 * charge * (1 - fire * 0.4)) * pulse * out : 0.001);
+    put(f.flare, 0, FROM[0], FROM[1], FROM[2], full ? smooth(2.3, 3.0, tt) * (0.08 + 0.17 * charge * (1 - fire * 0.4)) * pulse * out : 0.001);
     f.flare.instanceMatrix.needsUpdate = true;
     f.beam.instanceMatrix.needsUpdate = true;
 

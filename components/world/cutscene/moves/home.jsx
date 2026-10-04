@@ -11,7 +11,9 @@ import { turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Speaker, Stage, onTwos, smooth, useCutFrame } from "../kit";
 
-const R = 3.1; // m: the fin's circle round the pup
+const R = 3.3; // m: the fin's circle, behind the pup between it and the floe edge
+const RZ = 1.6;
+const C = [0.4, -1.8];
 const mat = (o = {}) => new MeshBasicMaterial({ toneMapped: false, fog: false, depthWrite: false, ...o });
 
 export default function Move(cut) {
@@ -25,9 +27,9 @@ export default function Move(cut) {
     const sh = new Shape().moveTo(0, 0).quadraticCurveTo(0.12, 0.55, 0.16, 1.15).quadraticCurveTo(0.34, 0.5, 0.62, 0).lineTo(0, 0);
     const geo = new ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: false }).translate(-0.31, 0, -0.03);
     const fin = new Group();
-    const rim = new Mesh(geo, mat({ color: "#f5fbff", side: BackSide }));
+    const rim = new Mesh(geo, mat({ color: "#f5fbff", side: BackSide, depthWrite: true }));
     rim.scale.set(1.12, 1.05, 1.6);
-    fin.add(rim, new Mesh(geo, mat({ color: "#0c1624" })));
+    fin.add(rim, new Mesh(geo, mat({ color: "#0c1624", depthWrite: true })));
     return { water, ripples, fin };
   }, []);
 
@@ -42,15 +44,16 @@ export default function Move(cut) {
     const sink = smooth(tl.lineB - 0.2, tl.lineB + 1.2, tt);
     const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
     const a = (full ? 0.9 * (tt - tl.lineA) : 0.9) + 3.4; // once round the floe
-    f.fin.position.set(R * Math.sin(a), 0.02 - sink * 0.95, R * Math.cos(a) * 0.8);
-    f.fin.rotation.y = Math.atan2(0.8 * Math.sin(a), Math.cos(a)); // the blade runs along its path
+    f.fin.position.set(C[0] + R * Math.sin(a), 0.02 - sink * 0.95, C[1] + RZ * Math.cos(a));
+    f.fin.rotation.y = Math.atan2((RZ / R) * Math.sin(a), Math.cos(a)); // the blade runs along its path
     f.fin.visible = seen > 0 && out > 0 && sink < 1;
-    f.fin.scale.setScalar(Math.max(seen, 0.001));
-    f.water.scale.set(1, 1, 0.8);
+    f.fin.scale.setScalar(Math.max(seen * 1.5, 0.001));
+    f.water.position.set(C[0], 0.012, C[1]);
+    f.water.scale.set(1, 1, 0.55);
     f.water.material.opacity = 0.16 * out * seen;
     const wake = ((tt * 0.55) % 1) * 0.7 + 0.3;
     f.ripples.position.set(f.fin.position.x, 0.03, f.fin.position.z);
-    f.ripples.scale.setScalar(wake * 0.9 * (1 + 0.8 * sink) + 0.001);
+    f.ripples.scale.setScalar(wake * 1.3 * (1 + 0.8 * sink) + 0.001);
     f.ripples.material.opacity = (1 - wake) * 0.9 * out * seen * (full ? 1 : 0);
   });
 
