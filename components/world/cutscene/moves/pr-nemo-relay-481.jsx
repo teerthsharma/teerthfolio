@@ -24,6 +24,7 @@ import { LEDGE, TOP, buildArena } from "./pr-nemo-relay-481/arena";
 import { INK, hullMaterial, pupCel, setHull } from "./pr-nemo-relay-481/cel";
 import { ORB, buildAura, buildOrbs, passAt, passPoint, passSide, silverGhost } from "./pr-nemo-relay-481/fx";
 import { beerus, whis } from "./pr-nemo-relay-481/gods";
+import { buildHair } from "./pr-nemo-relay-481/hair";
 import { skyShell } from "./pr-nemo-relay-481/sky";
 
 const CORE_Y = 0.9;
@@ -80,6 +81,7 @@ export default function Move(cut) {
     const arena = buildArena(T);
     const aura = buildAura();
     const orbs = buildOrbs();
+    const hair = buildHair();
     const wb = beerus();
     const wh = whis();
     const ink = new MeshBasicMaterial({ color: INK, toneMapped: false, fog: false });
@@ -90,7 +92,7 @@ export default function Move(cut) {
     const ghostM = [0, 1, 2, 3].map(() => silverGhost());
     const crack = lettering("KRRRK!", "#e5363a", -0.1);
     const flash = flashQuad("#dbe7ff");
-    return { sky, arena, aura, orbs, wb, wh, ink, hullG, accB, accW, haloF, ghostM, crack, flash };
+    return { sky, hair, arena, aura, orbs, wb, wh, ink, hullG, accB, accW, haloF, ghostM, crack, flash };
   }, []);
 
   useEffect(() => {
@@ -98,7 +100,9 @@ export default function Move(cut) {
     const p = pupParts(scene);
     pup.current = p;
     cel.current = p?.root ? pupCel(p.root) : null;
+    p?.head?.add(m.hair.group);
     return () => {
+      m.hair.dispose();
       cel.current?.dispose();
       cel.current = null;
       if (pup.current?.root) pup.current.root.rotation.z = 0;
@@ -120,6 +124,7 @@ export default function Move(cut) {
       if (hid.current) for (const x of island.current) x.visible = true;
       hid.current = false;
       cel.current?.set(false);
+      m.hair.group.visible = false;
       if (p?.root) p.root.rotation.z = 0;
       return;
     }
@@ -141,6 +146,7 @@ export default function Move(cut) {
     const o = off.current;
     if (!full) {
       cel.current?.set(false);
+      m.hair.group.visible = false;
       o.x = o.y = o.z = o.lean = 0;
       return;
     }
@@ -180,6 +186,8 @@ export default function Move(cut) {
     const silver = smooth(T.silver[0], T.silver[1], tt) * (1 - smooth(9.5, 10.3, tt));
     const celOn = (inside || tt > tl.bloom[1]) && tt < T.reveal;
     cel.current?.set(celOn, silver, aura > 0.3 ? 1 : 0);
+    m.hair.group.visible = celOn && silver > 0.05;
+    m.hair.group.rotation.set(0.04 * Math.sin(t * 7), 0, 0.03 * Math.sin(t * 5));
     const d = dodgeAt(tt, DODGE);
     const k = celOn ? 1 : 0;
     o.x = d.x * k;

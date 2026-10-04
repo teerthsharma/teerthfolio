@@ -126,8 +126,8 @@ export function pupCel(root) {
         vec3 furC = mix(fur * vec3(0.62, 0.58, 0.84), fur, lit);
         vec3 silC = mix(vec3(0.62, 0.69, 0.86), vec3(0.96, 0.975, 1.0), lit);
         vec3 c = mix(furC, silC, uSilver);
-        float rim = step(0.7, 1.0 - max(dot(n, v), 0.0));
-        c = mix(c, vec3(0.72, 0.9, 1.0), rim * uRim);
+        float rim = step(0.8, 1.0 - max(dot(n, v), 0.0));
+        c = mix(c, vec3(0.55, 0.75, 1.0), rim * uRim);
         gl_FragColor = vec4(pow(c, vec3(2.2)), 1.0);
       }`,
   });
