@@ -1,4 +1,4 @@
-/* global window, document, requestAnimationFrame, performance */
+/* global window, document, requestAnimationFrame */
 // Laptop parity gate, in real Chrome (the bundled chromium has no GPU here
 // and fakes a 40x slowdown). Loads /?play as a phone, an iPad and a laptop,
 // lets the quality monitor settle the way a visitor's would, drives the seal,
@@ -13,6 +13,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
+import { BASE_FLAGS, adapterFlags } from "./gpu-adapter.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, token, i, all) => {
@@ -87,30 +88,7 @@ async function measure(browser, name) {
   }
 }
 
-const BASE = ["--enable-gpu", "--ignore-gpu-blocklist", "--use-angle=d3d11"];
-// --gpu intel|nvidia|amd pins one adapter of a hybrid laptop by its LUID (read
-// from chrome://gpu), whatever Windows' per-app preference says. No system
-// setting is touched.
-async function adapterFlag(vendor) {
-  if (!vendor) return [];
-  const probe = await chromium.launch({ executablePath: chrome, headless: true, args: BASE });
-  try {
-    const page = await probe.newPage();
-    await page.goto("chrome://gpu");
-    await page.waitForTimeout(2000);
-    const text = await page.evaluate(() => {
-      const walk = (n) => (n.shadowRoot ? walk(n.shadowRoot) : "") + Array.from(n.childNodes || []).map(walk).join(" ") + (n.nodeType === 3 ? n.textContent : "");
-      return walk(document.body);
-    });
-    const line = text.split(/GPU\d/).find((l) => l.toLowerCase().includes(vendor.toLowerCase()) && /LUID=\{/.test(l));
-    const luid = line?.match(/LUID=\{(\d+),(\d+)\}/);
-    if (!luid) throw new Error(`no ${vendor} adapter in chrome://gpu`);
-    return [`--use-adapter-luid=${luid[1]},${luid[2]}`];
-  } finally {
-    await probe.close();
-  }
-}
-const browser = await chromium.launch({ executablePath: chrome, headless: true, args: [...BASE, ...(await adapterFlag(args.gpu))] });
+const browser = await chromium.launch({ executablePath: chrome, headless: true, args: [...BASE_FLAGS, ...(await adapterFlags(chromium, chrome, args.gpu))] });
 const results = {};
 try {
   for (const name of args.only ? [args.only] : ["phone", "ipad", "laptop"]) {

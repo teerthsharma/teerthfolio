@@ -6,7 +6,7 @@
 //   node scripts/perf-frames.mjs [--url http://localhost:3403] [--w 1440] [--h 900] [--dpr 2]
 //        [--phase load,walk,arrival,skip,reduced,tiers,memory] [--secs 180 (memory)]
 //        phases also: first, flap (2 min), nostorage, ramp [--top 2]
-//        [--query "?play&look=2"] [--hp | --lp (discrete / integrated GPU on a hybrid laptop)]
+//        [--query "?play&look=2"] [--gpu intel|nvidia | --hp | --lp (one adapter of a hybrid laptop)]
 //
 // Budgets (a 60 Hz laptop; exit 1 on any breach):
 //   walk     p95 <= 33.4 ms (30 fps floor for 95% of frames), max <= 100 ms
@@ -15,7 +15,8 @@
 //   memory   JS heap grows < 20 MB and DOM nodes < 500 over the walk
 // Behaviour guards (any machine): the arrival flattens (fov < 10, html
 // data-pop=on), a fresh key skips it within 300 ms and restores fov 35,
-// reduced motion never flattens, and phone / iPad keep DPR 2 and look tier 2.
+// reduced motion never flattens, and phone / iPad start on the rung their GPU
+// classifies to (lib/world/quality.js) at that rung's DPR.
 //
 // The dev machine is Intel UHD (fill-bound, low tier): quote its numbers as
 // such. Run one at a time: concurrent WebGL pages share the one GPU.
@@ -23,6 +24,8 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
+import { BASE_FLAGS, adapterFlags } from "./gpu-adapter.mjs";
+import { TOP, classify, dprFor } from "../lib/world/quality.js";
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, token, i, all) => {
@@ -49,9 +52,12 @@ const chrome = [
 if (!chrome) throw new Error("real Chrome not found; the bundled chromium is software WebGL and its numbers lie");
 
 const PLACE_IDS = (await import("../lib/world/places.js")).PLACES.map((p) => p.id);
-// --hp asks Chrome for the discrete GPU on a hybrid laptop (no system
-// setting is touched); the report's gpu field says which one answered.
-const browser = await chromium.launch({ executablePath: chrome, headless: true, args: ["--enable-gpu", "--ignore-gpu-blocklist", "--use-angle=d3d11", ...(args.hp ? ["--force_high_performance_gpu"] : []), ...(args.lp ? ["--force_low_power_gpu"] : [])] });
+// --gpu intel|nvidia (or --lp / --hp) pins one adapter of a hybrid laptop by
+// its LUID (gpu-adapter.mjs; --force_low_power_gpu alone does not reach the
+// Intel once Windows prefers the discrete GPU). The report's gpu field says
+// which one answered.
+const vendor = args.gpu || (args.lp ? "intel" : args.hp ? "nvidia" : null);
+const browser = await chromium.launch({ executablePath: chrome, headless: true, args: [...BASE_FLAGS, ...(await adapterFlags(chromium, chrome, vendor))] });
 const failures = [];
 const report = { url: base, viewport: `${W}x${H}@${DPR}`, browser: path.basename(chrome) };
 
@@ -174,6 +180,10 @@ try {
     // the composer and recompiled every shader: one 5.5-5.9 s frame).
     const stepHitch = Math.max(0, ...frames.map((f, i) => (frames.slice(Math.max(1, i - 10), i + 1).some((g, j) => g[5] !== frames[Math.max(1, i - 10) + j - 1][5]) ? f[1] : 0)));
     report.walk.tierStepHitchMs = +stepHitch.toFixed(0);
+    // Programs first linked while walking: a material met for the first time
+    // compiles mid-walk. Reported, and the worst frame says if it linked one.
+    report.walk.linkedDuringWalk = frames.at(-1)[6] - frames[0][6];
+    report.walk.worstFrame.linked = frames[worst][6] - frames[worst - 1][6];
     // Programs linked from each tier change to 30 frames after it.
     report.walk.linksPerTierStep = frames.flatMap((f, i) => (i && f[5] !== frames[i - 1][5] ? [(frames[Math.min(frames.length - 1, i + 30)][6] - frames[i - 1][6])] : []));
     check("tier step recompile", report.walk.linksPerTierStep.every((n) => n <= 20), `programs linked per tier step ${report.walk.linksPerTierStep} (<= 20 each)`);
@@ -219,19 +229,24 @@ try {
 
   if (phases.includes("tiers")) {
     // Read in the first second after ready, before PerformanceMonitor may
-    // step the look down on this GPU: what the device is configured to draw.
+    // move the rung: what the device is configured to draw. Touch devices
+    // get no special branch; the rung comes from the GPU and the pixel
+    // budget from the screen, so a phone and a laptop on one GPU agree.
     report.tiers = {};
-    for (const [name, o, want] of [
-      ["phone", { w: 390, h: 844, dpr: 3, touch: true }, { dpr: 2, look: 2 }],
-      ["ipad", { w: 1024, h: 1366, dpr: 2, touch: true }, { dpr: 2, look: 2 }],
+    for (const [name, o] of [
+      ["phone", { w: 390, h: 844, dpr: 3, touch: true }],
+      ["ipad", { w: 1024, h: 1366, dpr: 2, touch: true }],
     ]) {
       const { context, page } = await open({ ...o, seen: true });
       const got = await page.evaluate(() => {
         const c = document.querySelector(".game-stage canvas");
         return { dpr: +(c.width / c.clientWidth).toFixed(2), look: window.__world.look };
       });
-      report.tiers[name] = got;
-      check(`${name} tier`, got.dpr === want.dpr && got.look === want.look, `drawing-buffer DPR ${got.dpr} (want ${want.dpr}), look ${got.look} (want ${want.look})`);
+      const look = Math.min(classify(report.gpu), got.look);
+      const want = { look: classify(report.gpu), dpr: dprFor(look, o.w, o.h, o.dpr) };
+      report.tiers[name] = { ...got, want };
+      // the warm-up may step a guessed rung down before ready, never up
+      check(`${name} tier`, got.look <= want.look && Math.abs(got.dpr - want.dpr) <= 0.02, `drawing-buffer DPR ${got.dpr} (want ${want.dpr}), look ${got.look} (want <= ${want.look})`);
       await context.close();
     }
   }
@@ -272,7 +287,7 @@ try {
     const walk = await tierLog(from);
     report.flap = { idle, walk };
     // A one-way monitor leaves a discrete GPU low for good after one dip.
-    if (report.tier === "discrete/high") check("flap ends at top", walk.path.at(-1) === Number(args.top ?? 2), `discrete GPU ends the 2 min at look ${walk.path.at(-1)} (want ${args.top ?? 2})`);
+    if (report.tier === "discrete/high") check("flap ends at top", walk.path.at(-1) === Number(args.top ?? TOP), `discrete GPU ends the 2 min at look ${walk.path.at(-1)} (want ${args.top ?? TOP})`);
     for (const [name, w] of Object.entries(report.flap)) check(`flap ${name}`, w.changes <= 3 && w.reversals <= 1, `${w.changes} tier changes, ${w.reversals} reversals in 60 s (path ${w.path})`);
     await context.close();
   }
@@ -295,15 +310,15 @@ try {
   if (phases.includes("ramp")) {
     // A GPU that can afford the top tier ends there: a fix tuned for the
     // integrated GPU must not leave a discrete one stuck low.
-    const top = Number(args.top ?? 2);
+    const top = Number(args.top ?? TOP);
     const { context, page } = await open({ seen: true });
     await page.waitForTimeout(20000);
     const got = await page.evaluate(() => {
       const c = document.querySelector(".game-stage canvas");
       return { dpr: +(c.width / c.clientWidth).toFixed(2), look: window.__world.look };
     });
-    report.ramp = { ...got, want: { dpr: Math.min(DPR, 2), look: top } };
-    if (report.tier === "discrete/high") check("ramp", got.dpr === Math.min(DPR, 2) && got.look === top, `after 20 s: DPR ${got.dpr}, look ${got.look} (want ${Math.min(DPR, 2)}, ${top})`);
+    report.ramp = { ...got, want: { dpr: dprFor(top, W, H, DPR), look: top } };
+    if (report.tier === "discrete/high") check("ramp", got.dpr === dprFor(top, W, H, DPR) && got.look === top, `after 20 s: DPR ${got.dpr}, look ${got.look} (want ${dprFor(top, W, H, DPR)}, ${top})`);
     else report.ramp.note = "integrated GPU: reported, not asserted";
     await context.close();
   }

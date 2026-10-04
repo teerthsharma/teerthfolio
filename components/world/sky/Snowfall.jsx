@@ -10,10 +10,12 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo } from "react";
 import { BufferGeometry, Float32BufferAttribute, ShaderMaterial } from "three";
+import { TIERS } from "../../../lib/world/quality";
+import { useUi } from "../../../lib/world/store";
 import { mulberry32 } from "../life/spawn";
 import { groundFocus } from "./focus";
 
-const COUNT = 400;
+const COUNT = 400; // the most any rung draws (quality.js snow)
 const FLAKE = 0.06; // m across
 const FALL = 0.85; // m/s, the slowest flakes
 const WIND = 0.45; // m/s drift toward +x, the sea breeze
@@ -89,6 +91,9 @@ export default function Snowfall() {
     u.uBox.value[1] = Math.min(camera.position.y + 1, 28);
     u.uPx.value = (size.height * viewport.dpr) / (2 * Math.tan((camera.fov * Math.PI) / 360));
   });
+
+  const snow = TIERS[useUi((s) => s.tier) ?? 0].snow;
+  geometry.setDrawRange(0, Math.min(COUNT, snow));
 
   return <points geometry={geometry} material={material} frustumCulled={false} />;
 }

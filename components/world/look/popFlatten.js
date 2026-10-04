@@ -45,7 +45,7 @@ export function applyFlatten(camera, lookAt, amount, fog) {
   const dist2 = (dist1 * half) / flatHalfNow;
   camera.position.sub(lookAt).setLength(dist2).add(lookAt);
   camera.fov = MathUtils.radToDeg(2 * Math.atan(flatHalfNow));
-  camera.far = Math.max(camera.far, dist2 + 260);
+  camera.far = Math.max(camera.far, dist2 + 260); // CameraRig.jsx resets it each frame
   camera.updateProjectionMatrix();
   if (fog?.isFog) {
     fog.near += dist2 - dist0;
