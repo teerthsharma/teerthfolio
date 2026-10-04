@@ -1347,7 +1347,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
       assert.ok(l?.text && ["seal", "sil", "sil2", "land"].includes(l.who), `${id} needs two voices`);
       assert.ok(!l.who.startsWith("sil") || figure, `${id}: a line from "sil" needs a figure speaker`);
       assert.ok(l.who !== "land" || !figure, `${id}: a line from "land" needs speaker "land"`);
-      assert.ok(!l.kind || ["oval", "burst", "whisper"].includes(l.kind), `${id}: bubble kind ${l.kind}`);
+      assert.ok(!l.kind || ["oval", "burst", "whisper", "box"].includes(l.kind), `${id}: bubble kind ${l.kind}`);
     }
     assert.ok(POSES.includes(move?.pose) && (!move.then || POSES.includes(move.then)), `${id}'s move pose is not a pose hook`);
     for (const n of `${a.text} ${b.text} ${c.c?.text ?? ""} ${c.credit?.title ?? ""} ${c.credit?.sub ?? ""} ${c.num ?? ""} ${c.sub ?? ""}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) assert.ok(n === "0" || json.includes(n), `${id}'s line says ${n}, which showcase.json does not`);

@@ -4,9 +4,9 @@
 // faint waxy sheen, glossy bead eyes) lit by the set's lamps and boiled at each step.
 
 import { Box3, BoxGeometry, BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, Group, Mesh, SphereGeometry, TorusGeometry, Vector3 } from "three";
-import { clay, hash, lump, merge, piece } from "./clay";
-import { crystalGeometry } from "./fx";
-import { blob, slab, taper } from "./shapes";
+import { hash, lump, merge, piece } from "./clay";
+import { disposeInked, inked, inkMat, toon } from "./comic";
+import { blob, taper } from "./shapes";
 
 
 const sm = (a, b, x) => {
@@ -102,15 +102,6 @@ function staffGeometry() {
   });
   return merge(p);
 }
-function swordGeometry() {
-  return merge([
-    slab([0, 0.04, 0], [0, 0.66, 0], 0.075, 0.02, "#f0d68a"),
-    piece(new BoxGeometry(0.24, 0.035, 0.05).translate(0, 0.04, 0), "#7a2ab0"),
-    piece(new CylinderGeometry(0.022, 0.022, 0.16, 6).translate(0, -0.06, 0), "#2a1448"),
-    piece(new CylinderGeometry(0.035, 0.035, 0.03, 6).translate(0, -0.15, 0), "#e6b43a"),
-  ]);
-}
-
 export function findParts(root) {
   let head = null;
   let n = -1;
@@ -126,76 +117,62 @@ export function findParts(root) {
   return { root, head, rear, flipL: groups.find((g) => g !== mirror && g.children.some((c) => c.isMesh)), flipR: mirror?.children[0] ?? null };
 }
 
-// the gear: cloak on the body, staff and sword free in the rig frame (positioned each frame from the flipper tips)
-export function buildGear(parts, crystalMat) {
+// the gear: cloak on the body, staff free in the rig frame (positioned each frame from the flipper tip); ink outlined, cel shaded
+export function buildGear(parts) {
   const body = parts.rear.children.find((o) => o.isMesh);
   body.geometry.computeBoundingBox();
   const bb = new Box3().copy(body.geometry.boundingBox).applyMatrix4(body.matrix);
-  const cloakG = feltGeometry(bb);
-  const cloakM = clay({ boil: 0.006, tex: 2.6, bump: 0.55, edge: 0.5, sway: true, wave: 0.1, side: DoubleSide, wax: 0.06 });
-  const cloak = new Mesh(cloakG, cloakM);
-  cloak.frustumCulled = false;
+  const cloak = inked(feltGeometry(bb), { sway: true, side: true });
   cloak.visible = false;
   parts.rear.add(cloak);
-  const woodM = clay({ boil: 0.006, tex: 3, bump: 0.5, edge: 0.6, wax: 0.1 });
-  const staffG = staffGeometry();
-  const staff = new Group();
-  staff.add(new Mesh(staffG, woodM));
-  const crystal = new Mesh(crystalGeometry(), crystalMat);
-  crystal.position.y = 1.2; crystal.scale.setScalar(0.8);
-  crystal.renderOrder = 7;
-  staff.add(crystal);
-  const swordG = swordGeometry();
+  const staff = inked(staffGeometry());
   const sword = new Group();
-  sword.add(new Mesh(swordG, woodM));
-  for (const g of [staff, sword]) {
-    g.visible = false;
-    g.traverse((o) => {
-      o.frustumCulled = false;
-    });
-  }
+  for (const g of [staff, sword]) g.visible = false;
   return {
     cloak,
     staff,
     sword,
-    crystal,
     dispose() {
       cloak.removeFromParent();
-      cloakG.dispose();
-      cloakM.dispose();
-      woodM.dispose();
-      staffG.dispose();
-      swordG.dispose();
+      disposeInked(cloak);
+      disposeInked(staff);
     },
   };
 }
 
-// plasticine twins for the pup's own materials (vertex-coloured ones: coat, eyes, mouth); the catchlights,
-// the sign's digits and the contact shadow keep theirs
+// toon twins (cel shading) and an ink hull for the pup's vertex-coloured meshes; the eyes and catchlights keep theirs
 export function pupClay(root) {
   const list = [];
   const twins = new Map();
   root.traverse((o) => {
-    if (!o.isMesh || Array.isArray(o.material)) return;
+    if (!o.isMesh || Array.isArray(o.material) || o.userData.inkHull) return;
     const m = o.material;
-    if (m.isShaderMaterial || m.isMeshBasicMaterial || !m.vertexColors) return;
+    if (m.isShaderMaterial || m.isMeshBasicMaterial || !m.vertexColors || (m.clearcoat ?? 0) > 0.9) return;
     let t = twins.get(m);
-    if (!t) {
-      const eye = (m.clearcoat ?? 0) > 0.9;
-      t = clay({ vertexColors: true, boil: 0.007, tex: 2.4, bump: eye ? 0.02 : 0.32, edge: eye ? 0 : 0.42, wax: eye ? 3.4 : 0.4, rim: eye ? 0 : 0.35 });
-      twins.set(m, t);
-    }
-    list.push([o, m, t]);
+    if (!t) twins.set(m, (t = toon()));
+    const hull = new Mesh(o.geometry, inkMat());
+    hull.userData.inkHull = true;
+    hull.frustumCulled = false;
+    hull.visible = false;
+    o.add(hull);
+    list.push([o, m, t, hull]);
   });
   let on = false;
   return {
     set(v) {
       if (v === on) return;
       on = v;
-      for (const [o, m, t] of list) o.material = v ? t : m;
+      for (const [o, m, t, h] of list) {
+        o.material = v ? t : m;
+        h.visible = v;
+      }
     },
     dispose() {
       this.set(false);
+      for (const [, , , h] of list) {
+        h.removeFromParent();
+        h.material.dispose();
+      }
       for (const t of twins.values()) t.dispose();
     },
   };

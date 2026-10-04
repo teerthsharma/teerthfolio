@@ -95,13 +95,14 @@ export function place(el, mx, my, slot, still, fixed) {
   const svg = el.querySelector("svg");
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
   const body = el.querySelectorAll(".bubble-body");
-  if (el.dataset.kind === "burst") for (const b of body) b.setAttribute("d", burst(w, h));
+  if (el.dataset.kind === "box") for (const b of body) b.setAttribute("d", `M0 0H${w}V${h}H0Z`);
+  else if (el.dataset.kind === "burst") for (const b of body) b.setAttribute("d", burst(w, h));
   else for (const b of body) b.setAttribute("d", `M0 ${ry}A${rx} ${ry} 0 1 0 ${w} ${ry}A${rx} ${ry} 0 1 0 0 ${ry}Z`);
 }
 
-export function Bubble({ slot, who, kind, line, bold, sub }) {
+export function Bubble({ slot, who, kind, line, bold, sub, style }) {
   return (
-    <div className="bubble" data-slot={slot} data-who={who} data-kind={kind}>
+    <div className="bubble" data-slot={slot} data-who={who} data-kind={kind} data-style={style}>
       <svg className="bubble-art" aria-hidden="true">
         <defs>
           <pattern id={`ht-${slot}`} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -197,7 +198,7 @@ export default function Bubbles() {
   const showCredit = Boolean(card.credit) && (still ? beat > 0 && beat < BEAT.out : beat === BEAT.credit);
   const impact = !still && (beat === BEAT.impact || beat === BEAT.collapse);
   const sfx = card.stage?.sfx;
-  const line = (slot, l, fallback) => <Bubble slot={slot} who={l.who} kind={l.kind ?? fallback} line={l.text} bold={card.bold} sub={slot === "b" ? card.sub : null} />;
+  const line = (slot, l, fallback) => <Bubble slot={slot} style={card.bubbleStyle} who={l.who} kind={l.kind ?? fallback} line={l.text} bold={card.bold} sub={slot === "b" ? card.sub : null} />;
   return (
     <div className="comic" ref={wrap} data-beat={beat} style={{ "--accent": ink.accent, "--deep": ink.deep, "--paper-dots": ink.paperDots }} aria-live="polite">
       {impact ? (

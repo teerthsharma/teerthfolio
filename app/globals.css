@@ -2216,6 +2216,15 @@ html[data-cutscene] .minimap {
 .bubble[data-kind="whisper"] .bubble-ink {
   stroke-dasharray: 9 7;
 }
+/* the comic dock (card.bubbleStyle = "comic"): the villain's caption box, the hero's clean balloon */
+.bubble[data-style="comic"] { filter: none; font-family: var(--font-comic), var(--font); }
+.bubble[data-style="comic"] .bubble-ink { fill: #fff; stroke: #05020a; stroke-width: 5; }
+.bubble[data-style="comic"] .bubble-tail.bubble-ink { stroke-width: 8; }
+.bubble[data-style="comic"] .bubble-text { color: #05020a; font-weight: 800; }
+.bubble[data-style="comic"][data-kind="box"] { padding: 0.9em 1.6em; width: min(92vw, 21em); filter: drop-shadow(6px 6px 0 #05020a); }
+.bubble[data-style="comic"][data-kind="box"] .bubble-ink { fill: #05020a; stroke: #f0b429; stroke-width: 6; }
+.bubble[data-style="comic"][data-kind="box"] .bubble-tail { display: none; }
+.bubble[data-style="comic"][data-kind="box"] .bubble-text { color: #f0b429; font-family: Impact, "Arial Narrow Bold", "Arial Narrow", sans-serif; font-weight: 400; font-size: 1.35em; letter-spacing: 0.08em; text-transform: uppercase; rotate: none; }
 .bubble-text small {
   display: block;
   margin-top: 0.35em;
