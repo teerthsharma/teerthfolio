@@ -81,6 +81,9 @@ export default function Seal() {
     root.current.rotation.order = "YXZ";
     root.current.rotation.x = s.ride ? -s.ridePitch : 0;
     root.current.rotation.y = s.heading + drive.bodyYaw;
+    // cutscene moves roll and scale the pup; clear it every frame so none can leave it on its side
+    root.current.rotation.z = 0;
+    root.current.scale.setScalar(1);
     if (shadowRef.current) shadowRef.current.visible = !s.ride;
     // THE CUTSCENE (lib/world/cutscene/): the pup turns three-quarters to the
     // lens, toward its speaker, as the scene opens, and back as it closes.
