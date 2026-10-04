@@ -46,7 +46,7 @@ import {
 
 export const N = { near: 26, far: 1560, penguins: 240, gulls: 14, colony: 24, steam: 260, ash: 320, prints: 9 };
 export const IDS = ["pr-mujoco-3396", "pr-mujoco-warp-1541", "pr-mujoco-3450"];
-export const FOUNDING = { x: -330, y: 150, z: -720, s: 300 };
+export const FOUNDING = { x: -210, y: 150, z: -720, s: 300 };
 export const EREN = { x: 7, y: 20, s: 2.6 };
 export const TOWER = { x: 10.5, z: -8.5 };
 

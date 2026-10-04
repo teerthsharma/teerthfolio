@@ -41,7 +41,7 @@ for (let y = 0; y < BLOCK.ny; y++) for (let z = 0; z < BLOCK.nz; z++) for (let x
 export const GAP = { x: 6, h: BLOCK.ny * CUBE }; // half-width, height of the hole the block leaves
 export const BLUE_AT = [0, CUBE / 2, -29.1]; // the one blue cube, on the cobbles at the block's foot
 export const WALL_TITANS = [-52, -42, -32, -22, -12, 12, 22, 32, 42, 52];
-export const GATE_X = -34;
+export const GATE_X = -25;
 
 // every part of a merged mesh: non-indexed, no uv, a normal a facet, a tone (the vertex colour's r)
 function part(g, tone = 1) {
