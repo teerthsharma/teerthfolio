@@ -99,36 +99,36 @@ export function orcaGeometry() {
 export const THORS_H = 2.35;
 export function thorsGeometry() {
   const parts = [];
-  const add = (g) => parts.push(paint(g, "#ffffff", 0, 7));
+  const add = (g, hex = "#4a3020") => parts.push(paint(g, hex, 0.04, 7));
   for (const s of [-1, 1]) {
     add(limb([s * 0.16, 0.05, 0], [s * 0.18, 1.05, 0], 0.15, 0.19)); // legs, in trousers
     add(new IcosahedronGeometry(0.19, 0).scale(1, 0.6, 1.5).translate(s * 0.17, 0.08, 0.1)); // boots
     // the arms hang a little out and forward, the hands open and empty, palms forward
-    add(limb([s * 0.52, 1.82, 0], [s * 0.66, 1.34, 0.1], 0.13, 0.11));
-    add(limb([s * 0.66, 1.34, 0.1], [s * 0.7, 1.0, 0.36], 0.11, 0.09));
-    add(new IcosahedronGeometry(0.1, 0).scale(1.05, 1.15, 0.45).translate(s * 0.7, 0.9, 0.44)); // the palm
-    for (let f = 0; f < 4; f++) add(limb([s * (0.64 + f * 0.043), 0.85, 0.46], [s * (0.62 + f * 0.05), 0.68, 0.5], 0.022, 0.016, 4)); // the fingers
+    add(limb([s * 0.52, 1.82, 0], [s * 0.66, 1.34, 0.1], 0.13, 0.11), "#3a2a1a");
+    add(limb([s * 0.66, 1.34, 0.1], [s * 0.7, 1.0, 0.36], 0.11, 0.09), "#3a2a1a");
+    add(new IcosahedronGeometry(0.1, 0).scale(1.05, 1.15, 0.45).translate(s * 0.7, 0.9, 0.44), "#c9a27a"); // the palm
+    for (let f = 0; f < 4; f++) add(limb([s * (0.64 + f * 0.043), 0.85, 0.46], [s * (0.62 + f * 0.05), 0.68, 0.5], 0.022, 0.016, 4), "#c9a27a"); // the fingers
   }
-  add(limb([0, 0.95, 0], [0, 1.85, 0], 0.4, 0.46).scale(1.25, 1, 0.8)); // the torso: broad, a tunic to the knee
+  add(limb([0, 0.95, 0], [0, 1.85, 0], 0.4, 0.46).scale(1.25, 1, 0.8), "#4a3020"); // the torso: broad, a tunic to the knee
   add(limb([0, 0.75, 0], [0, 1.1, 0], 0.5, 0.42).scale(1.25, 1, 0.82)); // its skirt
-  add(limb([-0.55, 1.9, 0], [0.55, 1.9, 0], 0.17, 0.17)); // shoulders
+  add(limb([-0.55, 1.9, 0], [0.55, 1.9, 0], 0.17, 0.17), "#3a2a1a"); // shoulders
   add(limb([0, 1.88, 0], [0, 2.0, 0.01], 0.13, 0.12)); // neck
   // the fur collar: a ring of ragged tufts round the neck and shoulders
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * Math.PI * 2;
     const g = new ConeGeometry(0.1, 0.34, 5).translate(0, 0.17, 0);
     g.applyQuaternion(Q.setFromUnitVectors(UP, new Vector3(Math.sin(a) * 0.8, 0.7, Math.cos(a) * 0.8).normalize()));
-    add(g.translate(Math.sin(a) * 0.42, 1.88, Math.cos(a) * 0.3));
+    add(g.translate(Math.sin(a) * 0.42, 1.88, Math.cos(a) * 0.3), "#6b4a2b");
   }
   add(new CylinderGeometry(0.4, 0.5, 0.22, 10, 1).scale(1.12, 1, 0.8).translate(0, 1.84, 0)); // the collar's body
   // the head, the hair tied back, the full beard
-  add(new IcosahedronGeometry(0.2, 1).scale(0.92, 1.12, 1.0).translate(0, 2.1, 0.03));
-  add(new IcosahedronGeometry(0.215, 1).scale(0.95, 0.8, 1.0).translate(0, 2.2, -0.04)); // the hair's crown
-  add(limb([0, 2.2, -0.2], [0, 1.95, -0.62], 0.09, 0.05, 5)); // the tail of the tie, swung back
-  add(limb([0, 1.95, -0.62], [0, 1.52, -0.7], 0.06, 0.02, 5));
+  add(new IcosahedronGeometry(0.32, 1).scale(0.92, 1.12, 1.0).translate(0, 2.1, 0.03), "#c9a27a");
+  add(new IcosahedronGeometry(0.215, 1).scale(0.95, 0.8, 1.0).translate(0, 2.2, -0.04), "#3a2a1a"); // the hair's crown
+  add(limb([0, 2.2, -0.2], [0, 1.95, -0.62], 0.09, 0.05, 5), "#3a2a1a"); // the tail of the tie, swung back
+  add(limb([0, 1.95, -0.62], [0, 1.52, -0.7], 0.06, 0.02, 5), "#3a2a1a");
   add(new IcosahedronGeometry(0.095, 0).translate(0, 2.2, -0.24)); // the knot
-  add(new IcosahedronGeometry(0.2, 1).scale(1.0, 1.3, 0.8).translate(0, 1.93, 0.15)); // the beard
-  add(new ConeGeometry(0.17, 0.5, 6).rotateX(Math.PI).translate(0, 1.58, 0.15)); // down to the chest
+  add(new IcosahedronGeometry(0.2, 1).scale(1.0, 1.3, 0.8).translate(0, 1.93, 0.15), "#6b4a2b"); // the beard
+  add(new ConeGeometry(0.17, 0.5, 6).rotateX(Math.PI).translate(0, 1.58, 0.15), "#6b4a2b"); // down to the chest
   const body = merge(parts);
   // the cloak: a sheet from the shoulders to the shin, lifting in the breeze (aSway: 0 at the shoulders, 1 at the hem)
   const cloak = new PlaneGeometry(1.2, 1.6, 6, 8);
@@ -143,7 +143,7 @@ export function thorsGeometry() {
   }
   cloak.setAttribute("aSway", new BufferAttribute(sway, 1));
   cloak.computeVertexNormals();
-  return { body, cloak: paint(cloak, "#ffffff", 0, 9) };
+  return { body, cloak: paint(cloak, "#7a2e1c", 0.03, 9) };
 }
 // the ink: the one hard-edged thing in the dimension; a faint wash of violet where a facet takes the light,
 // the sun on its edges
@@ -158,7 +158,7 @@ export function inkMaterial(cloak = false) {
     vtx: cloak ? "p.x += sin(uTime * 1.5 + p.y * 2.4) * 0.12 * aSway; p.z += (sin(uTime * 1.1 + p.y * 1.7) * 0.5 + 0.5) * 0.28 * aSway; p.y += sin(uTime * 2.0 + p.x * 3.0) * 0.03 * aSway;" : "",
     albedo: /* glsl */ `
       float t = clamp(dot(N, normalize(vec3(0.3, 0.6, -0.7))) * 0.5 + 0.5, 0.0, 1.0);
-      return mix(vec3(0.075, 0.08, 0.14), vec3(0.2, 0.19, 0.31), smoothstep(0.55, 0.95, t));`,
+      return vc * (0.7 + 0.5 * smoothstep(0.3, 0.95, t));`,
   });
 }
 

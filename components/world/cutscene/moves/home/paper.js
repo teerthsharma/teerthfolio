@@ -50,9 +50,9 @@ export const NOISE = /* glsl */ `
 export const SKY = /* glsl */ `
   vec3 skyCol(vec3 d, float t) {
     float h = clamp(d.y, -0.3, 1.0);
-    vec3 hor = vec3(0.985, 0.80, 0.64);
-    vec3 mid = vec3(0.90, 0.68, 0.74);
-    vec3 top = vec3(0.60, 0.57, 0.82);
+    vec3 hor = vec3(1.0, 0.77, 0.42);
+    vec3 mid = vec3(0.70, 0.66, 0.70);
+    vec3 top = vec3(0.23, 0.44, 0.85);
     vec3 c = mix(hor, mid, smoothstep(0.0, 0.2, h));
     c = mix(c, top, smoothstep(0.16, 0.8, h));
     float az = atan(d.x, -d.z);
