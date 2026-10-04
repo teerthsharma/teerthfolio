@@ -5,7 +5,7 @@
 import { useFrame } from "@react-three/fiber";
 import { stepSeal, nearestPlace } from "../../lib/world/motion";
 import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
-import { ARRIVAL } from "../../lib/world/moments";
+import { ARRIVAL, popPhase } from "../../lib/world/moments";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
 import { WHIRLPOOL } from "../../lib/world/river";
 import { getUi, live, setUi } from "../../lib/world/store";
@@ -74,7 +74,11 @@ export default function Controller() {
     const arrival = live.arrival;
     if (arrival.id && (t - arrival.start >= ARRIVAL.duration || ui.open || freshInput(arrival))) {
       arrival.id = null;
-      setUi({ cutscene: null });
+      setUi({ cutscene: null, pop: 0 });
+    }
+    if (arrival.id) {
+      const pop = popPhase(t - arrival.start);
+      if (pop !== ui.pop) setUi({ pop });
     }
     const holding = arrival.id && t - arrival.start < ARRIVAL.hold;
     const input = ui.open || ui.list || holding ? null : keyInput(live.keys) || live.stick;

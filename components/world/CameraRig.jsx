@@ -13,6 +13,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
+import { applyFlatten, popAmounts } from "./look/popFlatten";
 import { MOTION } from "../../lib/world/motion";
 import { PLACE_BY_ID } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
@@ -56,6 +57,7 @@ const RAD_CREEP = 0.06; // share the view creeps in while radiation floods it
 const RAD_KICK = 0.05; // share it kicks back out at the mutation
 const RAD_TRAUMA = 0.45; // the mutation's shake
 const UP = new Vector3(0, 1, 0);
+const NO_POP = { push: 0, flat: 0 };
 
 // The overview before Start: high over the island centre, swaying slowly.
 const OVERVIEW_CENTRE = new Vector3(0, 0, -10);
@@ -351,6 +353,10 @@ export default function CameraRig() {
         camera.updateProjectionMatrix();
       }
     }
+
+    // POP_2D (moments.js): the arrival pushes in and flattens the view. Reduced
+    // motion never flattens; the Controller ends the pop with the arrival.
+    applyFlatten(camera, lookAt.current, !reduced.current && arrival.id ? popAmounts(t - arrival.start) : NO_POP, sceneFog);
   });
 
   return null;
