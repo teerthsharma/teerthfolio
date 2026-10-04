@@ -213,7 +213,8 @@ export function doorNumber() {
   const geo = new PlaneGeometry(0.86, 0.43);
   const meshes = [-1, 1].map((sz) => {
     const mesh = new Mesh(geo, m);
-    mesh.position.set(-0.78, 0.6, sz * 0.812);
+    mesh.position.set(-0.42, 0.64, sz * 0.812);
+    mesh.scale.setScalar(0.72);
     mesh.rotation.y = sz > 0 ? 0 : Math.PI;
     return mesh;
   });
