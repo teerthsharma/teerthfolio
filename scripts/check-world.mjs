@@ -9,7 +9,7 @@ import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { CARDS, cardFor } from "../lib/world/cutscene/cards/index.js";
 import { BUILDS, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
 import { DISPLAY, TIERS, classify, dprFor, displayTier, gpuName } from "../lib/world/quality.js";
-import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH } from "../lib/world/loop.js";
+import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH, mustFinish } from "../lib/world/loop.js";
 import { AWAKE, LINE, auraAt, awakeBeat, awakeCredit, liftAt, skyAt } from "../lib/world/awakening.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
@@ -1426,6 +1426,25 @@ assert.equal(gpuName("ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00003EA0) Direc
   for (const [x, z] of [...GEYSER.landings, WHIRLPOOL.throwTo]) assert.ok(!inRock(x, z), `a throw lands inside MujoRush at ${x}, ${z}`);
   // and so do the docks
   for (const p of PLACES) assert.ok(!inRock(dockPoint(p).x, dockPoint(p).z), `${p.id}'s dock is inside MujoRush`);
+}
+
+// A pup mid-ride or mid-throw must not be pinned by an arrival (Controller
+// skips stepSeal while holding, freezing a ride upside down): it is
+// "mustFinish" until upright, and a finished ride leaves no pitch.
+{
+  const world = { colliders: [], radius: 1000 };
+  const s = createSeal(ENTRY.x0 + 0.5, ENTRY.z);
+  s.water = 1; s.vx = 8;
+  let mid = false;
+  for (let i = 0; i < 120 * 20 && (!s.ride || s.rideS < RIDE_LENGTH * 0.5 || !mid); i++) {
+    stepSeal(s, { input: { x: 1, z: 0 } }, 1 / 120, world);
+    if (s.ride && s.rideS > RIDE_LENGTH * 0.45) mid = true;
+    if (mid) break;
+  }
+  assert.ok(s.ride && mustFinish(s), "a seal mid-loop is not held back from an arrival");
+  assert.ok(mustFinish({ ride: 0, air: 0.5 }), "a seal mid-throw is not held back from an arrival");
+  for (let i = 0; i < 120 * 20 && s.ride; i++) stepSeal(s, {}, 1 / 120, world);
+  assert.ok(!s.ride && s.ridePitch === 0 && !mustFinish(s), "a finished ride left the body pitched");
 }
 
 console.log(`world check passed: quality ladder, cutscene cards and moves, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, toys (TNT, stack, pins, cones), throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks`);

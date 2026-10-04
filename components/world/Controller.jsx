@@ -7,7 +7,7 @@ import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
 import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
 import { arrivalHold, arrivalLength, beatAt, cutFor, cutsceneMode } from "../../lib/world/cutscene/timeline";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
-import { AWAKENING } from "../../lib/world/loop";
+import { AWAKENING, mustFinish } from "../../lib/world/loop";
 import { awakeBeat, awakeMode } from "../../lib/world/awakening";
 import { WHIRLPOOL } from "../../lib/world/river";
 import { getUi, live, setUi } from "../../lib/world/store";
@@ -175,7 +175,7 @@ export default function Controller() {
     }
 
     // THE LOOP's win: held back while an arrival plays or a panel is open, then raised.
-    if (seal.wins !== seenWins && ui.started && !ui.open && !ui.list && !arrival.id) {
+    if (seal.wins !== seenWins && ui.started && !ui.open && !ui.list && !arrival.id && !mustFinish(seal)) {
       seenWins = seal.wins;
       if (loopWinAllowed()) {
         try {
@@ -208,7 +208,7 @@ export default function Controller() {
     if (approach && ui.started && !live.seen.has(approach) && t <= 1.5) {
       live.seen.add(approach);
       saveSeen();
-    } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id) {
+    } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id && !mustFinish(seal)) {
       live.seen.add(approach);
       saveSeen();
       arrival.id = approach;
