@@ -25,14 +25,20 @@ import { jacket } from "./p-faraday/figures";
 import { flipperTip, pupBlue } from "./p-faraday/pup";
 import { DECK_Y, TRACK_X, TRACK_Y, TRACK_Z } from "./p-faraday/scenery";
 import { mountOverlay } from "./p-faraday/ui";
-import { NBULB, NCOLONY, PHI } from "./p-faraday/world";
+import { NBULB, NCOLONY, PHI, TOUMA } from "./p-faraday/world";
 
 prewarm();
 
 const CORE_Y = 0.9;
 // the clock (s from the arrival); the card's beats put the credit at 17.45 and the collapse at 20.65
 const T = { jacket: [0.55, 1.1], coin: 6.6, toss: [11.15, 11.9], flick: 11.95, burn: [12.85, 14.55, 16.65] };
-const TURN_TO = 1.4; // the pup's yaw once it faces the bridge (the kit starts it at 0.6)
+const TURN_TO = 1.5; // the pup's yaw once it faces Touma down the bridge (the kit starts it at 0.6)
+const COME = [1.5, 5.4, 8.2, 4.0]; // Touma charges in: leaves at COME[0], arrives at COME[1], from x COME[2] to COME[3]
+const BACK = [14.2, 15.5]; // the burn has the sheet: the lens and the pup move to the island side so the pup stays whole
+const P = new Vector3();
+const U2 = new Vector3();
+const AIMV = new Vector3();
+const LK = new Vector3();
 
 const V = new Vector3();
 const COIN = new Vector3(0.4, 0.9, 0.3);
@@ -109,8 +115,32 @@ export default function Move(cut) {
     if (!p?.root || !full) return;
     const t = state.clock.elapsedTime - live.arrival.start;
     p.root.position.add(shake.current);
-    p.root.rotation.y += (TURN_TO - 0.6) * smooth(2.2, 3.4, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
+    const s = live.seal;
+    const toIsland = Math.atan2(-s.x, -s.z); // facing the island = facing the lens once it stands on the island side
+    const yaw = TURN_TO + (toIsland - TURN_TO) * smooth(BACK[0], BACK[1], t);
+    p.root.rotation.y += (yaw - 0.6) * smooth(1.0, 2.2, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
   }, -0.5);
+
+  // AFTER THE BURN the bridge's low lens would stare over the moat wall at the island's rim, with the pup a sliver:
+  // stand the lens on the island side, level with the pup, so it is whole, upright and centred against the sea
+  useFrame((state) => {
+    const a = live.arrival;
+    const p = pup.current;
+    if (!a.id || !full || !p?.root) return;
+    const t = state.clock.elapsedTime - a.start;
+    const k = smooth(BACK[0], BACK[1], t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
+    if (k <= 0.001) return;
+    const cam = state.camera;
+    p.root.getWorldPosition(P);
+    U2.set(-P.x, 0, -P.z).normalize();
+    AIMV.copy(P).addScaledVector(U2, 6.2).setY(P.y + 1.7);
+    LK.copy(P).setY(P.y + 0.75);
+    const d = cam.position.distanceTo(P);
+    cam.getWorldDirection(V).multiplyScalar(d).add(cam.position);
+    V.lerp(LK, k);
+    cam.position.lerp(AIMV, k);
+    cam.lookAt(V);
+  });
 
   // the coin follows the flipper's tip, in the bridge frame (after the pup is posed)
   useFrame(() => {
@@ -192,7 +222,15 @@ export default function Move(cut) {
     w.carLineMat.uniforms.uOff.value.copy(w.car.position);
 
     // Touma doubts (a small sway on twos); the shot's wind ruffles hair and tails in the shaders
-    w.touma.group.rotation.z = 0.012 * Math.sin(tt * 2.1);
+    const run = smooth(COME[0], COME[1], tt);
+    const hitK = smooth(SHOT, SHOT + 0.25, ts) * (1 - smooth(SHOT + 1.1, SHOT + 2.2, ts));
+    const tg = w.touma.group;
+    TOUMA.x = COME[2] + (COME[3] - COME[2]) * run + 0.8 * hitK;
+    TOUMA.y = (run < 1 && run > 0 ? 0.13 * Math.abs(Math.sin(tt * 9)) : 0) + 0.35 * hitK * (1 - hitK);
+    tg.position.set(TOUMA.x, TOUMA.y, TOUMA.z);
+    tg.rotation.y = Math.atan2(-TOUMA.x, -TOUMA.z);
+    tg.rotation.x = 0.2 * Math.sin(Math.PI * run) * (run < 1 ? 1 : 0) - 0.55 * hitK;
+    tg.rotation.z = 0.012 * Math.sin(tt * 2.1);
     w.kuroko.group.rotation.z = 0.01 * Math.sin(tt * 2.7 + 1);
 
     // THE COLONY on the walkway: flinch at the shot, cheer on twos as the wake fades
@@ -234,6 +272,8 @@ export default function Move(cut) {
     live.pose.fist = smooth(6.4, 6.8, tt) * (1 - smooth(T.toss[0] - 0.1, T.toss[0] + 0.1, tt)) * out;
     live.pose.raise = smooth(T.toss[0], T.toss[0] + 0.2, tt) * (1 - smooth(T.flick - 0.15, T.flick - 0.05, tt)) * out;
     live.pose.point = smooth(T.flick - 0.1, T.flick, tt) * (1 - smooth(13.15, 13.55, tt)) * out;
+    live.pose.fist = Math.max(live.pose.fist, smooth(17.4, 17.8, tt) * (1 - smooth(tl.credit + 3.2, tl.credit + 3.6, tt)) * out); // the flex
+    live.pose.sit = smooth(0.4, 1.0, tt) * 1.4 * out; // sits up on its tail: upright, never lying flat
     live.pose.crouch = smooth(SHOT, SHOT + 0.1, ts) * (1 - smooth(SHOT + 0.5, SHOT + 0.9, ts)) * 0.7;
 
     // THE RETURN: the sheet burns away round the pup and the real island is under it, shown as the front

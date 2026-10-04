@@ -13,7 +13,6 @@ import { createRoot } from "react-dom/client";
 import { Vector3 } from "three";
 import { live } from "../../../../../lib/world/store";
 import { Bubble, place } from "../../../ui/Bubbles";
-import { DECK_Y } from "./scenery";
 import { KUROKO, PHI, TOUMA } from "./world";
 
 export const LINES = [
@@ -24,13 +23,13 @@ export const LINES = [
 ];
 export const BOLD = ["assuming", "Found.", "Onee-sama", "Seal-sama!!", "The field coupling, found rather than assumed."];
 export const DOCK_AT = 1.6;
+const RETURN_AT = [15.6, 23.6]; // the burn has taken the sheet: say why we are home
 
 const V = new Vector3();
 const cos = Math.cos(PHI);
 const sin = Math.sin(PHI);
 // bridge-local to world offset from the pup (the rig's frame): the mouths the tails aim at
 const MOUTH = {
-  touma: [TOUMA.x * cos + TOUMA.z * sin, DECK_Y + 2.2, -TOUMA.x * sin + TOUMA.z * cos],
   kuroko: [KUROKO.x * cos + KUROKO.z * sin, KUROKO.y + 0.93, -KUROKO.x * sin + KUROKO.z * cos],
   seal: [0, 1.0, 0],
 };
@@ -64,6 +63,9 @@ const css = /* css */ `
   @keyframes fb-slam { 0% { transform: scale(1.05); } 34% { transform: scale(1.05); } 67% { transform: scale(0.99); } 100% { transform: scale(1); } }
   @keyframes fb-spark { 0% { scale: 0.35; opacity: 1; } 34% { scale: 1.15; opacity: 1; } 67% { scale: 1.3; opacity: 0.7; } 100% { scale: 1.4; opacity: 0; } }
   .fb-lines { position: fixed; z-index: 23; }
+  .fb-return { position: absolute; left: 0; right: 0; top: 13vh; margin-inline: auto; width: fit-content; max-width: calc(100vw - 32px); padding: 8px 18px; border-radius: 999px;
+    background: #fff8e8; color: #07182e; border: 2px solid #ffa927; font-weight: 700; font-size: clamp(13px, 2vh, 18px); text-align: center; animation: fb-pop 380ms ease-out both; }
+  @keyframes fb-pop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 `;
 
 function Overlay({ still }) {
@@ -96,7 +98,7 @@ function Overlay({ still }) {
     if (!cam || !el || el.offsetWidth < 2 || el.offsetHeight < 2) return;
     const s = live.seal;
     const who = el.dataset.who;
-    const m = MOUTH[who] ?? MOUTH.seal;
+    const m = who === "touma" ? [TOUMA.x * cos + TOUMA.z * sin, TOUMA.y + 2.3, -TOUMA.x * sin + TOUMA.z * cos] : MOUTH[who] ?? MOUTH.seal;
     V.set(s.x + m[0], m[1], s.z + m[2]).project(cam);
     place(el, (V.x * 0.5 + 0.5) * innerWidth, (0.5 - V.y * 0.5) * innerHeight, el.dataset.slot, false);
   };
@@ -117,6 +119,7 @@ function Overlay({ still }) {
           <p className="fb-lab">faraday · lab</p>
           <p className="fb-tag">The field coupling, found rather than assumed.</p>
         </div>
+        {!still && t >= RETURN_AT[0] && t < RETURN_AT[1] ? <p className="fb-return">The railgun burned the blueprint away. That is the island under it. Home.</p> : null}
         <div className="fb-bar" data-on={dock && t >= 0}>
           <strong>Railgun</strong>
           <span>faraday · lab</span>
