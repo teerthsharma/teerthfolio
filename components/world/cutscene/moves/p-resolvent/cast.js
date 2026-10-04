@@ -4,7 +4,7 @@
 // upper body, so they can kneel), Fern with her staff and Stark with his axe on the
 // broken walls. Local frames face +z, feet at the origin, metres.
 
-import { BoxGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, LatheGeometry, PlaneGeometry, SphereGeometry, TorusGeometry, Vector2, Vector3 } from "three";
+import { BoxGeometry, CapsuleGeometry, CircleGeometry, ConeGeometry, Group, Mesh, MeshBasicMaterial, CylinderGeometry, DoubleSide, IcosahedronGeometry, LatheGeometry, PlaneGeometry, SphereGeometry, TorusGeometry, Vector2, Vector3 } from "three";
 import { join, limb, part, put } from "./toon";
 
 const lathe = (pts, seg = 14) => new LatheGeometry(pts.map(([r, y]) => new Vector2(r, y)), seg);
@@ -174,3 +174,33 @@ export function scalePieces() {
   return { stem, left: half(-1), right: half(1), pan: pan(), mote };
 }
 
+
+// ------------------------------------------------------------------ Frieren's kit on the pup
+// Two white twin tails and red drop earrings on the head, a staff with a red gem and a gold crescent cap at the
+// right flipper. `head` and `root` are pupParts(scene); the kit is two groups the caller adds and removes.
+export function frierenKit() {
+  const mk = (hex) => new MeshBasicMaterial({ color: hex, toneMapped: false, fog: false });
+  const hair = mk("#f4f1ea");
+  const red = mk("#c8202c");
+  const head = new Group();
+  for (const sd of [-1, 1]) {
+    const tail = new Mesh(new CapsuleGeometry(0.08, 0.7), hair);
+    tail.position.set(0.42 * sd, 0.15 - 0.35, -0.1);
+    tail.rotation.z = -0.25 * sd;
+    const ear = new Mesh(new SphereGeometry(0.05), red);
+    ear.position.set(0.44 * sd, -0.02, 0.1);
+    head.add(tail, ear);
+  }
+  const staff = new Group();
+  const rod = new Mesh(new CylinderGeometry(0.03, 0.03, 1.6), mk("#f2efe6"));
+  const gem = new Mesh(new SphereGeometry(0.07), mk("#d42a3a"));
+  gem.position.y = 0.86;
+  const cap = new Mesh(new TorusGeometry(0.1, 0.02, 6, 14, Math.PI * 1.5), mk("#e6b84a"));
+  cap.position.y = 0.9;
+  staff.add(rod, gem, cap);
+  staff.position.set(0.6, 0.8, 0.25);
+  const dispose = () => {
+    for (const g of [head, staff]) g.traverse((o) => o.isMesh && (o.geometry.dispose(), o.material.dispose()));
+  };
+  return { head, staff, dispose };
+}

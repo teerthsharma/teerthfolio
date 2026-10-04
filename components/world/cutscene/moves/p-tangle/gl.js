@@ -51,11 +51,11 @@ export const SKY = /* glsl */ `
   }
   vec3 skyBase(vec3 v, float warm) {
     float h = max(v.y, 0.0);
-    vec3 horiz = mix(${g3("#ff8f7a")}, ${g3("#ffd890")}, pow(warm, 1.6));
+    vec3 horiz = mix(${g3("#ff7a59")}, ${g3("#ffd890")}, pow(warm, 1.6));
     vec3 low = mix(${g3("#c8449e")}, ${g3("#ff7f6a")}, warm * 0.85);
     vec3 mid = mix(${g3("#6a46c8")}, ${g3("#a458c0")}, warm * 0.6);
     vec3 high = ${g3("#2a3fb4")};
-    vec3 zen = ${g3("#0b1566")};
+    vec3 zen = ${g3("#3b1f8f")};
     vec3 day = ramp5(h, horiz, low, mid, high, zen);
     vec3 nHoriz = mix(${g3("#2a3a8a")}, ${g3("#4a4a9a")}, warm * 0.5);
     vec3 night = ramp5(h, nHoriz, ${g3("#1e2c78")}, ${g3("#141e5c")}, ${g3("#0c1448")}, ${g3("#050930")});

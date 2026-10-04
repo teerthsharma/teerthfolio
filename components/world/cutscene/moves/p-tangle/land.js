@@ -448,8 +448,8 @@ function reedMaterial(U) {
     void main() {
       vec3 V = normalize(vW - cameraPosition);
       float dist = length(vW - cameraPosition);
-      vec3 base = mix(${g3("#2f5a22")}, ${g3("#a9b64a")}, vUv.y * (0.5 + 0.5 * vC.y));
-      base = mix(base, ${g3("#e8c070")}, vUv.y * vUv.y * vC.z * 0.5);
+      vec3 base = mix(${g3("#7a3f8f")}, ${g3("#e2b23a")}, vUv.y * (0.5 + 0.5 * vC.y));
+      base = mix(base, ${g3("#e2b23a")}, vUv.y * vUv.y * vC.z * 0.5);
       vec3 col = lightLand(base, normalize(vN), V, dist, 1.0);
       col += ${g3("#ffc88a")} * vUv.y * vUv.y * 0.35 * (1.0 - uTw) * smoothstep(-0.2, 0.9, dot(V, uSun));
       float e = dissolveEdge(clamp(dist / 230.0, 0.0, 1.0) * 0.9);

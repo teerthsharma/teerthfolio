@@ -40,9 +40,9 @@ export function skyMaterial() {
         float edge = fbm(v.xy * 7.0 + v.z * 3.0) * 0.6 + rad * 0.55 - uDis * 1.5 + 0.05;
         if (uDis > 0.0 && edge < 0.0) discard;
         // the soft teal sky down to a golden horizon
-        vec3 zen = vec3(0.27, 0.58, 0.66);
+        vec3 zen = vec3(0.247, 0.714, 0.788);
         vec3 mid = vec3(0.55, 0.79, 0.76);
-        vec3 hor = vec3(1.0, 0.82, 0.55);
+        vec3 hor = vec3(1.0, 0.812, 0.478);
         vec3 c = mix(hor, mix(mid, zen, smoothstep(0.12, 0.85, h)), smoothstep(-0.02, 0.32, h));
         float sd = max(dot(v, uSun), 0.0);
         c += vec3(1.0, 0.72, 0.34) * (pow(sd, 5.0) * 0.5 + pow(sd, 36.0) * 0.7);
@@ -129,7 +129,7 @@ export function ground() {
         // autumn grass, gold patches and rust litter
         vec3 grass = mix(vec3(0.6, 0.5, 0.18), vec3(0.74, 0.45, 0.17), smoothstep(0.4, 0.6, fbm(p * 0.12)));
         grass = mix(grass, vec3(0.86, 0.64, 0.22), smoothstep(0.62, 0.66, fbm(p * 0.4 + 9.0)) * 0.7);
-        grass = mix(grass, vec3(0.52, 0.27, 0.14), smoothstep(0.6, 0.64, fbm(p * 0.3 + 20.0)));
+        grass = mix(grass, vec3(0.76, 0.478, 0.208), smoothstep(0.6, 0.64, fbm(p * 0.3 + 20.0)));
         vec3 base = mix(grass, stone, court);
         // dappled pools of golden light in cel bands
         float pool = smoothstep(0.42, 0.47, fbm(p * 0.085 + 7.0));
