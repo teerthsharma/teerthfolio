@@ -102,7 +102,7 @@ function build() {
   ch.position.set(0, FACE_Y - 0.78 * 19 + 0.6, zF(0) - 2.6);
   ch.scale.set(17, 19, 8);
   k.titanMat = titanMat;
-  const eyes = add("eyes", inst(unitCube(), new MeshBasicMaterial({ color: new Color("#ff7a2a"), toneMapped: false, fog: false }), FACES.length * 2));
+  const eyes = add("eyes", inst(unitCube(), new MeshBasicMaterial({ color: new Color(3, 1.3, 0.3), toneMapped: false, fog: false }), FACES.length * 2));
   for (let i = 0; i < FACES.length * 2; i++) put(eyes, i, 0, -60, 0, 0.001);
 
   // THE BLOCK: 1,282 coral fish-cubes, one instanced mesh; and the one blue cube
@@ -143,9 +143,9 @@ function build() {
     const z = -41 - i * 3.3; // across the strip of plain, out to the sea
     put(prints, i, (i % 2 ? 2.2 : -2.2) + 3 * Math.sin(i * 0.4), 0.05, z, 1.9, 1, 1.9, 0, (hash(i, 3) - 0.5) * 0.4, 0);
   }
-  const marchMat = (lo) => charcoal({ tone: 0.36, wash: 0.2, vertexColors: true, rib: 1, skin: lo ? 0 : 0.7, march: true, haze: 0.55, rim: 0.9, edge: lo ? 0.4 : 1 });
-  const near = add("marchNear", inst(sealTitan(false), marchMat(false), N.near));
-  const far = add("marchFar", inst(sealTitan(true), marchMat(true), N.far));
+  const marchMat = (lo) => charcoal({ tone: 0.36, wash: 0.2, vertexColors: true, rib: 0, skin: 0, march: true, haze: 0.55, rim: 0.9, edge: lo ? 0.4 : 1 });
+  const near = add("marchNear", inst(penguinGeometry().scale(1.25, 1.25, 1.25), marchMat(false), N.near));
+  const far = add("marchFar", inst(penguinGeometry().scale(1.25, 1.25, 1.25), marchMat(true), N.far));
   k.marchMats = [near.material, far.material];
   const layout = (m, n, d0, d1, rows) => {
     const phase = new Float32Array(n * 2);

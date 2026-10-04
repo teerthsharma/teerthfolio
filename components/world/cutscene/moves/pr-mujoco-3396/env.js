@@ -40,9 +40,13 @@ export function sky() {
         tone = mix(tone, 0.55 + 0.35 * billow, cols * 0.85);
         // the low sun: a blaze through the haze and the steam
         tone += pow(s, 6.0) * 0.45 + pow(s, 60.0) * 0.6;
-        float wash = 0.62 * (1.0 - smoothstep(-0.02, 0.4, h)) + 0.55 * pow(s, 3.0) + 0.12;
-        vec3 c = drawn(tone, wash * (1.0 - 0.4 * cols), vec3(1.0), 0.0);
-        c = mix(c, vec3(1.0, 0.93, 0.8), smoothstep(0.9975, 0.999, s)); // the disc itself
+        // the AoT sunset: crimson overhead, amber to gold at the horizon, white steam, a light graphite over it
+        vec3 sk = mix(vec3(1.0, 0.62, 0.14), vec3(0.62, 0.06, 0.1), smoothstep(0.0, 0.5, h));
+        sk = mix(sk, vec3(0.22, 0.03, 0.08), smoothstep(0.45, 0.95, h));
+        sk += vec3(1.0, 0.55, 0.15) * (pow(s, 4.0) * 0.6 + pow(s, 40.0) * 0.8);
+        sk = mix(sk, vec3(1.0, 0.97, 0.92) * (0.8 + 0.2 * billow), cols * 0.9);
+        vec3 c = mix(sk, sk * 0.35, graphite(clamp(tone + 0.3, 0.0, 1.0)) * 0.35);
+        c = mix(c, vec3(1.0, 0.95, 0.75), smoothstep(0.9975, 0.999, s)); // the disc itself
         gl_FragColor = outColor(c, 1.0);
       }`,
   });
