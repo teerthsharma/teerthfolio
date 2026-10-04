@@ -50,7 +50,7 @@ const T = {
   pin: [13.1, 13.45],
   clack: [13.45, 13.75],
   cheer: 13.6,
-  hop: [5.7, 6.2, 6.7, 8.95], // Flying Thunder God: to kunai 1, 2, 3, then home
+  hop: [5.5, 6.4, 7.3, 8.95], // Flying Thunder God: to kunai 1, 2, 3, then home
   K: [13.4, 18.6], // REAL seconds (Kushina's line, 5.2 s, right after the pin clacks home)
   plaque: 15.6,
   fold: 16.9,
@@ -353,11 +353,13 @@ export default function Move(cut) {
       if (rig.current) rig.current.visible = false;
       S.current.toon?.set(false);
       if (S.current.haori) S.current.haori.g.visible = false;
+      if (p?.root) p.root.rotation.z = 0;
       return;
     }
     if (p?.root && mode === "full") {
       p.root.position.add(shake.current).add(S.current.off);
       p.root.visible = !S.current.gone;
+      p.root.rotation.z = 0.3 * (S.current.catchK ?? 0); // the Minato catch pose; Seal never sets roll
     }
   }, -0.5);
 
@@ -416,6 +418,7 @@ export default function Move(cut) {
     const lower = 1 - smooth(tl.collapse[0], tl.collapse[1], tr);
     live.pose.sign = signAt(tl, tr) * (1 - smooth(1.8, 2.3, t));
     live.pose.raise = Math.max(bump(T.throw[0], T.throw[1], T.throw[1] + 0.5, T.throw[1] + 0.8, t), smooth(T.grow[0] - 0.2, T.grow[0] + 0.3, t)) * (1 - smooth(T.burst - 0.05, T.burst + 0.1, t)) * lower;
+    live.pose.raise = Math.max(live.pose.raise, s.catchK ?? 0) * lower;
     live.pose.crouch = bump(T.slam[0], T.slam[1], T.slam[2], T.slam[3], t) * 0.8 * lower;
     live.pose.fist = smooth(T.clack[1] + 0.8, T.clack[1] + 1.2, t) * (1 - smooth(15.6, 16.0, t)) * lower;
     const on = (inside || tr > tl.bloom[1]) && t < T.reveal + 0.2;
@@ -455,6 +458,8 @@ export default function Move(cut) {
       for (let i = 0; i < 4; i++) if (t >= HT[i]) at = i + 1;
       const cur = P[at];
       const dz = 0.14;
+      s.catchK = 0;
+      for (const h of HT) s.catchK = Math.max(s.catchK, smooth(h, h + 0.1, t) * (1 - smooth(h + 0.4, h + 0.5, t)));
       s.gone = at > 0 && HT.some((h) => t >= h && t < h + dz);
       const sa = Math.sin(turn);
       const ca = Math.cos(turn);
@@ -472,7 +477,7 @@ export default function Move(cut) {
         const arc = 1 - (1 - thr) * (1 - thr);
         g.position.set(KUNAI[k][0] * arc, 0.9 + 1.6 * Math.sin(Math.PI * thr) * (1 - thr * 0.3) - 0.5 * thr, KUNAI[k][2] * arc + 0.3 * (1 - arc));
         g.rotation.z = thr < 1 ? -t * 18 : -1.15;
-        g.scale.setScalar(1.7);
+        g.scale.setScalar(2.4);
       }
       for (let i = 0; i < 4; i++) {
         const dt = t - HT[i];
@@ -495,7 +500,7 @@ export default function Move(cut) {
           fl.visible = co.visible = true;
           fl.position.set(pt[0], 1.0, pt[2] + 0.4);
           co.position.copy(fl.position);
-          fl.scale.setScalar(0.4 + 2.6 * Math.sin(Math.PI * Math.min(1, dt / 0.45 + 0.1)));
+          fl.scale.setScalar(0.3 + 1.6 * Math.sin(Math.PI * Math.min(1, dt / 0.45 + 0.1)));
           co.scale.setScalar(0.3 + 1.6 * k);
           fl.rotation.z = co.rotation.z = dt * 6 + i;
         }

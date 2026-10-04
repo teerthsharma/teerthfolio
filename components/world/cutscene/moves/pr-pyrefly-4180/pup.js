@@ -3,7 +3,7 @@
 // cut-edge outline (an inverted hull) so it reads as a die-cut hero. It wears the Fourth's white haori: cut card,
 // with a hem of pinned flame-tongue flaps that flap behind it. Round head, NO ears.
 
-import { BackSide, Box3, Color, Group, Mesh, ShaderMaterial, Vector3 } from "three";
+import { BackSide, BufferAttribute, Box3, CanvasTexture, Color, CylinderGeometry, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, ShaderMaterial, Vector3 } from "three";
 import { card, merge } from "./paper";
 
 const TOON_V = /* glsl */ `
@@ -105,15 +105,43 @@ export function haori(parts, mat) {
   const z1 = c.z - s.z * 0.46; // the hem's pin line, toward the tail
   const wx = (s.x / 2) * 1.08;
   const g = new Group();
-  const WHITE = "#f4efe3";
+  const WHITE = "#fbf8f0";
   const RED = "#e0452a";
-  // over the back, lying flat in xz (card y -> world -z)
-  const back = card([[-wx, -z0], [wx, -z0], [wx * 0.95, -z1], [-wx * 0.95, -z1]], { color: WHITE, depth: 0.03 }).rotateX(-Math.PI / 2).translate(0, top, 0);
-  // down both flanks
-  const drop = s.y * 0.62;
-  const side = (sx) => card([[z0, 0], [z1, 0], [z1 + 0.05, -drop], [z0 - 0.08, -drop * 0.9]].map(([a, b]) => [-a, b]), { color: WHITE, depth: 0.03 }).rotateY(Math.PI / 2).translate(sx * (wx * 0.98), top - 0.02, 0);
+  // three curved card strips that follow the body's round (radius 0.55) from the shoulders to the tail: a top one and a
+  // flank either side, each a slice of an open cylinder along z with the card attributes the paper material needs
+  const R = 0.55;
+  const strip = (th0, th1) => {
+    const len = z0 - z1;
+    const q = new CylinderGeometry(R, R, len, 8, 1, true, th0, th1 - th0).toNonIndexed();
+    q.deleteAttribute("uv");
+    q.rotateX(Math.PI / 2).translate(0, c.y, (z0 + z1) / 2);
+    const n = q.attributes.position.count;
+    const w = new Color(WHITE);
+    q.setAttribute("color", new BufferAttribute(Float32Array.from({ length: n * 3 }, (_, i) => [w.r, w.g, w.b][i % 3]), 3));
+    q.setAttribute("aw", new BufferAttribute(new Float32Array(n), 1));
+    return q;
+  };
+  const back = strip(Math.PI - 0.4, Math.PI + 0.4);
+  const sides = [strip(Math.PI + 0.42, Math.PI + 1.1), strip(Math.PI - 1.1, Math.PI - 0.42)];
   const collar = card([[-wx * 0.6, -z0], [wx * 0.6, -z0], [wx * 0.4, -z0 + 0.14], [-wx * 0.4, -z0 + 0.14]], { color: RED, depth: 0.035, z: 0.0 }).rotateX(-Math.PI / 2).translate(0, top + 0.02, 0);
-  g.add(new Mesh(merge([back, side(-1), side(1), collar]), mat));
+  g.add(new Mesh(merge([back, ...sides, collar]), mat));
+  // the kanji panel on the back: the Fourth Hokage, a lettered plane lying along the top
+  const cv = document.createElement("canvas");
+  cv.width = 128;
+  cv.height = 384;
+  const cx = cv.getContext("2d");
+  cx.fillStyle = "#c41e1e";
+  cx.font = "700 72px sans-serif";
+  cx.textAlign = "center";
+  cx.textBaseline = "middle";
+  [..."四代目火影"].forEach((ch, i) => cx.fillText(ch, 64, 40 + i * 66));
+  const tex = new CanvasTexture(cv);
+  tex.colorSpace = SRGBColorSpace;
+  const kanjiMat = new MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false });
+  const kanji = new Mesh(new PlaneGeometry(0.3, 0.9), kanjiMat);
+  kanji.rotation.x = -Math.PI / 2;
+  kanji.position.set(0, top + 0.03, (z0 + z1) / 2 - 0.05);
+  g.add(kanji);
   // the flame-tongue hem: seven pinned flaps along the rear edge, red tongues over a white lining, each its own pivot
   const flaps = [];
   const flap = merge([
@@ -134,6 +162,8 @@ export function haori(parts, mat) {
     g.removeFromParent();
     g.traverse((o) => o.isMesh && o.geometry !== flap && o.geometry.dispose());
     flap.dispose();
+    kanjiMat.map.dispose();
+    kanjiMat.dispose();
   };
   return { g, flaps, dispose };
 }
