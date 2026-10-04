@@ -21,9 +21,10 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CustomBlending, ShaderMaterial, SrcColorFactor, ZeroFactor } from "three";
 import { heroMoveFor, heroPose } from "../../lib/world/heroMoves";
-import { ARRIVAL } from "../../lib/world/moments";
+import { ARRIVAL, POP_2D } from "../../lib/world/moments";
 import { PLACE_BY_ID } from "../../lib/world/places";
-import { live, useUi } from "../../lib/world/store";
+import { popHides } from "./look/popFlatten";
+import { getUi, live, useUi } from "../../lib/world/store";
 import { createDrive, stepDrive } from "./seal/drive";
 // The judge picked D (verification/J-seal-sheet.jpg): cutest of the four
 // candidates. The others' files stay in seal/variants/ but are unimported.
@@ -80,11 +81,13 @@ export default function Seal() {
     stepDrive(drive, s, near, state.clock.elapsedTime, delta);
     root.current.position.set(s.x, (s.air || 0) * (s.airHeight || 3.2), s.z); // air: a whirlpool or geyser throw (motion.js)
     root.current.rotation.y = s.heading + drive.bodyYaw;
+    // POP_2D: the 2D cutout (ui/PunchCut.jsx) stands in for the seal
+    root.current.visible = !(popHides(getUi().pop));
     const arrival = live.arrival;
     const place = arrival.id ? PLACE_BY_ID[arrival.id] : null;
     if (place) {
       const move = heroMoveFor(place);
-      const u = (state.clock.elapsedTime - arrival.start) / ARRIVAL.duration;
+      const u = Math.min((state.clock.elapsedTime - arrival.start) / ARRIVAL.duration, POP_2D.smash / ARRIVAL.duration); // the hero move freezes at the pop
       heroPose(move, u, place, s.x, s.z, HERO);
       if (HERO.k > 0) {
         root.current.position.set(HERO.x, HERO.y, HERO.z);

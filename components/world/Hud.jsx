@@ -20,6 +20,7 @@ import { PLACE_BY_ID, PLACES, PROFILE, districtAt, dockPoint } from "../../lib/w
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import Minimap from "./ui/Minimap";
 import MoveCoach from "./ui/MoveCoach";
+import PunchCut from "./ui/PunchCut";
 import Sheet from "./ui/Sheet";
 import { IconArrow, IconCheck, IconChevron, IconSoundOff, IconSoundOn, IconTrefoil } from "./ui/icons";
 
@@ -92,6 +93,9 @@ function useDistrictBanner(active) {
 // every place: the area banner only fires on entering an area and waits 20 s
 // before it repeats, so places sharing an area showed no name.
 function CutsceneTitle({ id }) {
+  // While the 2D pop plays (moments.js POP_2D) the subtitle box owns the lower
+  // half, so the place name moves up into the top cinema bar and comes back.
+  const top = useUi((s) => s.pop >= 2);
   const place = id ? PLACE_BY_ID[id] : null;
   const [shown, setShown] = useState(place);
   useEffect(() => {
@@ -101,7 +105,7 @@ function CutsceneTitle({ id }) {
   const title = shown.section === "upstream" ? shown.district?.name ?? shown.name : shown.name;
   const sub = shown.section === "upstream" ? `${shown.repo} #${shown.pr}` : shown.section === "lab" ? shown.kind : null;
   return (
-    <div className="cut-title" data-on={!!place} aria-live="polite">
+    <div className="cut-title" data-on={!!place} data-top={top} aria-live="polite">
       <strong>{title}</strong>
       {sub && <span>{sub}</span>}
     </div>
@@ -610,6 +614,7 @@ export default function Hud() {
     <div className="hud" data-cutscene={cutscene ? "on" : undefined} onKeyDown={onHudKeyDown}>
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
+      <PunchCut />
       <CutsceneTitle id={cutscene} />
       <TopBar list={list} sound={sound} failed={failed} />
       <DistrictBanner district={district} open={open} list={list} />

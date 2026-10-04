@@ -4,8 +4,11 @@
 import { GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
+import { readFileSync } from "node:fs";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
+import { ARRIVAL, POP_2D } from "../lib/world/moments.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
+import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
@@ -669,4 +672,25 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   }
 }
 
-console.log(`world check passed: bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, mutation looks`);
+// Punch lines (punch.js): every place has one, and every number in a line is
+// in data/showcase.json (the JSON wins; rewrite the line, not the data).
+{
+  const json = readFileSync(new URL("../data/showcase.json", import.meta.url), "utf8");
+  assert.deepEqual([...PUNCH_IDS].sort(), PLACES.map((p) => p.id).sort(), "punch lines cover exactly the places");
+  const VOICES = ["seal", "sil", "land"];
+  for (const p of PLACES) {
+    const { a, b, num, sub } = punchFor(p.id);
+    assert.ok(a.text && b.text && VOICES.includes(a.who) && VOICES.includes(b.who), `${p.id} needs two voices`);
+    for (const n of `${a.text} ${b.text} ${num ?? ""} ${sub ?? ""}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) assert.ok(n === "0" || json.includes(n), `${p.id}'s punch line says ${n}, which showcase.json does not`);
+  }
+  const koan = punchFor("p-aether-lang");
+  assert.ok(koan.a.text.includes("Gojeal Satarou") && koan.b.text.includes("Gojeal Fishtarou"), "the Gojeal koan keeps its spellings");
+  const w = [POP_2D.push, POP_2D.smash, POP_2D.enter, POP_2D.lineA, POP_2D.move, POP_2D.lineB, POP_2D.out, ARRIVAL.duration];
+  assert.ok(w.every((v, i) => i === 0 || v > w[i - 1]) && ARRIVAL.hold >= POP_2D.out, "POP_2D windows are in order inside ARRIVAL");
+  for (const p of PLACES) {
+    const c = punchFor(p.id);
+    assert.ok(c.seal.pose1 && c.seal.pose2 && c.panel && c.homage && c.why && c.move, `${p.id} card is missing a field`);
+  }
+}
+
+console.log(`world check passed: punch lines, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, mutation looks`);

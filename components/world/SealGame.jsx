@@ -171,6 +171,7 @@ export default function SealGame() {
     // skips the intro card. Both exist for screenshots and for links that
     // point at one project.
     const params = new URLSearchParams(window.location.search);
+    if (params.get("hud") === "off") document.documentElement.dataset.hud = "off";
     const place = PLACE_BY_ID[params.get("spawn")];
     if (params.get("hud") === "off") document.documentElement.dataset.hud = "off";
     if (place) {
