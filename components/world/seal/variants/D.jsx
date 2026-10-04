@@ -52,7 +52,7 @@ const HALO_DEFAULT = "#ffd66b";
 const HALO_AT = [0, 0.66, -0.06];
 const HALO_TILT = [-Math.PI / 2 + 0.3, 0, 0];
 // The hand sign's flipper (Euler YZX, see poseFlipper) and its glint at the tip.
-const SIGN = { twist: 0.9, back: -1.15, up: 1.25 };
+const SIGN = { twist: 1.5, back: -0.75, up: 1.0 }; // up beside the cheek (the head is too big to reach across), flat to the lens
 const GLINT_AT = [0.7, 0.07, 0];
 
 function materials() {
@@ -234,7 +234,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     // moves idle back to 0. live.seal.calm is the eased 0..1 the rest of the
     // world may read (motes, a Geiger-to-chime cue); it never touches the
     // seal's own health, just its pose.
-    const calmTarget = smooth(3.4, 4.4, d.idle);
+    const calmTarget = domain ? 0 : smooth(3.4, 4.4, d.idle); // no meditation mid-domain
     f.calm += (calmTarget - f.calm) * damp(calmTarget > f.calm ? 2.2 : 6, dt);
     const sit = Math.max(f.calm, arrivalSit);
     live.seal.calm = f.calm; // the showcase's sit-up is not meditation
@@ -259,7 +259,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     // its tail instead of bowing its chin into the snow.
     const r = rear.current;
     r.position.y = 0.07 * liftH + 0.05 * sit;
-    r.rotation.set(-0.32 * liftC + 0.05 * liftH - 0.12 * water - 0.6 * sit - 0.42 * sign, d.turn * 0.06 + d.lookYaw * 0.15, 0);
+    r.rotation.set(-0.32 * liftC + 0.05 * liftH - 0.12 * water - 0.6 * sit - 0.22 * sign, d.turn * 0.06 + d.lookYaw * 0.15, 0);
 
     // Head: the drive's look, the face tipped up toward the lens (the camera
     // sits 50 degrees up; a big-headed pup looking down shows only forehead),
@@ -269,7 +269,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     const rest = 1 - d.gait;
     const pitch = (d.lookPitch > 0 ? Math.min(d.lookPitch * 1.4, 0.5) : d.lookPitch) + 0.22 * d.gait;
     const tilt = rest * (1 - sit) * (0.13 * Math.sin(t * 0.55 + 0.6) + 0.04 * Math.sin(t * 1.4)) + 0.15 * d.lookYaw + 0.1 * wiggle;
-    headRef.current.rotation.set(-pitch + 0.1 * sit, d.lookYaw * 0.5, tilt, "YXZ");
+    headRef.current.rotation.set(-pitch + 0.1 * sit + 0.3 * sign, d.lookYaw * 0.5, tilt * (1 - sign) + 0.12 * sign, "YXZ"); // the sign: chin down to the level lens, a slight cock
     neck.current.rotation.set(
       0.27 * liftC + 0.3 * Math.max(0, sq) + 0.25 * Math.max(0, squish) + 0.3 * crouch - 0.25 * (flying ? 1 - fly : 0) + 0.25 * sit,
       d.lookYaw * 0.35,

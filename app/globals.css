@@ -2156,7 +2156,7 @@ html[data-domain] .minimap {
   width: min(92vw, 25em);
   padding: 1.15em 2em 1.3em;
   font-family: var(--font-comic), var(--font);
-  font-size: clamp(19px, calc(1.1vw + 10px), 26px);
+  font-size: clamp(20px, calc(1.1vw + 12px), 27px);
   color: #1c1b19;
   transform-origin: 50% 0;
   animation: bubble-in 250ms steps(1, end) both;

@@ -19,7 +19,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { DOMAIN, FIGURE_AT, FIGURE_SCALE, domainMode, onTwos, radiusAt } from "../../lib/world/domain";
 import { live } from "../../lib/world/store";
 
-const CORE_Y = 0.8; // m: the pup's chest, the sphere's centre
+const CORE_Y = 0.9; // m: the pup's chest, the sphere's centre
 const STARS = 240;
 const INK = new Color("#22163f");
 const RIM = new Color("#e9deff");
@@ -57,20 +57,22 @@ function voidMaterial() {
       void main() {
         vec3 v = normalize(vWorld - cameraPosition);
         float a = 1.0 - dot(v, normalize(uCore - cameraPosition)); // 0 toward the core
-        float core = exp(-a * 90.0);
-        float halo = exp(-a * 11.0);
+        float core = exp(-a * 70.0);
+        float halo = exp(-a * 16.0);
         float high = clamp(v.y * 1.6 + 0.4, 0.0, 1.0);
-        vec3 night = mix(vec3(0.05, 0.035, 0.14), vec3(0.025, 0.02, 0.08), high);
-        night = mix(night, vec3(0.22, 0.14, 0.42), halo);
-        vec3 col = night + halftone(halo * 0.85) * vec3(0.42, 0.32, 0.72) * (0.25 + 0.5 * halo) + core * vec3(0.92, 0.86, 1.0);
+        vec3 night = mix(vec3(0.035, 0.026, 0.1), vec3(0.012, 0.01, 0.04), high);
+        night = mix(night, vec3(0.16, 0.1, 0.32), halo);
+        // light halftone: only in the ring round the core, where the light falls off
+        float ring = halo * (1.0 - halo) * 4.0;
+        vec3 col = night + halftone(ring * 0.55) * vec3(0.3, 0.22, 0.55) * 0.35 + core * vec3(0.92, 0.86, 1.0) * 0.85;
         float alpha = 1.0;
         if (gl_FrontFacing) {
           // seen from outside while it swells: a bubble of night, see-through at its middle
           float f = pow(1.0 - abs(dot(normalize(vNormal), v)), 2.0);
-          col += f * vec3(0.8, 0.66, 1.0);
-          alpha = mix(0.62, 1.0, f);
+          col += f * vec3(0.5, 0.35, 0.85);
+          alpha = mix(0.3, 1.0, f);
         }
-        gl_FragColor = vec4(col, alpha);
+        gl_FragColor = vec4(pow(col, vec3(2.2)), alpha); // picked as sRGB, written linear
       }`,
   });
 }
@@ -94,7 +96,7 @@ function poolMaterial() {
         float r = length(vUv * 2.0 - 1.0);
         float tone = (1.0 - smoothstep(0.0, 1.0, r)) * 0.8;
         float glow = (1.0 - smoothstep(0.0, 0.55, r)) * 0.18;
-        gl_FragColor = vec4(vec3(0.6, 0.5, 0.95) * (halftone(tone) * 0.55 + glow), 1.0);
+        gl_FragColor = vec4(pow(vec3(0.6, 0.5, 0.95) * (halftone(tone) * 0.55 + glow), vec3(2.2)), 1.0);
       }`,
   });
 }
@@ -119,8 +121,8 @@ function inkMaterial() {
       void main() {
         vec3 n = normalize(cross(dFdx(vView), dFdy(vView))); // the facet's normal: low poly, flat
         if (dot(n, vView) > 0.0) n = -n;
-        float rim = pow(1.0 - abs(dot(n, normalize(-vView))), 1.4);
-        float tone = rim * 0.95 + max(n.y, 0.0) * 0.2;
+        float rim = pow(1.0 - abs(dot(n, normalize(-vView))), 2.2);
+        float tone = rim * 0.9 + max(n.y, 0.0) * 0.12;
         vec3 col = mix(uInk, uRim, halftone(tone) * step(0.18, tone));
         col = mix(col, uRim, smoothstep(0.8, 0.92, rim));
         gl_FragColor = vec4(col, 1.0);
@@ -155,11 +157,12 @@ const HEAD = [0, 1.9, 0.02];
 function figureGeometry() {
   const parts = [];
   for (const s of [-1, 1]) {
-    parts.push(limb([s * 0.1, 0, 0.02], [s * 0.12, 1.0, 0], 0.065, 0.09));
-    parts.push(limb([s * 0.31, 1.6, 0], [s * 0.41, 1.24, -0.03], 0.075, 0.065)); // upper arm, elbow out
-    parts.push(limb([s * 0.41, 1.24, -0.03], [s * 0.22, 1.0, 0.07], 0.065, 0.055)); // into the pocket
+    parts.push(limb([s * 0.11, 0, 0.03], [s * 0.13, 1.0, 0], 0.085, 0.115)); // trousers, not sticks
+    parts.push(limb([s * 0.3, 1.58, 0], [s * 0.42, 1.22, -0.04], 0.095, 0.08)); // upper arm, elbow out
+    parts.push(limb([s * 0.42, 1.22, -0.04], [s * 0.21, 1.0, 0.08], 0.08, 0.07)); // into the pocket
   }
-  parts.push(limb([0, 0.92, 0], [0, 1.6, 0], 0.17, 0.24, 1.25, 0.75)); // torso, shoulders wide
+  parts.push(limb([0, 0.88, 0], [0, 1.6, 0], 0.2, 0.25, 1.3, 0.8)); // the jacket, shoulders wide
+  parts.push(limb([0, 0.78, 0], [0, 1.0, 0], 0.26, 0.21, 1.15, 0.85)); // its hem
   parts.push(limb([-0.31, 1.6, 0], [0.31, 1.6, 0], 0.08, 0.08));
   parts.push(limb([0, 1.58, 0], [0, 1.8, 0.01], 0.07, 0.06));
   parts.push(prep(new IcosahedronGeometry(0.155, 1).scale(0.94, 1.12, 1).translate(...HEAD)));
@@ -203,7 +206,7 @@ function build() {
     const r = 0.4 + 0.55 * rand();
     o.position.set(x, y, z).normalize().multiplyScalar(r);
     o.rotation.set(0, rand() * Math.PI, (rand() - 0.5) * 0.4);
-    o.scale.setScalar(0.004 + 0.012 * rand() ** 3);
+    o.scale.setScalar(0.003 + 0.008 * rand() ** 3);
     o.updateMatrix();
     stars.setMatrixAt(i, o.matrix);
     stars.setColorAt(i, tints[i % 3]);
@@ -277,6 +280,8 @@ export default function Domain() {
     const mode = arrival.id ? domainMode(arrival.id) : null;
     if (!mode) {
       hideWorld(false);
+      live.inDomain = false;
+      live.domainOn = false;
       g.visible = false;
       return;
     }
@@ -287,12 +292,15 @@ export default function Domain() {
 
     const r = mode === "full" ? radiusAt(t) : 0;
     const cell = 6 * state.gl.getPixelRatio();
-    kit.voidMat.uniforms.uCell.value = kit.poolMat.uniforms.uCell.value = kit.inkMat.uniforms.uCell.value = cell;
+    kit.voidMat.uniforms.uCell.value = kit.poolMat.uniforms.uCell.value = cell;
+    kit.inkMat.uniforms.uCell.value = cell * 0.6; // a finer screen on the figure's rim
     kit.voidMat.uniforms.uCore.value.set(s.x, CORE_Y, s.z);
     sphere.current.visible = r > 0.02;
     sphere.current.scale.setScalar(Math.max(r, 0.02));
     const inside = r > state.camera.position.distanceTo(kit.voidMat.uniforms.uCore.value) + 0.3;
     hideWorld(inside);
+    live.inDomain = inside;
+    live.domainOn = mode === "full";
     starsRef.current.visible = inside;
     starsRef.current.scale.setScalar(r);
     starsRef.current.rotation.y = 0.04 * t;

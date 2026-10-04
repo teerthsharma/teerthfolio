@@ -69,10 +69,10 @@ function place(el, mx, my, slot, still) {
   const tx = mx - left;
   const ty = my - top;
   const len = Math.hypot(tx - bx, ty - by);
-  const k = Math.min(0.8, (0.3 * H) / len);
+  const k = Math.min(0.62, (0.26 * H) / len);
   const px = bx + (tx - bx) * k;
   const py = by + (ty - by) * k;
-  const half = Math.min(26, w * 0.05);
+  const half = Math.min(30, w * 0.06);
   const bend = (tx > bx ? 1 : -1) * 0.12 * len * k;
   const d = `M${bx - half} ${by} Q${(bx + px) / 2 - bend} ${(by + py) / 2} ${px} ${py} Q${(bx + px) / 2 + bend * 0.4} ${(by + py) / 2} ${bx + half} ${by}Z`;
   for (const p of el.querySelectorAll(".bubble-tail")) p.setAttribute("d", d);
