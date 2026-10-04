@@ -22,10 +22,10 @@ import { fbm, groundAt, KEEP_TOP } from "../../../lib/world/terrain";
 import { C, SURFACE } from "../palette";
 
 const STEP = 1;
-const X0 = -108;
-const X1 = 108;
+const X0 = -140;
+const X1 = 140;
 const Z0 = -152;
-const Z1 = 108;
+const Z1 = 140;
 const CULL_Y = -1; // a cell whose four corners are all deeper than this, out at sea (under the opaque sea), is not drawn
 
 // Directions from the land up to the camera, over every view it ever takes

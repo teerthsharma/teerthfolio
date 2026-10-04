@@ -138,7 +138,7 @@ export default function Scene() {
     <Canvas
       shadows
       dpr={1}
-      camera={{ fov: 28, near: 0.5, far: 260, position: [0, 20, 30] }}
+      camera={{ fov: 28, near: 0.5, far: 320, position: [0, 20, 30] }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       onCreated={({ gl }) => {
         gl.domElement.addEventListener("webglcontextlost", () => setUi({ failed: true }));

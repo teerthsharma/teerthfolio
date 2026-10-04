@@ -133,7 +133,7 @@ function buildRockBatch() {
   ];
 
   const rand = mulberry32(SEED + 3);
-  const rockPts = annulusPoints(8, SEED + 3, 70, 79, 6, [], 1.6);
+  const rockPts = annulusPoints(8, SEED + 3, R - 14, R - 5, 6, [], 1.6);
   const rocks = rockPts.map(({ x, z }) => {
     const radius = 0.8 + rand() * 0.8;
     const geo = new IcosahedronGeometry(radius, 0).toNonIndexed();
@@ -239,7 +239,7 @@ function buildFoam() {
 
 function buildBoulders() {
   const rand = mulberry32(SEED + 5);
-  const points = annulusPoints(24, SEED + 5, 10, 78, 5, [], 1.4);
+  const points = annulusPoints(24, SEED + 5, 10, R - 6, 5, [], 1.4);
   const ice = [];
   const deepIce = [];
   points.forEach(({ x, z }, i) => {
