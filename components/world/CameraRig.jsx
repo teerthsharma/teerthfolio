@@ -290,7 +290,7 @@ export default function CameraRig() {
     }
 
     wanted.current.z -= SPAWN_LEAN * spawnK.current;
-    wanted.current.y = seal.ride && !reduced.current ? seal.rideY * RIDE_RISE : 0;
+    wanted.current.y = seal.ride && !reduced.current ? seal.rideY * RIDE_RISE : (seal.climb || 0); // the peak: the view climbs with the pup
 
     if (cut) focus.current.copy(wanted.current);
     else focus.current.lerp(wanted.current, damp(FOCUS_DAMP, dt));

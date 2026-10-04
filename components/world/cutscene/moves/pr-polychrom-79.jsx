@@ -168,7 +168,7 @@ export default function Move(cut) {
     }
     const tt = onTwos(t);
     const cam = state.camera;
-    g.position.set(s.x, 0, s.z);
+    g.position.set(s.x, s.climb || 0, s.z); // the summit: the stage stands where the pup does
     g.rotation.y = turnFor(card, place, s.x, s.z);
     g.updateMatrixWorld(true);
     for (const u of [m.gold, m.portalM, m.windM, m.gateM, m.sky.m]) u.uniforms.uTime.value = t;
