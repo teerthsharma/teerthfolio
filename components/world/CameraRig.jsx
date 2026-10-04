@@ -179,7 +179,7 @@ export default function CameraRig() {
     // ZOOM_IN / ZOOM_OUT: the push toward an opened building and the ease
     // back, each reaching 95% within its moment's duration.
     const nearSlow = ui.near && seal.speed < 2;
-    const modeZoomTarget = ui.open ? OPEN_ZOOM : nearSlow ? NEAR_ZOOM : 1;
+    const modeZoomTarget = ui.open ? OPEN_ZOOM : nearSlow ? NEAR_ZOOM * (PLACE_BY_ID[ui.near]?.look.zoom ?? 1) : 1;
     const modeRate = 3 / (modeZoomTarget < modeZoom.current ? ZOOM_IN.duration : ZOOM_OUT.duration);
     modeZoom.current += (modeZoomTarget - modeZoom.current) * damp(modeRate, dt);
 
