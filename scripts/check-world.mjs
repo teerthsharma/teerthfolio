@@ -18,7 +18,7 @@ import { tickSnack } from "../components/world/life/snack.js";
 import { TOYS, blastAt, makeBowling, makeCone, makeStack, makeTnt, tickToys } from "../lib/world/toys.js";
 import { buildToys } from "../components/world/life/toys-seed.js";
 import { forbidden, samplePoints } from "../components/world/life/spawn.js";
-import { CAR_BAYS, createCar, stepCar } from "../lib/world/highwayCars.js";
+import { CAR_BAYS, CAR_R, ROAD_Y, createCar, onDrawnAsphalt, stepCar, stepCars } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
 
@@ -562,6 +562,10 @@ assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
       const turn = Math.abs(Math.atan2(Math.sin(car.h - h), Math.cos(car.h - h)));
       assert.ok(turn < 0.3, `car ${k} spun ${turn.toFixed(2)} rad in one frame at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
       assert.ok(onHighway(car.x, car.z), `car ${k} left the asphalt at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
+      // the footprint above is the walkable capsule; the drawn mesh has square-cut
+      // leg ends, and the snow bumps (terrain.js) stand over asphalt laid too low
+      assert.ok(onDrawnAsphalt(car.x, car.z), `car ${k} left the drawn asphalt at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
+      assert.ok(heightAt(car.x, car.z) < ROAD_Y, `car ${k} is on snow: the ground is ${heightAt(car.x, car.z).toFixed(2)} m, the asphalt ${ROAD_Y} m, at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
       if (car.phase !== "drive") assert.ok(inPark(car.x, car.z), `car ${k} ${car.phase} outside the car park at ${car.x.toFixed(1)}, ${car.z.toFixed(1)}`);
       const l = log[k];
       if (Math.abs(Math.hypot(car.x - r.x, car.z - r.z) - r.radius) < 1.2) l.ring = true;
@@ -571,6 +575,83 @@ assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
     }
   }
   log.forEach((l, k) => assert.ok(l.cycles >= 2 && l.ring && l.town, `car ${k} did not loop bay -> ring -> town -> bay (${JSON.stringify(l)})`));
+}
+
+// Cars and the seal (Bruno-style): a car brakes and waits a couple of metres
+// short of a seal standing in its lane, carries on once the seal has left, and
+// a seal that walks into a car gets the prop bump (motion.js) and never
+// overlaps it. Seal radius plus the car's half-length is the closest they may be.
+{
+  const gap = MOTION.sealRadius + CAR_R;
+  const dt = 1 / 60;
+  const home = (k) => createCar(k);
+  const spotsOf = (k, every) => {
+    const ghost = createCar(k);
+    const spots = [];
+    for (let i = 0; i < 60 * 150; i++) {
+      stepCar(ghost, dt, false);
+      if (i % (60 * every) === 0 && ghost.phase !== "park" && Math.hypot(ghost.x - CAR_BAYS[k], ghost.z - home(k).z) > gap + 0.5) spots.push([ghost.x, ghost.z, i * dt]);
+    }
+    return spots;
+  };
+  let waits = 0;
+  for (let k = 0; k < CAR_BAYS.length; k++) {
+    for (const [sx, sz, at] of spotsOf(k, 6)) {
+      // a seal standing in the car's lane: it never gets closer than `gap`, and stops
+      const car = createCar(k);
+      const seal = { x: sx, z: sz };
+      let nearest = Infinity;
+      for (let i = 0; i < 60 * (at + 12); i++) {
+        stepCars([car], seal, dt);
+        nearest = Math.min(nearest, Math.hypot(car.x - sx, car.z - sz));
+      }
+      const where = `car ${k} and a seal standing at ${sx.toFixed(1)}, ${sz.toFixed(1)}`;
+      assert.ok(nearest >= gap, `${where}: ${nearest.toFixed(2)} m apart, under ${gap.toFixed(2)} m`);
+      assert.ok(Math.hypot(car.vx, car.vz) < 0.3, `${where}: the car never stopped (${Math.hypot(car.vx, car.vz).toFixed(2)} m/s)`);
+      if (nearest < gap + 4) waits++;
+      // ... and once the seal leaves, it carries on
+      const px = car.x;
+      const pz = car.z;
+      seal.x = 1e4;
+      for (let i = 0; i < 60 * 5; i++) stepCars([car], seal, dt);
+      assert.ok(Math.hypot(car.x - px, car.z - pz) > 2, `${where}: the car did not carry on after the seal left`);
+    }
+    for (const [sx, sz] of spotsOf(k, 24)) {
+      // a seal charging a car at full tilt: bumped, never inside it
+      const car = createCar(k);
+      const seal = createSeal(sx, sz);
+      const w = { ...world, props: [car] };
+      let bumped = false;
+      let nearest = Infinity;
+      let charging = false;
+      for (let i = 0; i < 60 * 200 && (!charging || i < charging + 60 * 4); i++) {
+        const d = Math.hypot(car.x - seal.x, car.z - seal.z);
+        if (!charging && d < 8) charging = i;
+        stepCars([car], seal, dt);
+        for (let j = 0; j < 2; j++) stepSeal(seal, { input: charging ? { x: (car.x - seal.x) / (d || 1), z: (car.z - seal.z) / (d || 1) } : null }, 1 / 120, w);
+        nearest = Math.min(nearest, Math.hypot(car.x - seal.x, car.z - seal.z));
+        if (car.hit > 0) bumped = true;
+      }
+      const where = `a seal charging car ${k} from ${sx.toFixed(1)}, ${sz.toFixed(1)}`;
+      assert.ok(charging, `${where}: the car never came near`);
+      assert.ok(nearest >= gap - 0.02, `${where}: overlapped it, ${nearest.toFixed(2)} m apart, under ${gap.toFixed(2)} m`);
+      assert.ok(bumped, `${where}: no bump`);
+    }
+  }
+  // a queue behind a car that stopped for the seal keeps its gap: no two cars
+  // ever closer than they run free (about 1 m, lanes 0.7 m apart)
+  for (const [sx, sz] of spotsOf(0, 12)) {
+    const cars = CAR_BAYS.map((_, k) => createCar(k));
+    const seal = { x: sx, z: sz };
+    let nearest = Infinity;
+    for (let i = 0; i < 60 * 150; i++) {
+      if (i === 60 * 100) seal.x = 1e4;
+      stepCars(cars, seal, dt);
+      for (let a = 0; a < cars.length; a++) for (let b = a + 1; b < cars.length; b++) nearest = Math.min(nearest, Math.hypot(cars[a].x - cars[b].x, cars[a].z - cars[b].z));
+    }
+    assert.ok(nearest >= 1, `cars bunched up to ${nearest.toFixed(2)} m behind a seal standing at ${sx.toFixed(1)}, ${sz.toFixed(1)}`);
+  }
+  assert.ok(waits >= 20, `only ${waits} of the cars' waits were exercised`);
 }
 
 // Throttle: set while input is held, cleared shortly after release.
@@ -1052,6 +1133,9 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
     const park = Math.abs(end[0] - c.x) <= c.w / 2 + 0.5 && Math.abs(end[1] - c.z) <= c.d / 2 + 0.5;
     assert.ok(ring < 0.5 || park || end === HIGHWAY.legs[0][0], `the highway leg end ${end} joins nothing`);
   }
+  // the park leg runs on into the lot as a driveway: its end is well inside the lot's asphalt
+  const drive = HIGHWAY.legs[1][HIGHWAY.legs[1].length - 1];
+  assert.ok(Math.abs(drive[0] - c.x) < c.w / 2 - 1 && Math.abs(drive[1] - c.z) < c.d / 2 - 1, `the park leg ends at ${drive}, not inside the car park`);
   for (const p of PLACES.filter((q) => q.district.id === "mujorush")) assert.ok(p.x > c.x - c.w / 2 - 12 && p.x < c.x + c.w / 2 + 12 && p.z < c.z, `the car park is not under ${p.id}`);
 }
 
