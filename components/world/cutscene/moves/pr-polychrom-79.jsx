@@ -96,8 +96,7 @@ export default function Move(cut) {
     const poolG = new CylinderGeometry(1.2, 1.2, 0.02, 20);
     const beadG = new IcosahedronGeometry(0.09, 1);
     const beads = inst(beadG, mat({ color: "#ffffff" }), HELIX_N * 2);
-    const hopfA = new Mesh(ringG, ring);
-    const hopfB = new Mesh(ringG, ring);
+    for (let i = 0; i < HELIX_N * 2; i++) beads.setColorAt(i, COL.set(i < HELIX_N ? "#27ff7a" : "#25e8ff"));
     // eleven linked pairs on the bench
     const pairA = inst(ringGeometry(0.27, 0.035), mat({ color: "#ffffff" }), PAIRS);
     const pairB = inst(ringGeometry(0.27, 0.035), mat({ color: "#ffffff" }), PAIRS);
@@ -137,7 +136,7 @@ export default function Move(cut) {
     const plus = new BoxGeometry(0.08, 0.36, 0.04);
     const minusM = mat({ color: "#ff2a33" });
     const plusM = mat({ color: "#22ff6a" });
-    return { sky, ground, stone, wood, istone, ring, ringG, arrowG, arrowM, basinG, lipG, fluidM, poolG, beadG, beads, hopfA, hopfB, pairA, pairB, flaskG, flasks, benchG, hutG, statueG, statues, hillG, hills, hair, hairM, minus, plus, minusM, plusM, crack: crackMaterial(), crackQ: new PlaneGeometry(1, 1), flash: flashQuad("#7dffb0"), word: lettering("Revival fluid: back to the island.", "#12b858", -0.04) };
+    return { sky, ground, stone, wood, istone, ring, ringG, arrowG, arrowM, basinG, lipG, fluidM, poolG, beadG, beads, pairA, pairB, flaskG, flasks, benchG, hutG, statueG, statues, hillG, hills, hair, hairM, minus, plus, minusM, plusM, crack: crackMaterial(), crackQ: new PlaneGeometry(1, 1), flash: flashQuad("#7dffb0"), word: lettering("Revival fluid: back to the island.", "#12b858", -0.04) };
   }, []);
 
   const crack = useMemo(() => {
@@ -231,7 +230,7 @@ export default function Move(cut) {
     held.visible = tt > T.rings[0];
     held.scale.setScalar(smooth(T.rings[0], T.rings[1], tt) * (1 + 0.08 * Math.sin(Math.PI * Math.min(1, Math.max(0, tt - T.rings[0]) / 0.5))));
     held.rotation.y = 0.4 + 0.25 * Math.sin(tt * 0.9);
-    held.position.y = 0.95 + 0.04 * Math.sin(tt * 2.1);
+    held.position.y = 0.85 + 0.04 * Math.sin(tt * 2.1);
     signs.current.minus.visible = sign < 0.5;
     signs.current.plus.visible = sign >= 0.5;
     signs.current.glyph.visible = held.visible;
@@ -288,11 +287,11 @@ export default function Move(cut) {
     const word = tt >= T.word[0] && tt < T.word[1];
     m.word.visible = word;
     if (word) {
-      const w = state.size.width / state.size.height >= 1 ? 1.6 : 1.1;
+      const frameW = 2 * Math.tan((cam.fov * Math.PI) / 360) * 2.2 * cam.aspect; // the frame's width at the word's distance
       cam.getWorldDirection(m.word.position).multiplyScalar(2.2).add(cam.position);
-      m.word.position.y -= 0.55;
+      m.word.position.y -= 0.3;
       m.word.quaternion.copy(cam.quaternion);
-      m.word.scale.set(w * 2.4, w * 2.4, 1);
+      m.word.scale.set(frameW * 0.82, frameW * 0.82, 1);
     }
   });
 
@@ -338,7 +337,7 @@ export default function Move(cut) {
           ref={(g) => {
             if (g) signs.current.held = g;
           }}
-          position={[0.7, 0.95, 0.75]}
+          position={[1.25, 0.85, 0.35]}
           visible={false}
         >
           <mesh geometry={m.ringG} material={m.ring} frustumCulled={false} />
