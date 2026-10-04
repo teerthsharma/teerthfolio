@@ -4,7 +4,7 @@
 // Bab-ilu vault gate with its red circuitry, Ea and its red spiral wind, and the pup's armour and hair.
 // Nothing allocates per frame; the move disposes every geometry and material.
 
-import { BufferGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, AdditiveBlending, Float32BufferAttribute, Shape, ShapeGeometry, ShaderMaterial, SphereGeometry, TorusGeometry, Path, BoxGeometry } from "three";
+import { BufferGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, AdditiveBlending, Float32BufferAttribute, Shape, ShapeGeometry, ShaderMaterial, SphereGeometry, TorusGeometry, Path, BoxGeometry, OctahedronGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 const A = Math.PI * 2;
@@ -25,12 +25,12 @@ export function skyMaterial() {
       uniform float uTime;
       varying vec3 vDir;
       void main() {
-        float y = clamp(vDir.y, -0.3, 1.0);
-        vec3 c = mix(vec3(0.62, 0.02, 0.14), vec3(0.4, 0.03, 0.3), smoothstep(-0.2, 0.1, y));
-        c = mix(c, vec3(0.1, 0.08, 0.7), smoothstep(0.05, 0.35, y));
-        c = mix(c, vec3(0.03, 0.14, 0.9), smoothstep(0.3, 0.8, y));
+        float y = floor(clamp(vDir.y, -0.3, 1.0) * 7.0) / 7.0;
+        vec3 c = mix(vec3(0.42, 0.01, 0.1), vec3(0.22, 0.02, 0.28), smoothstep(-0.2, 0.1, y));
+        c = mix(c, vec3(0.05, 0.05, 0.5), smoothstep(0.05, 0.35, y));
+        c = mix(c, vec3(0.02, 0.06, 0.6), smoothstep(0.3, 0.8, y));
         float g = exp(-abs(y + 0.05) * 14.0);
-        c += vec3(1.0, 0.62, 0.12) * g * 0.45;
+        c += vec3(1.0, 0.62, 0.12) * g * 0.25;
         vec2 q = vDir.xz / max(0.25, 0.4 + vDir.y) * 18.0;
         float st = fract(sin(dot(floor(q), vec2(127.1, 311.7))) * 43758.5453);
         float tw = step(0.965, st) * (0.5 + 0.5 * sin(uTime * 3.0 + st * 60.0));
@@ -69,13 +69,14 @@ export function goldMaterial() {
         if (!gl_FrontFacing) N = -N;
         vec3 L = normalize(vec3(0.45, 0.8, 0.6));
         float d = max(dot(N, L), 0.0);
-        vec3 base = mix(vec3(0.42, 0.2, 0.02), vec3(1.0, 0.78, 0.22), 0.25 + 0.75 * d) * vC;
+        vec3 base = (d > 0.42 ? vec3(1.0, 0.8, 0.26) : vec3(0.62, 0.36, 0.05)) * vC;
         vec3 H = normalize(L + V);
         float sp = pow(max(dot(N, H), 0.0), 36.0);
         float fr = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 2.2);
         vec3 env = mix(vec3(1.0, 0.25, 0.3), vec3(0.45, 0.65, 1.0), clamp(N.y * 0.5 + 0.5, 0.0, 1.0));
-        vec3 c = base + sp * vec3(1.0, 0.93, 0.7) * 1.3 + fr * mix(env, vec3(1.0, 0.92, 0.6), 0.55) * 1.35;
-        c += vec3(1.0, 0.85, 0.4) * 0.12 * (0.5 + 0.5 * sin(uTime * 4.0 + vV.x * 9.0));
+        vec3 c = base + step(0.9, sp) * vec3(0.3, 0.25, 0.1);
+        c = mix(c, vec3(0.16, 0.04, 0.03), step(0.8, 1.0 - clamp(dot(N, V), 0.0, 1.0)));
+        
         gl_FragColor = vec4(c * uBoost, 1.0);
       }`,
   });
@@ -102,44 +103,93 @@ const clean = (g) => {
   return n;
 };
 
-// ---------- the pup's Gilgamesh: slicked-back gold hair on the crown, a collar, pauldrons ----------
+// ---------- the pup's Gilgamesh: slicked-back gold locks lying on the skull, a thin collar, layered pauldrons ----------
+const GOLD_LO = "#c9962b";
+const GOLD_HI = "#f2c94c";
+const SK = [0.56, 0.52, 0.54];
+// one tapered, flattened lock swept from the hairline over the crown; its tip lifts up and back. f = side (-1..1), t0/t1 = start/end angle from the crown (+ is forward)
+function lock(f, t0, t1, wMax, lift, n = 18) {
+  const L = f * 0.95;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const u = i / n;
+    const t = t0 + (t1 - t0) * u;
+    const dx = Math.sin(L) * (0.55 + 0.45 * Math.cos(t * 0.9));
+    const dy = Math.cos(t) * Math.cos(L * 0.6);
+    const dz = Math.sin(t) * Math.cos(L);
+    const m = Math.hypot(dx, dy, dz);
+    const d = [dx / m, dy / m, dz / m];
+    const k = 1.03 + 0.05 * Math.sin(Math.PI * u) + lift * Math.max(0, u - 0.6) ** 2 * 5;
+    pts.push({ d, c: [d[0] * SK[0] * k, d[1] * SK[1] * k + lift * Math.max(0, u - 0.6) ** 2 * 1.4, d[2] * SK[2] * k], w: wMax * Math.max(0, Math.sin(Math.PI * Math.min(1, 0.22 + u * 0.78))) ** 0.8 * (1 - u * 0.9) });
+  }
+  const seg = 8;
+  const pos = [];
+  const col = [];
+  const idx = [];
+  const lo = new Color(GOLD_LO);
+  const hi = new Color(GOLD_HI);
+  const k2 = new Color();
+  pts.forEach((p, i) => {
+    const a = pts[Math.max(0, i - 1)].c;
+    const b = pts[Math.min(n, i + 1)].c;
+    const T = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const tl = Math.hypot(...T) || 1;
+    T[0] /= tl; T[1] /= tl; T[2] /= tl;
+    const N = p.d;
+    const B = [T[1] * N[2] - T[2] * N[1], T[2] * N[0] - T[0] * N[2], T[0] * N[1] - T[1] * N[0]];
+    k2.copy(lo).lerp(hi, Math.min(1, i / n + 0.15));
+    for (let j = 0; j < seg; j++) {
+      const th = (j / seg) * A;
+      const cx = Math.cos(th) * p.w * 2.1;
+      const cy = Math.sin(th) * p.w * 1.1;
+      pos.push(p.c[0] + B[0] * cx + N[0] * cy, p.c[1] + B[1] * cx + N[1] * cy, p.c[2] + B[2] * cx + N[2] * cy);
+      col.push(k2.r, k2.g, k2.b);
+    }
+  });
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < seg; j++) {
+      const a = i * seg + j;
+      const b = i * seg + ((j + 1) % seg);
+      idx.push(a, b, a + seg, b, b + seg, a + seg);
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute("position", new Float32BufferAttribute(pos, 3));
+  g.setAttribute("color", new Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g.toNonIndexed();
+}
 export function hairGeometry() {
   const parts = [];
-  const cap = new SphereGeometry(1, 20, 10, 0, A, 0, 0.82).scale(0.545, 0.5, 0.525);
-  parts.push(paint(clean(cap), "#c98a12", "#ffd54a", 0.5));
-  const spike = (x, z, h, back, side, w = 0.1) => {
-    const g = clean(new ConeGeometry(w, h, 6).translate(0, h / 2, 0));
-    paint(g, "#d99a10", "#fff2a0", h);
-    g.rotateZ(-side).rotateX(-back).translate(x, 0.36, z);
-    parts.push(g);
-  };
-  // rows from the brow back over the crown: all swept up and back, the middle row tallest
-  spike(0, 0.2, 0.62, 0.35, 0);
-  spike(0.2, 0.15, 0.6, 0.3, 0.35);
-  spike(-0.2, 0.15, 0.6, 0.3, -0.35);
-  spike(0, 0.0, 0.86, 0.3, 0, 0.11);
-  spike(0.24, 0.0, 0.72, 0.4, 0.5);
-  spike(-0.24, 0.0, 0.72, 0.4, -0.5);
-  spike(0.38, -0.05, 0.5, 0.35, 0.95, 0.08);
-  spike(-0.38, -0.05, 0.5, 0.35, -0.95, 0.08);
-  spike(0.12, -0.2, 0.8, 0.55, 0.15);
-  spike(-0.12, -0.2, 0.8, 0.55, -0.15);
-  spike(0, -0.28, 0.7, 0.7, 0);
-  spike(0.3, -0.2, 0.6, 0.55, 0.6);
-  spike(-0.3, -0.2, 0.6, 0.55, -0.6);
+  const cap = new SphereGeometry(1, 20, 10, 0, A, 0, 0.8).scale(SK[0] * 1.01, SK[1] * 1.01, SK[2] * 1.01);
+  parts.push(paint(clean(cap), GOLD_LO, GOLD_HI, 0.5));
+  // seven long locks: centre pair longest, outer ones hug the temples; all end swept up and back
+  for (const [f, t1, w, lf] of [[0, -2.3, 0.075, 0.5], [-0.38, -2.25, 0.07, 0.5], [0.38, -2.25, 0.07, 0.5], [-0.7, -2.1, 0.06, 0.4], [0.7, -2.1, 0.06, 0.4], [-0.95, -1.9, 0.05, 0.3], [0.95, -1.9, 0.05, 0.3]]) parts.push(lock(f, 0.75, t1, w, lf));
+  // two short front tufts lifting off the hairline
+  for (const f of [-0.18, 0.18]) parts.push(lock(f, 1.05, 0.35, 0.05, 0.6, 10));
   return mergeGeometries(parts);
 }
 export function armourGeometry() {
   const parts = [];
-  const collar = new TorusGeometry(0.42, 0.05, 12, 40).rotateX(Math.PI / 2).translate(0, -0.36, 0.0);
-  parts.push(paint(clean(collar), "#a86a08", "#ffd54a", 0.4));
-  const gem = new SphereGeometry(0.075, 10, 8).translate(0, -0.42, 0.5);
-  parts.push(paint(clean(gem), "#ff1f3a", "#ff6a7a", 1));
+  const gold = (g, a = GOLD_LO, b = GOLD_HI, span = 0.3) => paint(clean(g), a, b, span);
+  parts.push(gold(new TorusGeometry(0.42, 0.028, 8, 48).rotateX(Math.PI / 2).translate(0, -0.36, 0), GOLD_LO, GOLD_HI, 0.4));
+  // geometric trim: small diamonds around the collar ring
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * A;
+    parts.push(gold(new OctahedronGeometry(0.03).scale(1, 0.7, 1).translate(Math.sin(a) * 0.42, -0.36, Math.cos(a) * 0.42), GOLD_LO, GOLD_HI, 1));
+  }
+  // one small red gem on the collar at the throat
+  parts.push(paint(clean(new SphereGeometry(0.04, 10, 8).translate(0, -0.37, 0.435)), "#d3122e", "#ff4a5a", 1));
+  parts.push(gold(new CylinderGeometry(0.035, 0.05, 0.02, 4).rotateX(Math.PI / 2).translate(0, -0.37, 0.43), GOLD_LO, GOLD_HI, 1));
+  // pauldrons: three layered angular plates per shoulder, each smaller and lower, sharp edges
   for (const s of [1, -1]) {
-    const dome = new SphereGeometry(0.3, 16, 8, 0, A, 0, Math.PI / 2).scale(1, 0.75, 1).rotateZ(-0.55 * s).translate(0.58 * s, -0.52, -0.02);
-    parts.push(paint(clean(dome), "#a86a08", "#ffe27a", 0.3));
-    const horn = new ConeGeometry(0.07, 0.3, 6).translate(0, 0.15, 0).rotateZ(-1.0 * s).translate(0.8 * s, -0.42, -0.02);
-    parts.push(paint(clean(horn), "#c98a12", "#fff2a0", 0.3));
+    for (let j = 0; j < 3; j++) {
+      const r = 0.2 - j * 0.045;
+      const plate = new CylinderGeometry(r * 0.7, r, 0.025, 4).scale(1.35, 1, 0.8).rotateY(Math.PI / 4).rotateZ(-(0.5 + j * 0.12) * s).translate((0.5 + j * 0.1) * s, -0.4 - j * 0.1, -0.03);
+      parts.push(gold(plate, GOLD_LO, GOLD_HI, 1));
+    }
+    parts.push(gold(new ConeGeometry(0.03, 0.2, 4).rotateZ(-1.1 * s).translate(0.74 * s, -0.42, -0.03), GOLD_LO, GOLD_HI, 0.2));
   }
   return mergeGeometries(parts);
 }
@@ -149,7 +199,6 @@ export function portalMaterial() {
   return new ShaderMaterial({
     transparent: true,
     depthWrite: false,
-    blending: AdditiveBlending,
     side: DoubleSide,
     uniforms: { uTime: { value: 0 } },
     vertexShader: /* glsl */ `
@@ -160,20 +209,31 @@ export function portalMaterial() {
         vPh = fract(sin(instanceMatrix[3].x * 12.9 + instanceMatrix[3].y * 78.2) * 43758.5);
         gl_Position = projectionMatrix * viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0);
       }`,
+    // a gold gate: a bright white-gold core, radial ripples travelling outward, gold sparkles, a soft gold glow past the rim
     fragmentShader: /* glsl */ `
       uniform float uTime;
       varying vec2 vUv;
       varying float vPh;
       void main() {
-        float r = length(vUv - 0.5) * 2.0;
+        vec2 q = vUv - 0.5;
+        float r = length(q) * 2.0;
         if (r > 1.0) discard;
-        float rim = smoothstep(0.78, 0.86, r) * (1.0 - smoothstep(0.94, 1.0, r));
-        float rip = 0.5 + 0.5 * sin(r * 14.0 - uTime * 3.0 + vPh * 6.28);
-        float ring2 = smoothstep(0.8, 1.0, rip) * (1.0 - smoothstep(0.55, 0.78, r)) * 0.6;
-        float core = (1.0 - r) * 0.5;
-        vec3 gold = vec3(1.0, 0.78, 0.2);
-        vec3 c = gold * ring2 + vec3(1.0, 0.95, 0.7) * core * 0.8 + gold * rim * 1.2;
-        gl_FragColor = vec4(c, 1.0);
+        float ang = atan(q.y, q.x);
+        float core = pow(max(1.0 - r / 0.42, 0.0), 1.6);
+        float rip = pow(0.5 + 0.5 * sin(r * 22.0 - uTime * 4.0 + vPh * 6.28), 3.0) * smoothstep(0.95, 0.35, r);
+        float rim = smoothstep(0.62, 0.7, r) * (1.0 - smoothstep(0.76, 0.84, r));
+        float glow = pow(max(1.0 - r, 0.0), 2.0) * 0.55;
+        float sp = pow(max(0.0, sin(ang * 9.0 + uTime * 1.5 + vPh * 9.0) * sin(r * 30.0 - uTime * 3.0)), 14.0) * smoothstep(0.2, 0.5, r);
+        vec3 deep = vec3(0.85, 0.5, 0.06);
+        vec3 gold = vec3(1.0, 0.8, 0.25);
+        vec3 wg = vec3(1.0, 0.96, 0.78);
+        float band = step(0.5, rip);
+        vec3 c = mix(deep, gold, band);
+        c = mix(c, wg, step(r, 0.3));
+        c = mix(c, vec3(0.2, 0.05, 0.04), smoothstep(0.86, 0.9, r) * step(r, 0.97) + step(0.3, r) * step(r, 0.33));
+        c = mix(c, wg, step(0.93, sp));
+        float a = step(r, 0.97);
+        gl_FragColor = vec4(c, a);
       }`,
   });
 }
@@ -302,15 +362,39 @@ export function gateMaterial() {
   });
 }
 
-// ---------- Ea: a black drill-sword, three red glowing segments that turn ----------
+// ---------- Ea: a black hilt with a gold guard, three stacked cylinders with red glowing runes, a blunt drill tip ----------
 export function eaParts() {
-  const core = new CylinderGeometry(0.07, 0.07, 1.3, 12).translate(0, 0.65, 0);
-  const tip = new ConeGeometry(0.07, 0.34, 12).translate(0, 1.47, 0);
-  const grip = new CylinderGeometry(0.06, 0.06, 0.22, 10).translate(0, -0.1, 0);
-  // a segment: an open cylinder of 4.3 rad with a thicker lip, so its turning reads
-  const seg = (h) => new CylinderGeometry(0.15, 0.15, h, 14, 1, true, 0, 4.3).translate(0, h / 2, 0);
-  const glow = (h) => new CylinderGeometry(0.2, 0.2, h, 14, 1, true, 0, 4.3).translate(0, h / 2, 0);
-  return { core: mergeGeometries([core, tip, grip].map(clean)), seg: seg(0.26), glow: glow(0.26) };
+  const rod = new CylinderGeometry(0.045, 0.045, 1.4, 10).translate(0, 0.7, 0);
+  const grip = new CylinderGeometry(0.06, 0.07, 0.34, 10).translate(0, 0.05, 0);
+  const pommel = new SphereGeometry(0.09, 10, 8).translate(0, -0.14, 0);
+  const tip = new CylinderGeometry(0.035, 0.13, 0.24, 12).translate(0, 1.5, 0);
+  const guard = mergeGeometries([paint(clean(new BoxGeometry(0.46, 0.05, 0.1).translate(0, 0.25, 0)), GOLD_LO, GOLD_HI, 1), paint(clean(new BoxGeometry(0.1, 0.09, 0.1).translate(0, 0.27, 0)), GOLD_LO, GOLD_HI, 1)]);
+  const seg = new CylinderGeometry(0.14, 0.14, 0.3, 16, 1, false).translate(0, 0.15, 0);
+  const glow = new CylinderGeometry(0.19, 0.19, 0.3, 16, 1, true).translate(0, 0.15, 0);
+  return { core: mergeGeometries([rod, grip, pommel, tip].map(clean)), guard, seg, glow };
+}
+// the rune cylinder: dark metal with red glowing glyph lines that turn with the segment
+export function runeMaterial() {
+  return new ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      varying vec2 vUv;
+      void main() {
+        float a = vUv.x * 6.0;
+        float v = abs(fract(a) - 0.5);
+        float l1 = smoothstep(0.07, 0.02, v);
+        float d = abs(fract(a * 0.5 + vUv.y * 3.0) - 0.5);
+        float l2 = smoothstep(0.06, 0.015, d);
+        float ring = smoothstep(0.06, 0.02, min(vUv.y, 1.0 - vUv.y));
+        float L = max(max(l1, l2), ring);
+        vec3 c = mix(vec3(0.04, 0.015, 0.025), vec3(1.0, 0.12, 0.2) * (1.3 + 0.3 * sin(uTime * 8.0)), L);
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  });
 }
 
 // the spiral wind: an open cone from the sword tip, red and white stripes turning round its axis (+y is its length; the move lays it down)

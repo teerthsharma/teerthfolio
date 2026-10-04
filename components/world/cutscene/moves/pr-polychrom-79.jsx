@@ -9,14 +9,13 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { CircleGeometry, Color, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SphereGeometry, TetrahedronGeometry, Vector3 } from "three";
+import { Color, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SphereGeometry, TetrahedronGeometry, Vector3 } from "three";
 import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
-import { EYE_R, skullPoint } from "../../seal/variants/D-parts";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { Motes } from "./_g1";
 import { flashQuad, hash, holdFlash, inst, islandList, lettering, mat, pupParts, put } from "./p-caustic/parts";
-import { SIL_KINDS, armourGeometry, eaParts, gateMaterial, glowMaterial, goldMaterial, hairGeometry, keyGeometry, portalMaterial, silhouetteGeometries, skyMaterial, windGeometry, windMaterial } from "./pr-polychrom-79/world";
+import { SIL_KINDS, armourGeometry, eaParts, gateMaterial, glowMaterial, goldMaterial, hairGeometry, keyGeometry, portalMaterial, runeMaterial, silhouetteGeometries, skyMaterial, windGeometry, windMaterial } from "./pr-polychrom-79/world";
 
 const CORE_Y = 0.9;
 // the clock (real s from the arrival; the card puts line A at 2.3, B at 8.3, the flex line at 14.0, the credit at 23.0)
@@ -24,7 +23,7 @@ const T = { hair: [0.55, 1.15], eyes: [2.3, 3.0], open: 2.5, step: 0.075, key: [
 const NP = 42;
 const NS = 240;
 const KEY_AT = [0.55, 1.35, 0.6];
-const EA_AT = [0.75, 0.55, 0.45];
+const EA_AT = [1.05, 0.35, 0.3];
 const GATE_AT = [0, 4.8, -12];
 const COL = new Color();
 const V = new Vector3();
@@ -67,8 +66,10 @@ export default function Move(cut) {
       lay.push({ x: Math.cos(a) * r * 1.3, y: Math.max(0.8, 2.4 + Math.sin(a) * r * 0.9), z: -5.5 - layer * 0.7 - hash(i, 3), a: a + (hash(i, 4) - 0.5) * 0.35, size: 0.8 + 0.4 * hash(i, 5) + layer * 0.1, kind: i % SIL_KINDS, len: 1.1 + 0.5 * hash(i, 6) });
     }
     const silG = silhouetteGeometries();
-    const silM = new MeshBasicMaterial({ color: "#14040e", side: DoubleSide, toneMapped: false, fog: false });
+    const silM = new MeshBasicMaterial({ color: "#1c0618", side: DoubleSide, toneMapped: false, fog: false });
+    const rimM = new MeshBasicMaterial({ color: "#f2c94c", side: DoubleSide, toneMapped: false, fog: false });
     const sil = silG.map((g) => inst(g, silM, NP / SIL_KINDS));
+    const silRim = silG.map((g) => inst(g, rimM, NP / SIL_KINDS));
     const cnt = new Array(SIL_KINDS).fill(0);
     for (const p of lay) p.slot = cnt[p.kind]++;
     const ea = eaParts();
@@ -81,7 +82,7 @@ export default function Move(cut) {
       sh.push({ u: (hash(i, 11) - 0.5) * 2.3, v: (hash(i, 12) - 0.5) * 2.3, d: 6 + 5 * hash(i, 13), s: 0.35 + 0.8 * hash(i, 14), r: hash(i, 15) * 6, w: 2 + 5 * hash(i, 16), fall: 0.3 + hash(i, 17) });
     }
     return {
-      gold, sky, portalM, plane, portals, lay, silG, silM, sil, ea, shards, sh,
+      gold, sky, portalM, plane, portals, lay, silG, silM, rimM, sil, silRim, runeM: runeMaterial(), ea, shards, sh,
       hairG: hairGeometry(),
       armG: armourGeometry(),
       keyGm: keyGeometry(),
@@ -95,10 +96,6 @@ export default function Move(cut) {
       glowM: glowMaterial("#ffc34a"),
       glowM2: glowMaterial("#ff2a3a"),
       quad: new PlaneGeometry(1, 1),
-      eyeG: new CircleGeometry(EYE_R * 1.05, 20),
-      pupilG: new CircleGeometry(EYE_R * 0.3, 12).scale(0.45, 1, 1),
-      eyeM: mat({ color: "#ff1c38", side: DoubleSide }),
-      pupilM: mat({ color: "#2a0008", side: DoubleSide }),
       flash: flashQuad("#ffd77a"),
       word: lettering("Enuma Elish!", "#d3122e", -0.05),
     };
@@ -123,26 +120,16 @@ export default function Move(cut) {
     if (p?.head) {
       add(new Mesh(m.hairG, m.gold));
       add(new Mesh(m.armG, m.gold));
-      // red eyes: a disc and a slit pupil laid on the skull where the pup's eyes are
-      for (const s of [1, -1]) {
-        const d = new Vector3(0.5 * s, -0.1, 0.86).normalize();
-        const q = skullPoint(d, new Vector3());
-        for (const [g, mt, lift] of [[m.eyeG, m.eyeM, 0.012], [m.pupilG, m.pupilM, 0.017]]) {
-          const e = add(new Mesh(g, mt));
-          e.position.copy(q).addScaledVector(d, lift);
-          e.lookAt(q.clone().multiplyScalar(2));
-        }
-      }
     }
     return () => {
       worn.current.forEach((o) => o.removeFromParent());
       worn.current = [];
-      const geos = [m.sky.g, m.plane, ...m.silG, m.hairG, m.armG, m.keyGm, m.gateG, m.ea.core, m.ea.seg, m.ea.glow, m.windG, m.quad, m.eyeG, m.pupilG, m.shards.geometry, m.flash.geometry, m.word.geometry];
-      const mats = [m.gold, m.sky.m, m.portalM, m.silM, m.gateM, m.eaDark, m.eaRed, m.eaGlow, m.windM, m.glowM, m.glowM2, m.eyeM, m.pupilM, m.shards.material, m.flash.material, m.word.material];
+      const geos = [m.sky.g, m.plane, ...m.silG, m.hairG, m.armG, m.keyGm, m.gateG, m.ea.core, m.ea.guard, m.ea.seg, m.ea.glow, m.windG, m.quad, m.shards.geometry, m.flash.geometry, m.word.geometry];
+      const mats = [m.gold, m.sky.m, m.portalM, m.silM, m.rimM, m.runeM, m.gateM, m.eaDark, m.eaRed, m.eaGlow, m.windM, m.glowM, m.glowM2, m.shards.material, m.flash.material, m.word.material];
       geos.forEach((g) => g.dispose());
       mats.forEach((x) => x.dispose());
       m.word.material.map?.dispose();
-      for (const x of [m.portals, m.shards, ...m.sil]) x.dispose();
+      for (const x of [m.portals, m.shards, ...m.sil, ...m.silRim]) x.dispose();
     };
   }, [scene, m, gl, camera]);
 
@@ -202,7 +189,7 @@ export default function Move(cut) {
     g.position.set(s.x, 0, s.z);
     g.rotation.y = turnFor(card, place, s.x, s.z);
     g.updateMatrixWorld(true);
-    for (const u of [m.gold, m.portalM, m.windM, m.gateM, m.sky.m]) u.uniforms.uTime.value = t;
+    for (const u of [m.gold, m.portalM, m.windM, m.gateM, m.sky.m, m.runeM]) u.uniforms.uTime.value = t;
 
     // THE WORLD swells out of the pup with the stage, then holds; the dimension's break (T.ret) takes it away for the island
     const r = radiusAt(tl, t);
@@ -220,11 +207,9 @@ export default function Move(cut) {
 
     // GILGAMESH on the pup: gold hair, collar, pauldrons and red eyes, gone with the stage
     const k = smooth(T.hair[0], T.hair[1], tt) * fade;
-    const ek = smooth(T.eyes[0], T.eyes[1], tt) * fade;
-    worn.current.forEach((o, i) => {
-      const kk = i >= 2 ? ek : k;
-      o.visible = kk > 0.01;
-      if (i < 2) o.scale.setScalar(Math.max(kk * (1 + 0.12 * Math.sin(Math.PI * Math.min(1, Math.max(0, tt - T.hair[0]) / 0.7))), 0.01));
+    worn.current.forEach((o) => {
+      o.visible = k > 0.01;
+      o.scale.setScalar(Math.max(k * (1 + 0.08 * Math.sin(Math.PI * Math.min(1, Math.max(0, tt - T.hair[0]) / 0.7))), 0.01));
     });
 
     // THE GATE OF BABYLON: portals ripple open one after another, a silhouette pokes out of each
@@ -234,10 +219,13 @@ export default function Move(cut) {
       const sz = p.size * 1.3 * o * (1 + 0.06 * Math.sin(t * 3 + i));
       put(m.portals, i, p.x, p.y, p.z, sz, sz, 1);
       const len = p.len * smooth(T.open + i * T.step + 0.3, T.open + i * T.step + 1.0, tt);
-      put(m.sil[p.kind], p.slot, p.x, p.y, p.z + 0.1, len, len, 1, 0, 0, p.a - Math.PI / 2 + 0.05 * Math.sin(t * 1.7 + i));
+      const ra = p.a - Math.PI / 2 + 0.05 * Math.sin(t * 1.7 + i);
+      put(m.silRim[p.kind], p.slot, p.x, p.y, p.z + 0.09, len * 1.22, len * 1.035, 1, 0, 0, ra);
+      put(m.sil[p.kind], p.slot, p.x, p.y, p.z + 0.1, len, len, 1, 0, 0, ra);
     }
     m.portals.instanceMatrix.needsUpdate = true;
     for (const x of m.sil) x.instanceMatrix.needsUpdate = true;
+    for (const x of m.silRim) x.instanceMatrix.needsUpdate = true;
 
     // THE KEY OF THE HEAVENS: rises into the pup's raised flipper and turns; red circuits spread over the vault gate and it opens
     const kin = smooth(T.key[0], T.key[1], tt) * (1 - smooth(T.keyAway[0], T.keyAway[1], tt));
@@ -257,9 +245,9 @@ export default function Move(cut) {
     const aim = smooth(T.aim[0], T.aim[1], tt);
     const ea = eaG.current;
     ea.visible = draw > 0.01 && !gone;
-    ea.scale.setScalar(Math.max(draw, 0.01) * 1.1);
+    ea.scale.setScalar(Math.max(draw, 0.01) * 1.0);
     ea.position.set(EA_AT[0], EA_AT[1] + 0.05 * Math.sin(tt * 2.0), EA_AT[2]);
-    ea.rotation.set(-0.2, 0, -0.9 + 0.5 * aim);
+    ea.rotation.set(-0.1, 0, -0.62 + 0.3 * aim);
     segs.current.forEach((sg, i) => (sg.rotation.y = tt * (6 + 3 * i) * (i % 2 ? -1 : 1)));
     const blast = smooth(T.blast[0], T.blast[1], tt) * (1 - smooth(T.windEnd[0], T.windEnd[1], tt));
     const w = wind.current;
@@ -315,7 +303,7 @@ export default function Move(cut) {
     live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt));
     live.pose.raise = smooth(T.key[0] - 0.3, T.key[0] + 0.4, tt) * (1 - fist) * done * fade;
     live.pose.fist = fist * fade;
-    live.pose.demon = ek;
+    live.pose.demon = 0;
   });
 
   return (
@@ -332,6 +320,9 @@ export default function Move(cut) {
         <group ref={world}>
           <mesh ref={gateRef} geometry={m.gateG} material={m.gateM} position={GATE_AT} renderOrder={-2} frustumCulled={false} visible={false} />
           <primitive object={m.portals} />
+          {m.silRim.map((x, i) => (
+            <primitive key={"r" + i} object={x} />
+          ))}
           {m.sil.map((x, i) => (
             <primitive key={i} object={x} />
           ))}
@@ -341,9 +332,10 @@ export default function Move(cut) {
         </group>
         <group ref={eaG} visible={false}>
           <mesh geometry={m.ea.core} material={m.eaDark} frustumCulled={false} />
-          {[0.3, 0.68, 1.06].map((y, i) => (
+          <mesh geometry={m.ea.guard} material={m.gold} frustumCulled={false} />
+          {[0.34, 0.68, 1.02].map((y, i) => (
             <group key={i} position={[0, y, 0]} ref={(o) => o && (segs.current[i] = o)}>
-              <mesh geometry={m.ea.seg} material={m.eaRed} frustumCulled={false} />
+              <mesh geometry={m.ea.seg} material={m.runeM} frustumCulled={false} />
               <mesh geometry={m.ea.glow} material={m.eaGlow} frustumCulled={false} />
             </group>
           ))}
