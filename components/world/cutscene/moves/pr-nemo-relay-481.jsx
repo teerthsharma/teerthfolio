@@ -47,10 +47,10 @@ function dodgeAt(tt, out) {
     if (d <= 0) continue;
     passPoint(i, V);
     const side = passSide(i);
-    out.x += side * 0.5 * d;
+    out.x += side * 0.6 * d;
     out.z += (V.z > 0 ? -0.55 : 0.5) * d;
     out.y += (V.y < 0.5 ? 0.32 : 0) * d;
-    out.lean += -side * 0.3 * d;
+    out.lean += -side * 0.35 * d;
     out.duck += (V.y > 0.7 ? 0.7 : 0) * d;
     out.kick += d;
   }
@@ -60,6 +60,8 @@ function dodgeAt(tt, out) {
 export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
   const rig = useRef();
   const shellRef = useRef();
   const world = useRef();
@@ -86,13 +88,15 @@ export default function Move(cut) {
     const wh = whis();
     const ink = new MeshBasicMaterial({ color: INK, toneMapped: false, fog: false });
     const hullG = hullMaterial({ color: "#d6e6ff" });
-    const accB = new MeshBasicMaterial({ color: wb.accentColor, toneMapped: false, fog: false });
-    const accW = new MeshBasicMaterial({ color: wh.accentColor, toneMapped: false, fog: false });
+    const mb = (color) => new MeshBasicMaterial({ color, toneMapped: false, fog: false });
+    const matB = wb.parts.map(([, c]) => mb(c));
+    const matW = wh.parts.map(([, c]) => mb(c));
+    const accW = mb("#7fe3ff");
     const haloF = new MeshBasicMaterial({ color: "#c9f8ff", toneMapped: false, fog: false });
     const ghostM = [0, 1, 2, 3].map(() => silverGhost());
     const crack = lettering("KRRRK!", "#e5363a", -0.1);
     const flash = flashQuad("#dbe7ff");
-    return { sky, hair, arena, aura, orbs, wb, wh, ink, hullG, accB, accW, haloF, ghostM, crack, flash };
+    return { sky, hair, arena, aura, orbs, wb, wh, ink, hullG, matB, matW, accW, haloF, ghostM, crack, flash };
   }, []);
 
   useEffect(() => {
@@ -101,20 +105,21 @@ export default function Move(cut) {
     pup.current = p;
     cel.current = p?.root ? pupCel(p.root) : null;
     p?.head?.add(m.hair.group);
+    gl.compile(scene, camera); // prewarm hair, aura and gods so the first frame does not stall
     return () => {
       m.hair.dispose();
       cel.current?.dispose();
       cel.current = null;
       if (pup.current?.root) pup.current.root.rotation.z = 0;
       pup.current = null;
-      for (const g of [m.sky.g, m.wb.ink, m.wb.hull, m.wb.accent, m.wh.ink, m.wh.hull, m.wh.accent, m.wh.halo, m.crack.geometry, m.flash.geometry, baked.current]) g?.dispose();
-      for (const x of [m.sky.m, m.ink, m.hullG, m.accB, m.accW, m.haloF, m.crack.material, m.flash.material, ...m.ghostM]) x.dispose();
+      for (const g of [m.sky.g, m.wb.ink, m.wb.hull, ...m.wb.parts.map((x) => x[0]), m.wh.ink, m.wh.hull, ...m.wh.parts.map((x) => x[0]), m.wh.staffOrb, m.wh.halo, m.crack.geometry, m.flash.geometry, baked.current]) g?.dispose();
+      for (const x of [m.sky.m, m.ink, m.hullG, ...m.matB, ...m.matW, m.accW, m.haloF, m.crack.material, m.flash.material, ...m.ghostM]) x.dispose();
       m.crack.material.map?.dispose();
       m.arena.dispose();
       m.aura.dispose();
       m.orbs.dispose();
     };
-  }, [scene, m]);
+  }, [scene, gl, camera, m]);
 
   // the sidestep moves the pup itself, after Seal.jsx places it; a skip clears the arrival and nothing draws a frame past it
   useFrame(() => {
@@ -283,20 +288,23 @@ export default function Move(cut) {
           {[0, 1, 2, 3].map((k) => (
             <mesh key={k} ref={(x) => x && (ghosts.current[k] = x)} material={m.ghostM[k]} visible={false} frustumCulled={false} renderOrder={3} />
           ))}
-          <group ref={whisG} position={[LEDGE.x - 1.5, LEDGE.y, LEDGE.z + 0.2]} rotation={[0, -0.42, 0]} scale={1.8}>
-            <mesh geometry={m.wh.ink} material={m.ink} frustumCulled={false} />
+          <group ref={whisG} position={[LEDGE.x - 1.5, LEDGE.y, LEDGE.z + 0.2]} rotation={[0, -0.42, 0]} scale={2.3}>
+            {m.wh.parts.map(([g], i) => (
+              <mesh key={i} geometry={g} material={m.matW[i]} frustumCulled={false} />
+            ))}
             <mesh geometry={m.wh.hull} material={m.hullG} frustumCulled={false} />
             <group ref={staff}>
-              <mesh geometry={m.wh.accent} material={m.accW} frustumCulled={false} />
+              <mesh geometry={m.wh.staffOrb} material={m.accW} frustumCulled={false} />
             </group>
             <group ref={halo} position={[0, 2.45, -0.34]}>
               <mesh geometry={m.wh.halo} material={m.haloF} position={[0, -2.45, 0.34]} frustumCulled={false} />
             </group>
           </group>
-          <group ref={beerusG} position={[LEDGE.x + 1.6, LEDGE.y, LEDGE.z + 0.6]} rotation={[0, -0.55, 0]} scale={1.85}>
-            <mesh geometry={m.wb.ink} material={m.ink} frustumCulled={false} />
+          <group ref={beerusG} position={[LEDGE.x + 1.6, LEDGE.y, LEDGE.z + 0.6]} rotation={[0, -0.55, 0]} scale={2.35}>
+            {m.wb.parts.map(([g], i) => (
+              <mesh key={i} geometry={g} material={m.matB[i]} frustumCulled={false} />
+            ))}
             <mesh geometry={m.wb.hull} material={m.hullG} frustumCulled={false} />
-            <mesh geometry={m.wb.accent} material={m.accB} frustumCulled={false} />
           </group>
         </group>
         <primitive object={m.crack} />
