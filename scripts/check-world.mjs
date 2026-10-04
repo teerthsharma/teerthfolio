@@ -13,6 +13,7 @@ import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.
 import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
+import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
 
 const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
@@ -730,4 +731,48 @@ for (let tier = 0; tier < TIERS.length; tier++) {
   assert.ok(dprFor(tier, 390, 844, 3) <= 2, "no rung draws a phone above DPR 2");
 }
 
-console.log(`world check passed: quality ladder, punch lines, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, mutation looks`);
+// MujoRush is solid: no route puts the seal inside the rock the renderer
+// draws. The footprint is the carved sheet's frontmost vertex per column
+// (pup bellies included), measured from the real geometry, and every step of
+// every run is checked, not only where it ends.
+{
+  const front = new Map();
+  const pos = buildStone().stone.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    if (pos.getY(i) < 0.2) continue;
+    const col = Math.round(pos.getX(i) * 4);
+    front.set(col, Math.max(front.get(col) ?? -Infinity, pos.getZ(i)));
+  }
+  const inRock = (x, z) => z < (front.get(Math.round(x * 4)) ?? -Infinity);
+  const inside = (s) => s.flight === 0 && inRock(s.x, s.z);
+  const drive = (label, s, controls, seconds) => {
+    for (let t = 0; t < seconds; t += 1 / 120) {
+      stepSeal(s, controls, 1 / 120, world);
+      assert.ok(!inside(s), `${label}: the seal is inside Mount MujoRush at ${s.x.toFixed(2)}, ${s.z.toFixed(2)}`);
+    }
+  };
+  // up the cliff from the south: a column every 0.5 m, with and without boost
+  for (let x = -56; x <= -16; x += 0.5) {
+    for (const boost of [false, true]) {
+      drive(`walking north at x=${x}${boost ? " boosting" : ""}`, createSeal(x, -40), { input: { x: 0, z: -1 }, boost }, 6);
+    }
+  }
+  // from every heading: 64 starts on a ring round the massif, walking at its middle
+  for (let k = 0; k < 64; k++) {
+    const a = (k / 64) * Math.PI * 2;
+    const sx = -36 + Math.cos(a) * 30;
+    const sz = -60 + Math.sin(a) * 30;
+    if (Math.hypot(sx, sz) > ISLAND_RADIUS - 2) continue;
+    for (const boost of [false, true]) {
+      drive(`heading ${k}/64${boost ? " boosting" : ""}`, createSeal(sx, sz), { input: { x: -Math.cos(a), z: -Math.sin(a) }, boost }, 8);
+    }
+  }
+  // tap-to-walk onto a point inside the mountain
+  for (let x = -56; x <= -16; x += 2) drive(`tapping x=${x}`, createSeal(x, -40), { target: { x, z: -58 } }, 10);
+  // the throws land clear of it
+  for (const [x, z] of [...GEYSER.landings, WHIRLPOOL.throwTo]) assert.ok(!inRock(x, z), `a throw lands inside MujoRush at ${x}, ${z}`);
+  // and so do the docks
+  for (const p of PLACES) assert.ok(!inRock(dockPoint(p).x, dockPoint(p).z), `${p.id}'s dock is inside MujoRush`);
+}
+
+console.log(`world check passed: quality ladder, punch lines, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks`);
