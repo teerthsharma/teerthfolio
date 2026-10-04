@@ -23,6 +23,7 @@ import pr_triton_kernels_22 from "./pr-triton-kernels-22.jsx";
 import pr_openxla_46539 from "./pr-openxla-46539.jsx";
 import pr_topograph_432 from "./pr-topograph-432.jsx";
 import pr_pyrefly_4180 from "./pr-pyrefly-4180.jsx";
+import pr_polychrom_79 from "./pr-polychrom-79.jsx";
 import home from "./home.jsx";
 
 export const MOVES = {
@@ -48,5 +49,6 @@ export const MOVES = {
   "pr-openxla-46539": pr_openxla_46539,
   "pr-topograph-432": pr_topograph_432,
   "pr-pyrefly-4180": pr_pyrefly_4180,
+  "pr-polychrom-79": pr_polychrom_79,
   "home": home,
 };

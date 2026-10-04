@@ -4,6 +4,7 @@
 // landform built on it from components/world/land/*. Mounted by Scene.jsx.
 
 import Floes from "./land/Floes";
+import Fountain from "./land/Fountain";
 import GoogleRange from "./land/GoogleRange";
 import Highway from "./land/Highway";
 import IceDam from "./land/IceDam";
@@ -20,6 +21,7 @@ export default function Districts() {
       <Terrain />
       <Moat />
       <Floes />
+      <Fountain />
       <GoogleRange />
       <Highway />
       <Triton />

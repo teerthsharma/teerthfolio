@@ -434,6 +434,42 @@
       },
       "headline": "208 SCCs pinned",
       "rank": 10
+    },
+    {
+      "id": "pr-polychrom-79",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "open2c",
+      "repo": "open2c/polychrom",
+      "pr": 79,
+      "logo": null,
+      "title": "Fix the sign of getLinkingNumber",
+      "body": "getLinkingNumber returned the Gauss linking number of linked DNA rings with the wrong sign. The fix makes it come out with the right sign, and it fixes a free/delete[] leak.",
+      "result": "11/11 test pairs agree with the fix, 1/11 on master. pytest 65/65, up from 64/64. Mismatched frees: 16 to 0.",
+      "tags": [
+        "C++, Python",
+        "polymer simulation"
+      ],
+      "checks": [
+        "1/11 test pairs agreed on master, 11/11 with the fix",
+        "pytest 64/64 became 65/65",
+        "16 mismatched frees to 0"
+      ],
+      "url": "https://github.com/open2c/polychrom/pull/79",
+      "figure": {
+        "name": "fountain",
+        "viewBox": "470 500",
+        "title": "A fountain whose two linked rings change sign",
+        "desc": "An illustration of the change, not a measurement. A stone fountain throws its water up as a twisted double helix that ends in two linked rings, a Hopf link. Before the fix the linking number of the two rings reads with the wrong sign and the rings glow red; after it the sign is right and they glow green, for 11 of 11 test pairs.",
+        "labels": [
+          "two linked rings, the sign wrong on master",
+          "the sign fixed: 11/11 test pairs agree",
+          "16 mismatched frees to 0"
+        ],
+        "caption": null
+      },
+      "headline": "11/11 pairs agree",
+      "rank": 11
     }
   ],
   "lab": [
