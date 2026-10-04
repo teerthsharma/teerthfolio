@@ -22,6 +22,7 @@ import Minimap from "./ui/Minimap";
 import MoveCoach from "./ui/MoveCoach";
 import AwakeningLayer from "./ui/AwakeningLayer";
 import Bubbles from "./ui/Bubbles";
+import DisplayPicker from "./ui/DisplayPicker";
 import Sheet from "./ui/Sheet";
 import { IconArrow, IconCheck, IconChevron, IconSoundOff, IconSoundOn, IconTrefoil } from "./ui/icons";
 
@@ -178,7 +179,7 @@ function DistrictBanner({ district: current, open, list }) {
   );
 }
 
-function TopBar({ list, sound, failed }) {
+function TopBar({ list, sound, failed, settings }) {
   function toggleSound() {
     const next = !sound;
     setUi({ sound: next });
@@ -207,6 +208,9 @@ function TopBar({ list, sound, failed }) {
           About
         </button>
         <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <button type="button" aria-expanded={settings} aria-controls="display-pop" onClick={() => setUi({ settings: !settings })}>
+          Display
+        </button>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"
@@ -218,6 +222,9 @@ function TopBar({ list, sound, failed }) {
           {sound ? <IconSoundOn /> : <IconSoundOff />}
         </button>
       </nav>
+      <div id="display-pop" className="display-pop card" hidden={!settings}>
+        <DisplayPicker />
+      </div>
     </header>
   );
 }
@@ -257,6 +264,7 @@ function Intro({ started, ready, failed }) {
         </span>
         <span className="only-coarse">Drag anywhere to steer. Tap a building to go there.</span>
       </p>
+      <DisplayPicker />
       <div className="hud-intro-actions">
         <button
           type="button"
@@ -584,6 +592,7 @@ export default function Hud() {
   const sound = useUi((s) => s.sound);
   const failed = useUi((s) => s.failed);
   const cutscene = useUi((s) => s.cutscene);
+  const settings = useUi((s) => s.settings);
 
   useEffect(() => {
     try {
@@ -623,7 +632,7 @@ export default function Hud() {
           Skip
         </button>
       )}
-      <TopBar list={list} sound={sound} failed={failed} />
+      <TopBar list={list} sound={sound} failed={failed} settings={settings} />
       <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />
       {!failed && <MoveCoach />}

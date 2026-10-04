@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { CARDS, cardFor } from "../lib/world/cutscene/cards/index.js";
 import { BUILDS, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
-import { TIERS, classify, dprFor } from "../lib/world/quality.js";
+import { DISPLAY, TIERS, classify, dprFor, displayTier, gpuName } from "../lib/world/quality.js";
 import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH } from "../lib/world/loop.js";
 import { AWAKE, LINE, auraAt, awakeBeat, awakeCredit, liftAt, skyAt } from "../lib/world/awakening.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
@@ -1370,6 +1370,17 @@ for (let tier = 0; tier < TIERS.length; tier++) {
   assert.ok(macbook16 <= Math.max(ipad, TIERS[tier].mpx) * 1.05 || dprFor(tier, 1728, 1117, 2) === TIERS[tier].dpr[0], `T${tier}: a 16" MacBook draws ${macbook16.toFixed(2)} MP`);
   assert.ok(dprFor(tier, 390, 844, 3) <= 2, "no rung draws a phone above DPR 2");
 }
+
+// The Display picker: Auto is adaptive (no rung), every other option pins a valid rung, in rising order.
+assert.equal(displayTier("auto"), null);
+let lastPin = -1;
+for (const d of DISPLAY.filter((o) => o.id !== "auto")) {
+  assert.ok(Number.isInteger(d.tier) && d.tier >= 0 && d.tier < TIERS.length, `${d.id} maps to a real rung`);
+  assert.ok(d.tier > lastPin, `${d.id} sits above the option before it`);
+  lastPin = d.tier;
+}
+assert.equal(displayTier("nonsense"), null);
+assert.equal(gpuName("ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00003EA0) Direct3D11 vs_5_0 ps_5_0, D3D11)"), "Intel(R) UHD Graphics 620");
 
 // MujoRush is solid: no route puts the seal inside the rock the renderer
 // draws. The footprint is the carved sheet's frontmost vertex per column

@@ -2434,3 +2434,89 @@ html[data-cutscene="still"] .awake-card {
 }
 @keyframes loop-pop { 0% { transform: translateY(-40px) scale(0.3); } 60% { transform: translateY(-40px) scale(1.25, 0.85); } 100% { transform: translateY(-40px) scale(1); } }
 @keyframes loop-shake { 0%,100% { transform: translateY(-40px); } 20% { transform: translate(-10px,-40px) rotate(-6deg); } 40% { transform: translate(10px,-40px) rotate(6deg); } 60% { transform: translate(-6px,-40px); } 80% { transform: translate(6px,-40px); } }
+
+/* ============================================================
+   Display picker (intro card and top-bar popover)
+   ============================================================ */
+.display-pick {
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.display-pick legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.display-pick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.display-pick label {
+  position: relative;
+}
+
+.display-pick input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.display-pick label span {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--hair2);
+  background: var(--raised);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 160ms var(--ease-out);
+}
+
+.display-pick label:hover span {
+  background: var(--ground2);
+}
+
+.display-pick input:checked + span {
+  background: var(--blue-700);
+  border-color: var(--blue-700);
+  color: #fff;
+}
+
+.display-pick input:focus-visible + span {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
+}
+
+.display-pick-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.display-pop {
+  position: absolute;
+  top: calc(max(var(--gutter), env(safe-area-inset-top)) + var(--bar) + 8px);
+  right: var(--gutter);
+  width: min(360px, calc(100vw - 2 * var(--gutter)));
+  padding: 14px 16px 12px;
+  border-radius: var(--r-card);
+}
+
+.display-pop .display-pick {
+  margin: 0;
+}

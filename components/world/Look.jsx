@@ -28,7 +28,7 @@ import { EffectComposer, N8AO, ToneMapping } from "@react-three/postprocessing";
 import { SelectiveBloomEffect, ToneMappingMode } from "postprocessing";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackSide } from "three";
-import { TIERS, TOP, classify, climbCost, dprFor, recall, remember } from "../../lib/world/quality";
+import { TIERS, TOP, classify, climbCost, displayTier, dprFor, gpuName, recall, recallDisplay, remember } from "../../lib/world/quality";
 import { getUi, setUi, useUi } from "../../lib/world/store";
 import { RadiationPovEffect, stepRadiationPov } from "./look/RadiationPov";
 import { C, LIGHT } from "./palette";
@@ -170,14 +170,22 @@ export default function Look() {
   const tier = useUi((s) => s.tier);
   const tierFrom = useUi((s) => s.tierFrom);
   const [watching, setWatching] = useState(false);
+  const [squeeze, setSqueeze] = useState(1);
 
-  // The first rung, before the world's first frame.
+  // The first rung, before the world's first frame, and again whenever the
+  // Display picker moves. ui.display is undefined until storage is read; null
+  // while the URL's ?look= pins (it wins over a saved choice, a click wins
+  // over both). A fixed choice is tierFrom "pin": no audition, no monitor.
+  const display = useUi((s) => s.display);
   useLayoutEffect(() => {
-    const pin = pinned();
-    const kept = pin === null ? recall(renderer) : null;
-    const tierFrom = pin !== null ? "pin" : kept !== null ? "recall" : "guess";
-    setUi({ tier: pin ?? kept ?? classify(renderer), tierFrom, tierCap: TOP });
-  }, [renderer]);
+    if (display === undefined) return setUi({ gpu: gpuName(renderer), display: pinned() === null ? recallDisplay() : null });
+    const pin = display === null ? pinned() : null;
+    const fixed = pin ?? displayTier(display);
+    const kept = fixed === null ? recall(renderer) : null;
+    setUi({ tier: fixed ?? kept ?? classify(renderer), tierFrom: fixed !== null ? "pin" : kept !== null ? "recall" : "guess", tierCap: TOP });
+    if (fixed !== null) setSqueeze(1);
+    return undefined;
+  }, [renderer, display]);
 
   const rung = TIERS[tier ?? 0];
   // The device DPR changes without a resize when the window moves to another
@@ -190,7 +198,6 @@ export default function Look() {
     return () => mq.removeEventListener("change", moved);
   }, [deviceDpr]);
 
-  const [squeeze, setSqueeze] = useState(1);
   useEffect(() => {
     if (tier === null) return;
     const dpr = dprFor(tier, size.width, size.height, deviceDpr, tier === 0 ? squeeze : 1);
