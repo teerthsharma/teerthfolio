@@ -37,6 +37,7 @@ const CUT_M = 6;
 const FADE = 0.15;
 
 const box = new Box3();
+const part = new Box3();
 const C = new Vector3();
 const D = new Vector3();
 const R = new Vector3();
@@ -54,9 +55,27 @@ const M_OUT = { f: 0, x0: 0, y0: 0, x1: 0, y1: 0, cx: 0, cy: 0, hw: 0, hh: 0, de
 
 const inBeat = (list, beat) => Array.isArray(list) && list.some((b) => (typeof b === "string" ? BEAT[b] : b) === beat);
 
+// the pup's body box: visible solid meshes only (a hidden variant, the contact
+// shadow or an aura must not count), skinned or not, from their cached geometry boxes
+function grow(o) {
+  if (!o.visible) return;
+  if (o.isMesh && o.geometry) {
+    const m = o.material;
+    if (!(m && !Array.isArray(m) && (m.depthWrite === false || (m.transparent && m.opacity < 0.5)))) {
+      const g = o.geometry;
+      if (!g.boundingBox) g.computeBoundingBox();
+      part.copy(g.boundingBox).applyMatrix4(o.matrixWorld);
+      box.union(part);
+    }
+  }
+  for (let i = 0; i < o.children.length; i++) grow(o.children[i]);
+}
+
 // the pup's screen box in NDC (cx, cy, half-width hw, half-height hh); f = height / viewport height
 function measure(camera, root, out) {
-  box.setFromObject(root);
+  root.updateWorldMatrix(true, true);
+  box.makeEmpty();
+  grow(root);
   if (box.isEmpty()) return (out.ok = false);
   box.getCenter(C);
   const sy = box.max.y - box.min.y;
@@ -201,54 +220,60 @@ export default function FrameGuard() {
     const raw = s.raw;
     const have = measure(camera, root, raw);
     if (guarding && have) {
-      const W = innerWidth;
-      const H = innerHeight;
       const allowSmall = inBeat(opt?.allowSmall, beat);
       let { cx, cy, hw, hh } = raw;
+      const W = innerWidth;
+      const H = innerHeight;
       const depth = raw.depth;
-      // size: the smallest dolly that brings the height back inside the band
-      const f = raw.f;
-      let f2 = Math.min(Math.max(f, allowSmall ? 0 : G.minH), G.maxH);
-      let dolly = 0;
-      if (f2 !== f) {
-        const d2 = Math.min(Math.max((depth * f) / f2, 1.2), 60);
-        dolly = depth - d2;
-        const k = depth / d2;
-        cx *= k;
-        cy *= k;
-        hw *= k;
-        hh *= k;
-        f2 = hh;
-      }
-      const d2 = depth - dolly;
-      // edges: clear the margin
-      let sx = Math.max(0, -1 + G.m - (cx - hw)) - Math.max(0, cx + hw - (1 - G.m));
-      let sy = Math.max(0, -1 + G.m - (cy - hh)) - Math.max(0, cy + hh - (1 - G.m));
-      // bubbles: lift the pup over them, or flip them to the other side
+      // bubbles above the pup's column: the pup lives in the room over the highest of them
       const t = performance.now();
-      let lift = 0;
+      let low = -1 + G.m;
+      let blocked = false;
+      const pad = hw * 1.15; // a little more than the pup's half-width, and it may pan
       for (let i = 0; i < 4; i++) {
         if (t - live.frame.at[i] > 250) continue;
         const r = live.frame.r;
         const bx0 = (r[i * 4] / W) * 2 - 1;
         const bx1 = (r[i * 4 + 2] / W) * 2 - 1;
-        const btop = 1 - (r[i * 4 + 1] / H) * 2;
-        if (cx + sx + hw < bx0 - 0.02 || cx + sx - hw > bx1 + 0.02) continue;
-        lift = Math.max(lift, btop + G.bubble - (cy + sy - hh));
+        if (cx + pad < bx0 || cx - pad > bx1) continue;
+        low = Math.max(low, 1 - (r[i * 4 + 1] / H) * 2 + G.bubble);
       }
-      if (lift > 0) {
-        if (cy + sy + hh + lift <= 1 - G.m) sy += lift;
-        else if (now - s.flipAt > 1.5) {
-          live.frame.flip ^= 1;
-          s.flipAt = now;
-        }
+      const room = (1 - G.m - low) / 2; // the tallest half-height that fits over the bubbles
+      const hhMax = Math.min(G.maxH, room);
+      if (hhMax < G.minH) blocked = true;
+      // size: the smallest dolly that brings the height back inside the band
+      const f = raw.f;
+      const lo = allowSmall ? 0 : G.minH;
+      const f2 = Math.min(Math.max(f, lo), Math.max(hhMax, lo));
+      let dolly = 0;
+      let d2 = depth;
+      if (f2 !== f) {
+        d2 = Math.min(Math.max((depth * f) / f2, 1.2), 60);
+        dolly = C.distanceTo(camera.position) * (1 - d2 / depth); // along the ray; the depth shrinks by the same share
+        const k = depth / d2;
+        cx *= k;
+        cy *= k;
+        hw *= k;
+        hh *= k;
+      }
+      // edges: clear the margin sideways, then up over the bubbles and under the top margin
+      const sx = Math.max(0, -1 + G.m - (cx - hw)) - Math.max(0, cx + hw - (1 - G.m));
+      const yLo = low + hh;
+      const yHi = 1 - G.m - hh;
+      const sy = (yLo <= yHi ? Math.min(Math.max(cy, yLo), yHi) : yHi) - cy;
+      if (blocked && now - s.flipAt > 1.5 && yLo > yHi + 0.02) {
+        live.frame.flip ^= 1;
+        s.flipAt = now;
       }
       R.setFromMatrixColumn(camera.matrixWorld, 0);
       U.setFromMatrixColumn(camera.matrixWorld, 1);
       D.copy(C).sub(camera.position).normalize();
+      s.dbg = { tgt: [TGT.x, TGT.y, TGT.z].map((v) => +v.toFixed(2)), e5: camera.projectionMatrix.elements[5], d2, U: U.toArray().map((v) => +v.toFixed(2)), low, room, hhMax, f, f2, dolly, sx, sy, yLo, yHi, cx, cy, hh, depth };
       TGT.copy(D).multiplyScalar(dolly);
       TGT.addScaledVector(R, (-sx * d2) / camera.projectionMatrix.elements[0]);
       TGT.addScaledVector(U, (-sy * d2) / camera.projectionMatrix.elements[5]);
+      s.dbg.tgt = [TGT.x, TGT.y, TGT.z].map((v) => +v.toFixed(2));
+      s.dbg.cur = [CUR.x, CUR.y, CUR.z].map((v) => +v.toFixed(2));
     }
     if (guarding || CUR.lengthSq() > 1e-8) {
       smoothDamp(CUR, VEL, TGT, dt);
@@ -301,6 +326,7 @@ export default function FrameGuard() {
         allowSmall: inBeat(opt?.allowSmall, beat),
         fading: fades.length + inst.length,
         offset: CUR.length(),
+        dbg: s.dbg,
       };
     }
   }, 0.9);
