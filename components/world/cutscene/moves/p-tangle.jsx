@@ -1,427 +1,474 @@
 "use client";
 
-// Tangle: JoJo. THE PUP IS JOTARO and walks at Dio, one step a syllable, ゴゴゴ
-// rising down both edges. Dio (the kit's tall figure, swept head, hip out and
-// one arm up, with a coat hem and a pocket watch swinging on its chain) holds
-// his pose and never stops posing; the stage slides him in toward the pup on
-// each step (dust puffs, speed lines streaming on the floor) until they stand
-// nose to nose. Then an ink ring draws round the pup and a grey ring round
-// Dio, they fly in and LINK between the two at chest height with a DON!, the
-// two crossings light blue, the gantry's clamp pulls, the rings stretch and
-// catch and hold (GIIIN). The certificate plate ejects from the gantry's head
-// housing and spins down into the credit card. Eight costume pups on the
-// bottom edge each strike a different JoJo pose, on twos. Shape, colour and
-// pose only. Card: cards/p-tangle.js.
-// Cost: about 34 draws, ~3.6k triangles, no post.
+// tangle: Your Name, the red braided cord. SHINKAI LIGHT.
+//
+// The pup ties a red kumihimo cord round its flipper and the island becomes ITOMORI at kataware-doki: the
+// crater lake mirroring a hyper-luminous painted sky (ultramarine to violet to coral and gold, glowing cloud
+// edges, the sun's glare along the horizon), the wooded spit and its shrine on the mountain (a long stair, three
+// vermilion torii, stone lanterns, a lit hall under a slate roof, paper streamers in the wind), a town's lights
+// on the far shore, fireflies, a comet splitting overhead. The cord runs across the water to a schoolgirl against
+// the sun, a red cord in her hair; "Is the knot real?" Two glowing loops of cord glide in and link; the comet's
+// piece falls; the shock pulls the loops apart and they CANNOT part: the certificate is the knot that holds, a
+// musubi bow with a hanko tag. The flex line, the credit card. The return: kataware-doki ends. The sun sinks, the
+// sky drains to night blue, the girl and the comet fade into the dusk, the cord draws back and ties itself round
+// the flipper, and the dimension thins to light: the island shows through, near first, the cord still on the pup.
+//
+// Cost: ~40 draws, ~70k triangles, no post pass, no per-frame allocation. The world is built in small steps
+// while the seal walks up to the lab (prewarm below) and its shaders compiled then, never in the scene's first
+// frame. Card: lib/world/cutscene/cards/p-tangle.js. Parts: ./p-tangle/. Wrap on the flipper: ./p-tangle/pup.js.
 
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BackSide, BoxGeometry, CanvasTexture, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, Euler, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, Object3D, PlaneGeometry, Quaternion, SRGBColorSpace, ShaderMaterial, TorusGeometry, Vector3 } from "three";
-import { Speaker, Stage, useCutFrame } from "../kit";
+import { Quaternion, Scene, Vector3 } from "three";
+import { PLACE_BY_ID } from "../../../../lib/world/places";
+import { cutsceneMode, radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
-import { paletteFor } from "../../../../lib/world/cutscene/look";
-import { figureScale } from "../../../../lib/world/cutscene/timeline";
-import { START, WALK } from "../../../../lib/world/cutscene/cards/p-tangle.js";
-import { additive, crowdFrame, disposeCrowd, disposeLetter, figureFrame, flat, hudAt, letterMesh, makeCrowd, outK, placeLetter, popAt, ramp, rand, twos, useCredit, useLineSwitch, useShake, useStageGroup } from "./g5/fx";
+import { Stage, signAt, smooth, useCutFrame } from "../kit";
+import { islandList, pupParts } from "./p-caustic/parts";
+import { WATER_Y } from "./p-tangle/land";
+import { EYE, skyPos } from "./p-tangle/fx";
+import { GIRL_HAND } from "./p-tangle/girl";
+import { REST, buildSteps } from "./p-tangle/world";
+import { flipperWrap, pupTwilight, tiePoint } from "./p-tangle/pup";
 
-const GREEN = "#22c55e";
-const BLUE = "#6fb7ff";
-const INK = "#1c1630";
-const GREY = "#9aa3b0";
-const STEPS = [3.4, 4.9]; // eight steps, one a syllable
-const N_STEPS = 8;
-const DRAW = [4.95, 5.2];
-const LINK = 5.3;
-const PULL = [5.36, 5.56];
-const CATCH = 5.6;
-const PLATE = [5.7, 8.3];
-const END = [1.5, 0, -0.4]; // where Dio ends: nose to nose
-const R = 0.5; // a ring's radius
-const TUBE = 0.06;
-const PAIR_E = new Euler(0, 0.6, 0.8);
-const GLYPHS = 14;
-const PUFFS = 16;
-const V = new Vector3();
-const M = new Vector3();
-const DIO = new Vector3();
-const P0 = new Vector3();
-const Q = new Quaternion();
-const QF = new Quaternion();
-const QY = new Quaternion().setFromEuler(new Euler(0, Math.PI / 2, 0));
-const QP = new Quaternion().setFromEuler(PAIR_E);
-
-// ゴ, drawn bold with an ink outline in white (tinted by the instance); Latin GO where the font has none
-function glyphTexture() {
-  const c = document.createElement("canvas");
-  c.width = c.height = 128;
-  const x = c.getContext("2d");
-  x.textAlign = "center";
-  x.textBaseline = "middle";
-  x.font = "900 104px 'Yu Gothic', 'Hiragino Sans', 'Noto Sans JP', 'Meiryo', sans-serif";
-  const word = x.measureText("ゴ").width === x.measureText("�").width ? "GO" : "ゴ";
-  x.lineJoin = "round";
-  x.lineWidth = 20;
-  x.strokeStyle = "#0a0614";
-  x.strokeText(word, 64, 70);
-  x.fillStyle = "#ffffff";
-  x.fillText(word, 64, 70);
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  return t;
+// ---------------------------------------------------------------------------------------------- prewarm
+// The world is built in small steps from the moment the seal is within reach of the lab (one step per 50 ms),
+// then its shaders compile (in the composer's target, so the program keys are the ones the scene will use).
+let HELD = null; // { W, steps, i, state }
+const PLACE = PLACE_BY_ID["p-tangle"];
+function advance() {
+  const h = HELD;
+  if (!h || h.i >= h.steps.length) return false;
+  h.steps[h.i++]();
+  return true;
 }
-// the certificate plate: cream, ink lines, a green seal
-function plateTexture() {
-  const c = document.createElement("canvas");
-  c.width = 192;
-  c.height = 128;
-  const x = c.getContext("2d");
-  x.fillStyle = "#fbfaf7";
-  x.fillRect(0, 0, 192, 128);
-  x.strokeStyle = INK;
-  x.lineWidth = 6;
-  x.strokeRect(4, 4, 184, 120);
-  x.lineWidth = 5;
-  x.lineCap = "round";
-  for (const y of [34, 56, 78]) {
-    x.beginPath();
-    x.moveTo(20, y);
-    x.lineTo(112 - (y % 3) * 10, y);
-    x.stroke();
+function takeWorld() {
+  HELD ??= { ...buildSteps(), i: 0, state: "building" };
+  while (advance());
+  HELD.state = "used";
+  return HELD.W;
+}
+function compileHeld(h) {
+  const w = typeof window !== "undefined" ? window.__world : null;
+  if (!w?.gl || !w?.camera || !h.W.root) return;
+  const tmp = new Scene();
+  tmp.add(h.W.root);
+  const prev = w.gl.getRenderTarget();
+  try {
+    if (w.composer?.inputBuffer) w.gl.setRenderTarget(w.composer.inputBuffer);
+    const p = w.gl.compileAsync(tmp, w.camera);
+    w.gl.setRenderTarget(prev);
+    p.then(() => {
+      if (h.state === "compiling") h.state = "ready";
+    });
+  } catch {
+    w.gl.setRenderTarget(prev);
+  } finally {
+    tmp.remove(h.W.root);
   }
-  x.fillStyle = GREEN;
-  x.beginPath();
-  x.arc(150, 80, 24, 0, Math.PI * 2);
-  x.fill();
-  x.strokeStyle = "#fbfaf7";
-  x.lineWidth = 7;
-  x.beginPath();
-  x.moveTo(139, 80);
-  x.lineTo(148, 90);
-  x.lineTo(163, 70);
-  x.stroke();
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  return t;
 }
+function prewarmTick() {
+  if (!PLACE || !cutsceneMode("p-tangle") || live.seen.has("p-tangle")) return;
+  const d = Math.hypot(live.seal.x - PLACE.x, live.seal.z - PLACE.z);
+  if (!HELD) {
+    if (d < 85) HELD = { ...buildSteps(), i: 0, state: "building" };
+  } else if (HELD.state === "building") {
+    if (!advance()) {
+      HELD.state = "compiling";
+      compileHeld(HELD);
+    }
+  } else if (HELD.state !== "used" && d > 170) {
+    HELD.W.dispose();
+    HELD = null;
+  }
+}
+if (typeof window !== "undefined" && !window.__tanglePrewarm) window.__tanglePrewarm = setInterval(prewarmTick, 50);
 
-const JOJO = [
-  (q) => {
-    q.l = 0.15; // a hand on the hip, hip out
-    q.r = 0.9;
-    q.roll = 0.16;
-  },
-  (q) => {
-    q.l = 1; // an arm over the head
-    q.r = 0.35;
-    q.roll = -0.12;
-  },
-  (q) => {
-    q.l = q.r = 0.55; // the back-bend
-    q.pitch = -0.5;
-  },
-];
+// ---------------------------------------------------------------------------------------------- the clock
+// seconds from the arrival; the card's beats put line A at 3.0, B at 6.9, C at 11.3, the credit card at 15.3
+const T = {
+  wrap: [1.25, 1.8],
+  draw: [1.7, 3.7],
+  girl: [2.0, 3.3],
+  loopIn: [4.6, 5.8],
+  travel: [6.2, 7.9],
+  link: 7.9,
+  split: 8.4,
+  fall: [8.75, 9.7],
+  impact: 9.7,
+  pull: [9.72, 10.2],
+  knot: 10.3,
+  dusk: [11.3, 17.0],
+  girlOut: [13.4, 14.8],
+  burst3: 14.0,
+  comet: [12.0, 15.0],
+  retract: [15.2, 16.4],
+  loopsOut: [15.2, 16.0],
+  dis: [16.0, 18.4],
+  title: [15.5, 18.5],
+};
+const ss = smooth;
+// Pacing (owner: events must not rush): the scene's own clock runs through this warp, so every bubble holds 5 s or
+// more, the credit card 5 s, and the impact and the pull play at about half speed. [real s, scene s] knots.
+const KNOTS = [[0, 0], [3, 3], [8.6, 6.9], [11, 8.4], [15.2, 10.3], [16.4, 11.3], [22.4, 15.3], [27.8, 18.6], [28.6, 19.4]];
+const warp = (r) => {
+  if (r <= 0) return r;
+  for (let i = 1; i < KNOTS.length; i++) if (r <= KNOTS[i][0]) return lerp(KNOTS[i - 1][1], KNOTS[i][1], (r - KNOTS[i - 1][0]) / (KNOTS[i][0] - KNOTS[i - 1][0]));
+  return KNOTS[KNOTS.length - 1][1] + (r - KNOTS[KNOTS.length - 1][0]);
+};
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const R = 0.85;
+
+const V = new Vector3();
+const V2 = new Vector3();
+const TIE = new Vector3();
+const HAND = new Vector3();
+const P1 = new Vector3();
+const P2 = new Vector3();
+const T1 = new Vector3();
+const T2 = new Vector3();
+const AUP = new Vector3(0, 1, 0);
+const Q = new Quaternion();
+const FWD = new Vector3();
+const SUN = new Vector3();
+const SUNW = new Vector3();
+const EYEV = new Vector3(EYE[0], EYE[1], EYE[2]);
+const TAILD = new Vector3(-0.62, 0.42, 0.18).normalize();
+const TAIL2 = new Vector3();
+const HEAD0 = new Vector3();
+const FALLTO = new Vector3();
+const CDIR = new Vector3();
+const A0 = new Vector3();
+const B0 = new Vector3();
+const CAv = new Vector3();
+const CAr = new Vector3();
+const CBr = new Vector3();
+const CBv = new Vector3();
+const BP1 = new Vector3();
+const BP2 = new Vector3();
+const NA = new Vector3();
+const U0 = new Vector3();
+const W0 = new Vector3();
+const E1 = new Vector3();
+const E2 = new Vector3();
+
+const cubic = (a, b, c, d, t, out) => {
+  const s = 1 - t;
+  return out.set(0, 0, 0).addScaledVector(a, s * s * s).addScaledVector(b, 3 * s * s * t).addScaledVector(c, 3 * s * t * t).addScaledVector(d, t * t * t);
+};
+// the loops' fixed frame: PA is the way they are pulled; the two planes are turned 45 degrees about it so the lens sees both as ellipses
+function loopFrame() {
+  V.copy(EYEV).sub(REST.CL).normalize();
+  W0.copy(V).addScaledVector(REST.PA, -V.dot(REST.PA)).normalize();
+  U0.crossVectors(W0, REST.PA).normalize();
+  E1.copy(U0).add(W0).multiplyScalar(Math.SQRT1_2);
+  E2.copy(U0).sub(W0).multiplyScalar(Math.SQRT1_2);
+  NA.crossVectors(REST.PA, E1).normalize();
+}
+// a unit direction from the lens to (azimuth, elevation) in degrees
+const dirTo = (az, el, out) => skyPos(az, el, 1, out).sub(EYEV);
+const SKYD = 170;
 
 export default function Tangle(cut) {
-  const { card, tl, mode } = cut;
-  const p = paletteFor(card);
-  const refs = useRef({});
-  const k = useMemo(() => {
-    const r = rand(5);
-    const glyphMap = glyphTexture();
-    const glyphs = new InstancedMesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: glyphMap, color: p.accent, transparent: true, toneMapped: false, fog: false, side: DoubleSide, depthWrite: false, depthTest: false }), GLYPHS);
-    glyphs.frustumCulled = false;
-    glyphs.renderOrder = 4;
-    const dust = new InstancedMesh(new IcosahedronGeometry(0.5, 0), flat("#d9e8d4", { transparent: true, opacity: 0.8 }), PUFFS);
-    dust.frustumCulled = false;
-    const cross = new InstancedMesh(new CircleGeometry(0.5, 14), additive(BLUE), 2);
-    cross.frustumCulled = false;
-    const plateMap = plateTexture();
-    const jaw = new BoxGeometry(0.1, 0.42, 0.1).translate(0, -0.21, 0);
-    return {
-      glyphMap,
-      plateMap,
-      glyphs,
-      dust,
-      cross,
-      lanes: Array.from({ length: GLYPHS }, (_, i) => ({ side: i % 2 ? 1 : -1, x: 0.8 + r() * 0.15, ph: r(), s: 0.09 + r() * 0.06, rz: (r() - 0.5) * 0.4, wob: r() * 6 })),
-      ink: flat(INK),
-      inkRim: flat(p.rim, { side: BackSide }),
-      cream: flat("#fbfaf7"),
-      floorGeo: new CircleGeometry(9, 48).rotateX(-Math.PI / 2),
-      floor: new ShaderMaterial({
-        uniforms: { uC: { value: new Vector3() }, uT: { value: 0 }, uS: { value: 0 } },
-        transparent: true,
-        depthWrite: false,
-        vertexShader: "varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}",
-        fragmentShader:
-          "uniform vec3 uC;uniform float uT,uS;varying vec3 vW;void main(){vec2 d=vW.xz-uC.xz;float r=length(d)/9.;float row=floor(d.y*9.);float h=fract(sin(row*12.9898)*43758.5453);float x=fract(d.x*0.22+uT*uS*(0.5+h)*0.35+h*5.);float ln=step(0.45,h)*smoothstep(0.40,0.42,x)*(1.-smoothstep(0.50,0.52,x));vec3 col=mix(vec3(0.03,0.10,0.07),vec3(0.35,0.85,0.55),ln*(0.2+0.5*uS));gl_FragColor=vec4(pow(col,vec3(2.2)),(1.-smoothstep(0.3,0.95,r))*0.95);}",
-      }),
-      // Dio's hem and watch
-      hem: new ConeGeometry(0.4, 0.6, 9, 1, true).translate(0, -0.3, 0),
-      chain: new BoxGeometry(0.012, 0.46, 0.012).translate(0, -0.23, 0),
-      watch: new CylinderGeometry(0.085, 0.085, 0.025, 14).rotateX(Math.PI / 2),
-      watchFace: new CircleGeometry(0.06, 12),
-      // the rings and their rims, the gantry, the clamp, the plate
-      tube: new TorusGeometry(R, TUBE, 8, 40),
-      rim: new TorusGeometry(R, TUBE + 0.028, 8, 40),
-      grey: flat(GREY),
-      legs: new BoxGeometry(0.14, 3.2, 0.14),
-      beam: new BoxGeometry(1.5, 0.18, 0.2),
-      housing: new BoxGeometry(0.8, 0.42, 0.5),
-      slot: new BoxGeometry(0.5, 0.06, 0.52),
-      slotMat: additive(GREEN),
-      cable: new CylinderGeometry(0.018, 0.018, 1, 6).translate(0, 0.5, 0),
-      jaw,
-      head: new BoxGeometry(0.32, 0.14, 0.14),
-      plateGeo: new PlaneGeometry(0.7, 0.47),
-      plateMat: new MeshBasicMaterial({ map: plateMap, toneMapped: false, fog: false, side: DoubleSide }),
-      dummy: new Object3D(),
-    };
-  }, [p]);
+  const { card, place, tl, mode } = cut;
+  const scene = useThree((s) => s.scene);
+  const rig = useRef();
+  const W = useMemo(() => takeWorld(), []);
+  const island = useRef([]);
+  const twil = useRef(null);
+  const wrap = useRef(null);
+  const st = useRef({ revealed: false, tied: false });
 
-  const letters = useMemo(() => ({ don: letterMesh("DON!", GREEN, 120), giiin: letterMesh("GIIIN", GREEN, 120) }), []);
-  const crowd = useMemo(() => makeCrowd(8, p.ink), [p]);
-  const spots = useMemo(() => [-0.94, -0.81, -0.68, -0.55, 0.55, 0.68, 0.81, 0.94].map((x) => [x, -0.8]), []);
-  useEffect(
-    () => () => {
-      k.glyphMap.dispose();
-      k.plateMap.dispose();
-      [letters.don, letters.giiin].forEach(disposeLetter);
-      disposeCrowd(crowd);
-    },
-    [k, letters, crowd],
-  );
-  // Dio starts far off and the move walks him in; the card is a module singleton, so put him back
   useEffect(() => {
-    const at = card.speaker.at;
-    at[0] = START[0];
-    at[1] = START[1];
-    at[2] = START[2];
+    island.current = islandList(scene);
+    const parts = pupParts(scene);
+    if (parts?.root) {
+      wrap.current = flipperWrap(parts);
+      twil.current = pupTwilight(parts, W.U);
+    }
+    loopFrame();
+    const s = st.current;
     return () => {
-      at[0] = START[0];
-      at[1] = START[1];
-      at[2] = START[2];
+      twil.current?.dispose();
+      twil.current = null;
+      // the wrap is kept (the cord stays tied) if the scene got as far as tying it
+      if (wrap.current && !s.tied) wrap.current.scale.setScalar(0.0001);
+      wrap.current = null;
+      W.dispose();
+      HELD = null;
     };
-  }, [card]);
+  }, [scene, W]);
 
-  useShake(cut, [LINK, CATCH], 0.06);
-  useCredit(cut, "teerthsharma/tangle", "Python", "2,000 diagrams · 80 scenes · 247 photographs · 0 wrong certificates");
-  useLineSwitch(card, tl, WALK);
+  // a skip clears the arrival: nothing of the dimension draws for the frame before this unmounts
+  useFrame(() => {
+    if (!live.arrival.id) {
+      rig.current.visible = false;
+      twil.current?.set(false);
+    }
+  }, -0.5);
 
-  // the pup: a Jotaro stance, a bob a step, the fist set as it arrives
-  useCutFrame((t) => {
-    if (mode !== "full") return;
-    const o = outK(tl, t);
-    const walking = t >= STEPS[0] && t < STEPS[1];
-    live.pose.fist = ramp(3.0, 3.4, t) * o;
-    live.pose.crouch = (walking ? (Math.floor((t - STEPS[0]) / ((STEPS[1] - STEPS[0]) / N_STEPS)) % 2 ? 0.05 : 0.4) : 0.15 * ramp(STEPS[1], STEPS[1] + 0.2, t)) * o;
+  useCutFrame((rt, state) => {
+    const t = warp(rt);
+    const full = mode === "full";
+    const g = rig.current;
+    g.visible = full && t < T.dis[1] + 0.2;
+    if (!full) {
+      twil.current?.set(false);
+      return;
+    }
+    const cam = state.camera;
+    const s = live.seal;
+    const out = 1 - smooth(tl.collapse[0], tl.collapse[1], rt);
+    const turn = turnFor(card, place, s.x, s.z);
+    g.position.set(s.x, 0, s.z);
+    g.rotation.y = turn;
+    g.updateWorldMatrix(true, false);
+    const U = W.U;
+    const o = W.o;
+
+    // ---- the swell: the dome of twilight grows out of the pup, then stands behind everything
+    const r = radiusAt(tl, rt);
+    V.set(s.x, 0.9, s.z);
+    const inside = r > cam.position.distanceTo(V) + 0.3;
+    o.sky.visible = r > 0.02 && t < T.dis[1];
+    o.sky.scale.setScalar(inside ? 200 : Math.max(r, 0.02));
+    o.sky.position.set(0, inside ? 0 : 0.9, 0);
+    W.sky.m.uniforms.uInside.value = inside ? 1 : 0;
+    for (const k of ["terrain", "lake", "shrine", "girl", "knotGroup"]) o[k].visible = inside;
+    for (const m of [W.trees, W.boulders, W.reeds, W.town.hm, W.town.win, W.shide, W.ghosts.mesh, W.fire.mesh, W.lakeGlints.mesh, W.airGlints.mesh, W.burst.mesh]) m.visible = inside;
+    for (const c of W.comets) c.ribbon.visible = c.head.visible = inside;
+
+    // ---- the light: the sun sinks at the end; the dissolve
+    const dusk = ss(T.dusk[0], T.dusk[1], t);
+    const dis = ss(T.dis[0], T.dis[1], t);
+    U.uTime.value = t;
+    U.uTw.value = dusk;
+    U.uDis.value = dis;
+    U.uKeep.value = ss(16.4, 18.0, t);
+    SUN.set(0.17, lerp(0.012, -0.3, ss(T.dusk[0], 16.2, t)), -0.98).normalize();
+    SUNW.copy(SUN).applyAxisAngle(AUP, turn);
+    U.uSun.value.copy(SUNW);
+    W.lake.m.uniforms.uTurn.value = turn;
+
+    // ---- the pup: the cord tied (the sign, then the fist before the cheek), leaning back when the shock comes
+    twil.current?.set((inside || rt > tl.bloom[1]) && t < 18.3);
+    live.pose.sign = signAt(tl, rt) * (1 - ss(1.2, 1.55, t));
+    const shock = ss(T.pull[0], T.pull[1], t) * (1 - ss(10.2, 10.9, t));
+    live.pose.fist = ss(1.3, 1.7, t) * (1 - ss(17.6, 18.4, t)) * out;
+    live.pose.crouch = shock * 0.45;
+    const wp = wrap.current;
+    if (wp) {
+      const k = ss(T.wrap[0], T.wrap[1], t);
+      wp.scale.setScalar(Math.max(k * (1 + 0.25 * Math.sin(Math.PI * clamp01((t - T.wrap[0]) / 0.5))), 0.0001));
+      if (k > 0.5) st.current.tied = true;
+      tiePoint(wp, g, TIE);
+    } else TIE.set(-0.2, 0.9, 0.4);
+
+    // ---- the girl, and where the cord's far end is held
+    const gvis = ss(T.girl[0], T.girl[1], t) * (1 - ss(T.girlOut[0], T.girlOut[1], t));
+    W.girl.m.uniforms.uVis.value = gvis;
+    o.girl.visible = inside && gvis > 0.01;
+    o.girl.rotation.z = 0.012 * Math.sin(t * 0.8);
+    HAND.set(GIRL_HAND[0] * 2.1, GIRL_HAND[1] * 2.1, GIRL_HAND[2] * 2.1).add(W.girlAt);
+    HAND.y += 0.03 * Math.sin(t * 1.3);
+
+    // ---- the cord: floats slack across the lake; taut with the shock; drawn back to the flipper at the end
+    const taut = ss(T.pull[0], T.pull[1] + 0.2, t) * (1 - ss(T.retract[0], T.retract[0] + 0.5, t) * 0.6);
+    const dx = HAND.x - TIE.x;
+    const dz = HAND.z - TIE.z;
+    P1.set(TIE.x + dx * 0.3 + 2.4, WATER_Y + 0.12, TIE.z + dz * 0.3);
+    P2.set(TIE.x + dx * 0.68 - 2.8, WATER_Y + 0.1, TIE.z + dz * 0.68);
+    V.copy(HAND).sub(TIE);
+    P1.lerp(T1.copy(TIE).addScaledVector(V, 1 / 3), taut);
+    P2.lerp(T2.copy(TIE).addScaledVector(V, 2 / 3), taut);
+    const su = W.strand.U;
+    su.uP0.value.copy(TIE);
+    su.uP1.value.copy(P1);
+    su.uP2.value.copy(P2);
+    su.uP3.value.copy(HAND);
+    su.uGrow.value = Math.max(ss(T.draw[0], T.draw[1], t) * (1 - ss(T.retract[0], T.retract[1], t) * 0.97), 0.0001);
+    su.uFlut.value = (1 - 0.85 * taut) * (0.6 + 0.4 * ss(1.7, 3.0, t));
+    su.uGlow.value = 0.45 + 0.9 * ss(T.link - 0.2, T.link + 0.3, t) + 0.8 * shock;
+    W.strand.shellU.uGlow.value = 0.6 + 0.7 * shock + 0.5 * ss(T.link, T.link + 0.5, t);
+    o.strandCore.visible = inside && su.uGrow.value > 0.001;
+    o.strandHalo.visible = o.strandCore.visible;
+
+    // ---- the loops: light up beside the cord's two ends, glide to the middle, link (B drops through A), pull, hold
+    const lin = ss(T.loopIn[0], T.loopIn[1], t) * (1 + 0.16 * Math.sin(Math.PI * clamp01((t - T.loopIn[0]) / 1.3)));
+    const lout = 1 - ss(T.loopsOut[0], T.loopsOut[1], t);
+    const tr = ss(T.travel[0], T.travel[1], t);
+    const linkK = ss(T.link - 0.05, T.link + 0.35, t);
+    const settle = t > T.link ? Math.exp(-(t - T.link) * 6) * Math.cos((t - T.link) * 30) : 0;
+    const ring = t < T.pull[0] ? 0 : 0.86 + 0.14 * Math.exp(-Math.max(0, t - T.pull[1]) * 7) * Math.cos((t - T.pull[1]) * 38);
+    const pullAmt = ss(T.pull[0], T.pull[1], t) * ring;
+    const A = REST.PA;
+    A0.copy(TIE).addScaledVector(A, 0.55).add(V.set(0.1, 0.65, -0.55));
+    CAr.copy(REST.CL).addScaledVector(A, -R * 0.5 - 0.55 * pullAmt);
+    const ta = ss(T.travel[0] - 0.2, T.travel[1] - 0.3, t);
+    CAv.copy(A0).lerp(CAr, ta);
+    CAv.y += 0.05 * Math.sin(t * 1.7) * (1 - ta);
+    const aRad = R * (0.8 + 0.2 * ta);
+    B0.copy(HAND).add(V.set(0.1, 0.1, 0.6));
+    CBr.copy(REST.CL).addScaledVector(A, R * 0.5 + 0.55 * pullAmt + 0.02 * settle);
+    BP1.copy(B0).lerp(CBr, 0.4);
+    BP1.y += 4;
+    BP2.copy(CBr).addScaledVector(NA, 3.2);
+    cubic(B0, BP1, BP2, CBr, tr, CBv);
+    const bRad = R * (1 + 1.5 * Math.pow(1 - tr, 1.3));
+    const stretch = 1 + 0.9 * pullAmt;
+    const narrow = 1 - 0.28 * pullAmt;
+    const loopUp = (L, center, rad, e, show, bump) => {
+      const u = L.U;
+      u.uC.value.copy(center);
+      u.uA.value.copy(A);
+      u.uE.value.copy(e);
+      u.uRy.value = rad * stretch;
+      u.uRx.value = rad * narrow;
+      u.uTube.value = 0.07 * (0.9 + (0.1 * rad) / R);
+      u.uPersp.value = 0.012 * (1 - tr * 0.9);
+      u.uScale.value = Math.max(show, 0.0001) * (1 + bump);
+      u.uGlow.value = 0.7 + 0.5 * linkK + 0.8 * shock;
+      L.shellU.uScale.value = u.uScale.value;
+      L.shellU.uGlow.value = 0.8 + 0.8 * shock + 0.4 * linkK;
+    };
+    loopUp(W.loopA, CAv, aRad, E1, lin * lout, 0.04 * Math.sin(t * 9) * shock);
+    loopUp(W.loopB, CBv, bRad, E2, lin * lout, 0.04 * Math.sin(t * 9 + 1) * shock);
+    for (const k of ["loopACore", "loopAHalo", "loopBCore", "loopBHalo"]) o[k].visible = inside && lin * lout > 0.01;
+
+    // ---- the knot that holds: a musubi bow, the certificate, popped in when the pull catches
+    const kp = ss(T.knot, T.knot + 0.45, t);
+    const pop = kp * (1 + 0.3 * Math.sin(Math.PI * clamp01((t - T.knot) / 0.55))) * lout;
+    o.knotGroup.visible = inside && pop > 0.01;
+    o.knotGroup.position.copy(REST.CL);
+    o.knotGroup.rotation.set(0.04 * Math.sin(t * 1.3), 0.08 * Math.sin(t * 0.9), 0.05 * Math.sin(t * 1.1));
+    o.knotGroup.scale.setScalar(1.15);
+    o.tag.rotation.z = 0.14 * Math.sin(t * 2.3) * kp;
+    o.tag.position.set(0, -0.55, 0.02);
+    W.knot.U.uPop.value = Math.max(pop, 0.0001);
+    W.knot.haloU.uPop.value = Math.max(pop, 0.0001);
+    W.knot.U.uGlow.value = 0.9 + 0.5 * Math.sin(t * 3.1) * kp;
+    W.knot.haloU.uGlow.value = 0.9 + 0.4 * Math.sin(t * 3.1) * kp;
+
+    // ---- the comet: one piece, then it splits; one piece falls and lights the far shore
+    const cAlpha = ss(1.8, 3.2, t) * (1 - ss(T.comet[0], T.comet[1], t));
+    const sp = Math.max(0, t - T.split);
+    const az0 = 8 + 0.35 * t;
+    const el0 = 17.5 + 0.12 * t;
+    dirTo(az0, el0, CDIR);
+    HEAD0.copy(CDIR).multiplyScalar(SKYD).add(EYEV);
+    const c0 = W.comets[0];
+    c0.ru.uHead.value.copy(HEAD0);
+    c0.ru.uDir.value.copy(TAILD);
+    c0.ru.uLen.value = 70 + 8 * Math.sin(t * 0.7);
+    c0.ru.uW.value = 2.4;
+    c0.ru.uAlpha.value = cAlpha;
+    c0.hu.uSize.value = 9 + 0.6 * Math.sin(t * 5);
+    const c1 = W.comets[1];
+    c1.ru.uHead.value.copy(HEAD0).addScaledVector(V.set(1, 0.18, 0.1), sp * sp * 0.9 + sp * 1.2);
+    c1.ru.uDir.value.copy(TAILD).add(V.set(0.1, -0.05, 0)).normalize();
+    c1.ru.uLen.value = 55;
+    c1.ru.uW.value = 1.8;
+    c1.ru.uAlpha.value = cAlpha * ss(T.split, T.split + 0.5, t);
+    c1.hu.uSize.value = 6;
+    const fe = clamp01((t - T.fall[0]) / (T.fall[1] - T.fall[0])) ** 2;
+    dirTo(-23, 3.6, FALLTO).multiplyScalar(215).add(EYEV);
+    const c2 = W.comets[2];
+    c2.ru.uHead.value.copy(HEAD0).lerp(FALLTO, t < T.fall[0] ? 0 : fe);
+    TAIL2.copy(HEAD0).sub(c2.ru.uHead.value);
+    if (TAIL2.lengthSq() < 1) TAIL2.copy(TAILD);
+    c2.ru.uDir.value.copy(TAIL2.lengthSq() > 1 ? TAIL2.normalize() : TAILD).lerp(TAILD, 1 - ss(T.fall[0], T.fall[0] + 0.5, t)).normalize();
+    c2.ru.uLen.value = 30 + 70 * ss(T.fall[0], T.fall[1], t);
+    c2.ru.uW.value = 2.0 + 1.2 * ss(T.fall[0], T.fall[1], t);
+    const hit = t - T.impact;
+    const flash = hit > 0 ? Math.exp(-hit * 1.8) : 0;
+    c2.ru.uAlpha.value = t < T.split || t >= T.impact ? 0 : cAlpha * ss(T.split, T.split + 0.5, t);
+    c2.hu.uSize.value = t < T.impact ? 6.5 : 60 * (1 + hit * 0.8);
+    c2.hu.uAlpha.value = t < T.impact ? c2.ru.uAlpha.value : flash * 0.9;
+    c1.hu.uAlpha.value = c1.ru.uAlpha.value;
+    c0.hu.uAlpha.value = c0.ru.uAlpha.value;
+    U.uFlare.value = flash * 0.9;
+    U.uComet.value.copy(CDIR).applyAxisAngle(AUP, turn);
+
+    // ---- ripples on the lake and the loops' reflections
+    const rp = W.lake.m.uniforms.uRip.value;
+    rp[0].set(REST.CL.x, REST.CL.z, T.link, t > T.link ? 0.9 : 0);
+    rp[1].set(-24, -140, T.impact, t > T.impact ? 1.2 : 0);
+    rp[2].set(REST.CL.x, REST.CL.z, T.pull[0] + 0.2, t > T.pull[0] ? 0.8 : 0);
+    rp[3].set(TIE.x + dx * 0.5, TIE.z + dz * 0.5, T.retract[0], t > T.retract[0] ? 0.5 * (1 - dis) : 0);
+    const sr = W.lake.m.uniforms.uSrc.value;
+    const sc = W.lake.m.uniforms.uSrcCol.value;
+    sr[0].set(CAv.x, CAv.y, CAv.z, 0.9 * lin * lout);
+    sc[0].set(1, 0.3, 0.35);
+    sr[1].set(CBv.x, CBv.y, CBv.z, 0.9 * lin * lout * (1 + 1.5 * (1 - tr)));
+    sc[1].set(1, 0.35, 0.3);
+    sr[2].set(HEAD0.x, HEAD0.y, HEAD0.z, 3.2 * cAlpha);
+    sc[2].set(0.55, 0.8, 1);
+    sr[3].set(REST.CL.x, REST.CL.y, REST.CL.z, 1.6 * pop);
+    sc[3].set(1, 0.7, 0.45);
+
+    // ---- sparkle: fireflies on the bank, glints on the water and in the air; the bursts at the link, the knot, the girl
+    W.fire.u.uAmp.value = ss(3.4, 4.6, t) * (1 - ss(14.0, 16.0, t));
+    W.lakeGlints.u.uAmp.value = ss(2.2, 3.4, t) * (1 - ss(14.5, 16.5, t)) * (1 - 0.6 * dusk);
+    W.airGlints.u.uAmp.value = ss(5.0, 6.2, t) * (1 - ss(15.4, 16.4, t)) * (0.5 + 0.5 * ss(T.link, T.link + 1, t));
+    const b = W.burst.u;
+    b.uAmp.value = 1.6;
+    if (t < T.knot - 0.1) {
+      b.uC.value.copy(REST.CL);
+      b.uT0.value = T.link;
+    } else if (t < T.burst3 - 0.05) {
+      b.uC.value.copy(REST.CL);
+      b.uT0.value = T.knot;
+    } else {
+      b.uC.value.copy(HAND).add(V.set(0, -1.6, 0));
+      b.uT0.value = T.burst3;
+    }
+
+    // ---- the sun's lens ghosts: a few pale hexagons along the line through the middle of the frame
+    cam.getWorldDirection(FWD);
+    const gu = W.ghosts.u;
+    V.copy(cam.position).addScaledVector(SUNW, 100).project(cam);
+    gu.uVis.value = (1 - dusk) * (1 - dusk) * Math.max(0, FWD.dot(SUNW)) * ss(1.9, 3.2, t) * (1 - ss(T.dis[0], T.dis[0] + 0.5, t));
+    gu.uAsp.value = 1 / cam.aspect;
+    const gv = gu.uGhost.value;
+    gv[0].set(V.x * -0.55, V.y * -0.55, 0.16, 0.07);
+    gv[1].set(V.x * 0.35, V.y * 0.35, 0.1, 0.05);
+    gv[2].set(V.x * 0.75, V.y * 0.75, 0.07, 0.11);
+    gv[3].set(V.x * -1.1, V.y * -1.1, 0.12, 0.04);
+    gv[4].set(V.x * 1.5, V.y * 1.5, 0.05, 0.15);
+
+    // ---- the title card of the dusk's end, in the sky
+    const tcA = ss(T.title[0], T.title[0] + 0.9, t) * (1 - ss(T.title[1] - 0.5, T.title[1], t));
+    const tm = W.title.mesh;
+    tm.visible = tcA > 0.01;
+    tm.material.uniforms.uA.value = tcA;
+    if (tm.visible) {
+      const d = 6;
+      const hh = 2 * d * Math.tan((cam.fov * Math.PI) / 360);
+      V.copy(cam.position).addScaledVector(FWD, d);
+      V2.set(0, 1, 0).applyQuaternion(cam.quaternion);
+      V.addScaledVector(V2, hh * 0.27);
+      g.worldToLocal(V);
+      tm.position.copy(V);
+      g.getWorldQuaternion(Q).invert().multiply(cam.quaternion);
+      tm.quaternion.copy(Q);
+      const w = Math.min(hh * cam.aspect * 0.62, 5.6);
+      tm.scale.set(w, w, 1);
+    }
+
+    // ---- THE ISLAND comes back through the thinning dimension, near first
+    if (dis > 0.03 && !st.current.revealed) {
+      st.current.revealed = true;
+      for (const x of island.current) x.visible = true;
+    }
   });
 
-  const hide = () => {
-    if (refs.current.fig) refs.current.fig.visible = false;
-  };
-  const root = useStageGroup(
-    cut,
-    (t, state) => {
-      const r = refs.current;
-      const tt = twos(t);
-      const o = outK(tl, t);
-      const D = k.dummy;
-      const seal = live.seal;
-      const cam = state.camera;
-      const at = card.speaker.at;
-      const stepLen = (STEPS[1] - STEPS[0]) / N_STEPS;
-      const walkT = Math.min(1, Math.max(0, (t - STEPS[0]) / (STEPS[1] - STEPS[0])));
-      // --- Dio is slid in toward the pup a step at a time (on twos, an ease inside each step)
-      const si = Math.min(N_STEPS - 1, Math.floor(walkT * N_STEPS));
-      const inStep = walkT >= 1 ? 1 : ramp(0, 0.7, Math.floor((walkT * N_STEPS - si) * 6) / 6);
-      const prog = walkT >= 1 ? 1 : (si + inStep) / N_STEPS;
-      for (let a = 0; a < 3; a++) at[a] = START[a] + (END[a] - START[a]) * prog;
-      const walking = t >= STEPS[0] && t < STEPS[1];
-      k.floor.uniforms.uC.value.set(seal.x, 0, seal.z);
-      k.floor.uniforms.uT.value = t;
-      k.floor.uniforms.uS.value = walking ? 1 : 0.15;
-      const arena = ramp(2.2, 2.6, t);
-      r.arena.visible = arena > 0;
-
-      // --- Dio's hem and watch ride the figure: they swing while he holds still
-      const ff = figureFrame(t, tl, mode);
-      r.fig.visible = Boolean(ff);
-      if (ff) {
-        const sc = figureScale(card);
-        r.fig.position.set(seal.x + at[0], at[1], seal.z + at[2]);
-        r.fig.scale.set(sc * ff[0], sc * ff[1], sc * ff[0]);
-        r.fig.rotation.y = -0.42;
-        r.hemG.rotation.z = 0.06 * Math.sin(tt * 3.1);
-        r.hemG.rotation.x = 0.05 * Math.sin(tt * 2.3 + 1);
-        r.pend.rotation.z = 0.5 * Math.sin(tt * 2.6);
-      }
-      // --- ゴゴゴ up both screen edges, on twos, the whole scene
-      const gOn = ramp(tl.lineA - 0.2, tl.lineA + 0.4, t) * o;
-      k.glyphs.visible = gOn > 0;
-      k.lanes.forEach((g, i) => {
-        const u = (tt * 0.22 + g.ph) % 1;
-        const worldH = hudAt(cam, g.side * g.x, -0.85 + u * 1.6, 6, V);
-        D.position.copy(V);
-        D.quaternion.copy(cam.quaternion);
-        D.rotateZ(g.rz + Math.sin(tt * 4 + g.wob) * 0.05);
-        const s = g.s * worldH * gOn * Math.sin(u * Math.PI) ** 0.5;
-        D.scale.set(s, s, 1);
-        D.updateMatrix();
-        k.glyphs.setMatrixAt(i, D.matrix);
-      });
-      k.glyphs.instanceMatrix.needsUpdate = true;
-
-      // --- dust: two puffs at the pup's feet each step, rising and settling
-      k.dust.visible = t >= STEPS[0] && t < STEPS[1] + 1.2;
-      for (let i = 0; i < PUFFS; i++) {
-        const step = Math.floor(i / 2);
-        const a = t - (STEPS[0] + step * stepLen);
-        const side = i % 2 ? 1 : -1;
-        const u = ramp(0, 0.7, a);
-        D.position.set(-0.45 - u * 0.35 + side * 0.18, 0.06 + 0.22 * Math.sin(u * Math.PI * 0.8), 0.15 + side * 0.1);
-        D.quaternion.set(0, 0, 0, 1);
-        D.scale.setScalar(a > 0 && a < 0.75 ? (0.1 + 0.2 * u) * (1 - ramp(0.4, 0.75, a)) * o + 0.0001 : 0.0001);
-        D.updateMatrix();
-        k.dust.setMatrixAt(i, D.matrix);
-      }
-      k.dust.instanceMatrix.needsUpdate = true;
-
-      // --- the rings: drawn round the pup (ink) and round Dio (grey), flown to the middle and linked with a DON!
-      const grow = ramp(DRAW[0], DRAW[1], t);
-      const fly = ramp(DRAW[1] - 0.05, LINK, t);
-      const dio = DIO.set(at[0], 1.15, at[2]);
-      M.set((0 + dio.x) / 2, 1.15, (0.3 + dio.z) / 2);
-      const tug = t >= PULL[0] && t < CATCH ? Math.sin(ramp(PULL[0], PULL[1], t) * Math.PI) * 0.26 : t >= CATCH ? Math.exp(-(t - CATCH) * 10) * Math.sin((t - CATCH) * 42) * 0.05 : 0;
-      const jawK = ramp(PULL[0] - 0.06, PULL[0], t);
-      const wob = t > LINK && t < PULL[0] ? Math.sin((t - LINK) * 50) * 0.02 : 0;
-      for (const [ring, sd] of [[r.ringA, -1], [r.ringB, 1]]) {
-        ring.visible = grow > 0;
-        if (!ring.visible) continue;
-        const from = sd < 0 ? P0.set(0, 0.8, 0.35) : P0.copy(dio);
-        const to = W3.set(0, sd * (R / 2 + tug * 0.5 + wob), 0).applyEuler(PAIR_E).add(M);
-        ring.position.copy(from).lerp(to, fly);
-        QF.copy(QP);
-        if (sd > 0) QF.multiply(QY);
-        ring.quaternion.copy(cam.quaternion).slerp(QF, fly);
-        ring.scale.setScalar(Math.max((0.35 + 0.65 * grow) * o, 0.0001));
-      }
-      // the two crossings, lit blue when the rings link
-      k.cross.visible = t >= LINK;
-      for (let i = 0; i < 2; i++) {
-        V.set(0, i ? R * 0.5 : -R * 0.5, 0).applyEuler(PAIR_E).add(M);
-        D.position.copy(V);
-        D.quaternion.copy(cam.quaternion);
-        D.scale.setScalar(t >= LINK ? (0.12 + 0.1 * Math.sin(tt * 12 + i * 2)) * popAt(t - LINK) * o + 0.0001 : 0.0001);
-        D.updateMatrix();
-        k.cross.setMatrixAt(i, D.matrix);
-      }
-      k.cross.instanceMatrix.needsUpdate = true;
-      placeLetter(state, letters.don, -0.05, 0.12, 0.17, -0.1, t >= LINK && t < LINK + 0.9 ? popAt(t - LINK) * o : 0);
-      placeLetter(state, letters.giiin, 0.42, 0.28, 0.14, 0.08, t >= CATCH && t < CATCH + 1.1 ? popAt(t - CATCH) * o : 0);
-
-      // --- the gantry: a hoist at the back, its cable down to the clamp over the meeting point
-      r.gantry.visible = arena > 0;
-      r.gantry.scale.setScalar(Math.max(arena * (0.2 + 0.8 * o), 0.001));
-      const housing = W3.set(0.6, 2.7, -5.6);
-      const head = V.set(M.x, M.y + 0.95 - (tug > 0 ? tug * 0.4 : 0), M.z);
-      r.cable.position.copy(head);
-      r.cable.quaternion.setFromUnitVectors(UP, Q4.copy(housing).sub(head).normalize());
-      r.cable.scale.set(1, housing.distanceTo(head), 1);
-      r.clamp.position.copy(head);
-      r.clamp.visible = arena > 0 && t > 3.0;
-      r.jawL.rotation.z = 0.55 * (1 - jawK) + 0.12 * jawK;
-      r.jawR.rotation.z = -0.55 * (1 - jawK) - 0.12 * jawK;
-      k.slotMat.opacity = 0.5 + 0.4 * Math.sin(tt * 6) * (t > CATCH ? 1 : 0.3);
-
-      // --- the plate ejects from the housing and spins down into the credit card
-      const pu = ramp(PLATE[0], PLATE[1], t);
-      r.plate.visible = t >= PLATE[0] && t < PLATE[1] + 0.15 && o > 0.1;
-      if (r.plate.visible) {
-        const w = hudAt(cam, 0, -0.32, 3.2, V);
-        r.plate.position.set(housing.x + (V.x - housing.x) * pu, housing.y - 0.2 + (V.y - housing.y + 0.2) * pu, housing.z + (V.z - housing.z) * pu);
-        r.plate.quaternion.copy(cam.quaternion).multiply(Q.setFromEuler(E2.set(0, tt * 7 * (1 - pu), 0.2 * Math.sin(tt * 2))));
-        r.plate.scale.setScalar(0.45 + (w * 0.1) * pu);
-      }
-
-      // --- eight costume pups, each in a different JoJo pose, changing on twos
-      crowdFrame(
-        crowd,
-        state,
-        t > 2.5 && o > 0.02,
-        spots.map(([x, y], i) => [x, y - (1 - ramp(2.5 + i * 0.04, 2.8 + i * 0.04, t)) * 0.4]),
-        0.12 * (0.3 + 0.7 * o),
-        (i, q) => {
-          JOJO[(Math.floor(t * 3) + i) % 3](q);
-          q.hop = Math.sin(tt * 9 + i) > 0.5 ? 0.5 : 0;
-        },
-      );
-    },
-    hide,
-  );
-
-  const set = (name) => (m) => {
-    refs.current[name] = m;
-  };
   return (
     <>
-      <Stage {...cut} />
-      <Speaker {...cut} lean={0.06} />
-      <group ref={set("fig")} visible={false}>
-        <group ref={set("hemG")} position={[0, 1.02, 0]}>
-          <mesh geometry={k.hem} material={k.inkRim} scale={1.07} />
-          <mesh geometry={k.hem} material={k.ink} />
-        </group>
-        <group ref={set("pend")} position={[-0.66, 2.1, 0.36]}>
-          <mesh geometry={k.chain} material={k.cream} />
-          <mesh geometry={k.watch} material={k.cream} position={[0, -0.5, 0]} />
-          <mesh geometry={k.watchFace} material={k.ink} position={[0, -0.5, 0.016]} />
-        </group>
-      </group>
-      <group ref={root} visible={false}>
-        <group ref={set("arena")}>
-          <mesh geometry={k.floorGeo} material={k.floor} position={[0, 0.004, 0]} renderOrder={-0.5} />
-        </group>
-        <group ref={set("gantry")} position={[0.6, 0, -5.6]}>
-          <mesh geometry={k.legs} material={k.ink} position={[-0.55, 1.4, 0]} rotation={[0, 0, -0.2]} />
-          <mesh geometry={k.legs} material={k.ink} position={[0.55, 1.4, 0]} rotation={[0, 0, 0.2]} />
-          <mesh geometry={k.beam} material={k.ink} position={[0, 2.4, 0]} />
-          <mesh geometry={k.housing} material={k.inkRim} position={[0, 2.7, 0]} scale={1.05} />
-          <mesh geometry={k.housing} material={k.ink} position={[0, 2.7, 0]} />
-          <mesh geometry={k.slot} material={k.slotMat} position={[0, 2.5, 0]} />
-        </group>
-        <mesh ref={set("cable")} geometry={k.cable} material={k.ink} />
-        <group ref={set("clamp")} visible={false}>
-          <mesh geometry={k.head} material={k.ink} />
-          <group ref={set("jawL")} position={[-0.12, -0.06, 0]}>
-            <mesh geometry={k.jaw} material={k.ink} />
-          </group>
-          <group ref={set("jawR")} position={[0.12, -0.06, 0]}>
-            <mesh geometry={k.jaw} material={k.ink} />
-          </group>
-        </group>
-        <group ref={set("ringA")} visible={false}>
-          <mesh geometry={k.rim} material={k.inkRim} />
-          <mesh geometry={k.tube} material={k.ink} />
-        </group>
-        <group ref={set("ringB")} visible={false}>
-          <mesh geometry={k.rim} material={k.inkRim} />
-          <mesh geometry={k.tube} material={k.grey} />
-        </group>
-        <primitive object={k.cross} />
-        <primitive object={k.dust} />
-        <primitive object={k.glyphs} />
-        <mesh ref={set("plate")} geometry={k.plateGeo} material={k.plateMat} visible={false} />
-        <primitive object={letters.don} />
-        <primitive object={letters.giiin} />
-        {crowd.g.map((m, i) => (
-          <primitive key={i} object={m} />
-        ))}
+      <Stage {...cut} bare skip={() => true} />
+      <group ref={rig} visible={false}>
+        <primitive object={W.root} dispose={null} />
       </group>
     </>
   );
 }
-
-const W3 = new Vector3();
-const Q4 = new Vector3();
-const UP = new Vector3(0, 1, 0);
-const E2 = new Euler();

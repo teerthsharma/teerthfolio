@@ -22,7 +22,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, CylinderGeometry, TorusGeometry } from "three";
+import { BoxGeometry, CanvasTexture, ConeGeometry, CylinderGeometry, DoubleSide, MeshBasicMaterial, Object3D, PlaneGeometry, Quaternion, SRGBColorSpace, TorusGeometry, Vector3 } from "three";
 import { useUi } from "../../../lib/world/store";
 import { C, glow, mat } from "../palette";
 
@@ -96,6 +96,60 @@ const CORNER_GEO = new BoxGeometry(0.12, CRATE_H, 0.12);
 const PLATE_GEO = new BoxGeometry(0.9, 0.6, 0.08);
 const PLATE_BORDER_GEO = new BoxGeometry(1.1, 0.8, 0.05);
 
+// --- Hunter x Hunter, as island decor (the owner: it belongs in the ENVIRONMENT, not in a cutscene) -----
+// A fence of Kurapika-style chains swagged between slim posts across the gantry's front and flanks, a small
+// Hunter License card hanging on a post, and a scarlet glint in the cab lamp that burns brighter at night.
+// Everything stays inside the 3 m of the place's collider. Shape and colour only: no logos, no faces.
+const FENCE_POSTS = [[-2.55, 2.0], [-1.25, 2.4], [0, 2.55], [1.25, 2.4], [2.55, 2.0], [2.62, 0.4], [-2.62, 0.4]];
+const FENCE_POST_H = 1.15;
+const LINK_GEO = new TorusGeometry(0.06, 0.016, 5, 10).scale(1, 1.55, 1);
+const FENCE_POST_GEO = new CylinderGeometry(0.045, 0.06, FENCE_POST_H, 6);
+const FENCE_CAP_GEO = new ConeGeometry(0.075, 0.2, 6);
+const CHAIN_TIP_GEO = new ConeGeometry(0.05, 0.28, 4).rotateX(Math.PI);
+const CARD_POST_GEO = new CylinderGeometry(0.04, 0.05, 1.5, 6);
+const CARD_GEO = new PlaneGeometry(0.46, 0.3);
+const GLINT_GEO = new BoxGeometry(0.13, 0.06, 0.03);
+const LINKS_PER_SWAG = 15;
+const SWAGS = [];
+for (let i = 0; i < 4; i++) for (const [top, sag] of [[0.98, 0.2], [0.62, 0.15]]) SWAGS.push([FENCE_POSTS[i], FENCE_POSTS[i + 1], top, sag]);
+SWAGS.push([FENCE_POSTS[5], FENCE_POSTS[4], 0.98, 0.18], [FENCE_POSTS[6], FENCE_POSTS[0], 0.98, 0.18]);
+
+// the Hunter License: a dark green card, a gold diamond, two lines of ink, a crimson edge
+function licenseTexture() {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 164;
+  const x = c.getContext("2d");
+  x.fillStyle = "#17382d";
+  x.fillRect(0, 0, 256, 164);
+  x.strokeStyle = "#c8a24a";
+  x.lineWidth = 6;
+  x.strokeRect(6, 6, 244, 152);
+  x.fillStyle = "#c8a24a";
+  x.beginPath();
+  x.moveTo(60, 36);
+  x.lineTo(96, 82);
+  x.lineTo(60, 128);
+  x.lineTo(24, 82);
+  x.closePath();
+  x.fill();
+  x.fillStyle = "#17382d";
+  x.beginPath();
+  x.moveTo(60, 58);
+  x.lineTo(76, 82);
+  x.lineTo(60, 106);
+  x.lineTo(44, 82);
+  x.closePath();
+  x.fill();
+  x.fillStyle = "#e8e0c8";
+  for (const [y, w] of [[48, 110], [76, 92], [104, 64]]) x.fillRect(120, y, w, 9);
+  x.fillStyle = "#d3283c";
+  x.fillRect(6, 150, 244, 8);
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  return t;
+}
+
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const smooth = (x) => { const c = clamp01(x); return c * c * (3 - 2 * c); };
 
@@ -117,8 +171,56 @@ export default function Link({ place }) {
   const gaugeMat = useMemo(() => mat(accent, { emissive: accent, emissiveIntensity: 0.6, roughness: 0.35 }).clone(), [accent]);
   const gaugeGlowMat = useMemo(() => glow(accent, 0.24), [accent]);
   const plateWhiteMat = useMemo(() => mat("#ffffff", { roughness: 0.25, metalness: 0.05 }), []);
+  const chainMat = useMemo(() => mat("#b9c2d4", { flat: false, roughness: 0.28, metalness: 0.85 }), []);
+  const chainBlueMat = useMemo(() => mat("#7fb4ff", { flat: false, roughness: 0.3, metalness: 0.7, emissive: "#3f7fe8", emissiveIntensity: 0.35 }), []);
+  const licenseMap = useMemo(() => licenseTexture(), []);
+  const licenseMat = useMemo(() => new MeshBasicMaterial({ map: licenseMap, side: DoubleSide, toneMapped: false }), [licenseMap]);
+  const glintMat = useMemo(() => new MeshBasicMaterial({ color: "#ff1f3a", transparent: true, opacity: 0, toneMapped: false, depthWrite: false }), []);
+  // the island has no clock, so "at night" is the visitor's own: scarlet burns brighter after dusk
+  const night = useMemo(() => {
+    const h = new Date().getHours();
+    return h >= 19 || h < 6 ? 1 : 0.3;
+  }, []);
 
-  useEffect(() => () => { gaugeMat.dispose(); }, [gaugeMat]);
+  useEffect(() => () => { gaugeMat.dispose(); licenseMap.dispose(); licenseMat.dispose(); glintMat.dispose(); chainMat.dispose(); chainBlueMat.dispose(); }, [gaugeMat, licenseMap, licenseMat, glintMat, chainMat, chainBlueMat]);
+
+  // the chain links, laid along each swag (steel, one in nine tinted the pale blue of a judgment chain)
+  const steel = useRef(null);
+  const blue = useRef(null);
+  useEffect(() => {
+    const D = new Object3D();
+    const q = new Quaternion();
+    const roll = new Quaternion();
+    const tg = new Vector3();
+    const up = new Vector3(0, 1, 0);
+    const pt = (sw, u) => [sw[0][0] + (sw[1][0] - sw[0][0]) * u, sw[2] - sw[3] * (1 - (2 * u - 1) ** 2), sw[0][1] + (sw[1][1] - sw[0][1]) * u];
+    let ns = 0;
+    let nb = 0;
+    SWAGS.forEach((sw, si) => {
+      for (let i = 0; i < LINKS_PER_SWAG; i++) {
+        const u = (i + 0.5) / LINKS_PER_SWAG;
+        const a = pt(sw, u);
+        const b = pt(sw, Math.min(1, u + 0.02));
+        tg.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize();
+        q.setFromUnitVectors(up, tg);
+        roll.setFromAxisAngle(tg, ((i % 2) * Math.PI) / 2);
+        D.position.set(a[0], a[1], a[2]);
+        D.quaternion.copy(roll).multiply(q);
+        D.updateMatrix();
+        const tinted = (i + si) % 9 === 4;
+        (tinted ? blue.current : steel.current)?.setMatrixAt(tinted ? nb++ : ns++, D.matrix);
+      }
+    });
+    if (steel.current) {
+      steel.current.count = ns;
+      steel.current.instanceMatrix.needsUpdate = true;
+    }
+    if (blue.current) {
+      blue.current.count = nb;
+      blue.current.instanceMatrix.needsUpdate = true;
+    }
+  }, []);
+  const glintRef = useRef(null);
 
   const topClampRef = useRef(null);
   const bottomClampRef = useRef(null);
@@ -185,6 +287,14 @@ export default function Link({ place }) {
       gaugeFillRef.current.position.y = GAUGE_Y - GAUGE_H / 2 + 0.08 + fillH / 2;
     }
 
+    // the scarlet glint in the cab lamp: a short bright sweep every few seconds, brighter at night
+    if (glintRef.current) {
+      const ph = (raw % 4.6) / 4.6;
+      const sweep = Math.max(0, 1 - Math.abs(ph - 0.5) * 6);
+      glintMat.opacity = (0.15 + 0.85 * sweep) * night;
+      glintRef.current.position.x = CAB_X - 0.22 + 0.44 * ph;
+    }
+
     // the certificate: only shown while the coupon is actually held taut
     if (plateGroupRef.current) {
       const slideK = clamp01((glowK - 0.95) / 0.05);
@@ -234,6 +344,21 @@ export default function Link({ place }) {
       <mesh ref={topClampRef} geometry={CLAMP_GEO} material={clampMat} position={[0, ANCHOR_Y, 0]} castShadow receiveShadow />
       <mesh ref={bottomClampRef} geometry={CLAMP_GEO} material={clampMat} position={[0, ANCHOR_Y - SEP_REST, 0]} castShadow receiveShadow />
       <mesh ref={couponRef} geometry={COUPON_GEO} material={inkMat} position={[0, ANCHOR_Y - SEP_REST / 2, 0]} castShadow />
+
+      {/* Hunter x Hunter on the island: swagged chains between slim posts, a Hunter License card on a post, a scarlet glint in the lamp */}
+      {FENCE_POSTS.map(([x, z], i) => (
+        <group key={i} position={[x, 0, z]}>
+          <mesh geometry={FENCE_POST_GEO} material={frameMat} position={[0, FENCE_POST_H / 2, 0]} castShadow />
+          <mesh geometry={FENCE_CAP_GEO} material={accentMat} position={[0, FENCE_POST_H + 0.1, 0]} />
+        </group>
+      ))}
+      <instancedMesh ref={steel} args={[LINK_GEO, chainMat, SWAGS.length * LINKS_PER_SWAG]} castShadow />
+      <instancedMesh ref={blue} args={[LINK_GEO, chainBlueMat, SWAGS.length * 3]} />
+      <mesh geometry={CHAIN_TIP_GEO} material={chainBlueMat} position={[-0.65, 0.5, 2.46]} />
+      <mesh geometry={CHAIN_TIP_GEO} material={chainBlueMat} position={[0.65, 0.5, 2.46]} />
+      <mesh geometry={CARD_POST_GEO} material={frameMat} position={[-2.2, 0.75, 2.75]} castShadow />
+      <mesh geometry={CARD_GEO} material={licenseMat} position={[-2.2, 1.28, 2.82]} rotation={[0, 0.25, 0]} />
+      <mesh ref={glintRef} geometry={GLINT_GEO} material={glintMat} position={[CAB_X, BEAM_Y + 0.05, CAB_D / 2 + 0.06]} />
 
       {/* the certificate: slides out of the head housing only while held, and retracts on release */}
       <group ref={plateGroupRef} position={[PLATE_X, BEAM_Y, PLATE_RETRACT_Z]}>
