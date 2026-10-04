@@ -23,7 +23,7 @@ export const U = {
   uPx: { value: 1 },
   uSun: { value: new Vector3(0.3, 0.2, -0.93).normalize() }, // toward the low dawn sun, over the fjord mouth
   uPaper: { value: col3("#f6eddc") },
-  uHaze: { value: col3("#ecc6b4") },
+  uHaze: { value: col3("#ffb98a") },
 };
 
 export const NOISE = /* glsl */ `
@@ -195,6 +195,10 @@ export function wash({ albedo = "return vc;", alpha = null, vtx = "", paper = 0.
         float hz = 1.0 - exp(-dist * ${haze.toFixed(5)});
         col = mix(col, uHaze, hz * 0.78);
         col = runWash(col, base);
+        // the dopamine pass: saturated pigment, deeper shadow, never past the paper
+        float lum = dot(col, vec3(0.299, 0.587, 0.114));
+        col = mix(vec3(lum), col, 1.75);
+        col = clamp((col - 0.5) * 1.12 + 0.5, 0.0, 1.0);
         float a = 1.0;
         ${alpha ? `a = (${alpha});` : ""}
         gl_FragColor = vec4(clamp(col, 0.0, 1.0), a);
