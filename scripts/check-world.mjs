@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { existsSync, readFileSync } from "node:fs";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
+import { CUE_NAMES } from "../lib/world/cutscene/cues.js";
 import { CARDS, cardFor } from "../lib/world/cutscene/cards/index.js";
 import { PACE, realAt, realLength, sceneT } from "../lib/world/cutscene/clock.js";
 import { BUILDS, MIN_BEAT, MIN_BUBBLE, MIN_CREDIT, BREATH, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
@@ -1287,6 +1288,15 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   for (const id of ids) {
     assert.ok(existsSync(new URL(`../lib/world/cutscene/cards/${id}.js`, import.meta.url)), `${id} has no card file`);
     assert.ok(existsSync(new URL(`../components/world/cutscene/moves/${id}.jsx`, import.meta.url)) && moves.includes(`"${id}": `), `${id} has no move`);
+  }
+  // the villains' sound: Sukuna and Aizen declare sorted cues in scene s, every name a real voice, inside the scene
+  for (const c of CARDS) {
+    const need = ["pr-triton-kernels-22", "pr-xnnpack-10801"].includes(c.id);
+    assert.ok(!need || c.cues?.length, `${c.id} declares no sound cues`);
+    for (const [i, [at, name, dur]] of (c.cues ?? []).entries()) {
+      assert.ok(CUE_NAMES.includes(name), `${c.id} cue ${name} is not a voice`);
+      assert.ok(at >= 0 && at < c.length && (i === 0 || at >= c.cues[i - 1][0]) && (dur ?? 1) > 0, `${c.id} cue ${i} (${name} at ${at}) is out of order or outside the scene`);
+    }
   }
   for (const c of CARDS) {
     const { id, a, b, speaker, move } = c;

@@ -12,7 +12,7 @@ import { INK_LIB } from "./ink";
 
 const srgb = (c) => new Color().copy(c).convertLinearToSRGB();
 
-function pupMaterial(U, { color, vertexColors, transparent, opacity }) {
+export function pupMaterial(U, { color, vertexColors, transparent, opacity }) {
   return new ShaderMaterial({
     uniforms: { ...U, uBase: { value: srgb(color) }, uOpacity: { value: opacity } },
     vertexColors,
