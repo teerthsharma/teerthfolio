@@ -20,6 +20,7 @@ import { PLACE_BY_ID, PLACES, PROFILE, districtAt, dockPoint } from "../../lib/w
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import Minimap from "./ui/Minimap";
 import MoveCoach from "./ui/MoveCoach";
+import AwakeningLayer from "./ui/AwakeningLayer";
 import DomainBubbles from "./ui/DomainBubbles";
 import Sheet from "./ui/Sheet";
 import { IconArrow, IconCheck, IconChevron, IconSoundOff, IconSoundOn, IconTrefoil } from "./ui/icons";
@@ -615,6 +616,7 @@ export default function Hud() {
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
       <DomainBubbles />
+      <AwakeningLayer />
       <CutsceneTitle id={cutscene} />
       {cutscene && (
         <button type="button" className="cut-skip" onClick={() => (live.arrival.skip = true)}>

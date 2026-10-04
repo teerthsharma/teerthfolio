@@ -43,7 +43,7 @@ function burst(w, h) {
 
 // Lay a bubble out (left, bottom in px) and draw its tail toward the mouth
 // (mx, my in px). Its body is the ellipse inscribed in its box.
-function place(el, mx, my, slot, still) {
+export function place(el, mx, my, slot, still) {
   const W = innerWidth;
   const H = innerHeight;
   const w = el.offsetWidth;
@@ -89,7 +89,7 @@ function place(el, mx, my, slot, still) {
   else for (const b of body) b.setAttribute("d", `M0 ${ry}A${rx} ${ry} 0 1 0 ${w} ${ry}A${rx} ${ry} 0 1 0 0 ${ry}Z`);
 }
 
-function Bubble({ slot, kind, line, bold }) {
+export function Bubble({ slot, kind, line, bold }) {
   return (
     <div className="bubble" data-slot={slot} data-kind={kind}>
       <svg className="bubble-art" aria-hidden="true">

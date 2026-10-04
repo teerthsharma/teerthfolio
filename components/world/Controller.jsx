@@ -8,6 +8,7 @@ import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
 import { arrivalHold, arrivalLength, domainBeat, domainMode } from "../../lib/world/domain";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
 import { AWAKENING } from "../../lib/world/loop";
+import { awakeBeat, awakeMode } from "../../lib/world/awakening";
 import { WHIRLPOOL } from "../../lib/world/river";
 import { getUi, live, setUi } from "../../lib/world/store";
 
@@ -113,7 +114,7 @@ export default function Controller() {
     }
     if (arrival.id) {
       // the domain's beat (domain.js); a skip above clears it in the same frame
-      const beat = domainMode(arrival.id) ? domainBeat(t - arrival.start) : 0;
+      const beat = domainMode(arrival.id) ? domainBeat(t - arrival.start) : awakeMode(arrival.id) ? awakeBeat(t - arrival.start) : 0;
       if (beat !== ui.beat) setUi({ beat });
     }
     const holding = arrival.id && t - arrival.start < arrivalHold(arrival.id);
@@ -121,6 +122,14 @@ export default function Controller() {
     if (input) {
       live.target = null;
       live.pendingOpen = null;
+    }
+
+    // THE AWAKENING: the pup coasts to a stop at the loop's exit and stays
+    // there while the scene plays round it.
+    if (arrival.id === AWAKENING.id) {
+      const k = Math.exp(-5 * Math.min(delta, 0.1));
+      live.seal.vx *= k;
+      live.seal.vz *= k;
     }
 
     CONTROLS.input = input;

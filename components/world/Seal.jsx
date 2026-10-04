@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { CustomBlending, ShaderMaterial, SrcColorFactor, ZeroFactor } from "three";
 import { heroMoveFor, heroPose } from "../../lib/world/heroMoves";
 import { arrivalLength } from "../../lib/world/domain";
+import { awakeMode, awakeYaw, liftAt } from "../../lib/world/awakening";
 import { PLACE_BY_ID } from "../../lib/world/places";
 import { live, useUi } from "../../lib/world/store";
 import { createDrive, stepDrive } from "./seal/drive";
@@ -100,6 +101,18 @@ export default function Seal() {
       }
       // the smash lands: the camera takes the thump (CameraRig reads impact)
       if (move === "smash" && u >= 0.6 && u < 0.64) s.impact = Math.max(s.impact, 0.95);
+    }
+    // THE AWAKENING (lib/world/awakening.js): the pup rises out of the water
+    // or off the snow, flies, and floats back down, turned three-quarters to
+    // the lens; the physics seal stays where it stopped.
+    if (awakeMode(arrival.id) === "full") {
+      const t = state.clock.elapsedTime - arrival.start;
+      const lift = liftAt(t);
+      root.current.position.y += lift + 0.27 * (s.water || 0) * Math.min(1, lift / 0.55);
+      const { yaw, k } = awakeYaw(t, s.x, s.z);
+      const y0 = root.current.rotation.y;
+      root.current.rotation.y = y0 + Math.atan2(Math.sin(yaw - y0), Math.cos(yaw - y0)) * k;
+      if (shadowRef.current) shadowRef.current.visible = lift < 0.3;
     }
     // The chest lifting off the snow thins the contact under it.
     shadow.uniforms.strength.value = 1 - drive.hump * 0.35;

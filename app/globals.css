@@ -2218,6 +2218,110 @@ html[data-domain="still"] .bubble {
 html[data-hud="off"] .domain {
   display: none;
 }
+
+/* The awakening's layer (ui/AwakeningLayer.jsx) borrows the domain's: its
+   peak impact frame is the inverse (cream paper, ink rings), and the credit
+   card is the HUD's cream card, holding the whole body of work. */
+.domain-impact[data-invert] {
+  background: radial-gradient(circle, rgba(28, 27, 25, 0.22) 0 1.7px, transparent 2.2px) 0 0 / 9px 9px, var(--cream);
+}
+.domain-impact[data-invert] i {
+  border-color: #1c1b19;
+}
+.awake-sfx {
+  left: auto;
+  right: 8vw;
+  top: 14vh;
+  rotate: 7deg;
+}
+.awake-card {
+  position: absolute;
+  left: 50%;
+  bottom: 12vh;
+  width: min(92vw, 34rem);
+  translate: -50% 0;
+  padding: 18px 22px 16px;
+  border: 1px solid rgb(0 0 0 / 0.08);
+  border-radius: 18px;
+  background: var(--cream);
+  color: #1c1b19;
+  font-family: var(--font);
+  box-shadow: 0 10px 30px rgb(12 8 30 / 0.35);
+  transform-origin: 50% 100%;
+  animation: bubble-in 250ms steps(1, end) both;
+}
+.awake-card-kicker {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b5a8e;
+}
+.awake-card-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.awake-card-counts div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.awake-card-counts dt {
+  font-size: clamp(28px, 4.2vh, 40px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.awake-card-counts dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.25;
+  color: #4a4658;
+}
+.awake-card-results {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid rgb(0 0 0 / 0.08);
+  list-style: none;
+}
+.awake-card-results li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.awake-card-results code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #6b5a8e;
+}
+.awake-card-results span {
+  font-weight: 600;
+}
+.awake-card-sign {
+  margin: 12px 0 0;
+  font-family: var(--font-comic), var(--font);
+  font-weight: 700;
+  font-size: 15px;
+  text-align: right;
+}
+html[data-domain="still"] .awake-card {
+  animation: none;
+}
+@media (min-width: 900px) {
+  .awake-card[data-still] {
+    left: auto;
+    right: 4vw;
+    translate: none;
+  }
+}
 @media (max-width: 1100px) {
   /* the place name in the top bar stays between the brand chip and the nav */
   .cut-title[data-top="true"] {

@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CapsuleGeometry, Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, RingGeometry } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW } from "../../../../lib/world/moments";
 import { domainMode, signAt } from "../../../../lib/world/domain";
+import { AWAKE, awakeMode, flyAt, powerAt } from "../../../../lib/world/awakening";
 import { PLACE_BY_ID, districtAt } from "../../../../lib/world/places";
 import { getUi, live, useUi } from "../../../../lib/world/store";
 import { glow } from "../../palette";
@@ -89,8 +90,11 @@ function poseFlipper(o, side, d, x) {
   const wave = (d.waveSide === side ? d.wave : 0) * (1 - x.calm); // no waving mid-meditation
   const flap = d.happy * (0.5 + 0.5 * Math.sin(d.t * 15 + side));
   const swim = x.water * Math.sin(d.t * 5 + side * 1.6);
-  const back = FLIPPER_REST.back - 0.4 * reach + 0.5 * push + (1.3 - FLIPPER_REST.back) * d.boost - 0.6 * wave + Math.sin(d.t * 16) * 0.35 * wave + 0.6 * swim - 0.55 * x.calm;
-  const down = FLIPPER_REST.down + 0.12 * reach - (FLIPPER_REST.down - 0.2) * d.boost - 1.8 * wave - 0.5 * flap - 1.2 * x.fly + 0.2 * x.crouch - 0.3 * x.water + 0.35 * x.calm;
+  // THE AWAKENING (lib/world/awakening.js): flung out as the aura erupts,
+  // swept back while it flies, a shiver on twos in the torrent
+  const shiver = x.power * 0.06 * Math.sin(Math.floor(d.t * 12) * 2.1 + side);
+  const back = FLIPPER_REST.back - 0.4 * reach + 0.5 * push + (1.3 - FLIPPER_REST.back) * d.boost - 0.6 * wave + Math.sin(d.t * 16) * 0.35 * wave + 0.6 * swim - 0.55 * x.calm + 0.7 * x.soar;
+  const down = FLIPPER_REST.down + 0.12 * reach - (FLIPPER_REST.down - 0.2) * d.boost - 1.8 * wave - 0.5 * flap - 1.2 * x.fly + 0.2 * x.crouch - 0.3 * x.water + 0.35 * x.calm - 1.1 * x.power + 0.5 * x.soar + shiver;
   // THE HAND SIGN (domain.js): the right flipper (screen left, facing the
   // viewer) rises in front of the cheek, tip up, flat to the lens.
   const sign = side < 0 ? x.sign : 0;
@@ -174,7 +178,7 @@ export default function SealD({ pose, near, drive, headRef }) {
   const digits = useRef();
   const outfit = useRef();
   const haloSoft = useRef();
-  const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0, sign: 0 }), []);
+  const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0, sign: 0, power: 0, soar: 0 }), []);
 
   useFrame((state, delta) => {
     const d = drive;
@@ -192,6 +196,18 @@ export default function SealD({ pose, near, drive, headRef }) {
     const sign = domain ? signAt(now - arrival.start) : 0;
     const au = arrivalPlace && !domain ? (now - arrival.start) / ARRIVAL.duration : -1;
     if (domain) d.lookYaw = 0;
+    const awake = awakeMode(arrival.id) === "full";
+    const at = awake ? now - arrival.start : -1;
+    const power = awake ? powerAt(at) : 0;
+    const soar = awake ? flyAt(at) : 0;
+    if (awake) {
+      d.lookYaw = 0;
+      // the impacts land in the body: a squash kicked on each
+      const hit = at >= AWAKE.impactB ? 2 : at >= AWAKE.impact ? 1 : 0;
+      if (f.awakeHit !== hit && f.awakeStart === arrival.start && hit) f.squishV += 7;
+      f.awakeHit = hit;
+      f.awakeStart = arrival.start;
+    }
     if (au >= 0 && au < 1) {
       const p = pose.current;
       const toPlace = clamp(wrap(Math.atan2(arrivalPlace.x - p.x, arrivalPlace.z - p.z) - p.heading), -1.2, 1.2);
@@ -248,7 +264,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     // moves idle back to 0. live.seal.calm is the eased 0..1 the rest of the
     // world may read (motes, a Geiger-to-chime cue); it never touches the
     // seal's own health, just its pose.
-    const calmTarget = domain ? 0 : smooth(3.4, 4.4, d.idle); // no meditation mid-domain
+    const calmTarget = domain || awake ? 0 : smooth(3.4, 4.4, d.idle); // no meditation mid-domain
     f.calm += (calmTarget - f.calm) * damp(calmTarget > f.calm ? 2.2 : 6, dt);
     const sit = Math.max(f.calm, arrivalSit);
     live.seal.calm = f.calm; // the showcase's sit-up is not meditation
@@ -304,9 +320,11 @@ export default function SealD({ pose, near, drive, headRef }) {
     shared.water = water;
     shared.calm = sit;
     shared.sign = sign;
+    shared.power = power * (1 - soar);
+    shared.soar = soar;
     digits.current.visible = sign > 0.3;
     digits.current.scale.setScalar(smooth(0.3, 1, sign));
-    outfit.current.visible = !domain; // the domain keeps the round head clean: no hat, no ear-like diamonds
+    outfit.current.visible = !domain && arrival.id !== AWAKE.id; // the domain and the awakening keep the round head clean: no hat, no ear-like diamonds
     poseFlipper(flipL.current, 1, d, shared);
     poseFlipper(flipR.current, -1, d, shared);
     flipR.current.scale.setScalar(1 - 0.22 * sign); // a smaller hand, held at the chin below the eye

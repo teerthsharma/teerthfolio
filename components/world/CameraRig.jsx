@@ -14,6 +14,8 @@ import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { domainMode, domainView, viewAt } from "../../lib/world/domain";
+import { awakeMode, awakeView } from "../../lib/world/awakening";
+import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { MOTION } from "../../lib/world/motion";
 import { PLACE_BY_ID, SPAWN } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
@@ -377,6 +379,18 @@ export default function CameraRig() {
       camera.position.lerp(DOM_EYE, k);
       lookAt.current.lerp(DOM_LOOK, k);
     }
+    // THE AWAKENING (awakening.js): the calm close-up, the low angle under
+    // the circles, the take-off and the flight high over the island; it
+    // hands back to the follow as the pup floats down. A skip cuts straight
+    // back to the follow (nothing here is smoothed).
+    let high = 0;
+    if (awakeMode(arrival.id) === "full") {
+      const k = awakeView(t - arrival.start, seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y), seal.z, camera.aspect, DOM_EYE, DOM_LOOK);
+      camera.position.lerp(DOM_EYE, k);
+      lookAt.current.lerp(DOM_LOOK, k);
+      camera.position.addScaledVector(shake.current, 2 * k);
+      high = Math.max(0, camera.position.y);
+    }
     camera.lookAt(lookAt.current);
 
     // Fog is tuned for the follow distance; push it back by however much
@@ -390,7 +404,8 @@ export default function CameraRig() {
         f.near = sceneFog.near;
         f.far = sceneFog.far;
       }
-      const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull);
+      // high over the island (the awakening's flight) the whole island must stay clear of the fog
+      const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull, high * 1.1);
       sceneFog.near = f.near + extra;
       sceneFog.far = f.far + extra;
       // Set, not ratcheted: a far plane that only grew (after one pulled-back
