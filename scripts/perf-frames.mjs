@@ -5,6 +5,7 @@
 //
 //   node scripts/perf-frames.mjs [--url http://localhost:3403] [--w 1440] [--h 900] [--dpr 2]
 //        [--phase load,walk,arrival,skip,reduced,tiers,memory] [--secs 180 (memory)]
+//        phases also: first, flap (2 min), nostorage, ramp [--top 2]
 //        [--query "?play&look=2"] [--hp | --lp (discrete / integrated GPU on a hybrid laptop)]
 //
 // Budgets (a 60 Hz laptop; exit 1 on any breach):
@@ -93,11 +94,21 @@ const check = (name, ok, detail) => {
   if (!ok) failures.push(`${name}: ${detail}`);
 };
 
-async function open({ w = W, h = H, dpr = DPR, touch = false, seen = false, reduced = false, query = args.query || "?play" } = {}) {
+async function open({ w = W, h = H, dpr = DPR, touch = false, seen = false, reduced = false, noStorage = false, query = args.query || "?play" } = {}) {
   const context = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: touch, hasTouch: touch, reducedMotion: reduced ? "reduce" : "no-preference" });
   if (seen) await context.addInitScript((ids) => sessionStorage.setItem("seal:seen", JSON.stringify(ids)), PLACE_IDS);
+  // A private window that blocks storage: every access throws.
+  if (noStorage) {
+    await context.addInitScript(() => {
+      for (const name of ["localStorage", "sessionStorage"]) {
+        Object.defineProperty(window, name, { get() { throw new DOMException("storage blocked", "SecurityError"); } });
+      }
+    });
+  }
   await context.addInitScript(recorder);
   const page = await context.newPage();
+  page.errors = [];
+  page.on("pageerror", (e) => page.errors.push(String(e)));
   const t0 = Date.now();
   await page.goto(base + "/" + query, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__world?.ready, null, { timeout: 90000 });
@@ -223,6 +234,78 @@ try {
       check(`${name} tier`, got.dpr === want.dpr && got.look === want.look, `drawing-buffer DPR ${got.dpr} (want ${want.dpr}), look ${got.look} (want ${want.look})`);
       await context.close();
     }
+  }
+
+  if (phases.includes("first")) {
+    // The first frames a visitor sees after the world says ready: none may
+    // be a 3 fps frame, and the first ten must hold 20 fps at the median.
+    const { context, page, mark } = await open({ seen: true });
+    await page.waitForTimeout(1500);
+    const dts = (await framesSince(page, mark)).map((f) => f[1]).slice(1, 11);
+    const s = stats(dts);
+    report.first = { ...s, dts: dts.map((d) => +d.toFixed(0)) };
+    check("first frames", s.p50 <= 50 && s.max <= 333, `first ten frames after ready: median ${s.p50} ms (<= 50), longest ${s.max} ms (<= 333)`);
+    await context.close();
+  }
+
+  if (phases.includes("flap")) {
+    // Quality may step down and, on a GPU that can afford it, back up; it
+    // may not flap. Per 60 s window: at most 3 tier changes and at most one
+    // reversal of direction.
+    const { context, page } = await open({ seen: true });
+    const tierLog = async (from) => {
+      const looks = (await framesSince(page, from)).map((f) => f[5]);
+      const changes = looks.flatMap((l, i) => (i && l !== looks[i - 1] ? [l - looks[i - 1]] : []));
+      const reversals = changes.filter((d, i) => i && Math.sign(d) !== Math.sign(changes[i - 1])).length;
+      return { changes: changes.length, reversals, path: [looks[0], ...looks.filter((l, i) => i && l !== looks[i - 1])] };
+    };
+    let from = await now(page);
+    await page.waitForTimeout(60000);
+    const idle = await tierLog(from);
+    from = await now(page);
+    const keys = ["KeyW", "KeyD", "KeyS", "KeyA"];
+    for (let i = 0; i < 30; i++) {
+      await page.keyboard.down(keys[i % 4]);
+      await page.waitForTimeout(2000);
+      await page.keyboard.up(keys[i % 4]);
+    }
+    const walk = await tierLog(from);
+    report.flap = { idle, walk };
+    // A one-way monitor leaves a discrete GPU low for good after one dip.
+    if (report.tier === "discrete/high") check("flap ends at top", walk.path.at(-1) === Number(args.top ?? 2), `discrete GPU ends the 2 min at look ${walk.path.at(-1)} (want ${args.top ?? 2})`);
+    for (const [name, w] of Object.entries(report.flap)) check(`flap ${name}`, w.changes <= 3 && w.reversals <= 1, `${w.changes} tier changes, ${w.reversals} reversals in 60 s (path ${w.path})`);
+    await context.close();
+  }
+
+  if (phases.includes("nostorage")) {
+    const { context, page, readyMs } = await open({ noStorage: true });
+    await page.waitForTimeout(3000);
+    const blocked = await page.evaluate(() => {
+      try {
+        return !window.localStorage;
+      } catch {
+        return true;
+      }
+    });
+    report.nostorage = { readyMs, blocked, errors: page.errors.slice(0, 3) };
+    check("no storage", blocked && !page.errors.length, `page errors with storage blocked: ${page.errors.slice(0, 2)}`);
+    await context.close();
+  }
+
+  if (phases.includes("ramp")) {
+    // A GPU that can afford the top tier ends there: a fix tuned for the
+    // integrated GPU must not leave a discrete one stuck low.
+    const top = Number(args.top ?? 2);
+    const { context, page } = await open({ seen: true });
+    await page.waitForTimeout(20000);
+    const got = await page.evaluate(() => {
+      const c = document.querySelector(".game-stage canvas");
+      return { dpr: +(c.width / c.clientWidth).toFixed(2), look: window.__world.look };
+    });
+    report.ramp = { ...got, want: { dpr: Math.min(DPR, 2), look: top } };
+    if (report.tier === "discrete/high") check("ramp", got.dpr === Math.min(DPR, 2) && got.look === top, `after 20 s: DPR ${got.dpr}, look ${got.look} (want ${Math.min(DPR, 2)}, ${top})`);
+    else report.ramp.note = "integrated GPU: reported, not asserted";
+    await context.close();
   }
 
   if (phases.includes("memory")) {
