@@ -1,22 +1,22 @@
 "use client";
 
-// pr-topograph-432: Gandalf on the Bridge of Khazad-dum, built as a STOP-MOTION BIGATURE (a Harryhausen
-// creature on a Weta miniature set). The pup is Gandalf in plasticine: a grey felt cloak, a mint-crystal
-// staff, a short sword, round head, no ears. The island swells into the full Dwarrowdelf: a hall of
-// colossal square pillars (one instanced mesh each for pillars, pod lanterns and the agent knobs), a vault
-// lost in gloom, a stepped-rock chasm glowing ember from far below with cinders rising, the broken stair
-// and doorway where Frodo, Aragorn and Legolas stand rim-lit, and one slender railless voussoir bridge.
-// The Balrog is a hand-built armature puppet with ember eyes, cut-card fire, a flame-edged sword and a
-// whip that splits into three coral lashes over the hall; every lantern a lash touches takes the coral
-// light. The pup turns the sword blow aside with a cream flash, winds up (squash, stretch) and slams the
-// staff into the stone (two-pose hit-stop, shockwave, shake): two mint glass walls (engine.name,
-// provider.name) stand up, the lashes strike them and snap back low, middle, high, the gem on the
-// Balrog's chest turns coral to mint, and the bridge cracks from the staff toward the Balrog's side only:
-// its half falls block by block with the Balrog, wings folded; the pup's half holds and the hall stays lit.
-// THE RETURN, shown: after the flex line a clapperboard slams into frame (THAT'S A WRAP), the stage
-// lamps cut out, and the set is struck: the reveal draws back to the pup like an iris while the island
+// pr-topograph-432: Ainz Ooal Gown (Overlord) in the Throne Room of Nazarick, built as a STOP-MOTION BIGATURE (a
+// Harryhausen creature on a miniature set). The pup wears an Ainz cloak in plasticine: black and purple with a
+// gold-trimmed high collar, a small gold staff ringed with seven gems, gold rings of power. The island swells into a
+// vast purple hall of colossal square pillars (one instanced mesh each for pillars, pod lanterns and the agent knobs),
+// a vault lost in gloom, a violet-lit chasm with cinders rising, the stair and doorway where three floor guardians
+// stand rim-lit, and one slender railless voussoir bridge. Ainz himself is a hand-built armature puppet: a skull
+// with red eye-points, a robe with a gold high collar and shoulder spikes, a red orb in his ribcage, the seven-gem
+// staff in one hand and a bolt-whip in the other that splits into three crimson lashes over the hall; every lantern a
+// lash touches takes the crimson light. A giant layered magic circle (purple and gold, a clock of twelve ticks) turns
+// behind him and a small gold one answers under the pup. The pup matches him: it winds up and slams the staff into the
+// stone (two-pose hit-stop, shockwave, shake): two purple glass walls (engine.name, provider.name) stand up, the lashes
+// strike them and snap back low, middle, high, the orb in Ainz's chest turns crimson to gold, and the span cracks from
+// the staff toward his side only; Ainz, unharmed, rises on Fly as it falls; the pup's half holds and the hall stays lit.
+// THE RETURN, shown: after the flex line a board slams into frame (AINZ: YOU ARE DISMISSED), the circles close, the
+// stage lamps cut out, and the set is struck: the reveal draws back to the pup like an iris while the island
 // comes back in batches under it. S1 stepped clock (12 poses a second, a 2-pose hit-stop on the strike),
-// S2 vertex boil, S3 clay and plaster, S4 practical lamps, S5 cut flame cards, S6 warm fog: all in
+// S2 vertex boil, S3 clay and plaster, S4 practical lamps, S5 cut flame cards, S6 fog: all in
 // materials and clocks, no post pass. Card: lib/world/cutscene/cards/pr-topograph-432.js. Parts: ./pr-topograph-432/.
 
 import { useFrame, useThree } from "@react-three/fiber";
@@ -27,7 +27,7 @@ import { live } from "../../../../lib/world/store";
 import { Stage, useCutFrame } from "../kit";
 import { holdFlash, islandList } from "./p-caustic/parts";
 import { CINDERS, DUST, LASH_N, SPARKS, STARS, compileAssets, disposeAssets, getAssets, getGear } from "./pr-topograph-432/assets";
-import { gemColor, poseBalrog } from "./pr-topograph-432/balrog";
+import { gemColor, poseAinz } from "./pr-topograph-432/lich";
 import Banner from "./pr-topograph-432/banner";
 import { U, hash } from "./pr-topograph-432/clay";
 import { poseColony, poseWitnesses } from "./pr-topograph-432/figures";
@@ -52,7 +52,7 @@ const T = {
   gear: 1.2,
   turn: [1.9, 2.6],
   raise: [2.7, 3.2],
-  blow: [3.35, 3.65], // the Balrog's windup, its strike
+  blow: [3.35, 3.65], // the Ainz's windup, its strike
   parry: 3.8,
   wind: [4.55, 4.95],
   slam: 5.1,
@@ -72,12 +72,12 @@ const T = {
 };
 const GATE_X = [1.15, 1.72];
 const STRIKE = new Vector3(0.3, deckY(0.3), 0.25); // where the staff lands
-const CRACK_X = 1.9; // the bridge breaks from here toward the Balrog
-const CORAL = new Color("#ff6b57");
-const WARM = new Color("#ff9a45");
-const AMBER = new Color("#ffa23a");
-const GEM_CORAL = new Vector3(1, 0.42, 0.34);
-const GEM_MINT = new Vector3(0.44, 0.94, 0.77);
+const CRACK_X = 1.9; // the bridge breaks from here toward Ainz
+const CORAL = new Color("#ff2f5e");
+const WARM = new Color("#b46bff");
+const AMBER = new Color("#ffc43a");
+const GEM_CORAL = new Vector3(1, 0.12, 0.2);
+const GEM_MINT = new Vector3(1, 0.8, 0.25);
 
 const V = new Vector3();
 const W = new Vector3();
@@ -91,7 +91,7 @@ const TMP = new Color();
 // out over the hall, across the lens: low to the pod lanterns, middle to the shafts, high to the agents on the capitals (the left rows)
 const LASH_HALL = [new Vector3(-6.2, FLOOR_Y + 2.3, -11), new Vector3(-6.4, 5.2, -17.5), new Vector3(-6.8, 10.4, -24)];
 const LASH_GATE = [new Vector3(1.5, 0.4, 0.3), new Vector3(1.5, 1.1, 0.25), new Vector3(1.5, 1.8, 0.3)];
-const LASH_COL = [1, 0.3, 0.24];
+const LASH_COL = [1, 0.18, 0.4];
 
 const lashR = (k, u) => smooth(2.0 + 0.35 * k, 3.0 + 0.35 * k, u) * (1 - smooth(T.lash[k] + 0.05, T.lash[k] + 0.65, u));
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
@@ -309,8 +309,8 @@ export default function Move(cut) {
     A.endGlow.material.uniforms.uAlpha.value = (1 + 0.4 * fallPulse) * (0.4 + 0.6 * lampsOut);
     A.doorGlow.material.uniforms.uAlpha.value = 1.5 * (0.92 + 0.08 * hash(step, 4)) * (0.4 + 0.6 * lampsOut);
 
-    // the pup: turns on the bridge to face the Balrog, signs, gathers (squash), stretches, strikes
-    clock.current.yaw = tt > T.turn[0] && tt < T.home + 0.1 ? 0.6 + 0.42 * smooth(T.turn[0], T.turn[1], tt) * (1 - smooth(T.home - 0.2, T.home + 0.1, tt)) : null;
+    // the pup: turns on the bridge to face Ainz, signs, gathers (squash), stretches, strikes
+    clock.current.yaw = tt > T.turn[0] && tt < T.home + 0.1 ? 0.2 + 0.15 * smooth(T.turn[0], T.turn[1], tt) * (1 - smooth(T.home - 0.2, T.home + 0.1, tt)) : null;
     const wind = smooth(T.wind[0], T.wind[1], tt) * (1 - smooth(T.slam - 0.12, T.slam - 0.05, tt));
     const stretch = smooth(T.slam - 0.14, T.slam - 0.07, tt) * (1 - smooth(T.slam, T.slam + 0.06, tt));
     const settle = 0.28 * smooth(T.slam + 0.1, T.slam + 0.4, tt);
@@ -335,6 +335,24 @@ export default function Move(cut) {
     // the flashes: a cream one on the parry, a mint one on the strike (tinted, never a white-out)
     holdFlash(A.flash, camera, slamT >= 0 && slamT < 0.17 ? 0.38 : 0);
     holdFlash(A.flashCream, camera, parryT >= 0 && parryT < 0.17 ? 0.34 : 0);
+
+    // THE CIRCLES: Ainz's great layered one (three counter-turning discs, stood up behind him) and the pup's small gold one
+    const cOn = smooth(0.9, 2.5, tt) * (1 - smooth(T.lamps[0] - 0.3, T.lamps[1] + 0.8, tt));
+    const pOn = smooth(T.raise[0], T.raise[0] + 0.8, tt) * (1 - smooth(T.lamps[0] - 0.3, T.lamps[1] + 0.8, tt));
+    const pulse = 1 + 0.12 * Math.max(0, 1 - Math.abs(slamT) / 0.6);
+    A.circleBig.forEach((m, i) => {
+      m.visible = cOn > 0.01 && tt < T.iris[1];
+      const sc = (6.8 - 1.2 * i) * (0.25 + 0.75 * cOn) * pulse;
+      m.position.set(2.8, 3.4, -1.8 - 0.25 * i);
+      m.scale.set(sc, sc, 1);
+      m.rotation.z = (i % 2 ? -1 : 1) * Math.floor(step / 2) * 0.05 * (1 + i * 0.5);
+      m.material.opacity = 0.95 * cOn;
+    });
+    A.circlePup.visible = pOn > 0.01 && tt < T.iris[1];
+    A.circlePup.position.set(0, 0.04, 0);
+    A.circlePup.scale.setScalar(3.2 * (0.3 + 0.7 * pOn));
+    A.circlePup.rotation.y = Math.floor(step / 2) * 0.07;
+    A.circlePup.material.opacity = 0.9 * pOn;
 
     // THE SLATE: calls the wrap
     const sT = tt - T.slate;
@@ -391,14 +409,14 @@ export default function Move(cut) {
 
     // ---- once a pose from here: everything that is not the camera is redrawn
     g.updateMatrixWorld(true);
-    const B = A.balrog;
-    poseBalrog(B, tt, BT);
+    const B = A.ainz;
+    poseAinz(B, tt, BT);
     B.gemMat.uniforms.uBase.value.lerpVectors(GEM_CORAL, GEM_MINT, gemColor(tt, T.gem));
     poseWitnesses(A.wit, tt, T, odd);
     poseColony(A.colony, tt, T);
     A.flames.material.uniforms.uFlame.value = Math.floor(step / 2); // S5: four cut shapes, swapped on twos
 
-    // the Balrog's fire cards
+    // the Ainz's fire cards
     let n = 0;
     for (const f of B.fire) {
       g.worldToLocal(f.part.localToWorld(W.set(f.x, f.y, f.z)));
@@ -628,5 +646,5 @@ export default function Move(cut) {
   );
 }
 
-// the Balrog's beats (balrog.js poseBalrog)
+// the Ainz's beats (ainz.js poseAinz)
 const BT = { blow: T.blow, parry: T.parry, lash: T.lash, fall: T.fall, crackStart: T.crackStart };

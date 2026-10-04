@@ -1,6 +1,6 @@
 // THE PRACTICAL EFFECTS of the miniature set. Nothing here is a post pass and nothing allocates per frame.
 //   S5 practical fire: alpha-tested amber gel cards, additive, swapping between 4 hand-cut flame shapes
-//      on twos (one instanced mesh for the Balrog's fire, its sword edge and the three coral lashes).
+//      on twos (one instanced mesh for the Ainz's fire, its sword edge and the three coral lashes).
 //   glass: the two mint gate walls and the staff's crystal (the only gloss in the scene, with the gem).
 //   emit: cinders, dust, sparks, burst stars, shock rings: one additive instanced material.
 //   glow planes: the ember at the end of the chasm and the floor of it, the doorway's light, the parry halo.
@@ -30,7 +30,7 @@ export function skyMaterial() {
         vec3 d = normalize(vW - cameraPosition);
         vec3 top = vec3(0.012, 0.007, 0.02);
         vec3 col = mix(uFog * 0.9, top, smoothstep(0.02, 0.55, d.y));
-        col = mix(col, vec3(0.16, 0.05, 0.02), smoothstep(0.0, -0.45, d.y));
+        col = mix(col, vec3(0.12, 0.03, 0.22), smoothstep(0.0, -0.45, d.y));
         col += uRimCol * cut * 1.4;
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
@@ -72,7 +72,7 @@ export function glowMaterial({ a, b, radial = false, additive = true }) {
 }
 
 // ---------------------------------------------------------------- the glass (gates, crystal)
-export function glassMaterial(hex = "#6ff0c4") {
+export function glassMaterial(hex = "#b46bff") {
   return new ShaderMaterial({
     uniforms: { ...U, uColor: { value: lin(hex) }, uAlpha: { value: 1 }, uGlow: { value: 0 } },
     transparent: true,
@@ -307,28 +307,28 @@ export function slateTexture() {
   c.width = 512;
   c.height = 400;
   const g = c.getContext("2d");
-  g.fillStyle = "#1c1a1a";
+  g.fillStyle = "#120a22";
   g.fillRect(0, 0, 512, 400);
-  g.strokeStyle = "#f3ead8";
+  g.strokeStyle = "#f0d68a";
   g.lineWidth = 6;
   g.strokeRect(14, 14, 484, 372);
-  g.fillStyle = "#f3ead8";
+  g.fillStyle = "#f0d68a";
   g.font = "700 34px sans-serif";
   g.textAlign = "left";
-  g.fillText("PROD  topograph", 36, 78);
-  g.fillText("SCENE  432  THE STAND", 36, 134);
+  g.fillText("PROD  NAZARICK", 36, 78);
+  g.fillText("SCENE  432  THE CIRCLE", 36, 134);
   g.fillText("TAKE  1", 36, 190);
   g.beginPath();
   g.moveTo(36, 214);
   g.lineTo(476, 214);
   g.stroke();
-  g.fillStyle = "#6ff0c4";
-  g.font = "800 52px sans-serif";
+  g.fillStyle = "#b46bff";
+  g.font = "800 40px sans-serif";
   g.textAlign = "center";
-  g.fillText("THAT'S A WRAP", 256, 300);
-  g.fillStyle = "#f3ead8";
+  g.fillText("YOU ARE DISMISSED", 256, 300);
+  g.fillStyle = "#f0d68a";
   g.font = "600 26px sans-serif";
-  g.fillText("lights out, set struck", 256, 352);
+  g.fillText("- Ainz Ooal Gown", 256, 352);
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
   return t;
@@ -338,9 +338,9 @@ export function stickTexture() {
   c.width = 512;
   c.height = 90;
   const g = c.getContext("2d");
-  g.fillStyle = "#1c1a1a";
+  g.fillStyle = "#120a22";
   g.fillRect(0, 0, 512, 90);
-  g.fillStyle = "#f3ead8";
+  g.fillStyle = "#f0d68a";
   for (let i = -1; i < 9; i++) {
     g.beginPath();
     g.moveTo(i * 64, 90);
@@ -355,3 +355,71 @@ export function stickTexture() {
   return t;
 }
 
+
+// ---------------------------------------------------------------- the magic circles (layered purple and gold, a clock of 12 ticks)
+export function circleTexture(gold) {
+  const N = 1024;
+  const c = document.createElement("canvas");
+  c.width = c.height = N;
+  const g = c.getContext("2d");
+  const m = N / 2;
+  const main = gold ? "#ffd35a" : "#b46bff";
+  const alt = gold ? "#fff0b0" : "#ffd35a";
+  g.translate(m, m);
+  g.lineCap = "round";
+  const ring = (r, w, col) => {
+    g.strokeStyle = col;
+    g.lineWidth = w;
+    g.beginPath();
+    g.arc(0, 0, r, 0, Math.PI * 2);
+    g.stroke();
+  };
+  ring(480, 10, main);
+  ring(455, 3, alt);
+  ring(380, 8, main);
+  ring(300, 4, alt);
+  ring(150, 8, main);
+  // the clock: twelve ticks and twelve rune blocks between the two outer rings
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    g.save();
+    g.rotate(a);
+    g.strokeStyle = alt;
+    g.lineWidth = 8;
+    g.beginPath();
+    g.moveTo(0, -380);
+    g.lineTo(0, -455);
+    g.stroke();
+    g.fillStyle = main;
+    for (let k = 0; k < 3; k++) g.fillRect(-4 + (k - 1) * 14, -440 + k * 6, 6, 40 - k * 8);
+    g.restore();
+  }
+  // two interlocked triangles (a hexagram) and a square, drawn at radius 300
+  const poly = (n, r, rot, col, w) => {
+    g.strokeStyle = col;
+    g.lineWidth = w;
+    g.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const a = rot + (i / n) * Math.PI * 2;
+      g[i ? "lineTo" : "moveTo"](Math.cos(a) * r, Math.sin(a) * r);
+    }
+    g.stroke();
+  };
+  poly(3, 380, -Math.PI / 2, main, 8);
+  poly(3, 380, Math.PI / 2, main, 8);
+  poly(4, 300, Math.PI / 4, alt, 5);
+  poly(7, 230, -Math.PI / 2, main, 5); // seven for the seven gems
+  poly(7, 150, -Math.PI / 2, alt, 3);
+  // a skull-dot at the centre and small runes on the inner ring
+  g.fillStyle = alt;
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    g.fillRect(Math.cos(a) * 340 - 4, Math.sin(a) * 340 - 10, 8, 20);
+  }
+  g.beginPath();
+  g.arc(0, 0, 26, 0, Math.PI * 2);
+  g.fill();
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  return t;
+}

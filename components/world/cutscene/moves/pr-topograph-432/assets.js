@@ -3,16 +3,16 @@
 // comes within range of the dock and compiles every material with compileAsync, so the first frames of
 // the scene do not hitch. Dispose frees all of it (and the watcher frees it again if the seal wanders off).
 
-import { Group, Mesh, OctahedronGeometry, PlaneGeometry, RingGeometry, SphereGeometry, WebGLRenderTarget } from "three";
+import { AdditiveBlending, DoubleSide, Group, Mesh, MeshBasicMaterial, OctahedronGeometry, PlaneGeometry, RingGeometry, SphereGeometry, WebGLRenderTarget } from "three";
 import { PLACE_BY_ID } from "../../../../../lib/world/places";
 import { live } from "../../../../../lib/world/store";
-import { buildBalrog } from "./balrog";
+import { buildAinz } from "./lich";
 import { clayTexture, disposeTexture } from "./clay";
 import { buildColony, buildWitnesses } from "./figures";
-import { burstGeometry, crystalGeometry, disposeAtlas, emitMaterial, flameMesh, gateGeometry, glassMaterial, glowMaterial, hideI, instanced, skyMaterial } from "./fx";
+import { burstGeometry, circleTexture, crystalGeometry, disposeAtlas, emitMaterial, flameMesh, gateGeometry, glassMaterial, glowMaterial, hideI, instanced, skyMaterial } from "./fx";
 import { buildSet } from "./set";
 import { flashQuad, lettering, pupParts } from "../p-caustic/parts";
-import { buildGear, findParts, pupClay } from "./gandalf";
+import { buildGear, findParts, pupClay } from "./ainz";
 
 export const LASH_N = 24;
 export const CINDERS = 150;
@@ -43,12 +43,12 @@ function sliceA() {
   };
   const sky = add(new SphereGeometry(150, 20, 12), skyMaterial(), -6);
   sky.position.set(0, 0, -20);
-  const endGlow = add(new PlaneGeometry(12, 80), glowMaterial({ a: "#ff7a2a", b: "#6a2a4a" }), -5);
+  const endGlow = add(new PlaneGeometry(12, 80), glowMaterial({ a: "#a23cff", b: "#2a0a4a" }), -5);
   endGlow.position.set(0, -18, -77.5);
-  const floorGlow = add(new PlaneGeometry(9, 110).rotateX(-Math.PI / 2), glowMaterial({ a: "#ff6a1e", b: "#7a2a3a", radial: true }), -5);
+  const floorGlow = add(new PlaneGeometry(9, 110).rotateX(-Math.PI / 2), glowMaterial({ a: "#8a2cff", b: "#3a0a4a", radial: true }), -5);
   floorGlow.position.set(0, -43, -26);
   floorGlow.material.uniforms.uAlpha.value = 1.3;
-  const doorGlow = add(new PlaneGeometry(1.5, 2.9), glowMaterial({ a: "#dbe7ff", b: "#8fa8e6", radial: true }), -3);
+  const doorGlow = add(new PlaneGeometry(1.5, 2.9), glowMaterial({ a: "#ffd27a", b: "#e0a030", radial: true }), -3);
   doorGlow.position.set(-5.1, 1.35, -3.05);
   doorGlow.material.uniforms.uAlpha.value = 1.5;
   for (const [g, m] of Object.values(set.statics)) {
@@ -68,10 +68,10 @@ function sliceA() {
 
 function sliceB() {
   const A = CACHE;
-  A.balrog = buildBalrog();
-  A.root.add(A.balrog.root);
+  A.ainz = buildAinz();
+  A.root.add(A.ainz.root);
   A.wit = buildWitnesses();
-  for (const k of ["frodo", "aragorn", "legolas"]) A.root.add(A.wit[k].g);
+  for (const k of ["aura", "demiurge", "albedo"]) A.root.add(A.wit[k].g);
   A.colony = buildColony();
   A.root.add(A.colony.mesh);
   A.built = 2;
@@ -79,12 +79,12 @@ function sliceB() {
 
 function sliceC() {
   const A = CACHE;
-  A.flames = flameMesh(A.balrog.fire.length + LASH_N * 3);
+  A.flames = flameMesh(A.ainz.fire.length + LASH_N * 3);
   A.flames.renderOrder = 6;
   A.root.add(A.flames);
   // the gates
   const gGeo = gateGeometry();
-  const glass = glassMaterial("#6ff0c4");
+  const glass = glassMaterial("#b46bff");
   A.glass = glass;
   A.gates = [0, 1].map(() => {
     const m = new Mesh(gGeo, glass);
@@ -96,7 +96,7 @@ function sliceC() {
   });
   A.gateGeo = gGeo;
   A.crystalGeo = crystalGeometry();
-  A.crystalMat = glassMaterial("#7cf5cf");
+  A.crystalMat = glassMaterial("#ffcf4a");
   // emit family
   const em = emitMaterial();
   A.emit = em;
@@ -112,16 +112,26 @@ function sliceC() {
     for (let i = 0; i < m.count; i++) hideI(m, i);
   }
   A.octa = octa;
-  A.halo = new Mesh(new PlaneGeometry(1, 1), glowMaterial({ a: "#ffe6c0", b: "#ffb070", radial: true }));
+  A.halo = new Mesh(new PlaneGeometry(1, 1), glowMaterial({ a: "#ffe08a", b: "#c28aff", radial: true }));
   A.halo.frustumCulled = false;
   A.halo.renderOrder = 9;
   A.halo.visible = false;
   A.root.add(A.halo);
-  A.thok = lettering("THOK!", "#3fb98f", -0.1);
-  A.clap = lettering("CLAP!", "#e07a3a", 0.08);
+  // the two magic circles: Ainz's great one behind him (stood up facing the lens), the pup's gold one under its paws
+  const circleMat = (gold) => new MeshBasicMaterial({ map: circleTexture(gold), transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, toneMapped: false, opacity: 0 });
+  A.circleBig = [0, 1, 2].map((k) => new Mesh(new PlaneGeometry(1, 1), circleMat(k === 1)));
+  A.circlePup = new Mesh(new PlaneGeometry(1, 1).rotateX(-Math.PI / 2), circleMat(true));
+  for (const o of [...A.circleBig, A.circlePup]) {
+    o.frustumCulled = false;
+    o.visible = false;
+    o.renderOrder = 5;
+    A.root.add(o);
+  }
+  A.thok = lettering("DOOM!", "#ffc43a", -0.1);
+  A.clap = lettering("DISMISSED!", "#b46bff", 0.08);
   A.root.add(A.thok, A.clap);
-  A.flash = flashQuad("#c9ffe8");
-  A.flashCream = flashQuad("#ffe3bd");
+  A.flash = flashQuad("#e6c8ff");
+  A.flashCream = flashQuad("#ffd27a");
   A.built = 3;
 }
 
@@ -230,13 +240,13 @@ export function disposeAssets(played = false) {
     A.gear.gear.staff.removeFromParent();
     A.gear.gear.sword.removeFromParent();
   }
-  A.balrog?.dispose();
+  A.ainz?.dispose();
   A.wit?.dispose();
   A.colony?.dispose();
   A.root.removeFromParent();
   for (const g of A.geos) g.dispose();
   for (const m of A.mats) m.dispose();
-  for (const o of [A.flames, A.cinders, A.dust, A.sparks, A.stars, A.rings, A.thok, A.clap, A.flash, A.flashCream, A.halo]) {
+  for (const o of [A.flames, A.cinders, A.dust, A.sparks, A.stars, A.rings, A.circlePup, ...A.circleBig, A.thok, A.clap, A.flash, A.flashCream, A.halo]) {
     o?.geometry?.dispose();
     o?.material?.map?.dispose();
     o?.material?.dispose();

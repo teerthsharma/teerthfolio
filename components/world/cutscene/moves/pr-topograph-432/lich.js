@@ -1,23 +1,24 @@
-// THE BALROG as a stop-motion armature puppet: a horned mass built from lumpy clay parts joined at
-// pivots (hips, chest, head, two arms, two wings), ember eyes that are light only, a flame-edged sword in
-// the near hand, a whip in the far one, and on its chest a small coral gem (the install's ServiceAccount).
+// AINZ OOAL GOWN as a stop-motion armature puppet: a skeletal lich in a black-and-purple robe with a gold-trimmed
+// high collar and gold shoulder spikes, built from lumpy clay parts joined at pivots (hips, chest, skull, two arms,
+// two cape wings), red eye-points that are light only, the Staff of Ainz Ooal Gown (gold, a ring of seven gems) in
+// the near hand, a bolt-whip of crimson magic in the far one, and in his ribcage a red orb (the install's ServiceAccount).
 // It is posed from the stepped clock (S1) by pose(): weighty, held poses, never smooth. Its fire is a
 // list of attachment points the fx cards read (fx.js), not part of the meshes.
 
-import { BufferAttribute, BufferGeometry, Color, Group, Mesh, SphereGeometry, Vector3 } from "three";
+import { BufferAttribute, BufferGeometry, Color, Group, Mesh, SphereGeometry, TorusGeometry, Vector3 } from "three";
 import { clay, DoubleSide, hash, lump, merge, piece } from "./clay";
 import { blob, slab, taper } from "./shapes";
 import { deckY } from "./set";
 
-export const BAL = { x: 3.0, z: -0.6, yaw: -1.0 };
+export const AINZ = { x: 3.0, z: -0.6, yaw: -1.0 };
 export const smooth = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
-const BODY = "#2a1a22";
-const HORN = "#8a5a44";
-const WING = "#5a2a50";
-const FACE = "#7a4636"; // the face, ember-lit from below by the chasm
+const BODY = "#2c1850";
+const HORN = "#e6b43a";
+const WING = "#4a1f8a";
+const FACE = "#ece4cf"; // the bare skull
 
 // the sword's blade direction in the fist's frame (see pose(): it swings with the arm)
 const BLADE = new Vector3(0, -0.23, 0.97).normalize();
@@ -51,42 +52,44 @@ function torso() {
 
 function head() {
   const p = [
-    blob([0, 0.15, 0.1], [0.46, 0.54, 0.49], FACE, { seed: 21 }),
-    blob([0, -0.2, 0.34], [0.34, 0.24, 0.34], FACE, { seed: 22 }),
-    blob([0, 0.34, 0.42], [0.46, 0.13, 0.22], "#5a2e28", { seed: 23 }), // the heavy brow
-    blob([0, 0.06, 0.58], [0.1, 0.16, 0.12], "#9a5a42", { seed: 24, w: 8, h: 6 }), // the flat nose
-    blob([0, -0.3, 0.5], [0.3, 0.07, 0.2], "#2a1214", { seed: 25, w: 10, h: 6 }), // the dark mouth
+    blob([0, 0.2, 0.08], [0.44, 0.5, 0.46], FACE, { seed: 21 }), // the cranium
+    blob([0, -0.22, 0.3], [0.3, 0.2, 0.3], FACE, { seed: 22 }), // the jaw
+    blob([0, 0.06, 0.5], [0.07, 0.1, 0.06], "#2a1a30", { seed: 24, w: 8, h: 6 }), // the nose hole
+    blob([0, -0.3, 0.46], [0.26, 0.05, 0.16], "#2a1a30", { seed: 25, w: 10, h: 6 }), // the grin
+    blob([0, 0.5, -0.05], [0.3, 0.07, 0.3], HORN, { seed: 27, w: 10, h: 6 }), // the gold circlet
   ];
   for (const s of [-1, 1]) {
-    p.push(blob([s * 0.3, 0.02, 0.5], [0.13, 0.17, 0.12], "#9a5a42", { seed: 26 + s, w: 8, h: 6 })); // cheekbones
-    for (let k = 0; k < 3; k++) p.push(taper([s * (0.07 + 0.08 * k), -0.27, 0.62], [s * (0.07 + 0.08 * k), -0.42, 0.64], 0.035, 0.005, "#e8d2a8", { seg: 5, rows: 1 })); // fangs
-    const pts = [[0.3, 0.5, 0], [0.62, 0.85, -0.1], [0.95, 1.3, -0.2], [1.15, 1.8, -0.36], [1.08, 2.25, -0.52]];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i];
-      const b = pts[i + 1];
-      p.push(taper([s * a[0], a[1], a[2]], [s * b[0], b[1], b[2]], 0.21 - i * 0.04, 0.21 - (i + 1) * 0.04 + 0.005, HORN, { seg: 6, rows: 1 }));
-    }
+    p.push(blob([s * 0.19, 0.19, 0.46], [0.13, 0.15, 0.09], "#120a1e", { seed: 26 + s, w: 8, h: 6 })); // the eye sockets
+    for (let k = 0; k < 3; k++) p.push(taper([s * (0.07 + 0.08 * k), -0.27, 0.58], [s * (0.07 + 0.08 * k), -0.37, 0.6], 0.03, 0.01, "#f6f0e0", { seg: 5, rows: 1 })); // teeth
+  }
+  // the high collar: two gold-trimmed fans standing behind and beside the skull
+  for (const s of [-1, 1]) {
+    p.push(slab([s * 0.3, -0.1, -0.05], [s * 0.62, 0.95, -0.2], 0.28, 0.04, BODY));
+    p.push(slab([s * 0.62, 0.95, -0.2], [s * 0.64, 1.0, -0.2], 0.3, 0.05, HORN));
   }
   return merge(p);
 }
 
 function eyes() {
-  const g = merge([-1, 1].map((s) => piece(new SphereGeometry(1, 8, 6).scale(0.11, 0.045, 0.05).rotateZ(s * 0.35).translate(s * 0.2, 0.2, 0.5), "#ffb347")));
+  const g = merge([-1, 1].map((s) => piece(new SphereGeometry(1, 8, 6).scale(0.05, 0.05, 0.05).translate(s * 0.19, 0.19, 0.52), "#ff2a2a")));
   return g;
 }
 
 // the furnace in the mouth and the ember brow-light: light only, like the eyes
 function mouthGlow() {
-  return merge([piece(new SphereGeometry(1, 8, 6).scale(0.2, 0.05, 0.1).translate(0, -0.29, 0.62), "#ff8a3a"), piece(new SphereGeometry(1, 6, 5).scale(0.07, 0.03, 0.04).translate(0, 0.03, 0.66), "#ff9a4a")]);
+  return merge([piece(new SphereGeometry(1, 6, 5).scale(0.03, 0.03, 0.03).translate(0, -0.3, 0.62), "#ff2a2a")]);
 }
 
 function sword() {
   const b = BLADE.clone().multiplyScalar(BLADE_LEN);
-  return merge([
-    slab([0, 0, 0], [b.x, b.y, b.z], 0.2, 0.06, "#5b4a4a"),
-    blob([0, 0, 0], [0.55, 0.07, 0.07], "#3a2c2c", { w: 8, h: 6, lump: 0.01 }),
-    taper([0, 0.0, -0.05], [0, 0.3, -0.5], 0.06, 0.07, "#2a2020", { seg: 6, rows: 1 }),
-  ]);
+  const p = [slab([0, 0, 0], [b.x, b.y, b.z], 0.07, 0.07, "#e6b43a"), blob([b.x, b.y, b.z], [0.3, 0.3, 0.06], HORN, { w: 14, h: 4, lump: 0.01 })];
+  // the head: a gold ring of seven serpents, each holding a gem
+  const GEMS = ["#ff3b3b", "#ff9a2e", "#ffe14a", "#3be06a", "#35c8ff", "#7a5cff", "#ff5ad2"];
+  GEMS.forEach((c, k) => {
+    const a = (k / 7) * Math.PI * 2;
+    p.push(blob([b.x + Math.cos(a) * 0.3, b.y + Math.sin(a) * 0.3, b.z], [0.075, 0.075, 0.075], c, { w: 6, h: 5, lump: 0.004 }));
+  });
+  return merge(p);
 }
 
 function armGeo(sword_) {
@@ -134,13 +137,15 @@ function triG(a, b, c, color) {
   return piece(g, color);
 }
 
-export function buildBalrog() {
-  const bodyMat = clay({ boil: 0.022, rim: 1.9, edge: 0.55, bump: 0.5, tex: 1.2 });
+export function buildAinz() {
+  const headMat = clay({ boil: 0.01, rim: 1.2, emit: 0.55, edge: 0.4, bump: 0.2, tex: 1.2 });
+  const bodyMat = clay({ boil: 0.022, rim: 3.0, edge: 0.55, bump: 0.5, tex: 1.2 });
   const wingMat = clay({ boil: 0.03, rim: 1.8, edge: 0.5, bump: 0.3, tex: 0.7, side: DoubleSide });
   const eyeMat = clay({ boil: 0.004, emit: 2.4, edge: 0, bump: 0, tex: 1 });
   const mouthMat = clay({ boil: 0.004, emit: 1.3, edge: 0, bump: 0, tex: 1 });
-  const gemMat = clay({ boil: 0.004, emit: 1.7, edge: 0, bump: 0.1, tex: 3, base: new Color("#ff6b57"), vertexColors: true });
-  const bladeMat = clay({ boil: 0.01, rim: 0.7, edge: 0.7, bump: 0.3 });
+  const gemMat = clay({ boil: 0.004, emit: 1.7, edge: 0, bump: 0.1, tex: 3, base: new Color("#ff2f5e"), vertexColors: true });
+  const boneMat = clay({ boil: 0.004, rim: 1.2, edge: 0.4, bump: 0.2, vertexColors: true });
+  const bladeMat = clay({ boil: 0.01, rim: 1.6, edge: 0.7, bump: 0.3, vertexColors: true });
   const geos = [];
   const mk = (g, m, parent, at = [0, 0, 0]) => {
     geos.push(g);
@@ -171,7 +176,7 @@ export function buildBalrog() {
   wingR.position.set(-0.5, 1.5, -0.55);
   mk(lower(), bodyMat, hips);
   mk(torso(), bodyMat, chest);
-  mk(head(), bodyMat, neck);
+  mk(head(), headMat, neck);
   mk(eyes(), eyeMat, neck);
   mk(mouthGlow(), mouthMat, neck);
   mk(armGeo(true), bodyMat, armS);
@@ -187,9 +192,11 @@ export function buildBalrog() {
   const wr = new Mesh(wg2, wingMat);
   wr.frustumCulled = false;
   wingR.add(wr);
-  const gem = mk(piece(lump(new SphereGeometry(0.2, 10, 8).scale(1, 1.2, 0.8), 0.015, 3), "#ffffff"), gemMat, chest, [0, 1.0, 0.68]);
-  root.position.set(BAL.x, deckY(BAL.x), BAL.z);
-  root.rotation.y = BAL.yaw;
+  const gem = mk(piece(lump(new SphereGeometry(0.3, 10, 8).scale(1, 1.1, 0.8), 0.015, 3), "#ffffff"), gemMat, chest, [0, 1.0, 0.68]);
+  for (let k = 0; k < 4; k++) mk(piece(new TorusGeometry(0.4 - 0.02 * k, 0.025, 4, 12, Math.PI).translate(0, 0.78 + k * 0.17, 0.6), "#f6f0e0"), boneMat, chest); // the ribcage round the orb
+  root.position.set(AINZ.x, deckY(AINZ.x), AINZ.z);
+  root.rotation.y = AINZ.yaw;
+  root.scale.setScalar(0.6); // the Overlord stands about two and a half metres, so the whole pup and the whole Overlord fit one frame
 
   // fire attachment points: [part, x, y, z, size, kind]  kind 0 body ember, 1 sword edge, 2 whip hand
   const fire = [];
@@ -233,17 +240,18 @@ export function buildBalrog() {
     fire,
     dispose() {
       for (const g of geos) g.dispose();
-      for (const m of [bodyMat, wingMat, eyeMat, mouthMat, gemMat, bladeMat]) m.dispose();
+      for (const m of [headMat, bodyMat, wingMat, eyeMat, mouthMat, gemMat, bladeMat, boneMat]) m.dispose();
       root.removeFromParent();
     },
   };
 }
 
 // the puppet's pose at stepped time tt (seconds; hit-stop already applied by the caller)
-export function poseBalrog(B, tt, T) {
+export function poseAinz(B, tt, T) {
   const odd = Math.floor(tt * 12) % 2 ? 1 : -1;
   const fall = tt - T.fall;
-  const falling = fall > 0;
+  const falling = false; // Ainz never falls: he rises on Fly while the span under him is unmade
+  const rise = smooth(T.fall, T.fall + 0.9, tt);
   const wob = smooth(T.crackStart, T.fall, tt) * (1 - smooth(T.fall, T.fall + 0.05, tt));
   const sway = Math.sin(tt * 2.3) * 0.02;
   // the sword blow: windup, strike, deflected, guard
@@ -263,10 +271,10 @@ export function poseBalrog(B, tt, T) {
   wx += (-1.25 + 2.3) * throwK;
   for (const l of T.lash) wx += -0.5 * Math.max(0, 1 - Math.abs(tt - (l + 0.25)) / 0.2);
   const open = smooth(1.7, 4.6, tt) * (1 - smooth(T.fall + 0.2, T.fall + 0.75, tt));
-  B.root.visible = fall < 2.5;
-  const x = BAL.x - 0.5 * Math.max(0, fall) * 0.8;
-  B.root.position.set(x + 0.025 * wob * odd, deckY(BAL.x) - (falling ? 6.5 * fall * fall : 0) - 0.015 * wob, BAL.z);
-  B.root.rotation.set(falling ? -1.15 * Math.min(1, fall / 0.9) : 0, BAL.yaw + (falling ? 0.4 * fall : 0), 0.05 * wob * odd + (falling ? 0.5 * fall : 0));
+  B.root.visible = true;
+  const x = AINZ.x;
+  B.root.position.set(x + 0.025 * wob * odd, deckY(AINZ.x) + 0.6 * rise - 0.015 * wob, AINZ.z);
+  B.root.rotation.set(falling ? -1.15 * Math.min(1, fall / 0.9) : 0, AINZ.yaw + (falling ? 0.4 * fall : 0), 0.05 * wob * odd + (falling ? 0.5 * fall : 0));
   B.chest.rotation.set(0.04 * hit * (1 - rec) + 0.22 * Math.max(0, hit - rec) - 0.1 * wind * (1 - hit) + sway, -0.08 * wind + 0.1 * hit * (1 - rec), 0.02 * Math.sin(tt * 1.7));
   B.neck.rotation.set(-0.3 * Math.max(0, hit - rec) - 0.12 * smooth(T.parry, T.parry + 0.1, tt) * (1 - guard), 0.16 + 0.1 * Math.sin(tt * 1.3), 0);
   B.armS.rotation.set(falling ? -2.9 + 0.5 * Math.sin(fall * 7) : sx, falling ? 0 : 0.0, falling ? 0.4 : sz);
@@ -277,7 +285,7 @@ export function poseBalrog(B, tt, T) {
   B.root.updateMatrixWorld(true);
 }
 
-// the gem's colour: coral until `to`, mint after, three drawings between
+// the gem's colour: crimson until `to`, gold after, three drawings between
 export function gemColor(tt, to) {
   const k = Math.min(1, Math.max(0, (tt - to) / 0.25));
   return Math.round(k * 3) / 3;
