@@ -12,7 +12,7 @@ import { useMemo } from "react";
 import { BufferGeometry, Float32BufferAttribute, ShaderMaterial } from "three";
 import { awakeMode } from "../../../lib/world/awakening";
 import { TIERS } from "../../../lib/world/quality";
-import { useUi } from "../../../lib/world/store";
+import { live, useUi } from "../../../lib/world/store";
 import { mulberry32 } from "../life/spawn";
 import { groundFocus } from "./focus";
 
@@ -27,6 +27,7 @@ const vertexShader = /* glsl */ `
   uniform vec3 uCentre;
   uniform vec3 uBox;
   uniform float uPx;
+  uniform float uHide;
   void main() {
     vec3 p = seed.xyz * uBox;
     p.y -= uTime * (${FALL.toFixed(2)} + 0.55 * seed.w);
@@ -37,6 +38,8 @@ const vertexShader = /* glsl */ `
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
     gl_PointSize = clamp(${FLAKE.toFixed(2)} * uPx / -mv.z, 1.5, 9.0);
+    // during a cutscene arrival a flake within 8 m of the lens would cross the shot as a giant snowflake
+    if (uHide > 0.5 && length(mv.xyz) < 8.0) gl_PointSize = 0.0;
   }
 `;
 
@@ -74,6 +77,7 @@ export default function Snowfall() {
       uCentre: { value: [0, 0, 0] },
       uBox: { value: [60, 24, 60] },
       uPx: { value: 1000 },
+      uHide: { value: 0 },
     },
   }), []);
 
@@ -81,6 +85,7 @@ export default function Snowfall() {
     const u = material.uniforms;
     const d = groundFocus(camera, focus);
     u.uTime.value = clock.elapsedTime;
+    u.uHide.value = live.arrival.id ? 1 : 0;
     u.uCentre.value[0] = focus.x;
     u.uCentre.value[2] = focus.z;
     u.uBox.value[0] = u.uBox.value[2] = 1.7 * d;

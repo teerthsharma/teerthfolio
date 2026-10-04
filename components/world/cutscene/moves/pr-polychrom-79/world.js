@@ -168,11 +168,11 @@ export function portalMaterial() {
         float r = length(vUv - 0.5) * 2.0;
         if (r > 1.0) discard;
         float rim = smoothstep(0.78, 0.86, r) * (1.0 - smoothstep(0.94, 1.0, r));
-        float rip = 0.5 + 0.5 * sin(r * 26.0 - uTime * 5.0 + vPh * 6.28);
+        float rip = 0.5 + 0.5 * sin(r * 14.0 - uTime * 3.0 + vPh * 6.28);
         float ring2 = smoothstep(0.8, 1.0, rip) * (1.0 - smoothstep(0.55, 0.78, r)) * 0.6;
         float core = (1.0 - r) * 0.5;
-        vec3 gold = vec3(1.0, 0.78, 0.26);
-        vec3 c = gold * (core * 0.8 + ring2) + mix(gold, vec3(1.0, 0.95, 0.7), 0.35) * rim * 1.1;
+        vec3 gold = vec3(1.0, 0.78, 0.2);
+        vec3 c = gold * ring2 + vec3(1.0, 0.95, 0.7) * core * 0.8 + gold * rim * 1.2;
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
