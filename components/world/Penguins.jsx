@@ -7,14 +7,15 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Color, ConeGeometry, Float32BufferAttribute, LatheGeometry, Matrix4, Object3D, SphereGeometry, Vector2 } from "three";
+import { Color, ConeGeometry, OctahedronGeometry, Float32BufferAttribute, LatheGeometry, Matrix4, Object3D, SphereGeometry, Vector2 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { ISLAND_RADIUS } from "../../lib/world/places";
 import { riverAt } from "../../lib/world/river";
 import { live } from "../../lib/world/store";
 import { inNameBox } from "./life/spawn";
 import { buildFlock } from "./life/penguins-seed";
-import { damp, smoothstep, wrapAngle } from "./life/util";
+import { damp, easeOutBack, smoothstep, wrapAngle } from "./life/util";
+import { tickSnack } from "./life/snack";
 import { C } from "./palette";
 
 const SIDES = [-1, 1];
@@ -102,7 +103,38 @@ function buildFoot() {
   return setColor(g, new Color("#ffb23e"));
 }
 
+// The hidden snack: a pastel-pink fish-cake with a cream belly, a tail and an
+// eye, built along +Z like the penguin.
+function buildSnack() {
+  const body = new SphereGeometry(0.34, 14, 10).toNonIndexed();
+  body.scale(0.8, 0.8, 1.25);
+  body.translate(0, 0.38, 0);
+  setColor(body, new Color("#ffb3c1"));
+  const belly = new SphereGeometry(0.3, 12, 8).toNonIndexed();
+  belly.scale(0.75, 0.55, 1.15);
+  belly.translate(0, 0.27, 0.03);
+  setColor(belly, new Color("#fff1dc"));
+  const tail = new ConeGeometry(0.2, 0.34, 3).toNonIndexed();
+  tail.rotateX(-Math.PI / 2); // apex toward -Z
+  tail.rotateZ(Math.PI / 2);
+  tail.translate(0, 0.4, -0.5);
+  setColor(tail, new Color("#ff8fa6"));
+  const eye = new SphereGeometry(0.05, 8, 6).toNonIndexed();
+  eye.translate(0.2, 0.5, 0.3);
+  setColor(eye, new Color(C.charcoal));
+  const eye2 = eye.clone();
+  eye2.translate(-0.4, 0, 0);
+  return mergeGeometries([body, belly, tail, eye, eye2], false);
+}
+function buildSparkle() {
+  const g = new OctahedronGeometry(0.1, 0).toNonIndexed();
+  g.scale(0.7, 1.3, 0.7);
+  return setColor(g, new Color("#fff3a8"));
+}
+
 const BODY_GEO = buildBody();
+const SNACK_GEO = buildSnack();
+const SPARKLE_GEO = buildSparkle();
 const FLIPPER_GEO = buildFlipper();
 const FOOT_GEO = buildFoot();
 
@@ -119,6 +151,8 @@ export default function Penguins() {
   const bodyRef = useRef();
   const flipperRef = useRef();
   const footRef = useRef();
+  const snackRef = useRef();
+  const sparkleRef = useRef();
 
   useEffect(() => {
     live.props.push(...flock);
@@ -143,6 +177,16 @@ export default function Penguins() {
     const seal = live.seal;
 
     for (const p of flock) {
+      tickSnack(p, t, flock, live);
+      if (p.gone) continue;
+      if (p.edible) {
+        // A snack stands still and bobs; the shared prop friction stops its slide.
+        p.state = "wander";
+        p.hasTarget = false;
+        p.pitch = p.hop = p.flipperRaise = 0;
+        p.prevHit = p.hit;
+        continue;
+      }
       const dx = seal.x - p.x;
       const dz = seal.z - p.z;
       const distSeal = Math.hypot(dx, dz) || 1e-6;
@@ -328,17 +372,38 @@ export default function Penguins() {
   }, -2);
 
   // Draw.
-  useFrame(() => {
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    const snacks = snackRef.current;
+    const sparkles = sparkleRef.current;
     const bodies = bodyRef.current;
     const flippers = flipperRef.current;
     const feet = footRef.current;
-    if (!bodies || !flippers || !feet) return;
+    if (!bodies || !flippers || !feet || !snacks || !sparkles) return;
 
     for (let i = 0; i < flock.length; i++) {
       const p = flock[i];
       const roll = p.state === "flop" ? 0 : Math.sin(p.phase) * 0.16 * Math.min(1, Math.hypot(p.vx, p.vz) / 0.6);
       const bob = p.state === "flop" ? 0 : Math.abs(Math.sin(p.phase)) * 0.04;
-      const scale = p.chick ? 0.62 : 1.15; // adults sized up to read at 35 m
+      const size = p.chick ? 0.62 : 1.15; // adults sized up to read at 35 m
+      // Gone: nothing. Turning edible: the penguin pops away (first 0.25 s) as
+      // the snack springs in. Returning: springs back in.
+      const u = p.edible ? (t - p.edibleAt) / 0.6 : 0;
+      const scale = p.gone ? 0 : size * (p.edible ? Math.max(0, 1 - u * 4) : p.respawnAt !== undefined ? easeOutBack(Math.min(1, (t - p.respawnAt) / 0.35)) : 1);
+      const snackScale = p.edible ? size * easeOutBack(Math.min(1, Math.max(0, (u - 0.2) / 0.8))) : 0;
+      dummy.position.set(p.x, 0.08 + Math.abs(Math.sin(t * 3 + i)) * 0.1 * (p.edible ? 1 : 0), p.z);
+      dummy.rotation.set(0, p.yaw + Math.sin(t * 2 + i) * 0.25, 0);
+      dummy.scale.setScalar(snackScale);
+      dummy.updateMatrix();
+      snacks.setMatrixAt(i, dummy.matrix);
+      for (let s = 0; s < 2; s++) {
+        const a = t * 2.2 + s * Math.PI + i;
+        dummy.position.set(p.x + Math.cos(a) * 0.55 * size, (0.9 + 0.15 * Math.sin(t * 4 + s)) * size, p.z + Math.sin(a) * 0.55 * size);
+        dummy.rotation.set(0, a, 0);
+        dummy.scale.setScalar(snackScale > 0.05 ? size * (0.8 + 0.4 * Math.sin(t * 6 + s * 2)) : 0);
+        dummy.updateMatrix();
+        sparkles.setMatrixAt(i * 2 + s, dummy.matrix);
+      }
 
       dummy.position.set(p.x, bob + p.hop, p.z);
       // Default Euler order 'XYZ' tips pitch/roll about world X, sideways
@@ -383,6 +448,8 @@ export default function Penguins() {
     bodies.instanceMatrix.needsUpdate = true;
     flippers.instanceMatrix.needsUpdate = true;
     feet.instanceMatrix.needsUpdate = true;
+    snacks.instanceMatrix.needsUpdate = true;
+    sparkles.instanceMatrix.needsUpdate = true;
   });
 
   return (
@@ -392,6 +459,12 @@ export default function Penguins() {
       </instancedMesh>
       <instancedMesh ref={flipperRef} args={[FLIPPER_GEO, undefined, flock.length * 2]} castShadow frustumCulled={false}>
         <meshStandardMaterial vertexColors roughness={0.7} />
+      </instancedMesh>
+      <instancedMesh ref={snackRef} args={[SNACK_GEO, undefined, flock.length]} castShadow frustumCulled={false}>
+        <meshStandardMaterial vertexColors roughness={0.5} />
+      </instancedMesh>
+      <instancedMesh ref={sparkleRef} args={[SPARKLE_GEO, undefined, flock.length * 2]} frustumCulled={false}>
+        <meshBasicMaterial vertexColors toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={footRef} args={[FOOT_GEO, undefined, flock.length * 2]} castShadow frustumCulled={false}>
         <meshStandardMaterial vertexColors roughness={0.7} />

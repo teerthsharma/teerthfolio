@@ -77,6 +77,7 @@ export function buildFlock() {
         mass: chick ? 0.3 : 0.6,
         spin: 0,
         hit: 0,
+        bumps: 0, // seal bumps so far (motion.js); the third makes it a snack (snack.js)
         chick,
         homeX: home.x,
         homeZ: home.z,

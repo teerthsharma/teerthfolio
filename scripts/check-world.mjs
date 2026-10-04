@@ -13,6 +13,7 @@ import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.
 import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
+import { tickSnack } from "../components/world/life/snack.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { WATER_Y, heightAt } from "../lib/world/terrain.js";
 
@@ -280,12 +281,55 @@ for (const place of PLACES) {
 
 // Props: a shoved snowball moves, then stops.
 const ball = { x: SPAWN.x, z: SPAWN.z - 2, vx: 0, vz: 0, radius: 0.55, mass: 1, spin: 0 };
-const pusher = createSeal(SPAWN.x, SPAWN.z + 1);
+const pusher = createSeal(SPAWN.x, SPAWN.z + 3);
 const withProps = { ...world, props: [ball] };
 for (let t = 0; t < 1.5; t += 1 / 120) stepSeal(pusher, { input: { x: 0, z: -1 } }, 1 / 120, withProps);
 assert.ok(ball.z < SPAWN.z - 3, "the snowball did not move when shoved");
 for (let t = 0; t < 8; t += 1 / 120) stepSeal(pusher, {}, 1 / 120, withProps);
 assert.ok(Math.hypot(ball.vx, ball.vz) < 0.05, "the snowball never stops");
+
+// Hidden rule: a penguin bumped 3 times by the seal turns edible (still a
+// penguin after 2); touching it again eats it (gulp, squash, gone), and it
+// returns as a plain penguin at least 18 m from the seal.
+{
+  const mk = () => ({ kind: "penguin", x: SPAWN.x, z: SPAWN.z + 10, vx: 0, vz: 0, radius: 0.38, mass: 0.6, spin: 0, hit: 0, bumps: 0, homeX: SPAWN.x, homeZ: SPAWN.z + 10, rand: () => 0.5, state: "wander" });
+  const pen = mk();
+  const far = { ...mk(), homeX: SPAWN.x, homeZ: SPAWN.z + 60 };
+  const sn = createSeal(SPAWN.x, SPAWN.z + 3);
+  const w = { ...world, props: [pen] };
+  const L = { seal: sn, props: w.props, gulp: 0, squeak: 0 };
+  let T = 0;
+  const step = (input) => { stepSeal(sn, { input }, 1 / 120, w); T += 1 / 120; tickSnack(pen, T, [pen, far], L); };
+  const chase = () => {
+    const target = pen.bumps + 1;
+    for (let i = 0; i < 120 * 6 && pen.bumps < target && !pen.eaten && !pen.gone; i++) {
+      const dx = pen.x - sn.x, dz = pen.z - sn.z, d = Math.hypot(dx, dz) || 1;
+      step({ x: dx / d, z: dz / d });
+    }
+    for (let i = 0; i < 120; i++) step(null); // let the hit fade: the next touch is a new bump
+  };
+  w.hold = true;
+  chase(); // an arrival hold: contact never counts
+  assert.equal(pen.bumps, 0, `a bump during an arrival hold counted: ${pen.bumps}`);
+  w.hold = false;
+  Object.assign(pen, { x: SPAWN.x, z: SPAWN.z + 10, vx: 0, vz: 0, hit: 0 });
+  Object.assign(sn, { x: SPAWN.x, z: SPAWN.z + 3, vx: 0, vz: 0 });
+  chase(); chase();
+  assert.equal(pen.bumps, 2, `expected 2 bumps, got ${pen.bumps}`);
+  assert.ok(!pen.edible, "edible before the 3rd bump");
+  chase();
+  assert.ok(pen.edible && !pen.eaten, "3rd bump did not make the penguin edible");
+  const gulp0 = L.gulp;
+  for (let i = 0; i < 120 * 6 && !pen.gone; i++) {
+    const dx = pen.x - sn.x, dz = pen.z - sn.z, d = Math.hypot(dx, dz) || 1;
+    step({ x: dx / d, z: dz / d });
+  }
+  assert.ok(pen.gone && L.gulp === gulp0 + 1, "touching the edible penguin did not eat it");
+  assert.ok(!w.props.includes(pen), "an eaten penguin is still solid");
+  for (let i = 0; i < 120 * 9; i++) step(null);
+  assert.ok(!pen.gone && !pen.edible && pen.bumps === 0 && w.props.includes(pen), "the penguin did not respawn as a normal one");
+  assert.ok(Math.hypot(pen.x - sn.x, pen.z - sn.z) >= 18, `respawned ${Math.hypot(pen.x - sn.x, pen.z - sn.z).toFixed(1)} m from the seal`);
+}
 
 // Throttle: set while input is held, cleared shortly after release.
 const th = createSeal(SPAWN.x, SPAWN.z);

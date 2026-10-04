@@ -114,6 +114,7 @@ export default function Controller() {
     CONTROLS.boost = live.boost;
 
     WORLD.time = t;
+    WORLD.hold = Boolean(holding); // an arrival hold: penguin bumps and bites wait (snack.js)
     // Fixed small steps so a slow frame cannot tunnel the seal through a wall.
     let remaining = Math.min(delta, 0.1);
     while (remaining > 0) {

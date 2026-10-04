@@ -222,6 +222,7 @@ export default function Effects() {
     strokeFbX: null,
     strokeFbZ: null,
     gulp: 0,
+    eat: 0,
     impact: 0,
     target: null,
     clearedAt: -Infinity,
@@ -470,6 +471,26 @@ export default function Effects() {
           const a = Math.random() * Math.PI * 2;
           addPuff(puffs, p.x, p.z, Math.cos(a) * 1.2, 1 + Math.random() * 0.6, Math.sin(a) * 1.2, 0.1 + Math.random() * 0.06, 0.4 + Math.random() * 0.2);
         }
+      }
+    }
+
+    // Hidden snack rule (life/snack.js): a pop of sparkle where a penguin turns
+    // edible, and a crumb burst where the seal bites one.
+    for (const p of live.props) {
+      if (p.edible && p._effEdible !== p.edibleAt) {
+        p._effEdible = p.edibleAt;
+        for (let i = 0; i < Math.max(4, Math.round(12 * puffMul)); i++) {
+          const a = Math.random() * Math.PI * 2;
+          addPuff(puffs, p.x, p.z, Math.cos(a) * 1.6, 1.6 + Math.random() * 0.8, Math.sin(a) * 1.6, 0.08 + Math.random() * 0.05, 0.5 + Math.random() * 0.3);
+        }
+      }
+    }
+    const eat = live.eat;
+    if (eat && eat.n !== prev.current.eat) {
+      prev.current.eat = eat.n;
+      for (let i = 0; i < Math.max(4, Math.round(14 * puffMul)); i++) {
+        const a = Math.random() * Math.PI * 2;
+        addPuff(puffs, eat.x, eat.z, Math.cos(a) * 1.4, 1.2 + Math.random() * 1, Math.sin(a) * 1.4, 0.05 + Math.random() * 0.05, 0.4 + Math.random() * 0.3);
       }
     }
 
