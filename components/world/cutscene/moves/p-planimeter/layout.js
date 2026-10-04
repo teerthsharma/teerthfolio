@@ -1,113 +1,56 @@
-// THE CAMPUS PLAN and the camera shots, shared by the card (bubble tails) and the move.
-// Campus frame: x east, z south, y up, metres; the main building's glass faces south onto the plaza.
-// The move's rig puts the pup at the origin; a shot maps the campus into it: rig = R_y(psi) * (campus - P) + off.
-// So the "camera" is the world's own transform: the lens (cards view) never moves, the campus does.
+// THE CLASSROOM PLAN and the camera, shared by the card (bubble tails) and the move.
+// Rig frame: the pup sits at the origin on its chair (seat top y = 0), facing +z a little to its left; x is to the lens's
+// right. Class 1-D of the Advanced Nurturing High School: tall windows on the west wall (x -6), the chalkboard on the
+// north wall (z -5), Chabashira at the board. The lens never moves in the world; it dollies by the card's `view`.
 
-export const GRID = 4; // m: the chessboard under everything
+export const FLOOR = -0.93;
+export const PUP_YAW = 0.3;
+export const TEACHER_AT = [3.1, FLOOR, -3.0];
 
-// Classroom 1-D on the third floor: x 16..28, the glass at z -14; desks face the blackboard on the east wall.
-export const FLOOR3 = 6.55; // m: the third floor's slab top
-export const SEAT = [17.2, 7.0, -16.0]; // the window seat: back row, by the glass (the chair seat top)
-export const PODIUM = [26.3, FLOOR3, -21.0];
-export const HORIKITA_AT = [17.2, 7.0, -18.2]; // the next seat in the back row
-
-export const PLAZA = { x0: 0, x1: 32, z0: -12, z1: 20 }; // 8 x 8 squares of 4 m
-export const SQUARE = (i, j) => [PLAZA.x0 + GRID * i + GRID / 2, PLAZA.z0 + GRID * j + GRID / 2];
-export const STAND = [...SQUARE(5, 2)]; // [22, -2]: where the pup stands on the board
-export const TABLE_AT = [33.8, -1.2];
-export const GATE_AT = [48, -58]; // the bridge head on the north shore: the avenue runs round the building to it
-export const PSI = 0.5;
-
-// the shots: the world's transform about the pup. A: the window seat. B: the plaza, the pup brought toward the lens.
-export const SHOTS = {
-  A: { P: SEAT, psi: PSI, off: [0, 0, 0], yaw: PSI },
-  B: { P: [STAND[0], 0.0, STAND[1]], psi: 1.15, off: [0, 0, 11], yaw: 0.2 }, // the lens looks east along the plaza: the chess table behind the pup
+// the clock (s from the arrival, authored scene seconds: PACE in clock.js stretches the ends)
+export const T = {
+  banner: [0.35, 2.15, 2.35], // unfurled by, held to, rolled up by
+  glint: 6.9, // the eye catches the light
+  flash: [6.9, 7.25],
+  board: [7.3, 8.9], // the chessboard laid over the shot, then drawn away
+  mate: 8.05, // CHECKMATE.
+  bell: 14.1, // the bell: class dismissed
 };
+export const LENGTH = 24.2;
+export const BEATS = { enter: 3.1, lineA: 3.3, move: [6.4, 9.0], lineB: 9.0, lineC: 14.1, credit: 19.2, collapse: [23.4, 23.8], radius: 130 };
 
-export function rigPoint(c, shot, out = [0, 0, 0]) {
-  const x = c[0] - shot.P[0];
-  const y = c[1] - shot.P[1];
-  const z = c[2] - shot.P[2];
-  const s = Math.sin(shot.psi);
-  const k = Math.cos(shot.psi);
-  out[0] = x * k + z * s + shot.off[0];
-  out[1] = y + shot.off[1];
-  out[2] = -x * s + z * k + shot.off[2];
-  return out;
-}
-
-// the lens: look and eye offsets from the pup (cutView), per aspect. It dollies (lensAt): CLOSE on the window seat while the
-// banner reads, back to a WIDE establishing of the whole campus for the bell, the guess and the check, in to the MEDIUM
-// two-floor shot for the tap, the stamps and the near-miss; the plaza shot (B) is the world's own drop at T.cut.
-const gateLook = rigPoint([47, 2.5, -57], { P: SEAT, psi: PSI, off: [0, 0, 0] });
-export const VIEW = {
-  close: { wide: [[0.3, 0.35, 0], [0.9, 0.55, 5.2]], tall: [[0.3, 0.35, 0], [0.9, 0.6, 6.4]] },
-  estab: { wide: [[0.3, 0.35, 0], [0.9, 0.8, 5.0]], tall: [[0.3, 0.35, 0], [0.9, 0.9, 6.4]] },
-  med: { wide: [[0.3, 0.35, 0], [0.7, 0.8, 4.0]], tall: [[0.3, 0.35, 0], [0.7, 0.9, 5.2]] },
-  mid: { wide: [[0.3, 0.35, 0], [0.5, 0.8, 3.0]], tall: [[0.3, 0.35, 0], [0.5, 0.9, 4.0]] }, // the stamps across the plaza, the pup in its window
-  plaza: { wide: [[0, 0.0, 0], [2.4, 1.9, 9.6]], tall: [[0, 0.1, 0], [1.8, 2.2, 12.5]] }, // after the drop: level, the whole pup centred, the table and the island behind it
-  gate: { wide: [gateLook, [20.1, 22, 34.6]], tall: [gateLook, [25.8, 26, 45.2]] }, // from the south along the avenue
-};
+// the lens, [look, eye offset from look] in the rig frame (look.y is absolute; cutView adds the eye offset)
+const K = (lx, ly, lz, ex, ey, ez) => [[lx, ly, lz], [ex, ey, ez]];
+// keyframes: [scene s, wide, tall]
+const KEYS = [
+  [0.0, K(-0.2, 0.9, 0.0, 2.6, 0.9, 10.2), K(-0.2, 1.0, 0.0, 3.0, 1.0, 13.0)], // the whole classroom, the light through the glass
+  [3.3, K(0.1, 0.75, 0.2, 1.7, 0.55, 6.0), K(0.1, 0.85, 0.2, 2.0, 0.6, 7.8)], // medium: the pup at its desk, the board behind
+  [6.2, K(0.1, 0.6, 0.35, 0.55, 0.3, 3.2), K(0.1, 0.7, 0.35, 0.6, 0.3, 4.3)], // pushed in on the calm face
+  [6.9, K(0.12, 0.52, 0.5, 0.2, 0.08, 2.1), K(0.12, 0.6, 0.5, 0.25, 0.08, 2.9)], // the eyes
+  [9.0, K(0.1, 0.6, 0.35, 0.5, 0.25, 3.0), K(0.1, 0.7, 0.35, 0.55, 0.25, 4.0)],
+  [13.6, K(0.1, 0.62, 0.3, 0.9, 0.3, 3.7), K(0.1, 0.72, 0.3, 1.0, 0.3, 4.9)], // the flex, a slow drift
+  [14.1, K(0.1, 0.62, 0.3, 0.9, 0.3, 3.7), K(0.1, 0.72, 0.3, 1.0, 0.3, 4.9)],
+  [17.5, K(-0.2, 0.9, 0.0, 2.2, 0.8, 8.2), K(-0.2, 1.0, 0.0, 2.6, 0.9, 10.6)], // class dismissed: back out to the room
+  [24.2, K(-0.2, 0.9, 0.0, 2.4, 0.9, 8.8), K(-0.2, 1.0, 0.0, 2.8, 1.0, 11.4)],
+];
 const ss = (a, b, t) => {
   const k = Math.min(1, Math.max(0, (t - a) / (b - a)));
   return k * k * (3 - 2 * k);
 };
 const OUT = { wide: [[0, 0, 0], [0, 0, 0]], tall: [[0, 0, 0], [0, 0, 0]] };
-// one reused object: the card's `view` getter calls this every frame with the scene clock (s from the arrival)
+// one reused object: the card's `view` getter calls this every frame with the scene clock
 export function lensAt(t) {
-  const a = t < 0 ? 1 : ss(1.9, 3.3, t); // close -> estab
-  const b = t < 0 ? 1 : ss(6.3, 6.9, t); // estab -> medium
-  const m2 = t < 0 ? 0 : ss(7.3, 7.9, t) * (1 - ss(8.9, 9.4, t)); // medium -> mid for the rain, and back for HMM.
-  const c = t < 0 || t >= T.cut ? 0 : ss(T.gateLens[0], T.gateLens[1], t); // medium -> the gate; the plaza cut resets it
-  const pz = t >= T.cut ? 1 : 0; // the drop to the plaza: a pup-height lens, never down at the snow
-  const pe = 1 - (1 - Math.min(1, Math.max(0, (t - T.cut) / 0.34))) ** 3; // the pup is brought SHOTS.B.off[2] m toward the lens: the look follows it
-  for (const asp of ["wide", "tall"]) {
-    for (let r = 0; r < 2; r++) {
-      for (let i = 0; i < 3; i++) {
-        const k = VIEW.close[asp][r][i];
-        const e = VIEW.estab[asp][r][i];
-        const m = VIEW.med[asp][r][i];
-        const g = VIEW.gate[asp][r][i];
-        const x = k + (e - k) * a;
-        const y0 = x + (m - x) * b;
-        const y = y0 + (VIEW.mid[asp][r][i] - y0) * m2;
-        const z = y + (g - y) * c;
-        OUT[asp][r][i] = pz ? VIEW.plaza[asp][r][i] + (r === 0 && i === 2 ? SHOTS.B.off[2] * pe : 0) : z;
-      }
-    }
-  }
+  const u = t < 0 ? KEYS[1][0] : t;
+  let i = 0;
+  while (i < KEYS.length - 2 && u >= KEYS[i + 1][0]) i++;
+  const k = ss(KEYS[i][0], KEYS[i + 1][0], u);
+  for (const [a, asp] of [[1, "wide"], [2, "tall"]]) for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) OUT[asp][r][c] = KEYS[i][a][r][c] + (KEYS[i + 1][a][r][c] - KEYS[i][a][r][c]) * k;
   return OUT;
 }
 
-// where the speech tails point (rig frame, from the pup): Chabashira at the podium, Horikita beside the pup, and, once the
-// camera has dropped, Horikita off-panel to the left; the pup itself in shot B (the flex)
-const mouthOf = (c, h) => [c[0], c[1] + h, c[2]];
+// where the speech tails point (rig frame, from the pup): Chabashira's mouth, the pup's own
+const MOUTH_UP = FLOOR + 3.3; // m: a tall woman at the board (the room is built to the pup's scale)
 export const TAILS = {
-  chab: rigPoint(mouthOf(PODIUM, 1.78), SHOTS.A),
-  hori: rigPoint(mouthOf(HORIKITA_AT, 1.0), SHOTS.A),
-  off: [-9, 3.4, 8],
-  flex: [SHOTS.B.off[0], 1.1, SHOTS.B.off[2]],
+  chab: [TEACHER_AT[0] - 0.2, MOUTH_UP, TEACHER_AT[2] + 0.2],
+  off: [-3.5, 3.0, 2.0], // the bell: a voice from the room
 };
-
-// the clock (s from the arrival)
-export const T = {
-  banner: [0.35, 2.15, 2.35], // unfurled by, held to, rolled up by
-  bell: 2.15, // the sheets blow out of the windows
-  slam: 4.2, // Sudo's ball hits the plaza: every sheet snaps shut
-  sweep: [4.5, 5.8], // the red checking line, building to sea wall
-  wind: [6.0, 6.7], // the wind lifts the rest back to blank
-  tap: 6.9, // the pup's flipper on the desk
-  rain: [7.05, 8.8], // the exact ones close and are stamped
-  hmm: 9.3, // the flipper over the near-miss (held 0.8 s)
-  gateLens: [10.0, 10.6], // the lens swings out to the bridge gate
-  gate: 10.7, // the bridge gate drops
-  cut: 11.5, // the camera drops to the plaza
-  move: [11.65, 12.05], // the white piece lifts one square
-  click: 12.1, // and sets down
-  king: 12.35, // Sakayanagi lays her king down
-  mate: 12.55, // CHECKMATE
-  fold: 12.85, // the grid is cleared, square by square
-};
-// pacing (owner): line A >= 3.5 s, line B 4 s, the credit card 3 s; the board is gone by fold + 3.4
-export const LENGTH = 24.5;
-export const BEATS = { lineA: 3.6, move: [7.72, 8.3], lineB: 12.2, credit: 19.7, collapse: [23.7, 24.1], radius: 130 };
