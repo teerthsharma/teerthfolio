@@ -26,11 +26,11 @@ export function skyMaterial() {
       varying vec3 vDir;
       void main() {
         float y = clamp(vDir.y, -0.3, 1.0);
-        vec3 c = mix(vec3(0.95, 0.12, 0.2), vec3(0.62, 0.05, 0.3), smoothstep(-0.1, 0.25, y));
-        c = mix(c, vec3(0.2, 0.1, 0.78), smoothstep(0.2, 0.6, y));
-        c = mix(c, vec3(0.06, 0.2, 0.95), smoothstep(0.55, 1.0, y));
-        float g = exp(-abs(y + 0.02) * 7.0);
-        c += vec3(1.0, 0.72, 0.2) * g * 0.55;
+        vec3 c = mix(vec3(0.62, 0.02, 0.14), vec3(0.4, 0.03, 0.3), smoothstep(-0.2, 0.1, y));
+        c = mix(c, vec3(0.1, 0.08, 0.7), smoothstep(0.05, 0.35, y));
+        c = mix(c, vec3(0.03, 0.14, 0.9), smoothstep(0.3, 0.8, y));
+        float g = exp(-abs(y + 0.05) * 14.0);
+        c += vec3(1.0, 0.62, 0.12) * g * 0.45;
         vec2 q = vDir.xz / max(0.25, 0.4 + vDir.y) * 18.0;
         float st = fract(sin(dot(floor(q), vec2(127.1, 311.7))) * 43758.5453);
         float tw = step(0.965, st) * (0.5 + 0.5 * sin(uTime * 3.0 + st * 60.0));
@@ -108,8 +108,8 @@ export function hairGeometry() {
   const cap = new SphereGeometry(1, 20, 10, 0, A, 0, 0.82).scale(0.545, 0.5, 0.525);
   parts.push(paint(clean(cap), "#c98a12", "#ffd54a", 0.5));
   const spike = (x, z, h, back, side, w = 0.1) => {
-    const g = new ConeGeometry(w, h, 6).translate(0, h / 2, 0);
-    paint(clean(g), "#d99a10", "#fff2a0", h);
+    const g = clean(new ConeGeometry(w, h, 6).translate(0, h / 2, 0));
+    paint(g, "#d99a10", "#fff2a0", h);
     g.rotateZ(-side).rotateX(-back).translate(x, 0.36, z);
     parts.push(g);
   };
@@ -131,15 +131,13 @@ export function hairGeometry() {
 }
 export function armourGeometry() {
   const parts = [];
-  const collar = new TorusGeometry(0.47, 0.075, 12, 40).rotateX(Math.PI / 2).translate(0, -0.42, 0.02);
+  const collar = new TorusGeometry(0.42, 0.05, 12, 40).rotateX(Math.PI / 2).translate(0, -0.36, 0.0);
   parts.push(paint(clean(collar), "#a86a08", "#ffd54a", 0.4));
   const gem = new SphereGeometry(0.075, 10, 8).translate(0, -0.42, 0.5);
   parts.push(paint(clean(gem), "#ff1f3a", "#ff6a7a", 1));
   for (const s of [1, -1]) {
     const dome = new SphereGeometry(0.3, 16, 8, 0, A, 0, Math.PI / 2).scale(1, 0.75, 1).rotateZ(-0.55 * s).translate(0.58 * s, -0.52, -0.02);
     parts.push(paint(clean(dome), "#a86a08", "#ffe27a", 0.3));
-    const rim = new TorusGeometry(0.3, 0.035, 8, 24).rotateX(Math.PI / 2).scale(1, 1, 1).rotateZ(-0.55 * s).translate(0.58 * s + 0.0, -0.52, -0.02);
-    parts.push(paint(clean(rim), "#c98a12", "#ffe27a", 0.3));
     const horn = new ConeGeometry(0.07, 0.3, 6).translate(0, 0.15, 0).rotateZ(-1.0 * s).translate(0.8 * s, -0.42, -0.02);
     parts.push(paint(clean(horn), "#c98a12", "#fff2a0", 0.3));
   }
@@ -174,7 +172,7 @@ export function portalMaterial() {
         float ring2 = smoothstep(0.8, 1.0, rip) * (1.0 - smoothstep(0.55, 0.78, r)) * 0.6;
         float core = (1.0 - r) * 0.5;
         vec3 gold = vec3(1.0, 0.78, 0.26);
-        vec3 c = gold * (core + ring2) + mix(gold, vec3(1.0), 0.6) * rim * 1.4;
+        vec3 c = gold * (core * 0.8 + ring2) + mix(gold, vec3(1.0, 0.95, 0.7), 0.35) * rim * 1.1;
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
@@ -297,8 +295,8 @@ export function gateMaterial() {
         float rim = smoothstep(0.9, 0.95, r) * (1.0 - smoothstep(0.985, 1.0, r));
         col = mix(col, vec3(1.0, 0.8, 0.3), rim);
         // opening: the middle blazes gold-white and the iris widens
-        float hole = 1.0 - smoothstep(uOpen * 0.9 - 0.08, uOpen * 0.9, r);
-        col = mix(col, mix(vec3(1.0, 0.82, 0.35), vec3(1.0, 0.97, 0.85), 1.0 - r), hole);
+        float hole = 1.0 - smoothstep(uOpen * 0.62 - 0.08, uOpen * 0.62, r);
+        col = mix(col, mix(vec3(1.0, 0.5, 0.08), vec3(1.0, 0.8, 0.3), 1.0 - r), hole);
         gl_FragColor = vec4(col, 0.94);
       }`,
   });

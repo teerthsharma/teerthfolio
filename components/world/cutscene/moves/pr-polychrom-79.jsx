@@ -22,9 +22,9 @@ const CORE_Y = 0.9;
 // the clock (real s from the arrival; the card puts line A at 2.3, B at 8.3, the flex line at 14.0, the credit at 23.0)
 const T = { hair: [0.55, 1.15], eyes: [2.3, 3.0], open: 2.5, step: 0.075, key: [7.0, 8.2], spread: [8.8, 13.0], gate: [8.3, 9.6], opens: [12.6, 14.2], keyAway: [13.6, 14.4], draw: [14.4, 16.4], aim: [18.0, 19.2], blast: [19.4, 19.9], word: [19.6, 21.6], shatter: 20.3, ret: 21.2, windEnd: [21.4, 22.2], shardEnd: 22.8 };
 const NP = 42;
-const NS = 150;
+const NS = 240;
 const KEY_AT = [0.95, 1.95, 0.4];
-const EA_AT = [0.95, 1.15, 0.45];
+const EA_AT = [1.0, 0.7, 0.55];
 const GATE_AT = [0, 4.8, -12];
 const COL = new Color();
 const V = new Vector3();
@@ -60,8 +60,8 @@ export default function Move(cut) {
       const n = layer === 0 ? 10 : layer === 1 ? 14 : 18;
       const k = i - (layer === 0 ? 0 : layer === 1 ? 10 : 24);
       const a = -0.25 * Math.PI + ((k + 0.5 + 0.3 * (hash(i, 1) - 0.5)) / n) * 1.5 * Math.PI;
-      const r = [3.6, 5.8, 8.0][layer] + 0.6 * (hash(i, 2) - 0.5);
-      lay.push({ x: Math.cos(a) * r * 1.2, y: Math.max(0.6, 2.6 + Math.sin(a) * r * 0.78), z: -6.5 - layer * 0.8 - hash(i, 3), a: a + (hash(i, 4) - 0.5) * 0.35, size: 0.95 + 0.5 * hash(i, 5) + layer * 0.15, kind: i % SIL_KINDS, len: 1.5 + 0.7 * hash(i, 6) });
+      const r = [2.2, 3.6, 5.0][layer] + 0.4 * (hash(i, 2) - 0.5);
+      lay.push({ x: Math.cos(a) * r * 1.3, y: Math.max(0.8, 2.4 + Math.sin(a) * r * 0.9), z: -5.5 - layer * 0.7 - hash(i, 3), a: a + (hash(i, 4) - 0.5) * 0.35, size: 0.8 + 0.4 * hash(i, 5) + layer * 0.1, kind: i % SIL_KINDS, len: 1.1 + 0.5 * hash(i, 6) });
     }
     const silG = silhouetteGeometries();
     const silM = new MeshBasicMaterial({ color: "#14040e", side: DoubleSide, toneMapped: false, fog: false });
@@ -225,16 +225,16 @@ export default function Move(cut) {
     const aim = smooth(T.aim[0], T.aim[1], tt);
     const ea = eaG.current;
     ea.visible = draw > 0.01 && !gone;
-    ea.scale.setScalar(Math.max(draw, 0.01) * 1.15);
+    ea.scale.setScalar(Math.max(draw, 0.01) * 1.4);
     ea.position.set(EA_AT[0], EA_AT[1] + 0.05 * Math.sin(tt * 2.0), EA_AT[2]);
-    ea.rotation.set(-1.2 * aim, 0, -0.18 * (1 - aim));
+    ea.rotation.set(-0.2 - 0.3 * aim, 0, -0.5 + 1.4 * aim);
     const spin = tt * (2 + 10 * smooth(T.draw[1], T.blast[0], tt));
     segs.current.forEach((sg, i) => (sg.rotation.y = spin * (i % 2 ? -1 : 1) + i * 1.6));
     const blast = smooth(T.blast[0], T.blast[1], tt) * (1 - smooth(T.windEnd[0], T.windEnd[1], tt));
     const w = wind.current;
     w.visible = blast > 0.01 && !gone;
     w.scale.set(0.3 + blast, 0.2 + 0.8 * blast, 0.3 + blast);
-    m.windM.uniforms.uK.value = blast;
+    m.windM.uniforms.uK.value = blast * 2.6;
 
     // THE RETURN: the blast shatters space into shards; the world goes and the island is there
     const age = tt - T.shatter;
@@ -248,7 +248,7 @@ export default function Move(cut) {
         const dd = Math.max(h.d - age * 2.5, 1.5);
         const spread = 1 + age * 0.5;
         V.copy(cam.position).addScaledVector(FZ, -dd).addScaledVector(RX, h.u * half * cam.aspect * dd * spread).addScaledVector(UY, (h.v * half * dd - age * age * h.fall * 0.6) * spread);
-        const z = h.s * sc * dd * half * 0.5;
+        const z = h.s * sc * dd * half * 0.16;
         put(m.shards, i, V.x, V.y, V.z, z, z, z, h.r + age * h.w, h.r * 0.5 + age * h.w * 0.6, 0);
       }
       m.shards.instanceMatrix.needsUpdate = true;
