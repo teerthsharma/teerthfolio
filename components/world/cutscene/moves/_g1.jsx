@@ -11,6 +11,7 @@
 // puts it back on any skip), so a move mounts <Stage bare> for that and its
 // own Dome for the look.
 
+import { sceneT } from "../../../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { AdditiveBlending, CircleGeometry, Color, DoubleSide, Group, InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, ShaderMaterial, SphereGeometry, Vector3 } from "three";
@@ -112,7 +113,7 @@ export function Dome({ tl, mode, pal, radius = 38 }) {
       return;
     }
     root.current.visible = true;
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     const s = live.seal;
     root.current.position.set(s.x, 0, s.z);
     const r = radiusAt(tl, t);
@@ -174,7 +175,7 @@ export function Motes({ n = 120, span = [18, 8, 14], center = [0, 0, -3], dir = 
     const g = m.current;
     g.visible = Boolean(a.id) && mode === "full" && live.inStage;
     if (!g.visible) return;
-    const t = Math.floor((state.clock.elapsedTime - a.start) * 12) / 12;
+    const t = Math.floor((sceneT(a.id, state.clock.elapsedTime - a.start)) * 12) / 12;
     const s = live.seal;
     g.position.set(s.x, 0, s.z);
     const k = 1 - Math.min(1, Math.max(0, (t - tl.collapse[0]) / (tl.collapse[1] - tl.collapse[0])));

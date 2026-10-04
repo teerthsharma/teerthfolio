@@ -9,6 +9,7 @@
 // card. 3D only except the card (DOM, like the bubbles); the comic layer is
 // ui/Bubbles.jsx.
 
+import { sceneT } from "../../../../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import {
@@ -72,7 +73,7 @@ export function useStageGroup(cut, fn, off) {
       return;
     }
     g.position.set(live.seal.x, 0, live.seal.z);
-    fn?.(state.clock.elapsedTime - live.arrival.start, state, dt, g);
+    fn?.(sceneT(live.arrival.id, state.clock.elapsedTime - live.arrival.start), state, dt, g);
   }, -1.1);
   return ref;
 }
@@ -418,7 +419,7 @@ export function useLineSwitch(card, tl, second) {
     };
   }, [card, tl, second]);
   useFrame((state) => {
-    window.__g5T = live.arrival.id ? state.clock.elapsedTime - live.arrival.start : -1;
+    window.__g5T = live.arrival.id ? sceneT(live.arrival.id, state.clock.elapsedTime - live.arrival.start) : -1;
   }, -2);
 }
 
@@ -429,7 +430,7 @@ export function useShake(cut, hits, amp = 0.05) {
   useFrame((state) => {
     const a = live.arrival;
     if (!a.id || cut.mode !== "full") return;
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     for (const h of hits) {
       const f = Math.floor((t - h) * 12);
       if (f >= 0 && f < 2) {
@@ -491,7 +492,7 @@ export function useCredit({ mode, tl }, repo, lang, spec) {
     const d = el.current;
     if (!d) return;
     const a = live.arrival;
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     const t0 = tl.collapse[0] - 1.2;
     const on = Boolean(a.id) && mode === "full" && t >= t0 && t < tl.collapse[1] + 0.25;
     d.style.display = on ? "grid" : "none";

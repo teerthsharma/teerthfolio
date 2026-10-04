@@ -7,7 +7,8 @@ import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { existsSync, readFileSync } from "node:fs";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { CARDS, cardFor } from "../lib/world/cutscene/cards/index.js";
-import { BUILDS, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
+import { PACE, realAt, realLength, sceneT } from "../lib/world/cutscene/clock.js";
+import { BUILDS, MIN_BEAT, MIN_BUBBLE, MIN_CREDIT, BREATH, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
 import { DISPLAY, TIERS, classify, dprFor, displayTier, gpuName } from "../lib/world/quality.js";
 import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH, mustFinish } from "../lib/world/loop.js";
 import { AWAKE, LINE, auraAt, awakeBeat, awakeCredit, liftAt, skyAt } from "../lib/world/awakening.js";
@@ -1301,9 +1302,27 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
     assert.ok(POSES.includes(move?.pose) && (!move.then || POSES.includes(move.then)), `${id}'s move pose is not a pose hook`);
     for (const n of `${a.text} ${b.text} ${c.c?.text ?? ""} ${c.credit?.title ?? ""} ${c.credit?.sub ?? ""} ${c.num ?? ""} ${c.sub ?? ""}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) assert.ok(n === "0" || json.includes(n), `${id}'s line says ${n}, which showcase.json does not`);
     const T = timelineFor(c);
+    const PACED = (i) => i in PACE;
     const w = [T.sign[0], T.sign[1], T.impact, T.bloom[1], T.enter, T.lineA, T.move[0], T.lineB, T.collapse[0], T.collapse[1], T.duration];
     assert.ok(w.every((v, i) => i === 0 || v > w[i - 1]) && T.move[1] > T.move[0] && T.move[1] <= T.lineB && T.hold >= T.collapse[0], `${id}'s beats are out of order`);
-    assert.ok(T.lineB - T.lineA >= READ - 1e-9 && (T.lineC ?? T.credit ?? T.collapse[0]) - T.lineB >= READ - 1e-9 && (!T.lineC || (T.credit ?? T.collapse[0]) - T.lineC >= READ - 1e-9), `${id}: each line gets ${READ} s to be read`);
+    if (!PACED(id)) assert.ok(T.lineB - T.lineA >= READ - 1e-9 && (T.lineC ?? T.credit ?? T.collapse[0]) - T.lineB >= READ - 1e-9 && (!T.lineC || (T.credit ?? T.collapse[0]) - T.lineC >= READ - 1e-9), `${id}: each line gets ${READ} s to be read`);
+    else {
+      // THE PACING RULE (owner, binding, 2026-10-04), in REAL seconds through clock.js: a bubble is up at least 5 s
+      // (longer lines: 1 s per 3 words + 2 s), the credit card 4 s, each big beat 2.5 s, 0.8 s of breath between
+      // beats, 20 to 30 s in all. Line A stays up through the move; B and C until the next card.
+      const R = (x) => realAt(id, x);
+      const need = (l) => Math.max(MIN_BUBBLE, l.text.split(/\s+/).length / 3 + 2);
+      const end = (n) => (n.lineC ?? n.credit ?? n.collapse[0]);
+      const wins = [[a, T.lineA, T.lineB], [b, T.lineB, end(T)], ...(c.c ? [[c.c, T.lineC, T.credit ?? T.collapse[0]]] : [])];
+      for (const [l, from, to] of wins) assert.ok(R(to) - R(from) >= need(l) - 1e-9, `${id}: "${l.text.slice(0, 24)}" is up ${(R(to) - R(from)).toFixed(2)} s, needs ${need(l).toFixed(2)}`);
+      if (c.credit) assert.ok(R(T.collapse[0]) - R(T.credit) >= MIN_CREDIT - 1e-9, `${id}: the credit card is up ${(R(T.collapse[0]) - R(T.credit)).toFixed(2)} s, needs ${MIN_CREDIT}`);
+      const big = { opening: [T.sign[0], T.enter], move: [T.move[0], T.lineB], collapse: [T.collapse[0], T.duration] };
+      for (const [k, [x, y]] of Object.entries(big)) assert.ok(R(y) - R(x) >= MIN_BEAT - 1e-9, `${id}: the ${k} beat holds ${(R(y) - R(x)).toFixed(2)} s, needs ${MIN_BEAT}`);
+      assert.ok(R(T.move[0]) - R(T.enter) >= BREATH && R(T.collapse[0]) - R(T.lineB) >= BREATH, `${id}: beats need ${BREATH} s of breath`);
+      const total = realLength(id, T.duration);
+      assert.ok(total >= 20 && total <= 30, `${id}: ${total.toFixed(1)} s, not 20 to 30`);
+      console.log(`pace ${id}: ${total.toFixed(1)} s; ` + wins.map(([l, f, t]) => (R(t) - R(f)).toFixed(2)).join("/") + (c.credit ? ` credit ${(R(T.collapse[0]) - R(T.credit)).toFixed(2)}` : ""));
+    }
     let beat = 0;
     for (let t = 0; t < T.duration; t += 0.01) {
       const k = beatAt(T, t);
@@ -1323,18 +1342,27 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
     const A = AWAKE;
     const marks = [A.impact, A.erupt[1], ...A.circles, A.impactB, A.rise[0], A.reveal, A.rise[1], A.line[0], A.card[0], A.card[1], A.descend[1], A.duration];
     assert.ok(marks.every((v, i) => i === 0 || v > marks[i - 1]), "awakening beats are in order");
-    assert.ok(A.duration === AWAKENING.duration && AWAKENING.hold >= A.descend[0] && AWAKENING.hold < A.duration, "the awakening holds input through the flight");
+    assert.ok(AWAKENING.duration === realLength(AWAKENING.id, A.duration) && AWAKENING.hold >= realAt(AWAKENING.id, A.descend[0]) && AWAKENING.hold < AWAKENING.duration, "the awakening holds input through the flight");
     let last = 0;
     const seen = new Map();
-    for (let t = 0; t < A.duration; t += 0.005) {
+    for (let r = 0; r < AWAKENING.duration; r += 0.005) {
+      const t = sceneT(AWAKENING.id, r);
       const b = awakeBeat(t);
       assert.ok(b >= last, `awakening beat goes back at ${t.toFixed(2)} s`);
       last = b;
       seen.set(b, (seen.get(b) ?? 0) + 0.005);
     }
     assert.deepEqual([...seen.keys()], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "every awakening beat plays, in order");
-    assert.ok(seen.get(9) >= 2.4, `the bubble gets ${seen.get(9).toFixed(2)} s, under 2.4 s`);
-    assert.ok(seen.get(10) >= 1.2, "the credit card holds at least 1.2 s");
+    // THE PACING RULE in real seconds: the line is up 1 s per 3 words + 2 s (at least 5), the card 4 s, each big beat 2.5 s with 0.8 s of breath
+    const needLine = Math.max(MIN_BUBBLE, LINE.text.split(/\s+/).length / 3 + 2);
+    assert.ok(seen.get(9) >= needLine - 0.02, `the bubble gets ${seen.get(9).toFixed(2)} s, under ${needLine.toFixed(2)} s`);
+    assert.ok(seen.get(10) >= MIN_CREDIT - 0.02, `the credit card holds ${seen.get(10).toFixed(2)} s, under ${MIN_CREDIT} s`);
+    const Rw = (x) => realAt(AWAKENING.id, x);
+    const bigA = { eruption: [A.impact, A.circles[3]], peak: [A.impactB, A.reveal], flight: [A.reveal, A.rise[1]], landing: [A.card[1], A.duration] };
+    for (const [k, [x, y]] of Object.entries(bigA)) assert.ok(Rw(y) - Rw(x) >= MIN_BEAT - 0.02, `awakening ${k} holds ${(Rw(y) - Rw(x)).toFixed(2)} s, under ${MIN_BEAT}`);
+    assert.ok(Rw(A.impactB) - Rw(A.circles[3]) >= BREATH && Rw(A.line[0]) - Rw(A.rise[1]) >= 0.3, "awakening beats breathe");
+    assert.ok(AWAKENING.duration >= 20 && AWAKENING.duration <= 30, "the awakening runs 20 to 30 s");
+    console.log(`pace awakening: ${AWAKENING.duration} s; line ${seen.get(9).toFixed(2)} card ${seen.get(10).toFixed(2)}`);
     assert.ok(awakeBeat(A.duration) === 0 && liftAt(A.duration) < 1e-6 && skyAt(A.duration) < 1e-6 && auraAt(A.duration) < 1e-3, "the awakening ends with the pup down and the sky clear");
     assert.ok(liftAt(A.line[0]) > 40 && liftAt(A.circles[0]) < 1, "the pup flies high for the line and stays down for the eruption");
     const show = JSON.parse(json);

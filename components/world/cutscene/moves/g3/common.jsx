@@ -5,6 +5,7 @@
 // pieces a move adds to a figure, and a vertex-coloured box. Nothing here
 // touches the kit; it only reads it.
 
+import { sceneT } from "../../../../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { BackSide, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, Color, CylinderGeometry, DoubleSide, MeshBasicMaterial, PlaneGeometry, Quaternion, SRGBColorSpace, ShaderMaterial, Vector3 } from "three";
@@ -32,7 +33,7 @@ export function useStageGroup(ref, { card, place, tl, mode }, fn) {
     g.visible = on;
     if (!on) return;
     const s = live.seal;
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     g.position.set(s.x, 0, s.z);
     g.rotation.y = turned ? turnFor(card, place, s.x, s.z) : 0;
     g.scale.setScalar(Math.max(0.001, (1 - smooth(tl.collapse[0], tl.collapse[1], t)) * narrowK()));
@@ -136,7 +137,7 @@ export function FigureAttach({ card, tl, mode, children }) {
       f.visible = false;
       return;
     }
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     const s = live.seal;
     const at = figureAt(card);
     const k = figureScale(card);
@@ -237,7 +238,7 @@ export function usePupPost({ mode, tl }, fn) {
     if (!a.id || mode !== "full") return;
     const rig = pupRig(scene);
     if (!rig) return;
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     if (t > tl.collapse[1] + 0.05) return;
     rig.coat.emissiveIntensity = 0;
     rig.head.children[6].visible = rig.head.children[7].visible = false; // no halo in a scene
@@ -254,7 +255,7 @@ export function usePupFront({ mode, tl }, t0, t1, yaw = 0) {
     if (!a.id || mode !== "full") return;
     const rig = pupRig(scene);
     if (!rig) return;
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     const k = smooth(t0, t1, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
     if (k > 0) {
       const y = rig.seal.rotation.y;
@@ -361,7 +362,7 @@ export function useCredit({ mode, tl }, repo, head, note) {
     const d = el.current;
     if (!d) return;
     const a = live.arrival;
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     const on = Boolean(a.id) && (mode === "still" || (t >= tl.lineB && t < tl.collapse[1] + 0.3));
     d.style.display = on ? "grid" : "none";
     if (on) {

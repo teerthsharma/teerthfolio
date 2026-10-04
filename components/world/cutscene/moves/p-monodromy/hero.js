@@ -31,7 +31,7 @@ function chain(p, r, n, color, k = 0, seg = 7) {
 
 // head frame: the skull centre, +z the nose, +y up
 function ponytail() {
-  const p = (t) => [Math.sin(t * 5) * 0.08, 0.3 + 0.26 * Math.sin(Math.PI * Math.min(1, t * 1.4)) - 0.85 * t * t, -0.42 - 2.7 * t];
+  const p = (t) => [Math.sin(t * 5) * 0.08, 0.42 + 0.26 * Math.sin(Math.PI * Math.min(1, t * 1.4)) - 0.85 * t * t, -0.42 - 2.7 * t];
   const dark = "#35206a";
   const parts = chain(p, (t) => 0.14 * (1 - t) ** 0.8 + 0.03, 20, (t) => (t < 0.45 ? dark : t < 0.8 ? "#4a2c8a" : "#6a40b8"), 0);
   // a second, lighter lock beside it, and the gold tie at the root
@@ -39,7 +39,7 @@ function ponytail() {
   parts.push(...chain(p2, (t) => 0.1 * (1 - t) + 0.025, 12, "#6a40b8", 0, 6));
   parts.push(part(new TorusGeometry(0.17, 0.045, 6, 12), C.gold, 2, [0, 0.33, -0.43, 0, 0, 0, 1, 1, 1.2]));
   // the crown hair: a cap over the back of the skull so the ponytail has something to grow from
-  parts.push(part(new SphereGeometry(0.545, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.55).rotateX(-1.0), dark, 0, [0, 0.03, -0.04]));
+  parts.push(part(new SphereGeometry(0.545, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.55).rotateX(-0.4), dark, 0, [0, 0.1, -0.02]));
   return merge(parts);
 }
 
@@ -193,8 +193,8 @@ export function sinbad(parts, mat) {
   const hair = new Group();
   const pony = new Mesh(ponytail(), mat);
   const pivot = new Group();
-  pivot.position.set(0, 0.32, -0.43);
-  pony.position.set(0, -0.32, 0.43);
+  pivot.position.set(0, 0.44, -0.35);
+  pony.position.set(0, -0.44, 0.35);
   pivot.add(pony);
   hair.add(pivot);
   const crown = new Mesh(circlet(), mat);

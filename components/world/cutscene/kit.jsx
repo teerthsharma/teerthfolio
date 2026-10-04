@@ -19,6 +19,7 @@
 // (ui/Bubbles.jsx), so a move is 3D only. Keep it cheap by construction: a
 // few meshes, instanced particles, halftone in the material, no post pass.
 
+import { sceneT } from "../../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { moveAt, signAt, smooth } from "../../../lib/world/cutscene/timeline";
 export { POSES } from "../../../lib/world/cutscene/timeline";
@@ -33,7 +34,7 @@ export { moveAt, onTwos, signAt, smooth } from "../../../lib/world/cutscene/time
 export function useCutFrame(fn) {
   useFrame((state, dt) => {
     const a = live.arrival;
-    if (a.id) fn(state.clock.elapsedTime - a.start, state, dt);
+    if (a.id) fn(sceneT(a.id, state.clock.elapsedTime - a.start), state, dt);
   }, -1.2);
 }
 

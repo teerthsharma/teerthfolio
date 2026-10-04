@@ -15,6 +15,7 @@
 // ghosts 4, shards 1, crack 1, coat 2, lock 1, lenses 1, letters 6.
 // Card: lib/world/cutscene/cards/p-resolvent.js.
 
+import { sceneT } from "../../../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import {
@@ -317,7 +318,7 @@ export default function Move(cut) {
     const a = live.arrival;
     if (!a.id || cut.mode !== "full") return;
     const rig = pupRig(scene);
-    const t = state.clock.elapsedTime - a.start;
+    const t = sceneT(a.id, state.clock.elapsedTime - a.start);
     if (!rig || t < tl.enter - 0.35 || t > tl.collapse[1]) return;
     if (ghosts.current === null && t >= tl.enter) {
       const gh = snapshot(rig);

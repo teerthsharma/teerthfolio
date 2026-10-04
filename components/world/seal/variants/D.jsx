@@ -30,6 +30,7 @@
 //   spin    one full turn about its feet at 1
 // During a scene the outfit is hidden: the round head stays clean.
 
+import { sceneT } from "../../../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CapsuleGeometry, Color, DoubleSide, Vector3, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, RingGeometry } from "three";
@@ -237,7 +238,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     const au = arrivalPlace && !cut ? (now - arrival.start) / LOOK_ROUND : -1;
     if (cut) d.lookYaw = 0;
     const awake = awakeMode(arrival.id) === "full";
-    const at = awake ? now - arrival.start : -1;
+    const at = awake ? sceneT(arrival.id, now - arrival.start) : -1;
     const power = awake ? powerAt(at) : 0;
     const soar = awake ? flyAt(at) : 0;
     if (awake) {

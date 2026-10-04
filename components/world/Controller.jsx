@@ -2,6 +2,7 @@
 
 // Input -> motion -> "which building is the seal at". Owns no visuals.
 
+import { sceneT } from "../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
 import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
@@ -113,7 +114,7 @@ export default function Controller() {
     }
     if (arrival.id) {
       // the cutscene's beat (timeline.js); a skip above clears it in the same frame
-      const beat = cutsceneMode(arrival.id) ? beatAt(cutFor(arrival.id)?.tl, t - arrival.start) : awakeMode(arrival.id) ? awakeBeat(t - arrival.start) : 0;
+      const beat = cutsceneMode(arrival.id) ? beatAt(cutFor(arrival.id)?.tl, sceneT(arrival.id, t - arrival.start)) : awakeMode(arrival.id) ? awakeBeat(sceneT(arrival.id, t - arrival.start)) : 0;
       if (beat !== ui.beat) setUi({ beat });
     }
     const holding = arrival.id && t - arrival.start < arrivalHold(arrival.id);

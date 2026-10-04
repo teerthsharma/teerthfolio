@@ -9,6 +9,7 @@
 // with reduced motion it simply stands. A card whose speaker is "land" has
 // no figure: the landform speaks (Stage.jsx keeps it lit).
 
+import { sceneT } from "../../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { BackSide, Color, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, MeshBasicMaterial, Quaternion, ShaderMaterial, BoxGeometry, TorusGeometry, Vector3 } from "three";
@@ -261,7 +262,7 @@ function Figure({ card, tl, mode, lean = 0.035, sp, index }) {
       f.visible = false;
       return;
     }
-    const t = state.clock.elapsedTime - arrival.start;
+    const t = sceneT(arrival.id, state.clock.elapsedTime - arrival.start);
     const s = live.seal;
     const at = figureAt(card, index);
     const scale = figureScale(card, index);

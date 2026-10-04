@@ -21,6 +21,7 @@
 //
 // Card: lib/world/cutscene/cards/p-separatrix.js. Parts: ./p-separatrix/.
 
+import { sceneT } from "../../../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Matrix4, Object3D, Quaternion, Vector3 } from "three";
@@ -139,7 +140,7 @@ export default function Move(cut) {
   // that lives in the lens's own frame follows it
   useFrame((state) => {
     if (!live.arrival.id || mode !== "full") return;
-    const t = state.clock.elapsedTime - live.arrival.start;
+    const t = sceneT(live.arrival.id, state.clock.elapsedTime - live.arrival.start);
     state.camera.rotateZ(0.06 * viewAt(tl, t));
     m.hud.position.copy(state.camera.position);
     m.hud.quaternion.copy(state.camera.quaternion);
