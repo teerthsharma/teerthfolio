@@ -112,6 +112,28 @@ function keyInput(keys) {
   return KEY_INPUT;
 }
 
+// The panel's "Replay cutscene": forget the place (and its group), close the
+// panel, start its arrival as a proximity arrival would. lastT is the world
+// clock, written every frame below.
+let lastT = 0;
+export function replayArrival(id) {
+  const as = playsAs(id);
+  if (!as || !cutsceneMode(as) || live.arrival.id) return false;
+  for (const g of GROUP.get(as) ?? [as]) live.seen.delete(g);
+  saveSeen();
+  seeAll(as);
+  saveSeen();
+  const arrival = live.arrival;
+  arrival.id = as;
+  arrival.start = lastT;
+  arrival.keys = new Set(live.keys);
+  arrival.target = live.target;
+  arrival.stick = live.stick;
+  arrival.skip = false;
+  setUi({ open: null, cutscene: as });
+  return true;
+}
+
 export default function Controller() {
   // Priority -1.5: physics steps before CameraRig and Seal, which subscribe
   // at 0 and -1. -1 alone left the order dependent on subscribe order (Seal
@@ -119,7 +141,7 @@ export default function Controller() {
   // -1.5 wins outright.
   useFrame((state, delta) => {
     const ui = getUi();
-    const t = state.clock.elapsedTime;
+    const t = (lastT = state.clock.elapsedTime);
     // THE ARRIVAL (lib/world/cutscene/): for its first `hold` seconds the
     // seal takes no input and no click target, so it stops for the scene.
     const arrival = live.arrival;

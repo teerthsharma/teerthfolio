@@ -524,6 +524,11 @@ html[data-hud="off"] .place-label {
   cursor: progress;
 }
 
+.replay-cut {
+  min-height: 44px;
+  margin: 12px 0 0;
+}
+
 .btn-ghost {
   background: var(--raised);
   border: 1px solid var(--hair2);

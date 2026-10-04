@@ -1514,6 +1514,11 @@ assert.equal(gpuName("ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00003EA0) Direc
   for (const p of PLACES) assert.ok(!inRock(dockPoint(p).x, dockPoint(p).z), `${p.id}'s dock is inside MujoRush`);
 }
 
+{
+  const ctl = readFileSync(new URL("../components/world/Controller.jsx", import.meta.url), "utf8");
+  const hud = readFileSync(new URL("../components/world/Hud.jsx", import.meta.url), "utf8");
+  assert.ok(/export function replayArrival/.test(ctl) && /replayArrival\(place\.id\)/.test(hud) && /aria-label="Replay the cutscene"/.test(hud), "the building panel replays its cutscene through replayArrival");
+}
 // A pup mid-ride or mid-throw must not be pinned by an arrival (Controller
 // skips stepSeal while holding, freezing a ride upside down): it is
 // "mustFinish" until upright, and a finished ride leaves no pitch.
