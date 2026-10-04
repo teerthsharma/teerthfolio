@@ -1,216 +1,296 @@
-// NeMo Relay: Dragon Ball Super, Ultra Instinct. The pup is the performer.
-// It starts crouched and spent, flashes silver, and rises calm with a silver
-// ring round each pupil. Whis (staff, ringed halo) and Beerus (ears, pudding
-// cup) watch as ink cutouts. About a dozen coloured task orbs fly at it from
-// the left and miss: four silver afterimages flick through the places it was,
-// each in for 0.12 s, the coloured satellite of each orb drops to the ground
-// in a splash ring, and the violet cores curve round behind its head into one
-// globe of nested shells that sends out a ring each time a shell fills. A
-// silver-white dome (its own shader), silver aura tongues and rising motes
-// replace the island. Shape, colour, pose.
-// Cost by construction: dome, ground, shadow, motes, 4 ghosts, 2 orb meshes,
-// 4 globe meshes, aura and splash rings: about 17 draw calls, no post.
-// Card: lib/world/cutscene/cards/pr-nemo-relay-481.js.
+// NeMo Relay: Dragon Ball Super, the Tournament of Power and Goku's Ultra Instinct, as its OWN dimension:
+// 90s Toei TV-anime cel (flat colour, one hard shadow tone, a bold ink outline, speed lines, glowing aura).
+// The island is replaced by a vast shattered stone arena floating in a pale void sky (cel-banded
+// royal blue to lilac, a colourful nebula, stars, speed lines radiating from behind the pup), floating
+// rock chunks, and a ledge where two ink cutouts watch: BEERUS (cat ears, tail, hands behind his back)
+// and WHIS (tall, a staff, a ringed halo). The pup calms, ignites the SILVER-WHITE Ultra Instinct aura
+// (silver flames, a pale blue-white heart, silver sparks, its fur shifting to silver) and dodges coloured
+// ki orbs with its eyes shut while silver afterimages flicker. Then the form runs out: the aura gutters,
+// the silver drains, the sky pales and its speed lines stop, Whis taps his staff, and the arena breaks up
+// outside-in and falls away, the sky dissolving in chunky blocks, to the real island that was beneath it
+// all along. The flex line comes before; the credit card is read over the falling stage.
+// Cost by construction: ~28 draw calls, no post pass, no textures but one lettering plane, everything
+// instanced or merged, disposed on exit. Card: lib/world/cutscene/cards/pr-nemo-relay-481.js.
+// Parts: ./pr-nemo-relay-481/.
 
-import { useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { AdditiveBlending, Color, DoubleSide, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, RingGeometry, TorusGeometry } from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { MeshBasicMaterial, Quaternion, Vector3 } from "three";
 import { live } from "../../../../lib/world/store";
-import { Speaker, Stage, onTwos, smooth, useCutFrame } from "../kit";
-import { Dome, Motes, Shadow, bakePup } from "./_g1";
+import { Stage, onTwos, smooth, useCutFrame } from "../kit";
+import { bakePup } from "./_g1";
+import { flashQuad, holdFlash, islandList, lettering, pupParts } from "./p-caustic/parts";
+import { LEDGE, TOP, buildArena } from "./pr-nemo-relay-481/arena";
+import { INK, hullMaterial, pupCel, setHull } from "./pr-nemo-relay-481/cel";
+import { ORB, buildAura, buildOrbs, passAt, passPoint, passSide, silverGhost } from "./pr-nemo-relay-481/fx";
+import { beerus, whis } from "./pr-nemo-relay-481/gods";
+import { skyShell } from "./pr-nemo-relay-481/sky";
 
-const D = new Object3D();
-const PAL = {
-  top: "#4654b8", mid: "#7d8de0", hor: "#cdd6ff", bot: "#6f7fd6", glow: "#eef1ff", dot: "#3a47b0", glowK: 0.6, dotK: 0.8,
-  groundIn: "#a9b5f0", groundOut: "#6f7ed8", groundDot: "#3a47b0",
-};
-const VIOLET = new Color("#b25cff");
-const CREAM = new Color("#fbf6ec");
-const SAT = ["#ff5a5f", "#ffb347", "#ffe14a", "#5ad46a", "#4cc9f0", "#ff7ad9"].map((c) => new Color(c));
-const N = 12;
-const G = [0.1, 1.45, -0.85]; // the globe, behind the head
-const LAUNCH = 2.6; // s: the first orb leaves
-const GAP = 0.26;
-const FLY = 0.5;
-const CURVE = 0.6;
-const PASS = [2, 5, 8, 11]; // the orbs whose pass an afterimage flicks through
-const GHOST_AT = [[-1.0, 0, 0.2, 1], [1.0, 0, 0.25, 1], [0.1, 0, 0.7, 0.72], [-0.7, 0, -0.2, 1]]; // x, y, z, y-scale: left, right, low, left again
-const mat = (o = {}) => new MeshBasicMaterial({ toneMapped: false, fog: false, ...o });
-const put = (m, i, x, y, z, sx, sy = sx, sz = sx, rx = 0, ry = 0, rz = 0) => {
-  D.position.set(x, y, z);
-  D.rotation.set(rx, ry, rz);
-  D.scale.set(sx, sy, sz);
-  D.updateMatrix();
-  m.setMatrixAt(i, D.matrix);
-};
-const inst = (g, m, n, colors) => {
-  const mesh = new InstancedMesh(g, m, n);
-  mesh.frustumCulled = false;
-  if (colors) colors.forEach((c, i) => mesh.setColorAt(i, c));
-  return mesh;
-};
-const ease = (x) => x * x * (3 - 2 * x);
-const hash = (i, k = 0) => (((Math.sin(i * 127.1 + k * 311.7) * 43758.5453) % 1) + 1) % 1;
+const CORE_Y = 0.9;
+// the clock (s from the arrival). The card puts line A at 2.3, B at 6.4, C at 8.8, the credit at 11.2
+const T = { calm: 1.9, ignite: [2.7, 3.15], silver: [2.85, 3.5], eyes: [3.45, 9.6], gut: [9.2, 10.0], spent: [9.8, 10.3], tap: 9.45, crack: 10.3, drain: [9.5, 10.9], reveal: 11.0, out: [11.2, 12.2] };
+// the owner's pacing: every bubble up 5 s+, the credit 4 s+, the break in slow motion. Real seconds -> the
+// content clock the arena, orbs and pup were authored in (identity to 3.5 s, slowed through the dodges, 2x at the break)
+const warp = (r) => (r < 3.5 ? r : r < 18.6 ? 3.5 + (r - 3.5) * (5.7 / 15.1) : r < 25 ? 9.2 + (r - 18.6) * 0.5 : 12.4 + (r - 25));
+const V = new Vector3();
+const Q = new Quaternion();
+const DODGE = { x: 0, y: 0, z: 0, lean: 0, duck: 0, kick: 0 };
+const GHOST = { x: 0, y: 0, z: 0, lean: 0, duck: 0, kick: 0 };
 
-// where orb i crosses the pup's plane, and where it starts
-const cross = (i) => (i % 2 ? [0, 0.3 + (0.15 * ((i * 5) % 4)) / 3, 1.5] : [0, 0.8 + (0.6 * ((i * 5) % 4)) / 3, -0.7]); // in front they pass low, behind they pass high: never over the face
-const start = (i) => [-7 + (i % 3) * 0.4, 0.9 + 0.7 * hash(i), cross(i)[2] + (hash(i, 2) - 0.5) * 1.2];
+// the pup's sidestep for every orb: out of its path just before the pass, back after; a function of time only
+function dodgeAt(tt, out) {
+  out.x = out.y = out.z = out.lean = out.duck = out.kick = 0;
+  for (let i = 0; i < ORB.n; i++) {
+    const tp = passAt(i);
+    const d = smooth(tp - 0.22, tp - 0.07, tt) * (1 - smooth(tp + 0.1, tp + 0.34, tt));
+    if (d <= 0) continue;
+    passPoint(i, V);
+    const side = passSide(i);
+    out.x += side * 0.5 * d;
+    out.z += (V.z > 0 ? -0.55 : 0.5) * d;
+    out.y += (V.y < 0.5 ? 0.32 : 0) * d;
+    out.lean += -side * 0.3 * d;
+    out.duck += (V.y > 0.7 ? 0.7 : 0) * d;
+    out.kick += d;
+  }
+  return out;
+}
 
 export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
-  const g = useRef();
-  const baked = useRef(null);
+  const rig = useRef();
+  const shellRef = useRef();
+  const world = useRef();
+  const auraGrp = useRef();
+  const staff = useRef();
+  const halo = useRef();
+  const beerusG = useRef();
+  const whisG = useRef();
   const ghosts = useRef([]);
-  const f = useMemo(() => {
-    const cores = inst(new IcosahedronGeometry(1, 1), mat(), N, Array(N).fill(VIOLET));
-    const sats = inst(new IcosahedronGeometry(1, 1), mat(), N, Array.from({ length: N }, (_, i) => SAT[i % SAT.length]));
-    const shell = inst(new IcosahedronGeometry(1, 1), mat({ transparent: true, opacity: 0.72, depthWrite: false }), 3, [VIOLET, new Color("#d6a8ff"), VIOLET]);
-    const core = inst(new IcosahedronGeometry(1, 1), mat(), 1, [CREAM]);
-    const rings = inst(new TorusGeometry(1, 0.03, 4, 28), mat({ transparent: true, opacity: 0.8, blending: AdditiveBlending, depthWrite: false }), 3, [CREAM, CREAM, CREAM]);
-    const aura = inst(new OctahedronGeometry(1, 0).scale(0.2, 1, 0.04), mat({ transparent: true, opacity: 0.4, depthWrite: false, side: DoubleSide }), 40, Array.from({ length: 40 }, (_, i) => new Color(i % 3 ? "#ffffff" : "#cfd8ff")));
-    const splash = inst(new RingGeometry(0.8, 1, 20).rotateX(-Math.PI / 2), mat({ transparent: true, opacity: 0.8, depthWrite: false, side: DoubleSide }), N, Array.from({ length: N }, (_, i) => SAT[i % SAT.length]));
-    return { cores, sats, shell, core, rings, aura, splash };
-  }, []);
-  const ghostMat = useMemo(() => [0, 1, 2, 3].map(() => mat({ color: "#dfe6ff", transparent: true, opacity: 0, depthWrite: false })), []);
+  const pup = useRef(null);
+  const cel = useRef(null);
+  const baked = useRef(null);
+  const island = useRef([]);
+  const hid = useRef(false);
+  const off = useRef({ x: 0, y: 0, z: 0, lean: 0 });
 
-  useCutFrame((t) => {
+  const m = useMemo(() => {
+    const sky = skyShell();
+    const arena = buildArena(T);
+    const aura = buildAura();
+    const orbs = buildOrbs();
+    const wb = beerus();
+    const wh = whis();
+    const ink = new MeshBasicMaterial({ color: INK, toneMapped: false, fog: false });
+    const hullG = hullMaterial({ color: "#d6e6ff" });
+    const accB = new MeshBasicMaterial({ color: wb.accentColor, toneMapped: false, fog: false });
+    const accW = new MeshBasicMaterial({ color: wh.accentColor, toneMapped: false, fog: false });
+    const haloF = new MeshBasicMaterial({ color: "#c9f8ff", toneMapped: false, fog: false });
+    const ghostM = [0, 1, 2, 3].map(() => silverGhost());
+    const crack = lettering("KRRRK!", "#e5363a", -0.1);
+    const flash = flashQuad("#dbe7ff");
+    return { sky, arena, aura, orbs, wb, wh, ink, hullG, accB, accW, haloF, ghostM, crack, flash };
+  }, []);
+
+  useEffect(() => {
+    island.current = islandList(scene);
+    const p = pupParts(scene);
+    pup.current = p;
+    cel.current = p?.root ? pupCel(p.root) : null;
+    return () => {
+      cel.current?.dispose();
+      cel.current = null;
+      if (pup.current?.root) pup.current.root.rotation.z = 0;
+      pup.current = null;
+      for (const g of [m.sky.g, m.wb.ink, m.wb.hull, m.wb.accent, m.wh.ink, m.wh.hull, m.wh.accent, m.wh.halo, m.crack.geometry, m.flash.geometry, baked.current]) g?.dispose();
+      for (const x of [m.sky.m, m.ink, m.hullG, m.accB, m.accW, m.haloF, m.crack.material, m.flash.material, ...m.ghostM]) x.dispose();
+      m.crack.material.map?.dispose();
+      m.arena.dispose();
+      m.aura.dispose();
+      m.orbs.dispose();
+    };
+  }, [scene, m]);
+
+  // the sidestep moves the pup itself, after Seal.jsx places it; a skip clears the arrival and nothing draws a frame past it
+  useFrame(() => {
+    const p = pup.current;
+    if (!live.arrival.id) {
+      rig.current.visible = false;
+      if (hid.current) for (const x of island.current) x.visible = true;
+      hid.current = false;
+      cel.current?.set(false);
+      if (p?.root) p.root.rotation.z = 0;
+      return;
+    }
+    if (p?.root && mode === "full") {
+      const o = off.current;
+      p.root.position.x += o.x;
+      p.root.position.y += o.y;
+      p.root.position.z += o.z;
+      p.root.rotation.z = o.lean; // Seal never sets roll, so this is absolute and cleared on exit
+    }
+  }, -0.5);
+
+  useCutFrame((t, state) => {
     const s = live.seal;
     const full = mode === "full";
-    g.current.visible = full;
-    if (!full) return;
-    g.current.position.set(s.x, 0, s.z);
-    const tt = onTwos(t);
-    const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
-
-    // the pup's own silhouette, baked once, for the afterimages
-    const seal = scene.getObjectByName("seal");
-    if (!baked.current && seal && t > 0.3) {
-      baked.current = bakePup(seal);
-      ghosts.current.forEach((m) => {
-        m.geometry = baked.current;
-      });
+    const g = rig.current;
+    g.visible = full;
+    m.flash.visible = false;
+    const o = off.current;
+    if (!full) {
+      cel.current?.set(false);
+      o.x = o.y = o.z = o.lean = 0;
+      return;
     }
+    const tt = warp(onTwos(t));
+    const cam = state.camera;
+    g.position.set(s.x, 0, s.z);
+    setHull(state.size.width, state.size.height, state.gl.getPixelRatio());
 
-    // THE PUP: crouched and spent, a silver flash, then a calm upright rise and a ring round each pupil;
-    // a flipper kick follows every dodge
-    const kick = PASS.reduce((k, i) => {
-      const dt = tt - (LAUNCH + i * GAP + FLY);
-      return k + (dt > 0 && dt < 0.5 ? Math.exp(-dt * 7) : 0);
-    }, 0);
-    live.pose.crouch = 0.9 * smooth(0.35, 0.9, tt) * (1 - smooth(1.15, 1.45, tt)) * out;
-    live.pose.raise = (0.32 * smooth(1.2, 1.9, tt) + 0.3 * Math.min(1, kick)) * out;
-    live.pose.ring = smooth(1.15, 1.5, tt) * out;
+    // THE WORLD swells out of the pup with the stage, then holds as the backdrop until it dissolves
+    const r = Math.max(tl.radius, 26) * smooth(tl.bloom[0], tl.bloom[1], t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
+    V.set(s.x, CORE_Y, s.z);
+    const inside = r > cam.position.distanceTo(V) + 0.3;
+    const sh = m.sky.m.uniforms;
+    const out = smooth(T.out[0], T.out[1], tt);
+    shellRef.current.visible = r > 0.02 && out < 1;
+    shellRef.current.scale.setScalar(inside ? 140 : Math.max(r, 0.02));
+    world.current.visible = inside && tt < T.out[1];
+    // the kit's own island hide keys on a 16 m stage; the tall view sits past that, so hide the island here
+    const hideIsland = inside && tt < T.reveal;
+    if (hideIsland) for (const x of island.current) x.visible = false;
+    else if (hid.current) for (const x of island.current) x.visible = true;
+    hid.current = hideIsland;
+    const ign = smooth(T.ignite[0], T.ignite[1], tt);
+    const drain = smooth(T.drain[0], T.drain[1], tt);
+    sh.uTime.value = t;
+    sh.uCell.value = 6 * state.gl.getPixelRatio();
+    sh.uOut.value = out;
+    sh.uDrain.value = drain;
+    // speed lines: calm, a surge at the ignition, thick through the dodges, still at the return
+    const surge = Math.max(0, 1 - Math.abs(tt - 3.0) / 0.6);
+    const dodging = smooth(ORB.launch, ORB.launch + 0.3, tt) * (1 - smooth(passAt(ORB.n - 1) + 0.2, passAt(ORB.n - 1) + 0.6, tt));
+    sh.uSpeed.value = 0.15 + 0.85 * surge + 0.5 * dodging + 0.2 * ign;
 
-    // the afterimages: left, right, low, left again, on the pass of their orbs
-    const q = seal ? seal.quaternion : null;
-    ghosts.current.forEach((m, k) => {
-      const age = tt - (LAUNCH + PASS[k] * GAP + FLY - 0.02);
-      const on = age >= 0 && age < 0.12 && baked.current;
-      m.visible = Boolean(on);
-      if (!on) return;
-      m.position.set(GHOST_AT[k][0], GHOST_AT[k][1], GHOST_AT[k][2]);
-      if (q) m.quaternion.copy(q);
-      m.scale.set(1, GHOST_AT[k][3], 1);
-      ghostMat[k].opacity = 0.55 * (1 - age / 0.12);
-    });
+    // THE PUP: a sign, a calm low stance, the ignition, the dodges with its eyes shut, spent, then itself again
+    const lit = 1 - smooth(T.gut[0], T.gut[1], tt);
+    const aura = ign * lit;
+    const silver = smooth(T.silver[0], T.silver[1], tt) * (1 - smooth(9.5, 10.3, tt));
+    const celOn = (inside || tt > tl.bloom[1]) && tt < T.reveal;
+    cel.current?.set(celOn, silver, aura > 0.3 ? 1 : 0);
+    const d = dodgeAt(tt, DODGE);
+    const k = celOn ? 1 : 0;
+    o.x = d.x * k;
+    o.y = d.y * k;
+    o.z = d.z * k;
+    o.lean = d.lean * k;
+    live.pose.sign = smooth(tl.sign[0], tl.sign[1], tt) * (1 - smooth(1.5, 1.9, tt));
+    live.pose.crouch = (0.4 * smooth(T.calm, T.calm + 0.4, tt) * (1 - smooth(T.ignite[0], T.ignite[0] + 0.25, tt)) + 0.55 * Math.min(1, d.duck) * ign + 0.85 * smooth(T.spent[0], T.spent[1], tt) * (1 - smooth(T.reveal, T.reveal + 0.4, tt))) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
+    live.pose.raise = (0.3 * ign + 0.45 * Math.min(1, d.kick)) * lit;
+    live.pose.ring = smooth(T.ignite[0], T.ignite[0] + 0.2, tt) * (1 - smooth(T.eyes[0] - 0.05, T.eyes[0] + 0.05, tt));
+    live.pose.blink = smooth(T.eyes[0], T.eyes[0] + 0.1, tt) * (1 - smooth(T.eyes[1], T.eyes[1] + 0.15, tt));
 
-    // the barrage: each orb is a violet core with a coloured satellite circling it
-    let merged = 0;
-    for (let i = 0; i < N; i++) {
-      const t0 = LAUNCH + i * GAP;
-      const u = (tt - t0) / FLY;
-      const X = cross(i);
-      const S = start(i);
-      const spin = tt * 6 + i;
-      if (u < 0) {
-        put(f.cores, i, 0, -9, 0, 0.0001);
-        put(f.sats, i, 0, -9, 0, 0.0001);
-        put(f.splash, i, 0, -9, 0, 0.0001);
-        continue;
+    // THE AURA follows the pup's sidestep; the ground ring leaves at the ignition
+    auraGrp.current.position.set(o.x, TOP, o.z);
+    const stutter = tt > T.gut[0] && tt < T.gut[1] ? (Math.floor(tt * 12) % 3 === 0 ? 1 : 0.5) : 1;
+    m.aura.update(tt, aura * stutter, 0.5 + 0.5 * Math.sin(t * 9), tt - (T.ignite[0] + 0.05));
+
+    // THE AFTERIMAGES: two silver copies flicker through where the pup was, for every orb
+    if (!baked.current && pup.current?.root && t > 0.3) {
+      baked.current = bakePup(pup.current.root);
+      ghosts.current.forEach((mesh) => mesh && (mesh.geometry = baked.current));
+    }
+    ghosts.current.forEach((mesh) => mesh && (mesh.visible = false));
+    if (baked.current && celOn) {
+      for (let i = 0; i < ORB.n; i++) {
+        const tp = passAt(i);
+        for (let j = 0; j < 2; j++) {
+          const age = tt - (tp - 0.22 + 0.1 * j);
+          if (age < 0 || age > 0.4) continue;
+          const slot = (2 * i + j) % 4;
+          const mesh = ghosts.current[slot];
+          if (!mesh) continue;
+          const at = dodgeAt(tp - 0.26 + 0.12 * j, GHOST);
+          mesh.visible = true;
+          mesh.position.set(at.x, at.y, at.z);
+          if (pup.current?.root) mesh.quaternion.copy(pup.current.root.quaternion);
+          m.ghostM[slot].opacity = 0.6 * (1 - age / 0.4);
+        }
       }
-      const k = Math.min(u, 1);
-      const px = S[0] + (X[0] - S[0]) * k;
-      const py = S[1] + (X[1] - S[1]) * k;
-      const pz = S[2] + (X[2] - S[2]) * k;
-      const w = (tt - t0 - FLY) / CURVE; // after the pass
-      const ox = 0.3 * Math.cos(spin);
-      const oy = 0.3 * Math.sin(spin);
-      if (w <= 0) {
-        put(f.cores, i, px, py, pz, 0.17 * out);
-        put(f.sats, i, px + ox, py + oy, pz, 0.1 * out);
-        put(f.splash, i, 0, -9, 0, 0.0001);
-        continue;
-      }
-      // the core curves round behind the pup into the globe
-      const e = ease(Math.min(w, 1));
-      const cx = X[0] + 1.6;
-      const cz = -1.6;
-      put(
-        f.cores,
-        i,
-        (1 - e) * (1 - e) * X[0] + 2 * (1 - e) * e * cx + e * e * G[0],
-        (1 - e) * X[1] + e * G[1],
-        (1 - e) * (1 - e) * X[2] + 2 * (1 - e) * e * cz + e * e * G[2],
-        0.17 * (1 - 0.7 * e) * out,
-      );
-      if (w >= 1) merged += 1;
-      // the satellite carries straight on and falls, then rings the ground
-      const tau = tt - t0 - FLY;
-      const sx = X[0] + 6 * tau;
-      const sy = X[1] + 1.5 * tau - 4.9 * tau * tau;
-      put(f.sats, i, sx + ox * 0.3, Math.max(sy, 0.1) + 0.1, X[2], 0.1 * out);
-      if (sy <= 0.1) {
-        const r = Math.min(1, Math.max(0, (tau - (0.15 + Math.sqrt((X[1] + 0.1) / 4.9) * 1.2)) / 0.5));
-        put(f.splash, i, sx, 0.04, X[2], r > 0 && r < 1 ? 0.15 + 0.5 * r : 0.0001);
-      } else put(f.splash, i, 0, -9, 0, 0.0001);
     }
-    for (const m of [f.cores, f.sats, f.splash]) m.instanceMatrix.needsUpdate = true;
 
-    // the globe of nested shells: grows with every core that arrives, a ring leaves each time a shell fills
-    const R = merged > 0 ? (0.14 + (0.5 * Math.min(N, merged)) / N) * out : 0.0001;
-    put(f.shell, 0, G[0], G[1], G[2], R * (1 + 0.03 * Math.sin(tt * 5)));
-    put(f.shell, 1, G[0], G[1], G[2], merged >= 4 ? R * 0.72 : 0.0001);
-    put(f.shell, 2, G[0], G[1], G[2], merged >= 8 ? R * 0.46 : 0.0001);
-    put(f.core, 0, G[0], G[1], G[2], R * 0.26);
-    for (let k = 0; k < 3; k++) {
-      const ta = tt - (LAUNCH + ((k + 1) * 4 - 1) * GAP + FLY + CURVE);
-      const r = ta > 0 && ta < 0.5 ? ta / 0.5 : 0;
-      const sc = r > 0 ? R * (1 + 1.4 * r) : 0.0001;
-      put(f.rings, k, G[0], G[1], G[2], sc, sc, sc, 0, 0.5 * k, 0);
-    }
-    for (const x of [f.shell, f.core, f.rings]) x.instanceMatrix.needsUpdate = true;
+    // THE KI ORBS
+    m.orbs.update(tt, celOn ? 1 : 0);
 
-    // the silver aura: flame tongues rising round the pup after the flash
-    const on = smooth(1.2, 1.9, tt) * out;
-    for (let i = 0; i < 40; i++) {
-      const a = Math.PI + (i / 40) * Math.PI + hash(i) * 0.2; // the back half of a ring, left of the gods: never between the pup and the lens
-      const rad = 0.8 + 2.4 * hash(i, 1);
-      const life = (tt * (0.35 + 0.25 * hash(i, 2)) + hash(i, 3)) % 1;
-      const h = (0.9 + 1.4 * hash(i, 4)) * on * Math.sin(Math.min(1, life * 1.25) * Math.PI);
-      put(f.aura, i, -1.7 + Math.cos(a) * rad, life * 2.4, Math.sin(a) * rad * 0.8 - 1.2, 0.5, Math.max(h, 0.0001), 0.5, 0, 0, 0.25 * Math.sin(tt * 3 + i));
+    // THE ARENA: rubble rises with the aura (and the stage trembles before it breaks), then the stage falls
+    m.arena.update(tt, aura, tt > T.crack - 0.9 && tt < T.crack ? 1 : 0);
+    m.arena.stone.uniforms.uDrain.value = drain;
+
+    // THE WATCHERS: Whis' halo turns, his staff taps on the spend, Beerus sways
+    halo.current.rotation.z = tt * 0.5;
+    const tap = Math.max(0, 1 - Math.abs(tt - T.tap) / 0.2);
+    staff.current.position.y = -0.16 * tap;
+    halo.current.scale.setScalar(1 + 0.35 * tap);
+    beerusG.current.rotation.y = -0.55 + 0.05 * Math.sin(tt * 0.9);
+    whisG.current.position.y = LEDGE.y + 0.06 * Math.sin(tt * 1.1);
+
+    // THE CRACK: lettering on the first break, flat to the lens
+    const bl = tt - T.crack;
+    m.crack.visible = bl > 0 && bl < 0.8;
+    if (m.crack.visible) {
+      const pop = Math.min(1, bl / 0.08) * (1 + 0.2 * Math.max(0, 1 - bl / 0.2));
+      const wide = state.size.width / state.size.height >= 1;
+      const w = (wide ? 4.2 : 2.6) * pop;
+      m.crack.position.set((wide ? 2.4 : 1.4) + 0.04 * (Math.floor(t * 12) % 2 ? 1 : -1), wide ? 3.1 : 3.5, 0.4);
+      m.crack.scale.set(w, w, 1);
+      g.updateWorldMatrix(true, false);
+      m.crack.quaternion.copy(Q.setFromRotationMatrix(g.matrixWorld).invert().multiply(cam.quaternion));
     }
-    f.aura.instanceMatrix.needsUpdate = true;
+
+    // the flash: pale silver at the ignition, a little at the crack (tinted, never a white-out)
+    holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(tt - 2.95) / 0.12) * 0.3 + Math.max(0, 1 - Math.abs(tt - T.crack) / 0.1) * 0.18);
+
+    // REALITY: the island the stage hid shows under the falling stage
   });
 
   return (
     <>
       <Stage {...cut} bare />
-      <Dome tl={tl} mode={mode} pal={PAL} />
-      <Shadow mode={mode} k={0.45} size={1.1} />
-      <Motes mode={mode} tl={tl} n={110} span={[16, 7, 12]} center={[0, 0, -3]} dir={[0, 0.6, 0]} size={0.07} color={["#ffffff", "#dfe6ff", "#b9c4ff"]} sway={0.2} />
-      <Speaker {...cut} />
-      <group ref={g} visible={false}>
-        {[0, 1, 2, 3].map((k) => (
-          <mesh key={k} ref={(m) => m && (ghosts.current[k] = m)} material={ghostMat[k]} visible={false} frustumCulled={false} />
-        ))}
-        <primitive object={f.cores} />
-        <primitive object={f.sats} />
-        <primitive object={f.splash} />
-        <primitive object={f.shell} />
-        <primitive object={f.core} />
-        <primitive object={f.rings} />
-        <primitive object={f.aura} />
+      <primitive object={m.flash} />
+      <group ref={rig} visible={false}>
+        <mesh ref={shellRef} geometry={m.sky.g} material={m.sky.m} position={[0, CORE_Y, 0]} renderOrder={-3} frustumCulled={false} />
+        <group ref={world}>
+          {m.arena.groups.flatMap((set, i) => [<primitive key={`f${i}`} object={set.fill} />, <primitive key={`h${i}`} object={set.hull} />])}
+          <group ref={auraGrp}>
+            {m.aura.meshes.map((x, i) => (
+              <primitive key={i} object={x} />
+            ))}
+          </group>
+          {m.orbs.meshes.map((x, i) => (
+            <primitive key={`o${i}`} object={x} />
+          ))}
+          {[0, 1, 2, 3].map((k) => (
+            <mesh key={k} ref={(x) => x && (ghosts.current[k] = x)} material={m.ghostM[k]} visible={false} frustumCulled={false} renderOrder={3} />
+          ))}
+          <group ref={whisG} position={[LEDGE.x - 1.4, LEDGE.y, LEDGE.z + 0.2]} rotation={[0, -0.42, 0]} scale={1.25}>
+            <mesh geometry={m.wh.ink} material={m.ink} frustumCulled={false} />
+            <mesh geometry={m.wh.hull} material={m.hullG} frustumCulled={false} />
+            <group ref={staff}>
+              <mesh geometry={m.wh.accent} material={m.accW} frustumCulled={false} />
+            </group>
+            <group ref={halo} position={[0, 2.45, -0.34]}>
+              <mesh geometry={m.wh.halo} material={m.haloF} position={[0, -2.45, 0.34]} frustumCulled={false} />
+            </group>
+          </group>
+          <group ref={beerusG} position={[LEDGE.x + 1.6, LEDGE.y, LEDGE.z + 0.6]} rotation={[0, -0.55, 0]} scale={1.3}>
+            <mesh geometry={m.wb.ink} material={m.ink} frustumCulled={false} />
+            <mesh geometry={m.wb.hull} material={m.hullG} frustumCulled={false} />
+            <mesh geometry={m.wb.accent} material={m.accB} frustumCulled={false} />
+          </group>
+        </group>
+        <primitive object={m.crack} />
       </group>
     </>
   );
