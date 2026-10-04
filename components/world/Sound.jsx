@@ -12,6 +12,9 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { AWAKENING } from "../../lib/world/loop";
+import { cardFor } from "../../lib/world/cutscene/cards/index.js";
+import { sceneT } from "../../lib/world/cutscene/clock";
+import { createVillains } from "../../lib/world/cutscene/cues";
 import { JUMP_IN, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { districtAt, PLACES } from "../../lib/world/places";
 import { getUi, live, useUi } from "../../lib/world/store";
@@ -48,6 +51,7 @@ function createEngine() {
   let lastParamT = -1;
   let duckUntil = 0; // tonal cues (pluck/chime/discovery) ducking the swish
   let suspendTimer;
+  const villains = createVillains(); // the Sukuna and Aizen cutscene cues (lib/world/cutscene/cues.js)
   const bornAt = performance.now(); // for the JUMP_IN skip check below
 
   // graph nodes that later voices or the per-frame update need to reach
@@ -719,8 +723,10 @@ function createEngine() {
   }
 
   // ---------- per-frame ----------
-  function frame() {
+  function frame(clockT = 0) {
     const audible = Boolean(ctx) && ctx.state === "running";
+    const arr = live.arrival;
+    villains.step(arr.id, arr.id ? sceneT(arr.id, clockT - arr.start) : 0, audible, cardFor);
     const now = ctx ? ctx.currentTime : 0;
     const ui = getUi();
     const seal = live.seal;
@@ -877,6 +883,7 @@ function createEngine() {
     master.gain.cancelScheduledValues(now);
     master.gain.setValueAtTime(master.gain.value, now);
     if (muted) {
+      villains.stop();
       master.gain.linearRampToValueAtTime(0.0001, now + 0.15);
       clearTimeout(suspendTimer);
       suspendTimer = setTimeout(() => {
@@ -898,6 +905,7 @@ function createEngine() {
       ctx = new Ctx();
       noiseBuf = makeNoiseBuffer(ctx);
       buildGraph();
+      villains.attach(ctx, master, noiseBuf);
       if (!wantSound) {
         master.gain.value = 0.0001;
         ctx.suspend();
@@ -908,6 +916,7 @@ function createEngine() {
 
   function dispose() {
     clearTimeout(suspendTimer);
+    villains.stop();
     ctx?.close();
     ctx = null;
     unlocked = false;
@@ -931,7 +940,7 @@ function createEngine() {
     return ctx ? ctx.state : "locked";
   }
 
-  return { unlock, dispose, setSoundOn, onVisibility, frame, state, counts, tick: playTick };
+  return { unlock, dispose, setSoundOn, onVisibility, frame, state, counts, cues: villains.played, tick: playTick };
 }
 
 export default function Sound() {
@@ -971,7 +980,7 @@ export default function Sound() {
     }
     document.addEventListener("visibilitychange", onVisibility);
 
-    window.__sound = { state: engine.state, counts: engine.counts };
+    window.__sound = { state: engine.state, counts: engine.counts, cues: engine.cues };
 
     return () => {
       removeListeners();
@@ -986,8 +995,8 @@ export default function Sound() {
     engineRef.current.setSoundOn(sound);
   }, [sound]);
 
-  useFrame(() => {
-    engineRef.current.frame();
+  useFrame((state) => {
+    engineRef.current.frame(state.clock.elapsedTime);
   });
 
   return null;
