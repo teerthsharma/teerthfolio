@@ -99,3 +99,18 @@ export function tollPulse(t) {
   for (const w of T.toll) if (t >= w) p = Math.max(p, Math.exp(-(t - w) * 5));
   return p;
 }
+
+// THE PACING WARP: the scene is authored on the clock above; the owner reads fast and still asked for slower, so the
+// real clock stretches it (the intro stays 1:1, the middle runs at ~0.63x, the page-to-crunch run at ~0.28x slow-motion).
+const KNOTS = [[0, 0], [1.6, 1.6], [11.7, 17.55], [13.6, 24.4]]; // [scene t, real t]
+export const unwarp = (r) => {
+  if (r >= KNOTS[3][1]) return KNOTS[3][0] + (r - KNOTS[3][1]);
+  for (let i = 1; i < 4; i++) {
+    if (r <= KNOTS[i][1]) {
+      const [s0, r0] = KNOTS[i - 1];
+      const [s1, r1] = KNOTS[i];
+      return s0 + ((r - r0) / (r1 - r0)) * (s1 - s0);
+    }
+  }
+  return r;
+};

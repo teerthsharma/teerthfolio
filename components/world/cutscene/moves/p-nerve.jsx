@@ -35,7 +35,7 @@ import { U } from "./p-nerve/look";
 import { buildPup } from "./p-nerve/pup";
 import { buildRoof } from "./p-nerve/roof";
 import { SKY_R, buildRealm, skyDome } from "./p-nerve/sky";
-import { T, gaugesAt, tollPulse } from "./p-nerve/timeline";
+import { T, gaugesAt, tollPulse, unwarp } from "./p-nerve/timeline";
 import { TOWER, buildTower } from "./p-nerve/tower";
 
 const CORE_Y = 0.9;
@@ -116,7 +116,9 @@ export default function Move(cut) {
     }
   }, -0.5);
 
-  useCutFrame((t, state) => {
+  useCutFrame((tReal, state) => {
+    const tR = tReal;
+    const t = unwarp(tR);
     const full = mode === "full";
     const g = rig.current;
     g.visible = full;
@@ -141,7 +143,7 @@ export default function Move(cut) {
     U.uToll.value = tollPulse(t);
 
     // THE DIMENSION swells out of the pup with the stage, then holds as the backdrop until it breaks
-    const r = radiusAt(tl, t);
+    const r = radiusAt(tl, tR);
     V.set(s.x, CORE_Y, s.z);
     const inside = r > cam.position.distanceTo(V) + 0.3;
     domeRef.current.visible = r > 0.02 && brk < 1.7;
@@ -185,7 +187,7 @@ export default function Move(cut) {
     holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(t - T.screens - 0.05) / 0.1) * 0.12 + Math.max(0, 1 - Math.abs(t - T.crunch - 0.05) / 0.12) * 0.4);
 
     // REALITY: the island the stage hid comes back under the falling shards
-    if (t > T.reveal && t < tl.collapse[0]) for (const o of island.current) o.visible = true;
+    if (t > T.reveal && tR < tl.collapse[0]) for (const o of island.current) o.visible = true;
 
     // the pup: its open mouth on the chip, blown low by the break (its flippers and look are driven after it poses, below)
     live.pose.mouth = pup.current?.mouthOpen ?? 0;
@@ -196,12 +198,13 @@ export default function Move(cut) {
   useFrame((state) => {
     const arrival = live.arrival;
     if (!arrival.id || mode !== "full" || !pup.current) return;
-    const t = state.clock.elapsedTime - arrival.start;
+    const tR = state.clock.elapsedTime - arrival.start;
+    const t = unwarp(tR);
     const cam = state.camera;
     const p = pup.current;
     const s = live.seal;
     const broken = t > T.crunch;
-    const inside = radiusAt(tl, t) > cam.position.distanceTo(V.set(s.x, CORE_Y, s.z)) + 0.3;
+    const inside = radiusAt(tl, tR) > cam.position.distanceTo(V.set(s.x, CORE_Y, s.z)) + 0.3;
     const on = (inside || t > tl.bloom[1]) && !broken;
     p.set(on);
     p.showCostume(on);
