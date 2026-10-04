@@ -1,4 +1,4 @@
-// THE WITNESSES at the far doorway (Frodo, Aragorn, Legolas) and the colony pups on the stair: small dark
+// THE WITNESSES at the far doorway (three floor guardians) and the colony pups on the stair: small dark
 // plasticine miniatures, rim-lit by the ember and backlit by the doorway. Each figure is a still body
 // plus an arms mesh posed about the shoulders on the stepped clock (S1); hair and hems whip in the
 // updraft through the shader's sway weight (S2/S1 via the shared step).
