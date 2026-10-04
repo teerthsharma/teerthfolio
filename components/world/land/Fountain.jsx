@@ -9,16 +9,17 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { AdditiveBlending, BoxGeometry, BufferGeometry, CanvasTexture, Group, Points, PointsMaterial, CatmullRomCurve3, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, TubeGeometry, Object3D, OctahedronGeometry, ShaderMaterial, TorusGeometry, Vector3, TetrahedronGeometry } from "three";
-import { FOUNTAIN_STREAM, FOUNTAIN_TRAVEL } from "../../../lib/world/land";
+import { FOUNTAIN_TRAVEL } from "../../../lib/world/land";
+import { PEAK, PEAK_PATH } from "../../../lib/world/peak";
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
 import { FUTURE_Z } from "../../../lib/world/land";
-import { PLATEAU, heightAt } from "../../../lib/world/terrain";
+import { heightAt } from "../../../lib/world/terrain";
 import { C, mat } from "../palette";
 
 const PLACE = PLACE_BY_ID["pr-polychrom-79"];
 const [A, B] = FOUNTAIN_TRAVEL.nodes;
-const TOP = PLATEAU.top;
+const TOP = PEAK.top;
 const GOLD = "#ffc933";
 const BEADS = 72;
 const CLOUDS = [[16, 0.9, 0.55, 90], [26, 0.8, 0.8, 44], [38, 0.7, 1.0, 30]]; // size, opacity, drift, count per layer
@@ -29,26 +30,20 @@ const SPARKS = 28;
 const D = new Object3D();
 const hash = (i, k) => (((Math.sin(i * 127.1 + k * 311.7) * 43758.5453) % 1) + 1) % 1;
 
-// the stream: a flat ribbon on the snow, chevrons of light running toward the moat
-function streamGeometry() {
-  const curve = new CatmullRomCurve3(FOUNTAIN_STREAM.map(([x, z]) => new Vector3(x, 0, z)), false, "centripetal");
-  const n = 240;
+// the waterfall: a ribbon of glowing glacier ice from the summit rim down the north-east cliff to the spring pool
+function fallGeometry() {
   const pos = [];
   const uv = [];
   const idx = [];
-  const p = new Vector3();
-  const t = new Vector3();
-  let run = 0;
-  let prev = null;
+  const n = 60;
+  const c = Math.cos(PEAK.fall);
+  const sn = Math.sin(PEAK.fall);
   for (let i = 0; i <= n; i++) {
-    curve.getPointAt(i / n, p);
-    curve.getTangentAt(i / n, t);
-    if (prev) run += p.distanceTo(prev);
-    prev = prev ? prev.copy(p) : p.clone();
-    const y = heightAt(p.x, p.z) + 0.16;
-    for (const s of [-1, 1]) {
-      pos.push(p.x - t.z * 2.2 * s, y, p.z + t.x * 2.2 * s);
-      uv.push(run, (s + 1) / 2);
+    const d = PEAK.flat + 0.2 + ((PEAK.edge + 1.2 - PEAK.flat - 0.2) * i) / n;
+    const h = Math.max(heightAt(PEAK.x + c * d, PEAK.z + sn * d), 0) + 0.25;
+    for (const w of [-0.9, 0.9]) {
+      pos.push(PEAK.x + c * d - sn * w, h, PEAK.z + sn * d + c * w);
+      uv.push(i, (w + 0.9) / 1.8);
     }
     if (i < n) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
   }
@@ -58,48 +53,68 @@ function streamGeometry() {
   g.setIndex(idx);
   return g;
 }
-
-// the banks: a white snow lip dropping 0.5 m outside each edge, and 30 ice seracs along them
-function bankGeometry() {
-  const curve = new CatmullRomCurve3(FOUNTAIN_STREAM.map(([x, z]) => new Vector3(x, 0, z)), false, "centripetal");
-  const n = 120;
-  const pos = [];
-  const idx = [];
-  const p = new Vector3();
-  const t = new Vector3();
-  for (let i = 0; i <= n; i++) {
-    curve.getPointAt(i / n, p);
-    curve.getTangentAt(i / n, t);
-    const y = heightAt(p.x, p.z) + 0.16;
-    for (const s of [-1, 1]) for (const [o, dy] of [[2.2, 0], [2.5, -0.5]]) pos.push(p.x - t.z * o * s, y + dy, p.z + t.x * o * s);
-    if (i < n) for (const k of [0, 2]) idx.push(i * 4 + k, i * 4 + k + 1, i * 4 + k + 4, i * 4 + k + 1, i * 4 + k + 5, i * 4 + k + 4);
-  }
-  const g = new BufferGeometry();
-  g.setAttribute("position", new Float32BufferAttribute(pos, 3));
-  g.setIndex(idx);
-  g.computeVertexNormals();
-  return g;
-}
-function seracs() {
-  const curve = new CatmullRomCurve3(FOUNTAIN_STREAM.map(([x, z]) => new Vector3(x, 0, z)), false, "centripetal");
-  const mesh = new InstancedMesh(new TetrahedronGeometry(0.6), mat("#bfe3ff", { roughness: 0.3, flatShading: true }), 30);
-  const p = new Vector3();
-  const t = new Vector3();
-  for (let i = 0; i < 30; i++) {
-    const u = (i + 0.5) / 30;
-    curve.getPointAt(u, p);
-    curve.getTangentAt(u, t);
-    const s = i % 2 ? 1 : -1;
-    const x = p.x - t.z * 2.6 * s;
-    const z = p.z + t.x * 2.6 * s;
+// ice seracs along the waterfall, twisted pines on the terraces, lanterns along the path: all instanced
+function scatter() {
+  const seracs = new InstancedMesh(new TetrahedronGeometry(0.6), mat("#bfe3ff", { roughness: 0.3, flatShading: true }), 28);
+  const c = Math.cos(PEAK.fall);
+  const sn = Math.sin(PEAK.fall);
+  for (let i = 0; i < 28; i++) {
+    const d = PEAK.flat + 0.6 + hash(i, 1) * (PEAK.edge - PEAK.flat);
+    const w = (i % 2 ? 1 : -1) * (1.5 + hash(i, 2) * 1.2);
+    const x = PEAK.x + c * d - sn * w;
+    const z = PEAK.z + sn * d + c * w;
     D.position.set(x, heightAt(x, z) + 0.2, z);
-    D.rotation.set(hash(i, 1), hash(i, 2) * 6, 0);
-    D.scale.setScalar(0.7 + hash(i, 3) * 0.9);
+    D.rotation.set(hash(i, 3), hash(i, 4) * 6, 0);
+    D.scale.setScalar(0.7 + hash(i, 5) * 1.0);
     D.updateMatrix();
-    mesh.setMatrixAt(i, D.matrix);
+    seracs.setMatrixAt(i, D.matrix);
   }
-  mesh.frustumCulled = false;
-  return mesh;
+  const trunks = new InstancedMesh(new CylinderGeometry(0.1, 0.2, 1.8, 5), mat("#5b4636", { roughness: 1 }), 14);
+  const crowns = new InstancedMesh(new TetrahedronGeometry(0.9), mat("#2f5d46", { roughness: 0.9, flatShading: true }), 28);
+  for (let i = 0; i < 14; i++) {
+    let x = 0;
+    let z = 0;
+    let y = 0;
+    for (let tries = 0; tries < 30; tries++) {
+      const a = hash(i, 10 + tries) * Math.PI * 2;
+      const d = PEAK.flat + 1 + hash(i, 50 + tries) * (PEAK.edge - PEAK.flat - 2);
+      x = PEAK.x + Math.cos(a) * d;
+      z = PEAK.z + Math.sin(a) * d;
+      y = heightAt(x, z);
+      const e = (heightAt(x + 0.8, z) - heightAt(x - 0.8, z)) ** 2 + (heightAt(x, z + 0.8) - heightAt(x, z - 0.8)) ** 2;
+      if (e < 0.6 && Math.abs(a - PEAK.fall) > 0.4) break; // flat enough: a terrace, clear of the waterfall
+    }
+    D.rotation.set(0, 0, (hash(i, 7) - 0.5) * 0.7);
+    D.scale.setScalar(1);
+    D.position.set(x, y + 0.9, z);
+    D.updateMatrix();
+    trunks.setMatrixAt(i, D.matrix);
+    for (let k = 0; k < 2; k++) {
+      D.rotation.set(0, hash(i, 20 + k) * 6, 0);
+      D.scale.set(1.1 - k * 0.3, 1.5 - k * 0.3, 1.1 - k * 0.3);
+      D.position.set(x + (hash(i, 30) - 0.5) * 0.5, y + 2.1 + k * 0.9, z);
+      D.updateMatrix();
+      crowns.setMatrixAt(i * 2 + k, D.matrix);
+    }
+  }
+  const lamps = new InstancedMesh(new OctahedronGeometry(0.22, 0).scale(1, 1.5, 1), new MeshBasicMaterial({ color: "#ffd98a", toneMapped: false }), 16);
+  const posts = new InstancedMesh(new CylinderGeometry(0.05, 0.07, 1.1, 5), mat("#3b3f63"), 16);
+  for (let i = 0; i < 16; i++) {
+    const [px, pz, ph] = PEAK_PATH[Math.floor(((i + 0.5) / 16) * (PEAK_PATH.length - 8))];
+    const dx = px - PEAK.x;
+    const dz = pz - PEAK.z;
+    const l = Math.hypot(dx, dz) || 1;
+    D.rotation.set(0, 0, 0);
+    D.scale.setScalar(1);
+    D.position.set(px + (dx / l) * 1.3, ph + 0.55, pz + (dz / l) * 1.3);
+    D.updateMatrix();
+    posts.setMatrixAt(i, D.matrix);
+    D.position.y = ph + 1.3;
+    D.updateMatrix();
+    lamps.setMatrixAt(i, D.matrix);
+  }
+  for (const o of [seracs, trunks, crowns, lamps, posts]) o.frustumCulled = false;
+  return { seracs, trunks, crowns, lamps, posts };
 }
 
 // layered cloud banks: soft radial puffs on Points, three depths drifting at different speeds
@@ -131,16 +146,17 @@ function cloudLayers() {
     pts.frustumCulled = false;
     group.add(pts);
   });
-  // low mist hugging the plateau's skirt
-  const mist = new Float32Array(60 * 3);
-  for (let i = 0; i < 60; i++) {
+  // mist drifting round the peak's base, and a halo at the summit
+  const mist = new Float32Array(90 * 3);
+  for (let i = 0; i < 90; i++) {
     const a = hash(i, 40) * 6.283;
-    const r = 5 + hash(i, 41) * 6;
-    mist.set([PLATEAU.x + Math.cos(a) * r, 0.3 + hash(i, 42) * 2.7, PLATEAU.z + Math.sin(a) * r], i * 3);
+    const halo = i >= 60;
+    const r = halo ? 3 + hash(i, 41) * 4 : PEAK.edge - 3 + hash(i, 41) * 6;
+    mist.set([PEAK.x + Math.cos(a) * r, halo ? TOP + 1 + hash(i, 42) * 5 : 0.3 + hash(i, 42) * 2.7, PEAK.z + Math.sin(a) * r], i * 3);
   }
   const mg = new BufferGeometry();
   mg.setAttribute("position", new Float32BufferAttribute(mist, 3));
-  const mp = new Points(mg, new PointsMaterial({ map, size: 9, color: "#c9b8ff", transparent: true, opacity: 0.55, depthWrite: false }));
+  const mp = new Points(mg, new PointsMaterial({ map, size: 7, color: "#fff1c8", transparent: true, opacity: 0.4, depthWrite: false }));
   mp.frustumCulled = false;
   mp.userData.still = true;
   group.add(mp);
@@ -215,24 +231,13 @@ export default function Fountain() {
       const a = (i / 8) * Math.PI * 2;
       D.rotation.set(0, 0, 0);
       D.scale.setScalar(1);
-      D.position.set(PLACE.x + Math.cos(a) * 6.0, TOP + 1.1, PLACE.z + Math.sin(a) * 6.0);
+      D.position.set(PLACE.x + Math.cos(a) * 5.4, TOP + 1.1, PLACE.z + Math.sin(a) * 5.4);
       D.updateMatrix();
       posts.setMatrixAt(i, D.matrix);
       D.position.y = TOP + 2.65;
       D.updateMatrix();
       tips.setMatrixAt(i, D.matrix);
     }
-    // the cliff skirt: dark slate-violet rock, jittered, under the plateau's rim
-    const skirt = new CylinderGeometry(6.6, 8.2, TOP, 14, 3, true);
-    const sp = skirt.attributes.position;
-    for (let i = 0; i < sp.count; i++) {
-      const x = sp.getX(i);
-      const z = sp.getZ(i);
-      const r = Math.hypot(x, z) || 1;
-      const j = 1 + (hash(i, 7) * 0.5) / r;
-      sp.setXYZ(i, x * j, sp.getY(i), z * j);
-    }
-    skirt.computeVertexNormals();
     // a tri-spiral inlay, three Archimedean arms
     const arms = [0, 1, 2].map((k) => new TubeGeometry(new CatmullRomCurve3(Array.from({ length: 60 }, (_, n) => {
       const a = (n / 59) * Math.PI * 2.5 + (k * Math.PI * 2) / 3;
@@ -247,16 +252,15 @@ export default function Fountain() {
     return {
       posts,
       tips,
-      skirt,
       arms,
       motes,
       bead,
       spark,
       sign: signTexture(),
-      stream: streamGeometry(),
-      bank: bankGeometry(),
-      bankM: new MeshBasicMaterial({ color: "#ffffff", side: DoubleSide }),
-      seracs: seracs(),
+      fall: fallGeometry(),
+      scatter: scatter(),
+      beam: new CylinderGeometry(0.25, 1.6, 30, 16, 1, true),
+      beamM: new MeshBasicMaterial({ color: "#ffd24a", transparent: true, opacity: 0.16, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false }),
       streamM: streamMaterial(),
             lipG: new CylinderGeometry(0.95, 0.95, 0.12, 20),
       poolG: new CylinderGeometry(0.85, 0.85, 0.04, 20),
@@ -288,9 +292,9 @@ export default function Fountain() {
         o.material.dispose();
         o.dispose();
       }
-      for (const x of [...m.tierG, ...m.arms, m.skirt, m.stairG, m.sign, m.bank, m.seracs.geometry, m.motes.geometry, m.discG, m.goldRingG, m.stepG, m.stream, m.lipG, m.poolG, m.padG, m.padDiscG, m.ringG, m.burstG]) x.dispose();
+      for (const x of [...m.tierG, ...m.arms, m.stairG, m.sign, m.fall, m.beam, m.scatter.seracs.geometry, m.scatter.trunks.geometry, m.scatter.crowns.geometry, m.scatter.lamps.geometry, m.scatter.posts.geometry, m.motes.geometry, m.discG, m.goldRingG, m.stepG, m.lipG, m.poolG, m.padG, m.padDiscG, m.ringG, m.burstG]) x.dispose();
       m.motes.material.dispose();
-      for (const x of [m.streamM, m.fluid, m.ringM, m.burstM]) x.dispose();
+      for (const x of [m.streamM, m.fluid, m.ringM, m.burstM, m.beamM]) x.dispose();
     },
     [m],
   );
@@ -303,8 +307,8 @@ export default function Fountain() {
       const strand = i < BEADS ? 0 : 1;
       const k = (i % BEADS) / BEADS;
       const a = t * 1.1 + k * Math.PI * 5 + strand * Math.PI;
-      const r = 0.38 * (0.6 + 0.4 * Math.sin(Math.PI * Math.min(1, k * 1.15)));
-      D.position.set(PLACE.x + Math.cos(a) * r, TOP + 1.7 + k * 4.7, PLACE.z + Math.sin(a) * r);
+      const r = 0.7 * (0.6 + 0.4 * Math.sin(Math.PI * Math.min(1, k * 1.15)));
+      D.position.set(PLACE.x + Math.cos(a) * r, TOP + 2.6 + k * 11, PLACE.z + Math.sin(a) * r);
       D.scale.setScalar(0.75 + 0.5 * Math.sin(((k + t * 0.15) % 1) * Math.PI));
       D.rotation.set(0, 0, 0);
       D.updateMatrix();
@@ -328,7 +332,7 @@ export default function Fountain() {
       const life = (t / 6 + hash(i, 5)) % 1;
       const a = hash(i, 6) * Math.PI * 2 + t * 0.2;
       const r = 0.2 + 1.6 * hash(i, 8);
-      mp.setXYZ(i, PLACE.x + Math.cos(a) * r, TOP + 1.9 + life * (12 - TOP - 1.9), PLACE.z + Math.sin(a) * r);
+      mp.setXYZ(i, PLACE.x + Math.cos(a) * r, TOP + 1.9 + life * 14, PLACE.z + Math.sin(a) * r);
     }
     mp.needsUpdate = true;
     lanterns.current.forEach((l, n) => l && (l.position.y = 2.6 + Math.sin(t * 1.3 + n * 1.1) * 0.25));
@@ -356,10 +360,10 @@ export default function Fountain() {
   const pad = [B.x, heightAt(B.x, B.z), B.z];
   return (
     <>
-      <mesh geometry={m.stream} material={m.streamM} renderOrder={2} frustumCulled={false} />
-      <mesh geometry={m.bank} material={m.bankM} frustumCulled={false} />
-      <primitive object={m.seracs} />
-      <group position={[PLACE.x, TOP, PLACE.z]} scale={1.45}>
+      <mesh geometry={m.fall} material={m.streamM} renderOrder={2} frustumCulled={false} />
+      {Object.values(m.scatter).map((o, n) => <primitive key={n} object={o} />)}
+      <mesh geometry={m.beam} material={m.beamM} position={[PLACE.x, TOP + 15, PLACE.z]} frustumCulled={false} />
+      <group position={[PLACE.x, TOP, PLACE.z]} scale={0.9}>
         <mesh geometry={m.discG} material={m.marble} position={[0, 0.02, 0]} />
         {m.arms.map((g, n) => <mesh key={n} geometry={g} material={m.inlay} position={[0, 0.16, 0]} />)}
         <mesh geometry={m.goldRingG} material={m.gold} position={[0, 0.14, 0]} />
@@ -373,11 +377,7 @@ export default function Fountain() {
           <mesh geometry={m.ringG} material={m.ringM} position={[0.5, 0, 0]} rotation={[Math.PI / 2, 0, 0]} />
         </group>
       </group>
-      <mesh geometry={m.skirt} material={m.slate} position={[PLATEAU.x, TOP / 2, PLATEAU.z]} />
-      {Array.from({ length: STEPS }, (_, n) => (
-        <mesh key={n} geometry={m.stairG} material={n % 2 ? m.white : m.gold} position={[PLATEAU.x, TOP - (n + 0.5) * 0.62 + 0.31, PLATEAU.z + 6.6 + n * 0.19]} />
-      ))}
-      <pointLight color="#a78bfa" intensity={2} distance={14} position={[PLATEAU.x, TOP + 1.5, PLATEAU.z]} />
+      <pointLight color="#ffd24a" intensity={6} distance={26} position={[PLACE.x, TOP + 4, PLACE.z]} />
       <primitive object={m.motes} />
       <primitive object={m.tips} />
       <primitive object={m.clouds} />

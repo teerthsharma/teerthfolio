@@ -78,7 +78,7 @@ export default function Seal() {
     // air: a whirlpool or geyser throw (motion.js). ride: on the loop ribbon
     // (lib/world/loop.js): rideY is the origin's height, ridePitch rolls the
     // body round the loop, inverted over the top.
-    root.current.position.set(s.x, s.ride ? s.rideY : (s.air || 0) * (s.airHeight || 3.2), s.z);
+    root.current.position.set(s.x, s.ride ? s.rideY : (s.climb || 0) + (s.air || 0) * (s.airHeight || 3.2), s.z);
     root.current.rotation.order = "YXZ";
     root.current.rotation.x = s.ride ? -s.ridePitch : 0;
     root.current.rotation.y = s.heading + drive.bodyYaw;

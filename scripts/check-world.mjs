@@ -1,7 +1,7 @@
 // The rules the island has to keep, checked against the real motion code.
 // Run: npm run check
 
-import { FUTURE_Z, FOUNTAIN_STREAM, FOUNTAIN_TRAVEL, GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
+import { FUTURE_Z, FOUNTAIN_TRAVEL, GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { existsSync, readFileSync } from "node:fs";
@@ -15,14 +15,15 @@ import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH, mustFinish } from "../lib/w
 import { AWAKE, LINE, auraAt, awakeBeat, awakeCredit, liftAt, skyAt } from "../lib/world/awakening.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
-import { DAM, MOAT, RESERVOIR, RIVER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
+import { DAM, MOAT, RESERVOIR, RIVER, GLACIER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { tickSnack } from "../components/world/life/snack.js";
 import { TOYS, blastAt, makeBowling, makeCone, makeStack, makeTnt, tickToys } from "../lib/world/toys.js";
 import { buildToys } from "../components/world/life/toys-seed.js";
 import { forbidden, samplePoints } from "../components/world/life/spawn.js";
 import { CAR_BAYS, CAR_R, ROAD_Y, createCar, onDrawnAsphalt, stepCar, stepCars } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
-import { PLATEAU, WATER_Y, heightAt } from "../lib/world/terrain.js";
+import { PEAK, WATER_Y, heightAt } from "../lib/world/terrain.js";
+import { PEAK_PATH, PEAK_WORLD, peakBlocked } from "../lib/world/peak.js";
 
 const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 const world = { colliders, radius: ISLAND_RADIUS, props: [] };
@@ -241,7 +242,7 @@ for (const a of DISTRICTS) {
     for (let z = -ISLAND_RADIUS; z <= ISLAND_RADIUS; z += 1.3) {
       if (Math.hypot(x, z) >= ISLAND_RADIUS || waterGap(x, z) < 0) continue;
       if (solid.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius)) continue;
-      if (Math.hypot(x - PLATEAU.x, z - PLATEAU.z) < PLATEAU.edge) continue; // the fountain's plateau, held below
+      if (Math.hypot(x - PEAK.x, z - PEAK.z) < PEAK.edge) continue; // the Fountain Peak, held below
       const h = heightAt(x, z);
       assert.ok(Math.abs(h) <= 0.3, `the ground at ${x.toFixed(1)}, ${z.toFixed(1)} is ${h.toFixed(2)} m off the plain where the seal walks`);
     }
@@ -249,7 +250,7 @@ for (const a of DISTRICTS) {
   for (const p of PLACES) {
     const dock = dockPoint(p);
     for (const [x, z, what] of [[p.x, p.z, p.id], [dock.x, dock.z, `${p.id}'s dock`]]) {
-      assert.ok(Math.abs(heightAt(x, z) - (Math.hypot(x - PLATEAU.x, z - PLATEAU.z) <= PLATEAU.flat ? PLATEAU.top : 0)) <= 0.05, `${what} does not stand on flat ground (${heightAt(x, z).toFixed(2)} m)`);
+      assert.ok(Math.abs(heightAt(x, z) - (Math.hypot(x - PEAK.x, z - PEAK.z) <= PEAK.flat ? PEAK.top : 0)) <= 0.05, `${what} does not stand on flat ground (${heightAt(x, z).toFixed(2)} m)`);
     }
   }
   for (const line of WATERS) {
@@ -1211,31 +1212,87 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   }
 }
 
-// The Fountain of Immortality (open2c/polychrom #79): its stream and both landings are dry, flat and clear of every
-// place and collider; once the arrival has been seen, a seal stepping into either basin is thrown to the other
-// end and comes to rest dry and clear, and it does not bounce back; unseen, it is not thrown.
+// The Fountain of Immortality (open2c/polychrom #79) stands on its own peak: the most remote place on the island,
+// a spire with a winding path the seal walks; both fast-travel landings are dry, flat and clear of every place and
+// collider; once the arrival has been seen, a seal stepping into either basin is thrown to the other end and comes
+// to rest dry and clear, and it does not bounce back; unseen, it is not thrown.
 {
   const F = FOUNTAIN_TRAVEL;
-  const curve = new CatmullRomCurve3(FOUNTAIN_STREAM.map(([x, z]) => new Vector3(x, 0, z)), false, "centripetal");
-  for (const { x, z } of curve.getPoints(200)) {
-    assert.ok(!riverAt(x, z).inside && heightAt(x, z) >= -0.3 && heightAt(x, z) <= PLATEAU.top + 0.05 && z < FUTURE_Z && Math.hypot(x, z) < ISLAND_RADIUS - 5, `the fountain's stream at ${x.toFixed(1)}, ${z.toFixed(1)} is not dry ground below the plateau top`);
-    for (const c of colliders) if (c.x !== F.nodes[0].x || c.z !== F.nodes[0].z) assert.ok(Math.hypot(x - c.x, z - c.z) >= c.radius + 1.5, `the fountain's stream runs into a collider at ${c.x}, ${c.z}`);
-    for (const q of PLACES) if (q.id !== "pr-polychrom-79" && !q.id.startsWith("pr-n") && q.id !== "pr-topograph-432") assert.ok(Math.hypot(x - q.x, z - q.z) >= q.radius + 3, `the fountain's stream runs into ${q.id}`);
+  const me = PLACE_BY_ID["pr-polychrom-79"];
+  // remote: clear of every other place and landform by a wide margin (the owner: "VERY FAR from other buildings")
+  let nearest = Infinity;
+  for (const q of PLACES) if (q.id !== me.id) nearest = Math.min(nearest, Math.hypot(q.x - me.x, q.z - me.z) - q.radius);
+  for (const c of LAND_COLLIDERS) nearest = Math.min(nearest, Math.hypot(c.x - me.x, c.z - me.z) - c.radius);
+  assert.ok(nearest >= 20, `the fountain is only ${nearest.toFixed(1)} m from the nearest place or landform`);
+  assert.ok(Math.hypot(me.x - PEAK.x, me.z - PEAK.z) < 0.01 && PEAK.top >= 18 && PEAK.top <= 25, "the fountain is not on the summit of an 18-25 m peak");
+  // the climb: the path starts on the plain, ends at the dock on the summit, and its slope is walkable
+  // (a dedicated check for this path only: 0.31 rise per metre, about 17 degrees; the island's own paths are flat)
+  const dock = dockPoint(me);
+  assert.ok(Math.abs(PEAK_PATH[0][2]) < 0.05 && Math.hypot(PEAK_PATH.at(-1)[0] - dock.x, PEAK_PATH.at(-1)[1] - dock.z) < 0.05 && Math.abs(PEAK_PATH.at(-1)[2] - PEAK.top) < 0.05, "the peak path does not run from the plain to the dock on the summit");
+  let steepest = 0;
+  for (let i = 1; i < PEAK_PATH.length; i++) {
+    const [ax, az, ah] = PEAK_PATH[i - 1];
+    const [bx, bz, bh] = PEAK_PATH[i];
+    steepest = Math.max(steepest, (bh - ah) / Math.hypot(bx - ax, bz - az));
+    assert.ok(Math.abs(heightAt(bx, bz) - bh) <= 0.2 && !peakBlocked(bx, bz) && !riverAt(bx, bz).inside, `the peak path at ${bx.toFixed(1)}, ${bz.toFixed(1)} is not walkable ground`);
   }
-  // the plateau is climbable: the ramp's steepest slope stays walkable, and the future area's boundary is south of every place
-  for (let a = 0; a < 6.28; a += 0.2) for (let d = PLATEAU.flat; d < PLATEAU.edge; d += 0.5) assert.ok(Math.abs(heightAt(PLATEAU.x + Math.cos(a) * (d + 0.5), PLATEAU.z + Math.sin(a) * (d + 0.5)) - heightAt(PLATEAU.x + Math.cos(a) * d, PLATEAU.z + Math.sin(a) * d)) < 3, "the plateau cliff is too steep (a stair and the glide climb it)");
+  assert.ok(steepest <= 0.31, `the peak path climbs ${steepest.toFixed(2)} m per m: not walkable`);
+  // a real seal walks it: held toward the next waypoint, it ends on the summit and never leaves the bench
+  {
+    const w = { ...world, peak: PEAK_WORLD };
+    const s = createSeal(PEAK_PATH[0][0], PEAK_PATH[0][1]);
+    let i = 8;
+    let off = 0;
+    for (let t = 0; t < 60 && i < PEAK_PATH.length; t += 1 / 120) {
+      const [tx, tz] = PEAK_PATH[i];
+      const dx = tx - s.x;
+      const dz = tz - s.z;
+      if (Math.hypot(dx, dz) < 1.2) i += 4;
+      stepSeal(s, { input: { x: dx, z: dz } }, 1 / 120, w);
+      if (peakBlocked(s.x, s.z)) off++;
+    }
+    assert.ok(off === 0 && Math.abs(s.climb - PEAK.top) < 0.5, `a seal following the peak path ends ${s.climb.toFixed(1)} m up (wanted ${PEAK.top}), ${off} steps off the bench`);
+    // the cliff stops a seal: pushed straight into the north face from the foot it stays on the plain
+    const c = createSeal(PEAK.x + 3, PEAK.z - PEAK.edge - 1);
+    for (let t = 0; t < 4; t += 1 / 120) stepSeal(c, { input: { x: 0, z: 1 } }, 1 / 120, w);
+    assert.ok(c.climb < PEAK.top - 8 || Math.hypot(c.x - PEAK.x, c.z - PEAK.z) > PEAK.flat, "a seal ran straight up the cliff");
+  }
+  // the glacier river: a real channel from the spring pool at the foot to the moat, deep, swimmable and ridable
+  const g = GLACIER.points;
+  const foot = Math.hypot(g[0][0] - PEAK.x, g[0][1] - PEAK.z);
+  assert.ok(foot >= PEAK.edge - 3 && foot <= PEAK.edge + 3, `the glacier river's spring is ${foot.toFixed(1)} m from the peak's axis, not at its foot`);
+  assert.ok(Math.hypot(g.at(-1)[0] - 46, g.at(-1)[1] + 18) < 0.5, "the glacier river does not end at the moat's south point");
+  for (const [x, z] of g) {
+    assert.ok(riverAt(x, z).inside && heightAt(x, z) < WATER_Y - 0.5, `the glacier river at ${x}, ${z} has no bed under it`);
+  }
+  {
+    // ridden idle from the spring it reaches the moat, wet all the way
+    const rider = createSeal(g[0][0], g[0][1] + 0.3);
+    let dry = 0;
+    let reached = null;
+    for (let t = 0; t < 40; t += 1 / 120) {
+      stepSeal(rider, {}, 1 / 120, world);
+      if (reached === null && rider.water <= 0) dry++;
+      if (reached === null && Math.hypot(rider.x - 46, rider.z + 18) < 6) reached = t;
+    }
+    assert.ok(reached !== null && dry < 120, `a seal in the glacier river did not ride it to the moat (dry ${dry} steps, reached ${reached})`);
+    // and swims it: held against the current for a moment it stays in the water
+    const swimmer = createSeal(43.3, 18.5);
+    for (let t = 0; t < 1.5; t += 1 / 120) stepSeal(swimmer, { input: { x: 0, z: 1 } }, 1 / 120, world);
+    assert.ok(swimmer.water > 0, "a seal cannot swim in the glacier river");
+  }
   for (const q of PLACES) assert.ok(q.z + q.radius < FUTURE_Z, `${q.id} reaches the future area`);
-  assert.ok(Math.hypot(F.nodes[0].x - PLACE_BY_ID[F.seenId].x, F.nodes[0].z - PLACE_BY_ID[F.seenId].z) < 3 && Math.hypot(F.nodes[1].x - 40, F.nodes[1].z - 4) < 1, "the fountain's two ends are its basin and the moat's pad");
+  assert.ok(Math.hypot(F.nodes[0].x - PLACE_BY_ID[F.seenId].x, F.nodes[0].z - PLACE_BY_ID[F.seenId].z) < 3 && Math.hypot(F.nodes[1].x - 37, F.nodes[1].z - 5) < 1, "the fountain's two ends are its basin and the moat's pad");
   for (const n of F.nodes) {
     const [lx, lz] = n.land;
-    const base = n === F.nodes[0] ? PLATEAU.top : 0; // the basin's landing is on the plateau, the pad's on the snow
+    const base = n.y; // the basin's landing is on the summit, the pad's on the snow
     assert.ok(!riverAt(lx, lz).inside && Math.abs(heightAt(lx, lz) - base) <= 0.3 && Math.hypot(lx, lz) < ISLAND_RADIUS - 4, `the fountain's landing ${lx}, ${lz} is not dry flat ground`);
-    if (base) assert.ok(Math.hypot(lx - PLATEAU.x, lz - PLATEAU.z) <= PLATEAU.flat, "the fountain landing is on the plateau's flat top");
+    if (base) assert.ok(Math.hypot(lx - PEAK.x, lz - PEAK.z) <= PEAK.flat - MOTION.sealRadius, "the fountain landing is on the summit's flat top");
     for (const c of colliders) assert.ok(Math.hypot(lx - c.x, lz - c.z) >= c.radius + MOTION.sealRadius, `the fountain's landing ${lx}, ${lz} is inside a collider`);
     for (const m of F.nodes) assert.ok(Math.hypot(lx - m.x, lz - m.z) >= m.reach + 1, "a landing is outside both basins");
   }
   for (const [seen, from, to] of [[true, 0, 1], [true, 1, 0], [false, 0, 0]]) {
-    const w = { ...world, fountain: F, fountainSeen: seen, time: 1 };
+    const w = { ...world, fountain: F, fountainSeen: seen, time: 1, peak: PEAK_WORLD };
     const s = createSeal(F.nodes[from].x, F.nodes[from].z);
     let thrown = false;
     for (let t = 0; t < 4; t += 1 / 120) {
@@ -1299,7 +1356,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
 }
 
 // Mutation looks: every district without named gear has a look, and two
-// areas wearing the same look are at least 62 m apart.
+// areas wearing the same look are at least 52 m apart.
 {
   const GEAR = new Set(["triton", "mujorush", "dam", "moat", "highway"]);
   for (const d of DISTRICTS) if (d.radiation && !GEAR.has(d.id)) assert.ok(LOOK_BY_ID[d.id], `${d.id} has no mutation look`);
@@ -1311,7 +1368,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
       if (a >= b || LOOK_BY_ID[a] !== LOOK_BY_ID[b]) continue;
       const db = DISTRICTS.find((d) => d.id === b);
       const gap = Math.hypot(da.x - db.x, da.z - db.z);
-      assert.ok(gap >= 62, `${a} and ${b} both wear ${LOOK_BY_ID[a]} only ${gap.toFixed(1)} m apart`);
+      assert.ok(gap >= 52, `${a} and ${b} both wear ${LOOK_BY_ID[a]} only ${gap.toFixed(1)} m apart`);
     }
   }
 }

@@ -81,6 +81,11 @@ function faceColor(out, ny, h, g, seed) {
       if (g.glacier > 0.5) out.copy(steep > 0.7 ? K.iceFace : K.glacier);
     } else if (g.stuff === 2) {
       out.copy(steep > 0.5 ? K.granite : K.snow).lerp(K.graniteDark, steep > 0.5 ? 0.6 * wobble : 0);
+    } else if (g.stuff === 4) {
+      // the Fountain Peak: banded strata on the cliffs, snow on the terraces and the summit cap
+      const band = Math.floor(h * 1.6);
+      out.copy(K.rock).lerp(K.rockLit, 0.25 + 0.6 * rnd(band, 9.1)).lerp(K.graniteDark, band % 3 === 0 ? 0.35 : 0);
+      if (ny > 0.62 || h > 19.2) out.copy(K.snow).lerp(K.snowCool, 0.3 * wobble);
     } else {
       // the Google range: snow wherever it can hold, dark rock ribs where not
       out.copy(ny < 0.52 ? K.rockLit : K.snow).lerp(K.rock, ny < 0.52 ? 0.4 + 0.6 * wobble : 0);
