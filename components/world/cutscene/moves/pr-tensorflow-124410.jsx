@@ -37,10 +37,10 @@ const K = 0.74; // the dimension is built at 1:1 and shown at 0.74 beside a pup 
 const PUP = 1.7;
 // the clock (s from the arrival). Line A (the rival) is up at 3.0; the barrage 3.5 to 5.0; the stop 5.0 to 6.2; the
 // edge falls on the resume and drowns by 6.9; the clock's last tick and the tear at 6.95; the flex at 7.2.
-const T = { glyph: 1.5, rise: [1.9, 2.9], rival: 2.4, barrage: [3.5, 5.0], crack: [3.9, 4.9], stop: 5.0, resume: 6.2, fall: 6.2, drown: 6.85, tick: 7.0, tear: [7.15, 7.95], flex: 7.5 };
+const T = { glyph: 1.5, rise: [1.9, 2.9], rival: 2.4, barrage: [3.5, 5.0], crack: [3.9, 4.9], stop: 5.0, resume: 7.2, fall: 7.2, drown: 7.85, tick: 8.0, tear: [8.15, 8.95], flex: 8.5 };
 // the palette beats: [t, palette]
-const BEATS = [[0, 0], [1.9, 1], [2.6, 2], [3.4, 3], [3.9, 2], [4.4, 1], [4.8, 3], [5.0, 0], [6.2, 2], [6.55, 3], [6.8, 1]];
-const PANELS = [[2.4, 0.64, 0.58], [3.5, 0.4, 0.66], [6.2, 0.7, 0.55], [6.62, 0.5, 0.6]]; // [t, x, y]: where the inverted sky panel cuts in
+const BEATS = [[0, 0], [1.9, 1], [2.6, 2], [3.4, 3], [3.9, 2], [4.4, 1], [4.8, 3], [5.0, 0], [7.2, 2], [7.55, 3], [7.8, 1]];
+const PANELS = [[2.4, 0.64, 0.58], [3.5, 0.4, 0.66], [7.2, 0.7, 0.55], [7.62, 0.5, 0.6]]; // [t, x, y]: where the inverted sky panel cuts in
 const FREEZE = [T.stop, T.resume];
 const STAND_AT = new Vector3(-0.3, 0, -5.2);
 const PX = 6.4; // the pylons' x on a wide screen
@@ -51,7 +51,7 @@ const JABS = 72; // dozens of afterimages, thirty-six per fist
 const SPRAY = 130;
 const GLYPHS = 30;
 const AURA = ["#22d3ee", "#fde047", "#f0abfc", "#fb923c"]; // the Stand's glow follows the palette beat
-const ROLL = [[0, 0], [1.9, -0.12], [2.4, 0.2], [3.5, -0.3], [3.9, 0.3], [4.4, -0.3], [4.8, 0.34], [5.0, -0.42], [6.2, 0.26], [6.62, -0.2], [7.2, 0.1], [7.5, 0]]; // the diagonal lens, a hard cut every beat (radians)
+const ROLL = [[0, 0], [1.9, -0.12], [2.4, 0.2], [3.5, -0.2], [3.9, 0.2], [4.4, -0.2], [4.8, 0.2], [5.0, -0.22], [7.2, 0.2], [7.62, -0.2], [8.2, 0.1], [8.5, 0]]; // the diagonal lens, a hard cut every beat (radians)
 const SPARKS = 18;
 
 const O = new Object3D();
