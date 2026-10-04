@@ -445,3 +445,16 @@ export function maw() {
   o.visible = false;
   return { mesh: o, mat: m, dispose: () => (g.dispose(), m.dispose()) };
 }
+
+// the Demon Lord fist: a black glove with a gold cuff and knuckle studs, drawn in front of the camera for the punch
+export function fistMesh(mat) {
+  const L = layer();
+  L.add(new SphereGeometry(0.9, 14, 10), "#14101f", {}, 0, 0, 0, 0, 0, 0, 1.1, 0.9, 1);
+  L.add(new CylinderGeometry(0.62, 0.7, 0.5, 12).rotateX(Math.PI / 2), "#d4a63a", {}, 0, -0.1, -0.95);
+  for (let i = 0; i < 4; i++) L.add(new SphereGeometry(0.2, 8, 6), "#ffd23a", GLOW, (i - 1.5) * 0.42, 0.05, 0.78);
+  const g = L.build();
+  const o = mesh(mat, g);
+  o.visible = false;
+  o.renderOrder = 998;
+  return { mesh: o, dispose: () => g.dispose() };
+}
