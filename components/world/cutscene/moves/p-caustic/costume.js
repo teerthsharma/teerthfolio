@@ -25,7 +25,7 @@ const lit = (g) => {
 function hairGeometry() {
   const parts = [];
   // a cap over the crown and the back of the skull, a little proud of it; the face stays bare
-  parts.push(flat(new SphereGeometry(0.555, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.62).rotateX(-0.95).translate(0, 0.02, -0.03)));
+  parts.push(flat(new SphereGeometry(0.555, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.62).rotateX(-0.3).translate(0, 0.1, -0.02)));
   const spike = (from, dir, len, r) => {
     const g = new ConeGeometry(r, len, 5).translate(0, len / 2, 0);
     g.applyQuaternion(Q.setFromUnitVectors(UP, dir.clone().normalize()));
@@ -48,7 +48,7 @@ function hairGeometry() {
       const z = -Math.sqrt(Math.max(0.02, 0.27 - x * x * 0.9 - y * y * 0.6)) - 0.02;
       const j = hash(i++, 3);
       const dir = new Vector3(x * 2.2 + (j - 0.5) * 0.5, -drop - 0.3 * j, -1);
-      spike([x, y, z], dir, len * (0.8 + 0.4 * j), r * (0.85 + 0.3 * j));
+      spike([x, y + 0.3, z + 0.1], dir, len * (0.8 + 0.4 * j), r * (0.85 + 0.3 * j));
     }
   }
   return mergeGeometries(parts);
