@@ -93,6 +93,18 @@ const ANOM_POS = [1.6, 0.85, HALF_Z + 1.4];
 const ANOM_R = 0.22, ANOM_LEN = 0.5;
 const AMBER_HEX = "#f0b23c"; // the accent's warm complement
 
+// Stepped violet roof on the ridge (two 0.6 m boxes, each inset 0.4 m) and two
+// 4 m antenna masts with glowing tips, merged into one lit and one glow draw.
+const VIOLET = "#8a5cff";
+const MAST_X = 1.9;
+const STEP_W = 2 * HALF_X - 0.8;
+const stepGeo = mergeGeometries([
+  new BoxGeometry(STEP_W, 0.6, 1.4).translate(0, RIDGE_Y + 0.3, 0),
+  new BoxGeometry(STEP_W - 0.8, 0.6, 0.8).translate(0, RIDGE_Y + 0.9, 0),
+  ...[-MAST_X, MAST_X].map((x) => new CylinderGeometry(0.05, 0.07, 4, 6).translate(x, RIDGE_Y + 2, 0)),
+]);
+const tipGeo = mergeGeometries([-MAST_X, MAST_X].map((x) => new SphereGeometry(0.16, 8, 6).translate(x, RIDGE_Y + 4.1, 0)));
+
 const dummy = new Object3D();
 
 // a flat isoceles gable end: base at y = WALL_H spanning z, apex at the
@@ -230,13 +242,15 @@ export default function Smatrix({ place, near: nearProp }) {
     );
   }, []);
 
+  const stepMat = useMemo(() => mat(VIOLET, { roughness: 0.5 }), []);
+  const tipMat = useMemo(() => lamp(VIOLET, 1.6), []);
   const ventMat = useMemo(() => lamp(accent, 0.8).clone(), [accent]);
 
   const wall = mat(C.warmWhite, { roughness: 0.75 });
   const frame = mat(C.charcoal, { roughness: 0.6 });
   const gableMat = mat(C.warmWhite, { roughness: 0.75, side: DoubleSide });
   const roofBodyMat = mat("#d9d6d2", { roughness: 0.7, emissive: "#d9d6d2", emissiveIntensity: 0.12 });
-  const winFrameMat = useMemo(() => mat(accent, { roughness: 0.5, emissive: accent, emissiveIntensity: 0.4 }), [accent]);
+  const winFrameMat = useMemo(() => mat(accent, { roughness: 0.5, emissive: VIOLET, emissiveIntensity: 0.7 }), [accent]);
   const roofMat = useMemo(() => mat(accent, { roughness: 0.5, flatShading: true }), [accent]); // the ridge cap
   const doorKnobMat = useMemo(() => mat(AMBER_HEX, { roughness: 0.4, emissive: AMBER_HEX, emissiveIntensity: 0.6 }), []);
   // vertex-coloured banding drives the look; the material's own colour stays
@@ -251,7 +265,7 @@ export default function Smatrix({ place, near: nearProp }) {
   // unlit, not a real dielectric: a low-roughness standard material here
   // catches the sun disc as a hard streak and washes the window out behind it.
   const glass = useMemo(
-    () => new MeshBasicMaterial({ color: C.ice, transparent: true, opacity: 0.1, depthWrite: false, toneMapped: false }),
+    () => new MeshBasicMaterial({ color: "#b79bff", transparent: true, opacity: 0.22, depthWrite: false, toneMapped: false }),
     [],
   );
 
@@ -317,6 +331,9 @@ export default function Smatrix({ place, near: nearProp }) {
           charcoal eave trim (in frameGeo) as the other half. */}
       <mesh geometry={roofAccentGeo} castShadow material={roofBodyMat} />
       <mesh geometry={ridgeCapGeo} castShadow material={roofMat} />
+
+      <mesh geometry={stepGeo} castShadow material={stepMat} />
+      <mesh geometry={tipGeo} material={tipMat} />
 
       {/* the vent lamp atop the drill mast */}
       <mesh position={[0, RIDGE_Y + MAST_H + 0.12, 0]} material={ventMat}>
