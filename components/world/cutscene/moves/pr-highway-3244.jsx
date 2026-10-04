@@ -182,6 +182,8 @@ export default function Move(cut) {
   const heroG = useRef();
   const bodyG = useRef();
   const island = useRef([]);
+  const raceT = useRef(0);
+  const camV = useMemo(() => ({ a: new Vector3(), b: new Vector3(), c: new Vector3() }), []);
 
   const m = useMemo(() => takeWarm("pr-highway-3244", buildWorld), []);
 
@@ -212,6 +214,7 @@ export default function Move(cut) {
   // the guest's pose, the sky, the pools: every frame, in smooth time (this world is not on twos)
   useCutFrame((tc, state) => {
     const t = warp(tc);
+    raceT.current = t;
     const s = live.seal;
     const full = mode === "full";
     const g = rig.current;
@@ -331,8 +334,13 @@ export default function Move(cut) {
       const wake = PASS[i] > 0 ? Math.exp(-(((t - PASS[i]) / 0.3) ** 2)) : 0;
       const sgn = lane >= hz0 ? 1 : -1;
       const zz = lane + sgn * 0.45 * wake;
-      D.position.set(x, 0.015 * Math.sin(t * 9 + i) * (t < T.go + 0.3 ? 1 : 0.3), zz);
-      D.rotation.set(0.02 * Math.sin(t * 5 + i * 2) + 0.05 * wake * sgn, Math.PI + sgn * 0.5 * wake + 0.04 * Math.sin(t * 2 + i), 0);
+      // FLUNG: the chariot runs through each rival; it is hit, arcs off to the side, bounces and tumbles
+      const fl = PASS[i] > 0 ? Math.max(0, t - PASS[i]) : 0;
+      const fs = 1 - Math.exp(-fl * 1.6);
+      const air = fl > 0 ? 3.2 * Math.abs(Math.sin(fl * 4.2)) * Math.exp(-fl * 1.1) : 0;
+      const spin = fl > 0 ? 7 * fs : 0;
+      D.position.set(x + 4 * fs, air + 0.015 * Math.sin(t * 9 + i) * (t < T.go + 0.3 ? 1 : 0.3), zz + sgn * 9 * fs);
+      D.rotation.set(0.02 * Math.sin(t * 5 + i * 2) + 0.05 * wake * sgn + spin * 0.6 * sgn, Math.PI + sgn * 0.5 * wake + 0.04 * Math.sin(t * 2 + i) + spin, spin * 0.35 * sgn);
       D.scale.setScalar(CAR_S);
       D.updateMatrix();
       m.rivals.setMatrixAt(i, D.matrix);
@@ -432,6 +440,18 @@ export default function Move(cut) {
       const boost = 0.75 + 0.25 * smooth(T.go - 0.2, T.go + 0.4, t) + 0.5 * Math.exp(-(((t - T.kachow) / 0.5) ** 2));
       const loc = (lx, ly, lz) => [SM.lx + (lx * cs + lz * sn2) * CAR_S, ly * CAR_S + 0.02, SM.lz + (-lx * sn2 + lz * cs) * CAR_S];
       const pts = [...HOOVES, [CH_WX, CH_R, CH_WZ + 0.55], [CH_WX, CH_R, -CH_WZ - 0.55], [CH_WX, CH_R, CH_WZ], [CH_WX, CH_R, -CH_WZ]];
+      // lightning bursts where each rival is hit
+      for (let i = 0; i < NR; i++) {
+        const fl = PASS[i] > 0 ? t - PASS[i] : -1;
+        if (fl < 0 || fl > 0.45) continue;
+        const bx = rivalX(i, PASS[i]);
+        const bz = rivalZ(i, PASS[i]);
+        for (let k = 0; k < 5; k++) {
+          const a = hash(fk + i * 5 + k, 21) * 6.28;
+          const rr = 1 + 2.4 * fl * (0.5 + hash(fk + k, 22));
+          bl.seg(bx, 0.6, bz, bx + Math.cos(a) * rr, 0.6 + 1.2 * hash(fk + k, 23), bz + Math.sin(a) * rr, 0.09, 1 - fl / 0.45, clx, cly, clz);
+        }
+      }
       pts.forEach((o, i) => {
         let [px, py, pz] = loc(o[0], o[1], o[2]);
         const reach = i < 4 ? 0.7 : 1.1;
@@ -548,6 +568,31 @@ export default function Move(cut) {
     track.current.visible = !back;
     mesaG.current.visible = !back;
   });
+
+  // THE CAMERA, after the rig: a low tracking shot beside the wheels through the charge, a front three-quarter on the
+  // smash of the cars, and a hero push-in on the war cry (AAALALALALAI!)
+  useFrame((state) => {
+    const hg = heroG.current;
+    const t = raceT.current;
+    if (mode !== "full" || !live.arrival.id || !hg?.visible || t >= T.cover[0]) return;
+    const cam = state.camera;
+    hg.updateWorldMatrix(true, false);
+    const low = smooth(T.go - 0.3, T.go + 0.5, t) * (1 - smooth(T.kachow - 1.4, T.kachow - 0.8, t));
+    const front = smooth(T.kachow - 1.2, T.kachow - 0.7, t) * (1 - smooth(T.kachow + 0.9, T.kachow + 1.5, t));
+    const hero = Math.exp(-(((t - T.kachow) / 0.45) ** 2));
+    camV.c.set(0, 1.3 * CAR_S, 0);
+    hg.localToWorld(camV.c); // the pup at the reins
+    for (const [k, off] of [[low, [-0.5, 0.5, 4.2]], [front, [4.4, 1.4, 3.2]], [hero, [3.0, 1.0, 2.1]]]) {
+      if (k < 0.001) continue;
+      camV.a.set(off[0] * CAR_S, off[1] * CAR_S, off[2] * CAR_S);
+      hg.localToWorld(camV.a);
+      camV.b.copy(camV.c);
+      cam.position.lerp(camV.a, 0.85 * k);
+      cam.getWorldDirection(camV.b).multiplyScalar(10).add(cam.position);
+      camV.b.lerp(camV.c, k);
+      cam.lookAt(camV.b);
+    }
+  }, 0.5);
 
   // THE PUP: crouches, hops onto the roof, rides, hops back down where it stood
   usePup(cut, (tc, p, turn) => {
