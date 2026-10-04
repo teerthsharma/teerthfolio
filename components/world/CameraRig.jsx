@@ -27,11 +27,11 @@ import { getUi, live } from "../../lib/world/store";
 // lab buildings tower over the pup; the distance grows with the narrower lens
 // so the pup stays about the same size on screen.
 const ELEVATION = (34 * Math.PI) / 180;
-const FOLLOW_DISTANCE = 42;
+const FOLLOW_DISTANCE = 34;
 const OFFSET = new Vector3(0, Math.sin(ELEVATION), Math.cos(ELEVATION)).multiplyScalar(FOLLOW_DISTANCE);
 const LAB_CLEAR = 14; // m
 const LEAD_TIME = 0.7; // seconds of velocity the view leads by
-const LEAD_Z = 1.5; // moving down the screen only: its bottom edge is just 12.4 m from the seal
+const LEAD_Z = 0.5; // moving down the screen only: its bottom edge is just 12.4 m from the seal
 const LEAD_MAX = 7; // m
 const RIVER_LEAD = 4; // m of extra lead at full depth: riding, the view leans down the current
 const LEAD_SMOOTH_DAMP = 4; // 1/s: a bump can't reverse the focus in one frame
@@ -285,8 +285,8 @@ export default function CameraRig() {
     }
 
     if (dock && lk > 0.001) {
-      wanted.current.x += (dock.x - wanted.current.x) * DOCK_LEAN * lk;
-      wanted.current.z += (dock.z - wanted.current.z) * DOCK_LEAN * lk;
+      wanted.current.x += (dock.x - wanted.current.x) * (dock.lean ?? DOCK_LEAN) * lk;
+      wanted.current.z += (dock.z - wanted.current.z) * (dock.lean ?? DOCK_LEAN) * lk;
     }
 
     wanted.current.z -= SPAWN_LEAN * spawnK.current;
