@@ -1,70 +1,36 @@
-// pr-polychrom-79: Dr. Stone, Senku Ishigami in the Kingdom of Science, in shape and colour only.
-// The pup grows Senku's spiky green-tipped hair on top of its round head (no ears) and stands at the Fountain
-// of Immortality: a stone basin of petrified cells, revival fluid thrown up as a twisted double helix, mist.
-// It holds two linked DNA rings (a Hopf link) glowing red: the linking number has the wrong sign. It flips one
-// ring (the arrow on it turns round), the revival fluid takes, and they turn green. Then eleven linked pairs on
-// the bench light up green in a row. The flex line, the credit card, then the return: the petrification crack
-// spreads over the frame, the stone crumbles, and the island is back ("Revival fluid: back to the island.").
-// The world is a sky shell, a cracked-grass ground, a stilt lab, a bench of flasks, statues and far hills,
-// every one a real mesh; no post pass, the crack is one quad. Card: lib/world/cutscene/cards/pr-polychrom-79.js.
+// pr-polychrom-79: Gilgamesh, King of Heroes (Fate), in shape and colour only.
+// The pup grows slicked-back gold hair on its round head (no ears), a gold collar and pauldrons, red eyes. The Gate of
+// Babylon opens behind it: 42 gold portals ripple open in a dome and a small dark silhouette pokes out of each
+// (Excalibur, Gae Bolg, Rho Aias, Saber's helm, Archer's bow and swords, the Holy Grail, Enkidu's chains). The pup
+// holds up the Key of the Heavens; it turns, red circuit lines spread over the larger vault gate (Bab-ilu) and it opens.
+// Then it draws Ea (a black drill-sword, three red segments turning) and cries "Enuma Elish!": the red spiral wind
+// tears space, space shatters into gold and red shards, and the pup drops back on the island at the fountain.
+// Every mesh is built at mount (portals and silhouettes are instanced); no post pass. Card: lib/world/cutscene/cards/pr-polychrom-79.js.
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BoxGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, Mesh, MeshBasicMaterial, PlaneGeometry, ShaderMaterial, SphereGeometry } from "three";
+import { CircleGeometry, Color, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SphereGeometry, TetrahedronGeometry, Vector3 } from "three";
 import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
+import { EYE_R, skullPoint } from "../../seal/variants/D-parts";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { Motes } from "./_g1";
 import { flashQuad, hash, holdFlash, inst, islandList, lettering, mat, pupParts, put } from "./p-caustic/parts";
-import { HASH, flaskGeometry, hairGeometry, ringGeometry, ringMaterial, skyMaterial, statueGeometry, stoneMaterial } from "./pr-polychrom-79/world";
+import { SIL_KINDS, armourGeometry, eaParts, gateMaterial, glowMaterial, goldMaterial, hairGeometry, keyGeometry, portalMaterial, silhouetteGeometries, skyMaterial, windGeometry, windMaterial } from "./pr-polychrom-79/world";
 
 const CORE_Y = 0.9;
-// the clock (s from the arrival; the card puts line A at 2.3, B at 10.1, the flex line at 16.0, the credit at 22.8)
-const T = { hair: [0.55, 1.15], rings: [1.7, 2.3], flip: [8.0, 10.0], sign: [8.9, 9.15], row: 11.0, step: 0.3, crack: [24.0, 27.4], crumble: [27.4, 28.3], word: [26.6, 28.2] };
-const HELIX_N = 64;
-const PAIRS = 11;
-const R = 0.4;
-const FOUNTAIN = [-3.1, 0, -2.6];
+// the clock (real s from the arrival; the card puts line A at 2.3, B at 8.3, the flex line at 14.0, the credit at 23.0)
+const T = { hair: [0.55, 1.15], eyes: [2.3, 3.0], open: 2.5, step: 0.075, key: [7.0, 8.2], spread: [8.8, 13.0], gate: [8.3, 9.6], opens: [12.6, 14.2], keyAway: [13.6, 14.4], draw: [14.4, 16.4], aim: [18.0, 19.2], blast: [19.4, 19.9], word: [19.6, 21.6], shatter: 20.3, ret: 21.2, windEnd: [21.4, 22.2], shardEnd: 22.8 };
+const NP = 42;
+const NS = 150;
+const KEY_AT = [0.95, 1.95, 0.4];
+const EA_AT = [0.95, 1.15, 0.45];
+const GATE_AT = [0, 4.8, -12];
 const COL = new Color();
-const GREEN = new Color("#22ff6a");
-const DARK = new Color("#5a6a6a");
-
-// THE CRACK: stone cells that spread from the middle of the frame, their cracks glowing revival green, then crumble away
-function crackMaterial() {
-  return new ShaderMaterial({
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    uniforms: { uSpread: { value: 0 }, uCrumble: { value: 0 }, uAspect: { value: 1.78 } },
-    vertexShader: /* glsl */ `
-      varying vec2 vUv;
-      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: /* glsl */ `
-      uniform float uSpread;
-      uniform float uCrumble;
-      uniform float uAspect;
-      varying vec2 vUv;
-      ${HASH}
-      void main() {
-        vec2 q = (vUv - 0.5) * vec2(uAspect, 1.0);
-        vec2 cc;
-        vec3 v = vor(q * 6.0, cc);
-        float dist = length(cc / 6.0);
-        float front = uSpread * 1.25;
-        float edge = v.y - v.x;
-        float line = 1.0 - smoothstep(0.03, 0.12, edge);
-        bool stone = dist < front;
-        bool crack = dist < front + 0.3 && line > 0.0;
-        if (!stone && !crack) discard;
-        float thr = v.z * 0.7 + 0.3 * clamp(dist / 1.4, 0.0, 1.0);
-        if (uCrumble > thr) discard;
-        vec3 grey = mix(vec3(0.42, 0.52, 0.55), vec3(0.62, 0.7, 0.66), v.z);
-        vec3 c = stone ? mix(grey, vec3(0.2, 1.0, 0.55), line) : vec3(0.2, 1.0, 0.6);
-        if (stone && !(uCrumble > 0.0)) c = mix(c, vec3(0.8, 0.95, 0.9), 0.0);
-        gl_FragColor = vec4(c, 1.0);
-      }`,
-  });
-}
+const V = new Vector3();
+const RX = new Vector3();
+const UY = new Vector3();
+const FZ = new Vector3();
 
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
@@ -72,114 +38,120 @@ export default function Move(cut) {
   const rig = useRef();
   const skyRef = useRef();
   const world = useRef();
-  const pivotB = useRef();
-  const pup = useRef(null);
+  const keyG = useRef();
+  const eaG = useRef();
+  const gateRef = useRef();
+  const segs = useRef([]);
+  const wind = useRef();
   const island = useRef([]);
-  const hair = useRef(null);
-  const signs = useRef({});
-  const dust = useRef();
+  const worn = useRef([]);
+  const glows = useRef({});
 
   const m = useMemo(() => {
+    const gold = goldMaterial();
     const sky = { g: new SphereGeometry(1, 32, 16), m: skyMaterial() };
-    const ground = { g: new PlaneGeometry(160, 160).rotateX(-Math.PI / 2), m: stoneMaterial("#35d94a", "#b6e615", "#127a2e", 0.45) };
-    const stone = stoneMaterial("#8fa6a8", "#b9c9c2", "#2a3a3a", 1.6, "#0a3d22");
-    const wood = stoneMaterial("#c27a35", "#e0a050", "#6a3a14", 1.4);
-    const istone = stoneMaterial("#8fa6a8", "#b9c9c2", "#2a3a3a", 1.6, "#0a3d22", true);
-    const ring = ringMaterial();
-    const ringG = ringGeometry(R, 0.045);
-    const arrowG = new ConeGeometry(0.1, 0.24, 6);
-    const arrowM = mat({ color: "#fff7b0" });
-    // the fountain: a basin of stone, the revival fluid in it, two strands of beads twisting up
-    const basinG = new CylinderGeometry(1.3, 1.5, 0.55, 14, 1, true);
-    const lipG = new CylinderGeometry(1.36, 1.36, 0.1, 14, 1, false);
-    const fluidM = mat({ color: "#2bff88" });
-    const poolG = new CylinderGeometry(1.2, 1.2, 0.02, 20);
-    const beadG = new IcosahedronGeometry(0.09, 1);
-    const beads = inst(beadG, mat({ color: "#ffffff" }), HELIX_N * 2);
-    for (let i = 0; i < HELIX_N * 2; i++) beads.setColorAt(i, COL.set(i < HELIX_N ? "#27ff7a" : "#25e8ff"));
-    // eleven linked pairs on the bench
-    const pairA = inst(ringGeometry(0.27, 0.035), mat({ color: "#ffffff" }), PAIRS);
-    const pairB = inst(ringGeometry(0.27, 0.035), mat({ color: "#ffffff" }), PAIRS);
-    for (let i = 0; i < PAIRS; i++) {
-      pairA.setColorAt(i, DARK);
-      pairB.setColorAt(i, DARK);
+    const portalM = portalMaterial();
+    const plane = new PlaneGeometry(1, 1);
+    const portals = inst(plane, portalM, NP);
+    // the dome of portals behind the pup: three arcs, each opens a beat after the last
+    const lay = [];
+    for (let i = 0; i < NP; i++) {
+      const layer = i < 10 ? 0 : i < 24 ? 1 : 2;
+      const n = layer === 0 ? 10 : layer === 1 ? 14 : 18;
+      const k = i - (layer === 0 ? 0 : layer === 1 ? 10 : 24);
+      const a = -0.25 * Math.PI + ((k + 0.5 + 0.3 * (hash(i, 1) - 0.5)) / n) * 1.5 * Math.PI;
+      const r = [3.6, 5.8, 8.0][layer] + 0.6 * (hash(i, 2) - 0.5);
+      lay.push({ x: Math.cos(a) * r * 1.2, y: Math.max(0.6, 2.6 + Math.sin(a) * r * 0.78), z: -6.5 - layer * 0.8 - hash(i, 3), a: a + (hash(i, 4) - 0.5) * 0.35, size: 0.95 + 0.5 * hash(i, 5) + layer * 0.15, kind: i % SIL_KINDS, len: 1.5 + 0.7 * hash(i, 6) });
     }
-    // flasks on the bench and shelf, in saturated inks
-    const flaskG = flaskGeometry();
-    const flasks = inst(flaskG, mat({ color: "#ffffff" }), 30);
-    const inks = ["#22ff6a", "#18d8ff", "#ff3fb5", "#ffe92b", "#ff8a1a", "#b45bff"];
-    for (let i = 0; i < 30; i++) {
-      const x = -5.6 + (11.2 * (i + hash(i, 1) * 0.5)) / 30;
-      put(flasks, i, x, 0.95, -6.8 + 0.5 * hash(i, 2), 1.1, 1.1 + 0.4 * hash(i, 3), 1.1);
-      flasks.setColorAt(i, COL.set(inks[i % inks.length]));
+    const silG = silhouetteGeometries();
+    const silM = new MeshBasicMaterial({ color: "#14040e", side: DoubleSide, toneMapped: false, fog: false });
+    const sil = silG.map((g) => inst(g, silM, NP / SIL_KINDS));
+    const cnt = new Array(SIL_KINDS).fill(0);
+    for (const p of lay) p.slot = cnt[p.kind]++;
+    const ea = eaParts();
+    // shards of space
+    const shards = inst(new TetrahedronGeometry(1, 0), mat({ color: "#ffffff", side: DoubleSide }), NS);
+    const pal = ["#ffd54a", "#ff2a3a", "#fff2c0", "#ffb020", "#d3122e"];
+    const sh = [];
+    for (let i = 0; i < NS; i++) {
+      shards.setColorAt(i, COL.set(pal[i % pal.length]));
+      sh.push({ u: (hash(i, 11) - 0.5) * 2.3, v: (hash(i, 12) - 0.5) * 2.3, d: 6 + 5 * hash(i, 13), s: 0.35 + 0.8 * hash(i, 14), r: hash(i, 15) * 6, w: 2 + 5 * hash(i, 16), fall: 0.3 + hash(i, 17) });
     }
-    const benchG = new BoxGeometry(12, 0.95, 1.1);
-    const hutG = {
-      floor: new BoxGeometry(5, 0.3, 3.4),
-      post: new CylinderGeometry(0.13, 0.13, 3.1, 6),
-      roof: new ConeGeometry(3.7, 1.7, 4).rotateY(Math.PI / 4),
+    return {
+      gold, sky, portalM, plane, portals, lay, silG, silM, sil, ea, shards, sh,
+      hairG: hairGeometry(),
+      armG: armourGeometry(),
+      keyGm: keyGeometry(),
+      gateM: gateMaterial(),
+      gateG: new PlaneGeometry(18, 18),
+      eaDark: mat({ color: "#0b0508" }),
+      eaRed: mat({ color: "#ff1f33" }),
+      eaGlow: mat({ color: "#ff2a3a", transparent: true, opacity: 0.45, depthWrite: false, side: DoubleSide }),
+      windM: windMaterial(),
+      windG: windGeometry(),
+      glowM: glowMaterial("#ffc34a"),
+      glowM2: glowMaterial("#ff2a3a"),
+      quad: new PlaneGeometry(1, 1),
+      eyeG: new CircleGeometry(EYE_R * 1.05, 20),
+      pupilG: new CircleGeometry(EYE_R * 0.3, 12).scale(0.45, 1, 1),
+      eyeM: mat({ color: "#ff1c38", side: DoubleSide }),
+      pupilM: mat({ color: "#2a0008", side: DoubleSide }),
+      flash: flashQuad("#ffd77a"),
+      word: lettering("Enuma Elish!", "#d3122e", -0.05),
     };
-    const statueG = statueGeometry();
-    const statues = inst(statueG, istone, 9);
-    for (let i = 0; i < 9; i++) put(statues, i, -9 + 2.2 * i + hash(i, 4) * 1.2, 0, -11 - 6 * hash(i, 5), 1.4, 1.4, 1.4, 0, hash(i, 6) * 6, 0.05 * (hash(i, 7) - 0.5));
-    // hills, far off
-    const hillG = new ConeGeometry(1, 1, 7);
-    const hills = inst(hillG, mat({ color: "#ffffff" }), 9);
-    const hue = ["#7a3dff", "#1ec8d8", "#ff6aa8", "#3d6bff", "#1fd27a", "#ff9a2e", "#9a3dff", "#16b8a8", "#ff5a7a"];
-    for (let i = 0; i < 9; i++) {
-      put(hills, i, -40 + 10 * i + hash(i, 8) * 4, 4, -60 - 10 * hash(i, 9), 16 + 10 * hash(i, 10), 8 + 12 * hash(i, 11), 16 + 10 * hash(i, 10));
-      hills.setColorAt(i, COL.set(hue[i]));
-    }
-    const hair = hairGeometry();
-    const hairM = new MeshBasicMaterial({ vertexColors: true, toneMapped: false, fog: false, side: DoubleSide });
-    const minus = new BoxGeometry(0.36, 0.08, 0.04);
-    const plus = new BoxGeometry(0.08, 0.36, 0.04);
-    const minusM = mat({ color: "#ff2a33" });
-    const plusM = mat({ color: "#22ff6a" });
-    return { sky, ground, stone, wood, istone, ring, ringG, arrowG, arrowM, basinG, lipG, fluidM, poolG, beadG, beads, pairA, pairB, flaskG, flasks, benchG, hutG, statueG, statues, hillG, hills, hair, hairM, minus, plus, minusM, plusM, crack: crackMaterial(), crackQ: new PlaneGeometry(1, 1), flash: flashQuad("#7dffb0"), word: lettering("Revival fluid: back to the island.", "#12b858", -0.04) };
   }, []);
-
-  const crack = useMemo(() => {
-    const q = new Mesh(m.crackQ, m.crack);
-    q.renderOrder = 20;
-    q.frustumCulled = false;
-    q.visible = false;
-    return q;
-  }, [m]);
 
   useEffect(() => {
     island.current = islandList(scene);
     const p = pupParts(scene);
-    pup.current = p;
+    const add = (mesh) => {
+      mesh.visible = false;
+      p.head.add(mesh);
+      worn.current.push(mesh);
+      return mesh;
+    };
     if (p?.head) {
-      const h = new Mesh(m.hair, m.hairM);
-      h.visible = false;
-      p.head.add(h);
-      hair.current = h;
+      add(new Mesh(m.hairG, m.gold));
+      add(new Mesh(m.armG, m.gold));
+      // red eyes: a disc and a slit pupil laid on the skull where the pup's eyes are
+      for (const s of [1, -1]) {
+        const d = new Vector3(0.5 * s, -0.1, 0.86).normalize();
+        const q = skullPoint(d, new Vector3());
+        for (const [g, mt, lift] of [[m.eyeG, m.eyeM, 0.012], [m.pupilG, m.pupilM, 0.017]]) {
+          const e = add(new Mesh(g, mt));
+          e.position.copy(q).addScaledVector(d, lift);
+          e.lookAt(q.clone().multiplyScalar(2));
+        }
+      }
     }
     return () => {
-      hair.current?.removeFromParent();
-      hair.current = null;
-      pup.current = null;
-      const geos = [m.sky.g, m.ground.g, m.ringG, m.arrowG, m.basinG, m.lipG, m.poolG, m.beadG, m.pairA.geometry, m.pairB.geometry, m.flaskG, m.benchG, m.hutG.floor, m.hutG.post, m.hutG.roof, m.statueG, m.hillG, m.hair, m.minus, m.plus, m.crackQ, m.flash.geometry, m.word.geometry];
-      const mats = [m.sky.m, m.ground.m, m.stone, m.wood, m.istone, m.ring, m.arrowM, m.fluidM, m.pairA.material, m.pairB.material, m.flasks.material, m.hills.material, m.beads.material, m.hairM, m.minusM, m.plusM, m.crack, m.flash.material, m.word.material];
+      worn.current.forEach((o) => o.removeFromParent());
+      worn.current = [];
+      const geos = [m.sky.g, m.plane, ...m.silG, m.hairG, m.armG, m.keyGm, m.gateG, m.ea.core, m.ea.seg, m.ea.glow, m.windG, m.quad, m.eyeG, m.pupilG, m.shards.geometry, m.flash.geometry, m.word.geometry];
+      const mats = [m.gold, m.sky.m, m.portalM, m.silM, m.gateM, m.eaDark, m.eaRed, m.eaGlow, m.windM, m.glowM, m.glowM2, m.eyeM, m.pupilM, m.shards.material, m.flash.material, m.word.material];
       geos.forEach((g) => g.dispose());
       mats.forEach((x) => x.dispose());
       m.word.material.map?.dispose();
-      for (const x of [m.beads, m.pairA, m.pairB, m.flasks, m.statues, m.hills]) x.dispose();
-      crack.removeFromParent();
+      for (const x of [m.portals, m.shards, ...m.sil]) x.dispose();
     };
-  }, [scene, m, crack]);
+  }, [scene, m]);
 
   // a skip clears the arrival: nothing of the world draws for the frame before this unmounts
   useFrame(() => {
     if (!live.arrival.id) {
       if (rig.current) rig.current.visible = false;
-      crack.visible = false;
+      m.shards.visible = false;
       m.word.visible = false;
-      if (hair.current) hair.current.visible = false;
+      worn.current.forEach((o) => (o.visible = false));
     }
   }, -0.5);
+
+  // a flat quad that always faces the lens, at a rig-local spot
+  const bill = (mesh, x, y, z, size, cam) => {
+    rig.current.localToWorld(mesh.position.set(x, y, z));
+    mesh.quaternion.copy(cam.quaternion);
+    mesh.scale.setScalar(size);
+  };
 
   useCutFrame((t, state) => {
     const s = live.seal;
@@ -187,181 +159,164 @@ export default function Move(cut) {
     const g = rig.current;
     g.visible = full;
     m.flash.visible = false;
-    crack.visible = false;
     m.word.visible = false;
-    const h = hair.current;
+    m.shards.visible = false;
+    glows.current.back.visible = glows.current.key.visible = false;
     if (!full) {
-      if (h) h.visible = false;
+      worn.current.forEach((o) => (o.visible = false));
       return;
     }
     const tt = onTwos(t);
     const cam = state.camera;
-    const turn = turnFor(card, place, s.x, s.z);
     g.position.set(s.x, 0, s.z);
-    g.rotation.y = turn;
+    g.rotation.y = turnFor(card, place, s.x, s.z);
+    g.updateMatrixWorld(true);
+    for (const u of [m.gold, m.portalM, m.windM, m.gateM, m.sky.m]) u.uniforms.uTime.value = t;
 
-    // THE WORLD swells out of the pup with the stage, then holds
+    // THE WORLD swells out of the pup with the stage, then holds; the dimension's break (T.ret) takes it away for the island
     const r = radiusAt(tl, t);
     const sky = skyRef.current;
     const dx = cam.position.x - s.x;
     const dy = cam.position.y - CORE_Y;
     const dz = cam.position.z - s.z;
     const inside = r > Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.3;
-    const crumbled = tt >= T.crumble[0];
-    sky.visible = r > 0.02 && !crumbled;
+    const gone = tt >= T.ret;
+    sky.visible = r > 0.02 && !gone;
     sky.scale.setScalar(inside ? 140 : Math.max(r, 0.02));
-    world.current.visible = inside && !crumbled;
+    world.current.visible = inside && !gone;
+    const fade = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
 
-    // SENKU'S HAIR grows on the pup's crown on the sign (an overshoot), and is gone with the world
-    if (h) {
-      const k = smooth(T.hair[0], T.hair[1], tt) * (1 - smooth(tl.collapse[0], tl.collapse[1], tt));
-      h.visible = k > 0.01;
-      h.scale.setScalar(Math.max(k * (1 + 0.15 * Math.sin(Math.PI * Math.min(1, Math.max(0, tt - T.hair[0]) / 0.7))), 0.01));
-      h.rotation.z = 0.03 * Math.sin(tt * 2.2);
+    // GILGAMESH on the pup: gold hair, collar, pauldrons and red eyes, gone with the stage
+    const k = smooth(T.hair[0], T.hair[1], tt) * fade;
+    const ek = smooth(T.eyes[0], T.eyes[1], tt) * fade;
+    worn.current.forEach((o, i) => {
+      const kk = i >= 2 ? ek : k;
+      o.visible = kk > 0.01;
+      if (i < 2) o.scale.setScalar(Math.max(kk * (1 + 0.12 * Math.sin(Math.PI * Math.min(1, Math.max(0, tt - T.hair[0]) / 0.7))), 0.01));
+    });
+
+    // THE GATE OF BABYLON: portals ripple open one after another, a silhouette pokes out of each
+    for (let i = 0; i < NP; i++) {
+      const p = m.lay[i];
+      const o = smooth(T.open + i * T.step, T.open + i * T.step + 0.5, tt);
+      const sz = p.size * o * (1 + 0.06 * Math.sin(t * 3 + i));
+      put(m.portals, i, p.x, p.y, p.z, sz, sz, 1);
+      const len = p.len * smooth(T.open + i * T.step + 0.3, T.open + i * T.step + 1.0, tt);
+      put(m.sil[p.kind], p.slot, p.x, p.y, p.z + 0.1, len, len, 1, 0, 0, p.a - Math.PI / 2 + 0.05 * Math.sin(t * 1.7 + i));
     }
+    m.portals.instanceMatrix.needsUpdate = true;
+    for (const x of m.sil) x.instanceMatrix.needsUpdate = true;
 
-    // THE LINKED RINGS in the pup's flippers: red, one flipped, green
-    const flip = smooth(T.flip[0], T.flip[1], tt);
-    const sign = smooth(T.sign[0], T.sign[1], tt);
-    m.ring.uniforms.uSign.value = sign;
-    m.ring.uniforms.uTime.value = t;
-    pivotB.current.rotation.x = Math.PI * flip;
-    const held = signs.current.held;
-    held.visible = tt > T.rings[0];
-    held.scale.setScalar(smooth(T.rings[0], T.rings[1], tt) * (1 + 0.08 * Math.sin(Math.PI * Math.min(1, Math.max(0, tt - T.rings[0]) / 0.5))));
-    held.rotation.y = 0.4 + 0.25 * Math.sin(tt * 0.9);
-    held.position.y = 0.85 + 0.04 * Math.sin(tt * 2.1);
-    signs.current.minus.visible = sign < 0.5;
-    signs.current.plus.visible = sign >= 0.5;
-    signs.current.glyph.visible = held.visible;
+    // THE KEY OF THE HEAVENS: rises into the pup's raised flipper and turns; red circuits spread over the vault gate and it opens
+    const kin = smooth(T.key[0], T.key[1], tt) * (1 - smooth(T.keyAway[0], T.keyAway[1], tt));
+    const key = keyG.current;
+    key.visible = kin > 0.01;
+    key.position.set(KEY_AT[0], KEY_AT[1] + (1 - kin) * 0.6 + 0.05 * Math.sin(tt * 2.4), KEY_AT[2]);
+    key.scale.setScalar(Math.max(kin, 0.01) * 1.25);
+    key.rotation.set(0.1, tt * 2.6, 0.08 * Math.sin(tt * 1.5));
+    const gate = gateRef.current;
+    gate.visible = tt > T.gate[0] && !gone;
+    gate.scale.setScalar(Math.max(smooth(T.gate[0], T.gate[1], tt), 0.01));
+    m.gateM.uniforms.uSpread.value = smooth(T.spread[0], T.spread[1], tt);
+    m.gateM.uniforms.uOpen.value = smooth(T.opens[0], T.opens[1], tt);
 
-    // pose: the rings held up, a fist on the flex line, the sign on the opening
-    const out = 1 - smooth(tl.collapse[0], tl.collapse[1], tt);
-    live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt));
-    live.pose.raise = (smooth(T.rings[0], T.rings[1], tt) * (1 - smooth(tl.lineC, tl.lineC + 0.4, tt))) * out;
-    live.pose.fist = smooth(tl.lineC, tl.lineC + 0.4, tt) * out;
+    // EA: drawn, held up with the segments turning faster and faster, then levelled at the vault
+    const draw = smooth(T.draw[0], T.draw[1], tt);
+    const aim = smooth(T.aim[0], T.aim[1], tt);
+    const ea = eaG.current;
+    ea.visible = draw > 0.01 && !gone;
+    ea.scale.setScalar(Math.max(draw, 0.01) * 1.15);
+    ea.position.set(EA_AT[0], EA_AT[1] + 0.05 * Math.sin(tt * 2.0), EA_AT[2]);
+    ea.rotation.set(-1.2 * aim, 0, -0.18 * (1 - aim));
+    const spin = tt * (2 + 10 * smooth(T.draw[1], T.blast[0], tt));
+    segs.current.forEach((sg, i) => (sg.rotation.y = spin * (i % 2 ? -1 : 1) + i * 1.6));
+    const blast = smooth(T.blast[0], T.blast[1], tt) * (1 - smooth(T.windEnd[0], T.windEnd[1], tt));
+    const w = wind.current;
+    w.visible = blast > 0.01 && !gone;
+    w.scale.set(0.3 + blast, 0.2 + 0.8 * blast, 0.3 + blast);
+    m.windM.uniforms.uK.value = blast;
 
-    // THE HELIX: two strands of beads twisting up from the basin, turning, glowing revival green (cyan on the second strand)
-    const spin = tt * 1.2;
-    for (let i = 0; i < HELIX_N * 2; i++) {
-      const strand = i < HELIX_N ? 0 : 1;
-      const k = (i % HELIX_N) / HELIX_N;
-      const a = spin + k * Math.PI * 5 + strand * Math.PI;
-      const rad = 0.42 * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, k * 1.2))) ;
-      const rise = (k + tt * 0.12) % 1;
-      put(m.beads, i, FOUNTAIN[0] + Math.cos(a) * rad, 0.5 + k * 3.0, FOUNTAIN[2] + Math.sin(a) * rad, 0.8 + 0.5 * Math.sin(rise * Math.PI));
+    // THE RETURN: the blast shatters space into shards; the world goes and the island is there
+    const age = tt - T.shatter;
+    m.shards.visible = age > 0 && tt < T.shardEnd;
+    if (m.shards.visible) {
+      cam.matrixWorld.extractBasis(RX, UY, FZ);
+      const half = Math.tan((cam.fov * Math.PI) / 360);
+      const sc = smooth(0, 0.12, age) * (1 - smooth(T.ret + 0.4, T.shardEnd, tt));
+      for (let i = 0; i < NS; i++) {
+        const h = m.sh[i];
+        const dd = Math.max(h.d - age * 2.5, 1.5);
+        const spread = 1 + age * 0.5;
+        V.copy(cam.position).addScaledVector(FZ, -dd).addScaledVector(RX, h.u * half * cam.aspect * dd * spread).addScaledVector(UY, (h.v * half * dd - age * age * h.fall * 0.6) * spread);
+        const z = h.s * sc * dd * half * 0.5;
+        put(m.shards, i, V.x, V.y, V.z, z, z, z, h.r + age * h.w, h.r * 0.5 + age * h.w * 0.6, 0);
+      }
+      m.shards.instanceMatrix.needsUpdate = true;
+      m.shards.instanceColor.needsUpdate = true;
     }
-    m.beads.instanceMatrix.needsUpdate = true;
+    if (gone && tt < tl.collapse[1]) for (const o of island.current) o.visible = true;
 
-    // THE ROW: eleven pairs light up green, one after another
-    for (let i = 0; i < PAIRS; i++) {
-      const k = smooth(T.row + i * T.step, T.row + i * T.step + 0.25, tt);
-      COL.copy(DARK).lerp(GREEN, k);
-      m.pairA.setColorAt(i, COL);
-      m.pairB.setColorAt(i, COL);
-      const x = -4.3 + (8.6 * i) / (PAIRS - 1);
-      const pop = 1 + 0.25 * Math.sin(Math.PI * Math.min(1, Math.max(0, (tt - T.row - i * T.step) / 0.4)));
-      put(m.pairA, i, x, 1.9, -6.4, pop);
-      put(m.pairB, i, x + 0.27, 1.9, -6.4, pop, pop, pop, Math.PI / 2, 0, 0);
-    }
-    m.pairA.instanceMatrix.needsUpdate = m.pairB.instanceMatrix.needsUpdate = true;
-    m.pairA.instanceColor.needsUpdate = m.pairB.instanceColor.needsUpdate = true;
+    // gold light behind the pup (its rim) and a halo on the key
+    const gb = glows.current.back;
+    gb.visible = !gone;
+    bill(gb, 0, 1.1, -1.6, 4.2 + 0.2 * Math.sin(t * 2), cam);
+    m.glowM.uniforms.uK.value = 0.55 * smooth(2.3, 3.4, tt);
+    const gk = glows.current.key;
+    gk.visible = kin > 0.01;
+    bill(gk, KEY_AT[0], KEY_AT[1] + 0.4, KEY_AT[2], 2.2 * kin, cam);
 
-    // the flash on the flip: tinted revival green, never a white-out
-    holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(tt - T.sign[0] - 0.1) / 0.18) * 0.28);
-
-    // THE RETURN: the petrification crack spreads over the frame; at the crumble the island comes back and the stone falls away
-    const spread = smooth(T.crack[0], T.crack[1], tt);
-    if (spread > 0 && tt < tl.duration) {
-      crack.visible = true;
-      crack.material.uniforms.uSpread.value = spread;
-      crack.material.uniforms.uCrumble.value = smooth(T.crumble[0], T.crumble[1], tt) * 1.02;
-      crack.material.uniforms.uAspect.value = cam.aspect;
-      cam.getWorldDirection(crack.position).add(cam.position);
-      crack.quaternion.copy(cam.quaternion);
-      const hh = 2 * Math.tan((cam.fov * Math.PI) / 360);
-      crack.scale.set(hh * cam.aspect, hh, 1);
-    }
-    if (crumbled && tt < tl.collapse[1]) for (const o of island.current) o.visible = true;
-    // the word on the stone, lower in the frame
+    // the flashes: gold at the blast and at the swap, never a white-out
+    holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(tt - 19.8) / 0.25) * 0.4 + Math.max(0, 1 - Math.abs(tt - T.ret) / 0.3) * 0.5);
+    // the word, upper third of the frame: subtitles keep the lower half
     const word = tt >= T.word[0] && tt < T.word[1];
     m.word.visible = word;
     if (word) {
-      const frameW = 2 * Math.tan((cam.fov * Math.PI) / 360) * 2.2 * cam.aspect; // the frame's width at the word's distance
+      const fw = 2 * Math.tan((cam.fov * Math.PI) / 360) * 2.2 * cam.aspect;
       cam.getWorldDirection(m.word.position).multiplyScalar(2.2).add(cam.position);
-      m.word.position.y -= 0.3;
+      m.word.position.addScaledVector(UY.setFromMatrixColumn(cam.matrixWorld, 1), (0.22 * fw) / cam.aspect);
       m.word.quaternion.copy(cam.quaternion);
-      m.word.scale.set(frameW * 0.82, frameW * 0.82, 1);
+      m.word.scale.set(fw * 0.7, fw * 0.7, 1);
     }
+
+    // pose: the opening sign, the key held up, a fist on the blast; nothing here rotates the pup, so it is never left tilted
+    const done = 1 - smooth(T.windEnd[0], T.windEnd[1], tt);
+    const fist = smooth(T.aim[0], T.aim[1], tt) * done;
+    live.pose.sign = signAt(tl, t) * (1 - smooth(1.5, 1.8, tt));
+    live.pose.raise = smooth(T.key[0] - 0.3, T.key[0] + 0.4, tt) * (1 - fist) * done * fade;
+    live.pose.fist = fist * fade;
+    live.pose.demon = ek;
   });
 
-  const mistN = 90;
   return (
     <>
       <Stage {...cut} bare skip={() => true} />
-      <group ref={dust}>
-        <Motes mode={mode} tl={tl} n={mistN} span={[10, 5, 8]} center={[FOUNTAIN[0], 1.5, FOUNTAIN[2]]} dir={[0, 0.5, 0]} size={0.06} color={["#7dffb0", "#c8ffe0", "#4dffd0"]} sway={0.4} shape="round" />
-        <Motes mode={mode} tl={tl} n={70} span={[24, 8, 18]} center={[0, 2, -6]} dir={[0.1, 0.25, 0]} size={0.07} color={["#ffe92b", "#ff3fb5", "#18d8ff", "#22ff6a"]} sway={0.5} shape="diamond" />
-      </group>
+      <Motes mode={mode} tl={tl} n={110} span={[22, 9, 16]} center={[0, 3, -4]} dir={[0.05, 0.3, 0]} size={0.07} color={["#ffd54a", "#fff2c0", "#ff2a3a", "#ffb020"]} sway={0.5} shape="diamond" />
       <primitive object={m.flash} />
-      <primitive object={crack} />
       <primitive object={m.word} />
+      <primitive object={m.shards} />
+      <mesh ref={(o) => o && (glows.current.back = o)} geometry={m.quad} material={m.glowM} renderOrder={-1} frustumCulled={false} visible={false} />
+      <mesh ref={(o) => o && (glows.current.key = o)} geometry={m.quad} material={m.glowM2} renderOrder={5} frustumCulled={false} visible={false} />
       <group ref={rig} visible={false}>
         <mesh ref={skyRef} geometry={m.sky.g} material={m.sky.m} position={[0, CORE_Y, 0]} renderOrder={-3} frustumCulled={false} />
         <group ref={world}>
-          <mesh geometry={m.ground.g} material={m.ground.m} renderOrder={-2} frustumCulled={false} />
-          <primitive object={m.hills} />
-          <primitive object={m.statues} />
-          <primitive object={m.beads} />
-          <primitive object={m.flasks} />
-          <primitive object={m.pairA} />
-          <primitive object={m.pairB} />
-          {/* the fountain of immortality */}
-          <group position={FOUNTAIN}>
-            <mesh geometry={m.basinG} material={m.stone} position={[0, 0.27, 0]} frustumCulled={false} />
-            <mesh geometry={m.lipG} material={m.stone} position={[0, 0.55, 0]} frustumCulled={false} />
-            <mesh geometry={m.poolG} material={m.fluidM} position={[0, 0.5, 0]} frustumCulled={false} />
-          </group>
-          {/* the lab bench and the stilt hut */}
-          <mesh geometry={m.benchG} material={m.wood} position={[0, 0.475, -6.6]} frustumCulled={false} />
-          <group position={[7, 0, -9]}>
-            <mesh geometry={m.hutG.floor} material={m.wood} position={[0, 1.4, 0]} frustumCulled={false} />
-            {[[-2.3, -1.5], [2.3, -1.5], [-2.3, 1.5], [2.3, 1.5]].map(([x, z], i) => (
-              <mesh key={i} geometry={m.hutG.post} material={m.wood} position={[x, 1.55, z]} frustumCulled={false} />
-            ))}
-            <mesh geometry={m.hutG.roof} material={m.wood} position={[0, 4.25, 0]} frustumCulled={false} />
-          </group>
+          <mesh ref={gateRef} geometry={m.gateG} material={m.gateM} position={GATE_AT} renderOrder={-2} frustumCulled={false} visible={false} />
+          <primitive object={m.portals} />
+          {m.sil.map((x, i) => (
+            <primitive key={i} object={x} />
+          ))}
         </group>
-        {/* the held rings: A in the xy plane, B in the xz plane about (R, 0, 0), B flipped on the beat */}
-        <group
-          ref={(g) => {
-            if (g) signs.current.held = g;
-          }}
-          position={[1.25, 0.85, 0.35]}
-          visible={false}
-        >
-          <mesh geometry={m.ringG} material={m.ring} frustumCulled={false} />
-          <group ref={pivotB} position={[R, 0, 0]}>
-            <group rotation={[Math.PI / 2, 0, 0]}>
-              <mesh geometry={m.ringG} material={m.ring} frustumCulled={false} />
-              <mesh geometry={m.arrowG} material={m.arrowM} position={[0, R, 0]} rotation={[0, 0, -Math.PI / 2]} frustumCulled={false} />
+        <group ref={keyG} visible={false}>
+          <mesh geometry={m.keyGm} material={m.gold} frustumCulled={false} position={[0, -0.4, 0]} />
+        </group>
+        <group ref={eaG} visible={false}>
+          <mesh geometry={m.ea.core} material={m.eaDark} frustumCulled={false} />
+          {[0.3, 0.68, 1.06].map((y, i) => (
+            <group key={i} position={[0, y, 0]} ref={(o) => o && (segs.current[i] = o)}>
+              <mesh geometry={m.ea.seg} material={m.eaRed} frustumCulled={false} />
+              <mesh geometry={m.ea.glow} material={m.eaGlow} frustumCulled={false} />
             </group>
-          </group>
-          <mesh geometry={m.arrowG} material={m.arrowM} position={[0, R, 0]} rotation={[0, 0, -Math.PI / 2]} frustumCulled={false} />
-          <group
-            ref={(g) => {
-              if (g) signs.current.glyph = g;
-            }}
-            position={[R * 0.5, R + 0.55, 0.0]}
-          >
-            <group ref={(g) => g && (signs.current.minus = g)}>
-              <mesh geometry={m.minus} material={m.minusM} />
-            </group>
-            <group ref={(g) => g && (signs.current.plus = g)}>
-              <mesh geometry={m.minus} material={m.plusM} />
-              <mesh geometry={m.plus} material={m.plusM} />
-            </group>
-          </group>
+          ))}
+          <mesh ref={wind} geometry={m.windG} material={m.windM} position={[0, 1.64, 0]} frustumCulled={false} visible={false} />
         </group>
       </group>
     </>
