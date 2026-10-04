@@ -40,12 +40,11 @@ export function rigPoint(c, shot, out = [0, 0, 0]) {
 // banner reads, back to a WIDE establishing of the whole campus for the bell, the guess and the check, in to the MEDIUM
 // two-floor shot for the tap, the stamps and the near-miss; the plaza shot (B) is the world's own drop at T.cut.
 const gateLook = rigPoint([47, 2.5, -57], { P: SEAT, psi: PSI, off: [0, 0, 0] });
-const wideLook = rigPoint([6, 0, -8], { P: SEAT, psi: PSI, off: [0, 0, 0] });
 export const VIEW = {
   close: { wide: [[0.3, 0.35, 0], [0.9, 0.55, 5.2]], tall: [[0.3, 0.35, 0], [0.9, 0.6, 6.4]] },
-  estab: { wide: [wideLook, [0, 44, 88]], tall: [wideLook, [0, 52, 108]] },
-  med: { wide: [[0.4, -3.0, 0], [0, 8.0, 15.5]], tall: [[0.4, -3.8, 0], [0, 10.5, 22]] },
-  mid: { wide: [[0.4, -5, 0], [0, 14, 27]], tall: [[0.4, -6, 0], [0, 18, 36]] }, // the stamps across the plaza, the pup in its window
+  estab: { wide: [[0.3, 0.35, 0], [0.9, 0.8, 5.0]], tall: [[0.3, 0.35, 0], [0.9, 0.9, 6.4]] },
+  med: { wide: [[0.3, 0.35, 0], [0.7, 0.8, 4.0]], tall: [[0.3, 0.35, 0], [0.7, 0.9, 5.2]] },
+  mid: { wide: [[0.3, 0.35, 0], [0.5, 0.8, 3.0]], tall: [[0.3, 0.35, 0], [0.5, 0.9, 4.0]] }, // the stamps across the plaza, the pup in its window
   plaza: { wide: [[0, 0.0, 0], [2.4, 1.9, 9.6]], tall: [[0, 0.1, 0], [1.8, 2.2, 12.5]] }, // after the drop: level, the whole pup centred, the table and the island behind it
   gate: { wide: [gateLook, [20.1, 22, 34.6]], tall: [gateLook, [25.8, 26, 45.2]] }, // from the south along the avenue
 };
@@ -110,5 +109,5 @@ export const T = {
   fold: 12.85, // the grid is cleared, square by square
 };
 // pacing (owner): line A >= 3.5 s, line B 4 s, the credit card 3 s; the board is gone by fold + 3.4
-export const LENGTH = 20.0;
-export const BEATS = { lineA: 3.6, move: [7.72, 8.3], lineB: 12.2, credit: 16.2, collapse: [19.2, 19.6], radius: 130 };
+export const LENGTH = 24.5;
+export const BEATS = { lineA: 3.6, move: [7.72, 8.3], lineB: 12.2, credit: 19.7, collapse: [23.7, 24.1], radius: 130 };
