@@ -76,17 +76,17 @@ const TITAN = 6; // the pup's titan scale
 
 // THE LENS: key frames in the scene's frame [t, eye, look, k], wide; a tall screen stands back by k
 const KEYS = [
-  [1.25, [1.2, 1.6, 9], [0, 1.2, -30], 1.15], // the pup whole on the cobbles, the faces and the Wall over it
-  [3.2, [1.0, 1.6, 8], [0, 1.6, -30], 1.15],
-  [4.4, [1.4, 2.0, 9.5], [0, 3.5, -30], 1.15], // the skin falls behind the pup
+  [1.25, [1.2, 1.6, 9], [0, -2, -30], 1.15], // the pup whole on the cobbles, the faces and the Wall over it
+  [3.2, [1.0, 1.6, 8], [0, -2, -30], 1.15],
+  [4.4, [1.4, 2.0, 9.5], [0, -0.5, -30], 1.15], // the skin falls behind the pup
   [5.3, [-22, 24.5, -23], [20, 110, -400], 1.0], // the fly-along: along the crest, past Eren, over the penguin titans' march
   [6.4, [4, 24.5, -23], [40, 115, -400], 1.0],
   [6.8, [3, 2.4, 16], [0, 3.5, -10], 1.2], // the strike
   [7.7, [20, 9, 34], [-1, 7, -14], 1.25], // the titan pup whole, three-quarter on, the block beside it
   [10.3, [18, 8.5, 32], [-1, 6.5, -14], 1.25],
-  [11.0, [1.4, 1.6, 7.2], [0, -0.6, -30], 1.3], // the flex: the pup whole above the bubbles, the gap and the sea behind it
-  [16.0, [1.1, 1.6, 6.6], [0, -0.6, -30], 1.3],
-  [19.8, [1.0, 1.6, 6.4], [0, -0.6, -30], 1.3],
+  [11.0, [1.4, 1.6, 7.2], [0, -3.5, -30], 1.3], // the flex: the pup whole above the bubbles, the gap and the sea behind it
+  [16.0, [1.1, 1.6, 6.6], [0, -3.5, -30], 1.3],
+  [19.8, [1.0, 1.6, 6.4], [0, -3.5, -30], 1.3],
 ];
 const FOV = [50, 62]; // wide, tall: the dimension's own lens, wider than the island's 35
 const EYE = new Vector3();
