@@ -18,6 +18,8 @@ import { useEffect, useRef, useState } from "react";
 import showcase from "../../data/showcase.json" with { type: "json" };
 import { PLACE_BY_ID, PLACES, PROFILE, districtAt, dockPoint } from "../../lib/world/places";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
+import { replayArrival } from "./Controller";
+import { cutsceneMode } from "../../lib/world/cutscene/timeline";
 import Minimap from "./ui/Minimap";
 import MoveCoach from "./ui/MoveCoach";
 import AwakeningLayer from "./ui/AwakeningLayer";
@@ -465,6 +467,11 @@ function Panel({ open, titleRef }) {
       onClose={() => setUi({ open: null })}
     >
       {place && <Variant place={place} titleRef={titleRef} />}
+      {place && cutsceneMode(place.id) && (
+        <button type="button" className="btn btn-ghost replay-cut" aria-label="Replay the cutscene" onClick={() => replayArrival(place.id)}>
+          Replay cutscene
+        </button>
+      )}
     </Sheet>
   );
 }
