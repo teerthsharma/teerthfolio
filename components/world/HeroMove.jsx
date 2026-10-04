@@ -10,7 +10,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { AdditiveBlending, BackSide, Color, CylinderGeometry, MeshBasicMaterial, RingGeometry, SphereGeometry, TorusGeometry } from "three";
 import { heroMoveFor, heroPose } from "../../lib/world/heroMoves";
-import { ARRIVAL, POP_2D } from "../../lib/world/moments";
+import { arrivalLength } from "../../lib/world/domain";
 import { PLACE_BY_ID } from "../../lib/world/places";
 import { live } from "../../lib/world/store";
 
@@ -57,7 +57,7 @@ export default function HeroMove() {
     const arrival = live.arrival;
     const place = arrival.id ? PLACE_BY_ID[arrival.id] : null;
     if (!place || !ring.current) return;
-    const u = Math.min((state.clock.elapsedTime - arrival.start) / ARRIVAL.duration, 1);
+    const u = Math.min((state.clock.elapsedTime - arrival.start) / arrivalLength(place.id), 1);
     if (u < 0 || u >= 1) return;
     const move = heroMoveFor(place);
     if (last.current !== place.id) {

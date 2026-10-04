@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
 import { readFileSync } from "node:fs";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
-import { ARRIVAL, POP_2D } from "../lib/world/moments.js";
+import { ARRIVAL } from "../lib/world/moments.js";
+import { DOMAIN, domainBeat, radiusAt, signAt } from "../lib/world/domain.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
@@ -685,8 +686,19 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   }
   const koan = punchFor("p-aether-lang");
   assert.ok(koan.a.text.includes("Gojeal Satarou") && koan.b.text.includes("Gojeal Fishtarou"), "the Gojeal koan keeps its spellings");
-  const w = [POP_2D.push, POP_2D.smash, POP_2D.enter, POP_2D.lineA, POP_2D.move, POP_2D.lineB, POP_2D.out, ARRIVAL.duration];
-  assert.ok(w.every((v, i) => i === 0 || v > w[i - 1]) && ARRIVAL.hold >= POP_2D.out, "POP_2D windows are in order inside ARRIVAL");
+  // The domain (domain.js): beats in order, the sign up before the bloom,
+  // closed again by the end, and the bubbles' lines in reading time.
+  const D = DOMAIN;
+  const w = [D.sign[0], D.sign[1], D.impact, D.bloom[1], D.enter, D.lineA, D.lineB, D.collapse[0], D.collapse[1], D.duration];
+  assert.ok(w.every((v, i) => i === 0 || v > w[i - 1]) && D.hold >= D.collapse[0] && D.duration > ARRIVAL.duration, "domain beats are in order");
+  let beat = 0;
+  for (let t = 0; t < D.duration; t += 0.01) {
+    const b = domainBeat(t);
+    assert.ok(b >= beat, `domain beat goes back at ${t.toFixed(2)} s`);
+    beat = b;
+  }
+  assert.ok(signAt(D.impact) > 0.99 && radiusAt(D.lineA) > 10 && radiusAt(D.duration - 0.01) === 0 && domainBeat(D.duration) === 0, "the sign opens the domain and the domain closes");
+  assert.ok(D.lineB - D.lineA >= 2.4 && D.collapse[0] - D.lineB >= 2.4, "each line gets 2.4 s to be read");
   for (const p of PLACES) {
     const c = punchFor(p.id);
     assert.ok(c.seal.pose1 && c.seal.pose2 && c.panel && c.homage && c.why && c.move, `${p.id} card is missing a field`);

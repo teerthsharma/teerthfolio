@@ -21,8 +21,9 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, RingGeometry } from "three";
+import { Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, NormalBlending, OctahedronGeometry, RingGeometry } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW } from "../../../../lib/world/moments";
+import { domainMode, signAt } from "../../../../lib/world/domain";
 import { PLACE_BY_ID, districtAt } from "../../../../lib/world/places";
 import { getUi, live, useUi } from "../../../../lib/world/store";
 import { glow } from "../../palette";
@@ -50,6 +51,9 @@ const HALO_DEFAULT = "#ffd66b";
 // a lifebuoy (the owner: "seal halo not working perfectly").
 const HALO_AT = [0, 0.66, -0.06];
 const HALO_TILT = [-Math.PI / 2 + 0.3, 0, 0];
+// The hand sign's flipper (Euler YZX, see poseFlipper) and its glint at the tip.
+const SIGN = { twist: 0.9, back: -1.15, up: 1.25 };
+const GLINT_AT = [0.7, 0.07, 0];
 
 function materials() {
   return {
@@ -81,7 +85,10 @@ function poseFlipper(o, side, d, x) {
   const swim = x.water * Math.sin(d.t * 5 + side * 1.6);
   const back = FLIPPER_REST.back - 0.4 * reach + 0.5 * push + (1.3 - FLIPPER_REST.back) * d.boost - 0.6 * wave + Math.sin(d.t * 16) * 0.35 * wave + 0.6 * swim - 0.55 * x.calm;
   const down = FLIPPER_REST.down + 0.12 * reach - (FLIPPER_REST.down - 0.2) * d.boost - 1.8 * wave - 0.5 * flap - 1.2 * x.fly + 0.2 * x.crouch - 0.3 * x.water + 0.35 * x.calm;
-  o.rotation.set(Math.sin(d.t * 16) * 0.3 * wave, back, -down, "YZX");
+  // THE HAND SIGN (domain.js): the right flipper (screen left, facing the
+  // viewer) rises in front of the cheek, tip up, flat to the lens.
+  const sign = side < 0 ? x.sign : 0;
+  o.rotation.set(Math.sin(d.t * 16) * 0.3 * wave * (1 - sign) + SIGN.twist * sign, back + (SIGN.back - back) * sign, -down + (SIGN.up + down) * sign, "YZX");
 }
 
 export default function SealD({ pose, near, drive, headRef }) {
@@ -96,6 +103,9 @@ export default function SealD({ pose, near, drive, headRef }) {
   // sides in case the seal is seen from behind it; the wide glow ring stays
   // additive, for the bloom. Unlit: cheap, no extra shadow-casting light.
   const haloGeo = useMemo(() => new RingGeometry(0.24, 0.32, 40), []);
+  // the sign's glint: a small four-point star, always facing out of the flipper
+  const glintGeo = useMemo(() => new OctahedronGeometry(1, 0).scale(0.35, 1, 0.35), []);
+  const glintMat = useMemo(() => new MeshBasicMaterial({ color: "#f4ecff", toneMapped: false }), []);
   const haloSoftGeo = useMemo(() => new RingGeometry(0.18, 0.42, 40), []);
   const haloMat = useMemo(() => {
     const m = glow(HALO_DEFAULT, 0.85).clone();
@@ -112,10 +122,12 @@ export default function SealD({ pose, near, drive, headRef }) {
     for (const g of Object.values(parts)) g.dispose?.();
     for (const m of Object.values(mats)) m.dispose();
     haloGeo.dispose();
+    glintGeo.dispose();
+    glintMat.dispose();
     haloSoftGeo.dispose();
     haloMat.dispose();
     haloSoftMat.dispose();
-  }, [parts, mats, haloGeo, haloSoftGeo, haloMat, haloSoftMat]);
+  }, [parts, mats, haloGeo, haloSoftGeo, haloMat, haloSoftMat, glintGeo, glintMat]);
   // ?sealface=happy|blink holds that expression, for close-up captures.
   const [force] = useState(() => new URLSearchParams(window.location.search).get("sealface"));
 
@@ -146,8 +158,9 @@ export default function SealD({ pose, near, drive, headRef }) {
   const shutEyes = useRef();
   const mouth = useRef();
   const halo = useRef();
+  const glint = useRef();
   const haloSoft = useRef();
-  const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0 }), []);
+  const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0, sign: 0 }), []);
 
   useFrame((state, delta) => {
     const d = drive;
@@ -161,7 +174,10 @@ export default function SealD({ pose, near, drive, headRef }) {
     // round, left, then right, then settles on the place, and smiles.
     const arrival = live.arrival;
     const arrivalPlace = arrival.id ? PLACE_BY_ID[arrival.id] : null;
-    const au = arrivalPlace ? (now - arrival.start) / ARRIVAL.duration : -1;
+    const domain = arrivalPlace && domainMode(arrival.id) === "full";
+    const sign = domain ? signAt(now - arrival.start) : 0;
+    const au = arrivalPlace && !domain ? (now - arrival.start) / ARRIVAL.duration : -1;
+    if (domain) d.lookYaw = 0;
     if (au >= 0 && au < 1) {
       const p = pose.current;
       const toPlace = clamp(wrap(Math.atan2(arrivalPlace.x - p.x, arrivalPlace.z - p.z) - p.heading), -1.2, 1.2);
@@ -243,7 +259,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     // its tail instead of bowing its chin into the snow.
     const r = rear.current;
     r.position.y = 0.07 * liftH + 0.05 * sit;
-    r.rotation.set(-0.32 * liftC + 0.05 * liftH - 0.12 * water - 0.6 * sit, d.turn * 0.06 + d.lookYaw * 0.15, 0);
+    r.rotation.set(-0.32 * liftC + 0.05 * liftH - 0.12 * water - 0.6 * sit - 0.42 * sign, d.turn * 0.06 + d.lookYaw * 0.15, 0);
 
     // Head: the drive's look, the face tipped up toward the lens (the camera
     // sits 50 degrees up; a big-headed pup looking down shows only forehead),
@@ -273,6 +289,9 @@ export default function SealD({ pose, near, drive, headRef }) {
     shared.crouch = crouch;
     shared.water = water;
     shared.calm = sit;
+    shared.sign = sign;
+    glint.current.visible = sign > 0.97;
+    if (glint.current.visible) glint.current.scale.setScalar(0.12 + 0.05 * Math.sin(now * 9));
     poseFlipper(flipL.current, 1, d, shared);
     poseFlipper(flipR.current, -1, d, shared);
 
@@ -386,6 +405,7 @@ export default function SealD({ pose, near, drive, headRef }) {
           <group scale={[-1, 1, 1]}>
             <group ref={flipR} position={shoulder}>
               <mesh geometry={parts.flipper} material={coat} castShadow receiveShadow />
+              <mesh ref={glint} geometry={glintGeo} material={glintMat} position={GLINT_AT} visible={false} />
             </group>
           </group>
           <group ref={tail} position={rel(PIVOT.tail, PIVOT.rear)}>

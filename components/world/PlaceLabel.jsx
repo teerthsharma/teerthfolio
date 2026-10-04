@@ -21,7 +21,7 @@ export default function PlaceLabel({ place, y = 6.5 }) {
   // A sheet already shows this place's repo #PR and headline (or tagline):
   // the in-world label just fades out rather than repeat it, clipped or
   // stuck under the nav bar behind the panel.
-  const hide = useUi((s) => s.open != null || s.list || s.pop >= 2);
+  const hide = useUi((s) => s.open != null || s.list || s.beat > 0);
   const ref = useRef(null);
 
   useFrame(() => {

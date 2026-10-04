@@ -5,7 +5,7 @@
 import { useFrame } from "@react-three/fiber";
 import { stepSeal, nearestPlace } from "../../lib/world/motion";
 import { GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
-import { ARRIVAL } from "../../lib/world/moments";
+import { arrivalHold, arrivalLength, domainBeat, domainMode } from "../../lib/world/domain";
 import { ISLAND_RADIUS, PLACES, districtAt } from "../../lib/world/places";
 import { WHIRLPOOL } from "../../lib/world/river";
 import { getUi, live, setUi } from "../../lib/world/store";
@@ -72,15 +72,16 @@ export default function Controller() {
     // THE ARRIVAL (moments.js): for its first `hold` seconds the seal takes
     // no input and no click target, so it stops to look round.
     const arrival = live.arrival;
-    if (arrival.id && (t - arrival.start >= ARRIVAL.duration || ui.open || freshInput(arrival))) {
+    if (arrival.id && (t - arrival.start >= arrivalLength(arrival.id) || ui.open || freshInput(arrival))) {
       arrival.id = null;
-      setUi({ cutscene: null, pop: 0 });
+      setUi({ cutscene: null, beat: 0 });
     }
     if (arrival.id) {
-      const pop = 0; // 2D pop off on live (owner: it broke the art style); the in-world rebuild replaces it
-      if (pop !== ui.pop) setUi({ pop });
+      // the domain's beat (domain.js); a skip above clears it in the same frame
+      const beat = domainMode(arrival.id) ? domainBeat(t - arrival.start) : 0;
+      if (beat !== ui.beat) setUi({ beat });
     }
-    const holding = arrival.id && t - arrival.start < ARRIVAL.hold;
+    const holding = arrival.id && t - arrival.start < arrivalHold(arrival.id);
     const input = ui.open || ui.list || holding ? null : keyInput(live.keys) || live.stick;
     if (input) {
       live.target = null;

@@ -13,7 +13,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { ARRIVAL, JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
-import { applyFlatten, popAmounts } from "./look/popFlatten";
+import { domainMode, domainView, viewAt } from "../../lib/world/domain";
 import { MOTION } from "../../lib/world/motion";
 import { PLACE_BY_ID, SPAWN } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
@@ -69,7 +69,8 @@ const SPAWN_LEAN = 16; // m
 const SPAWN_ZOOM = 0.55; // share the view pulls back by
 const SPAWN_RADIUS = 3; // m the seal may drift before the lean lets go
 const UP = new Vector3(0, 1, 0);
-const NO_POP = { push: 0, flat: 0 };
+const DOM_EYE = new Vector3();
+const DOM_LOOK = new Vector3();
 
 // The overview before Start: high over the island centre, swaying slowly.
 const OVERVIEW_CENTRE = new Vector3(0, 0, -10);
@@ -196,7 +197,9 @@ export default function CameraRig() {
     // toward the place, swings round it and eases in, then settles back.
     const arrival = live.arrival;
     const cutU = clamp((t - arrival.start) / ARRIVAL.duration, 0, 1);
-    const cutK = !reduced.current && arrival.id && PLACE_BY_ID[arrival.id] ? Math.sin(Math.PI * cutU) ** 0.6 : 0;
+    // a domain (domain.js) frames its own two-shot instead, below
+    const domain = arrival.id && domainMode(arrival.id) === "full";
+    const cutK = !reduced.current && !domain && arrival.id && PLACE_BY_ID[arrival.id] ? Math.sin(Math.PI * cutU) ** 0.6 : 0;
     // THE RADIATION beat (moments.js): the view creeps in while the area's
     // radiation floods it, then kicks back out at the mutation.
     const radSince = t - live.rad.start;
@@ -363,6 +366,14 @@ export default function CameraRig() {
       camera.position.copy(followPos.current);
       lookAt.current.copy(followLook.current);
     }
+    // THE DOMAIN (domain.js): ease onto the two-shot of the pup and the
+    // silhouette, same lens, and back to the follow as it collapses.
+    if (domain) {
+      const k = viewAt(t - arrival.start);
+      domainView(seal.x, seal.z, camera.aspect, DOM_EYE, DOM_LOOK);
+      camera.position.lerp(DOM_EYE, k);
+      lookAt.current.lerp(DOM_LOOK, k);
+    }
     camera.lookAt(lookAt.current);
 
     // Fog is tuned for the follow distance; push it back by however much
@@ -384,10 +395,6 @@ export default function CameraRig() {
         camera.updateProjectionMatrix();
       }
     }
-
-    // POP_2D (moments.js): the arrival pushes in and flattens the view. Reduced
-    // motion never flattens; the Controller ends the pop with the arrival.
-    applyFlatten(camera, lookAt.current, !reduced.current && arrival.id ? popAmounts(t - arrival.start) : NO_POP, sceneFog);
   });
 
   return null;

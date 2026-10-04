@@ -30,6 +30,7 @@ import Penguins from "./Penguins";
 import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
 import Sea from "./Sea";
+import Domain from "./Domain";
 import Seal from "./Seal";
 import Sound from "./Sound";
 import Trail from "./Trail";
@@ -109,6 +110,7 @@ export default function Scene() {
         <Buildings />
         <Props />
         <Seal />
+        <Domain />
         <Trail />
         <Effects />
         <Penguins />
