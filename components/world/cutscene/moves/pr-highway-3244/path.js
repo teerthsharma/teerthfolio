@@ -15,12 +15,12 @@ export const T = {
   go: 3.55, // the lights go: the guest launches
   kachow: 4.95, // it passes the last rival
   cross: 6.0, // the nose crosses the chequered line
-  cover: [6.04, 6.42], // the flag sweeps across the lens
+  cover: [6.3, 6.42], // the flag sweeps across the lens: the full cover lasts 0.25 s
   swap: 6.43, // behind the cloth the speedway becomes the island
-  turn: [6.45, 7.05], // the page turns
+  turn: [6.42, 6.9], // the page turns
   stop: 7.55, // the guest rolls to rest beside where the pup stood
-  off: 8.1, // the pup hops down
-  leave: 11.0, // the guest drives off round the ring
+  off: 8.1, // unused: the pup leaves at the card's collapse
+  leave: 13.0, // the guest stays until the collapse
 };
 
 const clamp = (x) => Math.min(1, Math.max(0, x));

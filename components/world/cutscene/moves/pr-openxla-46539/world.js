@@ -10,7 +10,7 @@
 //        shake, a jump, the cape's wind, the V's strength, the paint, the reveal
 //   w.dispose()
 
-import { Group, Mesh, Vector3 } from "three";
+import { AdditiveBlending, ConeGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3 } from "three";
 import { signAt } from "../../../../../lib/world/cutscene/timeline";
 import { flashQuad, holdFlash, lettering } from "../p-caustic/parts";
 import { buildCity } from "./city";
@@ -30,6 +30,7 @@ const STRIKES = [0.9, 2.45, 4.15, 5.7, 6.55, 7.9, 9.0]; // the lightning, before
 const V = new Vector3();
 const PQ = new Vector3();
 const DASH_TO = [1.4, -7.2]; // where the Detroit Smash lands: a few metres short of the Nomu
+const CARD_AT = [NOMU_AT[0] + 2, 4.0, NOMU_AT[1] + 1]; // the answers are thrown from 2 m right of him at chest height: his body stays in view
 const A_AT = [0, 0, 0];
 const B_AT = [0, 0, 0];
 
@@ -121,7 +122,7 @@ export function makeWorld({ tl, KN }) {
   const world = new Group();
   const nomuRoot = new Group();
   nomuRoot.position.set(NOMU_AT[0], -NOMU_H, NOMU_AT[1]);
-  nomuRoot.scale.setScalar(KN < 1 ? 0.7 : 0.9);
+  nomuRoot.scale.set((KN < 1 ? 0.7 : 0.9) * 1.4, KN < 1 ? 0.7 : 0.9, (KN < 1 ? 0.7 : 0.9) * 1.4); // 1.4x the bulk
   const armL = new Group();
   armL.position.set(...SHOULDER);
   const armR = new Group();
@@ -146,7 +147,31 @@ export function makeWorld({ tl, KN }) {
   for (const x of [burst, beam, dome, panel, vortex]) x.visible = false;
   root.add(smashW, shell, world, glove, burst, beam, dome, panel, vortex, smash, rip, flashK, crack.mesh, focus.mesh, ring.mesh, ...ghosts.meshes);
 
-  const o = { dashX: 0, dashZ: 0, dashK: 0, yaw: 0, shakeX: 0, shakeY: 0, pupY: 0, pose: { sign: 0, fist: 0, raise: 0, crouch: 0 }, capeOn: false, wind: 0, billow: 0, auraOn: false, auraK: 0, paint: false, reveal: false, held: false, flash };
+  // the dash's speed-line cone (behind the pup, additive) and the white 8-point impact star at DASH_TO
+  const coneG = new ConeGeometry(0.9, 5, 12, 1, true);
+  const coneM = new MeshBasicMaterial({ color: "#fff4c2", transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false });
+  const speedCone = new Mesh(coneG, coneM);
+  speedCone.frustumCulled = false;
+  speedCone.visible = false;
+  const starShape = new Shape();
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const rr = i % 2 ? 0.42 : 1;
+    if (i) starShape.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    else starShape.moveTo(rr, 0);
+  }
+  const starG = new ShapeGeometry(starShape);
+  const starM = new MeshBasicMaterial({ color: "#ffffff", transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false });
+  const impactStar = new Mesh(starG, starM);
+  impactStar.frustumCulled = false;
+  impactStar.renderOrder = 30;
+  impactStar.visible = false;
+  root.add(speedCone, impactStar);
+  const YUP = new Vector3(0, 1, 0);
+  const DIR = new Vector3();
+  const crackAt = [0.1, -0.05];
+
+  const o = { pull: 0, dashPos: [0, 0, 0], dashK2: 0, dashX: 0, dashZ: 0, dashK: 0, yaw: 0, shakeX: 0, shakeY: 0, pupY: 0, pose: { sign: 0, fist: 0, raise: 0, crouch: 0 }, capeOn: false, wind: 0, billow: 0, auraOn: false, auraK: 0, paint: false, reveal: false, held: false, flash };
   const odd = { v: 1 };
 
   function update(c) {
@@ -154,7 +179,7 @@ export function makeWorld({ tl, KN }) {
     const t = c.t;
     const tt = onTwos(t);
     const T0 = tl.lineB; // "I am here!": the pup crouches, then dashes (the Detroit Smash), 2 s there and back
-    const hit = T0 + 0.85; // the fist lands on the Nomu
+    const hit = T0 + 1.1; // the fist lands on the Nomu (crouch 0.4, out 0.7, hit 0.2, back 0.7)
     const hit2 = tl.lineC; // "UNITED STATES OF SMASH!": the punch at the screen
     const BRK = tl.credit - 0.6; // the page tears
     const brk = tt - BRK;
@@ -243,8 +268,8 @@ export function makeWorld({ tl, KN }) {
       cd.scale.setScalar(Math.max(0.0001, sc) * 0.78 * (1 - 0.35 * c2));
       cd.visible = tt > t0c - 0.05 && age < 0.12 && !broken;
     };
-    place(A, A_AT, 3.3, [-2.1 * nk, 1.8, 0.9], 9, -1);
-    place(B, B_AT, 3.75, [2.2 * nk, 1.8, 0.7], -9, 1);
+    place(A, CARD_AT, 3.3, [-2.1 * nk, 1.8, 0.9], 9, -1);
+    place(B, CARD_AT, 3.75, [2.2 * nk, 1.8, 0.7], -9, 1);
     const mg = age - 0.12;
     M.visible = mg > 0 && !broken;
     if (M.visible) {
@@ -263,20 +288,40 @@ export function makeWorld({ tl, KN }) {
     const hold = 1 - smooth(hit2 + 2.6, hit2 + 3.4, tt); // the arm comes down well before the page tears
     // THE DASH (Detroit Smash): crouch 0.4 s, a blur out to the Nomu, the fist lands, the pup bounds back to its mark, 2 s in all
     const du = tt - T0;
-    const e1 = smooth(0.4, 0.85, du);
-    const e2 = smooth(1.15, 1.85, du);
+    const e1 = smooth(0.4, 1.1, du);
+    const e2 = smooth(1.3, 2.0, du);
     const dk = e1 - e2; // 0 at the mark, 1 at the Nomu
     o.dashX = DASH_TO[0] * dk;
     o.dashZ = DASH_TO[1] * dk;
     o.dashK = dk;
+    o.dashPos[0] = seal.x + o.dashX;
+    o.dashPos[1] = 0.9;
+    o.dashPos[2] = seal.z + o.dashZ;
+    o.dashK2 = Math.max(flying, flyingBack) * Math.sin(Math.PI * Math.min(1, Math.max(0, flying ? (du - 0.4) / 0.7 : (du - 1.3) / 0.7)));
+    // the speed-line cone trails the pup, apex at the pup, pointing the way it runs
+    speedCone.visible = (flying || flyingBack) && !broken && tt < tl.collapse[0];
+    if (speedCone.visible) {
+      DIR.set(DASH_TO[0], 0, DASH_TO[1]).normalize().multiplyScalar(flying ? 1 : -1);
+      speedCone.quaternion.setFromUnitVectors(YUP, DIR);
+      speedCone.position.set(DASH_TO[0] * dk, 0.9, DASH_TO[1] * dk).addScaledVector(DIR, -2.5);
+      coneM.opacity = 0.35 + 0.2 * Math.sin(tt * 60);
+    }
+    // the white 8-point impact star, 2.5 m, on the hit frame
+    impactStar.visible = age >= 0 && age < 0.3;
+    if (impactStar.visible) {
+      impactStar.position.set(DASH_TO[0], 1.1, DASH_TO[1] + 0.8);
+      impactStar.quaternion.copy(cam.quaternion);
+      impactStar.scale.setScalar(2.5 * (0.6 + 0.4 * Math.min(1, age / 0.08)));
+      impactStar.rotation.z += 0.2 * Math.floor(age * 12);
+    }
     const flying = e1 > 0.02 && e1 < 0.98 ? 1 : 0;
     const flyingBack = e2 > 0.02 && e2 < 0.98 ? 1 : 0;
-    o.yaw = Math.min(1, smooth(0.35, 0.5, du) * (1 - smooth(1.15, 1.35, du)));
+    o.yaw = Math.min(1, smooth(0.35, 0.5, du) * (1 - smooth(1.3, 1.5, du)));
     o.pose.sign = signAt(tl, t) * (1 - smooth(1.4, 1.8, tt));
     o.pose.fist = Math.max(smooth(W0, W0 + 0.8, tt) * (1 - smooth(T0 - 0.2, T0, tt)), smooth(hit2 - 1.5, hit2 - 0.9, tt) * (1 - smooth(hit2 - 0.12, hit2, tt))) * out;
     o.pose.raise = Math.max(smooth(hit - 0.05, hit + 0.1, tt) * (1 - smooth(hit + 0.8, hit + 1.1, tt)), smooth(hit2 - 0.05, hit2 + 0.1, tt) * hold);
     o.pose.crouch = Math.max(smooth(T0, T0 + 0.35, tt) * (1 - smooth(T0 + 0.4, T0 + 0.5, tt)) * 0.95, smooth(hit2 - 1.0, hit2 - 0.3, tt) * (1 - smooth(hit2 - 0.12, hit2, tt)) * 0.7) * out;
-    o.pupY = (0.5 * Math.sin(Math.PI * Math.min(1, Math.max(0, (du - 0.4) / 0.9))) + 0.35 * Math.sin(Math.PI * Math.min(1, Math.max(0, (du - 1.15) / 0.8)))) * out;
+    o.pupY = (0.5 * Math.sin(Math.PI * Math.min(1, Math.max(0, (du - 0.4) / 0.7))) + 0.35 * Math.sin(Math.PI * Math.min(1, Math.max(0, (du - 1.3) / 0.7)))) * out;
     o.held = brk > 0.2; // the printed pup holds a beat into the tear, then snaps back with the island
     o.paint = (inside || tt > tl.bloom[1]) && !o.held;
     o.capeOn = !o.held && tt > 1.3;
@@ -287,7 +332,8 @@ export function makeWorld({ tl, KN }) {
     o.punch = Math.max(smooth(hit - 1.9, hit - 0.9, tt) * 0.5, smooth(hit - 0.05, hit + 0.12, tt) * (1 - smooth(hit + 0.8, hit + 1.2, tt)), smooth(hit2 - 0.05, hit2 + 0.1, tt)) * hold * out; // the fist stands beside the head in the wind-up, then thrusts
     glove.visible = o.punch > 0.05 && !broken;
     // the screen punch: the fist flies at the lens and grows to fill the frame, then draws back
-    const fk = smooth(hit2 - 0.05, hit2 + 0.12, tt) * (1 - smooth(hit2 + 0.4, hit2 + 0.85, tt));
+    const fk = smooth(hit2 - 0.35, hit2 - 0.02, tt) * (1 - smooth(hit2 + 0.4, hit2 + 0.85, tt)); // the fist thrusts at the lens for 0.35 s
+    o.pull = smooth(hit2 - 0.35, hit2 - 0.05, tt) * (1 - smooth(hit2 + 0.4, hit2 + 0.85, tt)); // the lens comes to 2.2 m in front of the pup
     glove.position.set(fist[0], fist[1], fist[2]);
     glove.scale.setScalar(0.6 + 0.4 * o.punch);
     if (fk > 0.001) {
@@ -371,7 +417,7 @@ export function makeWorld({ tl, KN }) {
     const asp = cam.aspect;
     const fo = focus.mesh;
     const fkk = Math.max(flying, flyingBack) * 0.8 + (age > 0.17 && age < 0.45 ? 0.5 : 0);
-    fo.visible = fkk > 0.01 && !broken;
+    fo.visible = fkk > 0.01 && !broken && tt < tl.collapse[0];
     if (fo.visible) {
       holdPanel(fo, cam, focus.m, fkk);
       focus.m.uniforms.uT.value = tt;
@@ -383,10 +429,10 @@ export function makeWorld({ tl, KN }) {
     for (let i = 0; i < ghosts.meshes.length; i++) {
       const gm = ghosts.meshes[i];
       const dd = du - 0.045 * (i + 1);
-      const gk2 = smooth(0.4, 0.85, dd) - smooth(1.15, 1.85, dd);
-      gm.visible = (flying || flyingBack) && gk2 > 0.01 && gk2 < 0.99 && !broken;
+      const gk2 = smooth(0.4, 1.1, dd) - smooth(1.3, 2.0, dd);
+      gm.visible = (flying || flyingBack) && gk2 > 0.01 && gk2 < 0.99 && !broken && tt < tl.collapse[0];
       if (gm.visible) {
-        gm.position.set(DASH_TO[0] * gk2, 0.8 + 0.5 * Math.sin(Math.PI * Math.min(1, Math.max(0, (dd - 0.4) / 0.9))), DASH_TO[1] * gk2);
+        gm.position.set(DASH_TO[0] * gk2, 0.8 + 0.5 * Math.sin(Math.PI * Math.min(1, Math.max(0, (dd - 0.4) / 0.7))), DASH_TO[1] * gk2);
         gm.scale.set(1, 0.9, 1.5);
         ghosts.ms[i].opacity = 0.42 - i * 0.07;
       }
@@ -401,10 +447,19 @@ export function makeWorld({ tl, KN }) {
     }
     // the screen CRACK: the fist's point of impact, the glass spreading over 0.25 s, held, gone as the page tears
     const cr = crack.mesh;
+    if (age2 <= 0.05) {
+      // the crack spawns where the fist is on screen, fixed at the blow
+      V.set(fist[0], fist[1], fist[2]);
+      root.localToWorld(V);
+      cam.updateMatrixWorld();
+      V.project(cam);
+      crackAt[0] = V.x * cam.aspect;
+      crackAt[1] = V.y;
+    }
     cr.visible = age2 > 0.05 && brk < 0.05;
     if (cr.visible) {
       holdPanel(cr, cam, crack.m, smooth(0.05, 0.4, age2) * (1 - smooth(0, 0.05, brk)) * 1.0);
-      crack.m.uniforms.uCen.value = [0.1, -0.05];
+      crack.m.uniforms.uCen.value = crackAt;
       crack.m.uniforms.uT.value = smooth(0.6, 2.2, age2);
     }
 
@@ -414,9 +469,9 @@ export function makeWorld({ tl, KN }) {
   }
 
   function dispose() {
-    const geoms = [crack.g, focus.g, ring.g, ghosts.g, flashK.geometry, smashW.geometry, vx.g, city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
+    const geoms = [coneG, starG, crack.g, focus.g, ring.g, ghosts.g, flashK.geometry, smashW.geometry, vx.g, city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
     for (const g of [...geoms, ...cards.geoms, ...crowd.geoms, ...flags.geoms, ...rocks.geoms, ...pillar.geoms, smoke.obj.geometry, halos.obj.geometry, rain.obj.geometry]) g.dispose();
-    const mats = [crack.m, focus.m, ring.m, ...ghosts.ms, flashK.material, smashW.material, vx.m, sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
+    const mats = [coneM, starM, crack.m, focus.m, ring.m, ...ghosts.ms, flashK.material, smashW.material, vx.m, sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
     for (const x of [...mats, ...cards.mats, ...crowd.mats, ...flags.mats, ...rocks.mats, ...pillar.mats]) x.dispose();
     smash.material.map?.dispose();
     rip.material.map?.dispose();

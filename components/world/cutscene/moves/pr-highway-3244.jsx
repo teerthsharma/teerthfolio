@@ -31,7 +31,8 @@ import { live } from "../../../../lib/world/store";
 import { Stage, signAt, smooth, useCutFrame } from "../kit";
 import { nudge, usePup } from "./g2/parts";
 import { flashQuad, holdFlash, islandList, lettering } from "./p-caustic/parts";
-import { CH_R, CH_ROOF, CH_WX, CH_WZ, HOOVES, carGeometry, chariotGeometry, chariotWheel } from "./pr-highway-3244/car";
+import { CH_R, CH_ROOF, CH_WX, CH_WZ, HOOVES, capeMesh, carGeometry, chariotGeometry, chariotWheel } from "./pr-highway-3244/car";
+import { registerWarm, takeWarm } from "../prewarm";
 import { confetti, glint, pageFlag, ribbons, shadowPool, smokePool, streaks } from "./pr-highway-3244/fx";
 import { BLOCKS, cactus, crowdData, crowdMeshes, desert, flagMaterial, flagPoles, gantry, mesas, oval, rocks, skyDome, stands, tyres } from "./pr-highway-3244/land";
 import { FINISH, PASS, RIVALS, START, T, heroDist, heroSpeed, heroZ, rivalX, rivalZ, sm } from "./pr-highway-3244/path";
@@ -100,19 +101,8 @@ function cloth(n) {
   return g;
 }
 
-export default function Move(cut) {
-  const { card, place, tl, mode } = cut;
-  const scene = useThree((s) => s.scene);
-  const rig = useRef();
-  const sky = useRef();
-  const world = useRef();
-  const track = useRef();
-  const mesaG = useRef();
-  const heroG = useRef();
-  const bodyG = useRef();
-  const island = useRef([]);
-
-  const m = useMemo(() => {
+// The world, built by the shared prewarm (cutscene/prewarm.js) while the seal walks up to the dock.
+function buildWorld() {
     const dome = skyDome();
     const des = desert();
     const ov = oval();
@@ -176,8 +166,26 @@ export default function Move(cut) {
     const boom = lettering("AAALALALALAI!", "#ffc926", -0.1);
     const star = glint();
     const page = pageFlag();
-    return { dome, des, ov, stand, standMat, crowd, fp, flagMat, flags, banner, gan, tyre, rock, mesaGeo, heroMat, hero, wheels, rivalGeo, rivals, cactusGeo, cacti, poleMat, clean, trail, bolts, smoke, conf, streak, shRiv, shHero, flash, boom, star, page };
-  }, []);
+    const cape = capeMesh();
+    return { dome, des, ov, stand, standMat, crowd, fp, flagMat, flags, banner, gan, tyre, rock, mesaGeo, heroMat, hero, wheels, rivalGeo, rivals, cactusGeo, cacti, poleMat, clean, trail, bolts, smoke, conf, streak, shRiv, shHero, flash, boom, star, page, cape };
+}
+registerWarm("pr-highway-3244", buildWorld);
+
+export default function Move(cut) {
+  const { card, place, tl, mode } = cut;
+  const scene = useThree((s) => s.scene);
+  const rig = useRef();
+  const sky = useRef();
+  const world = useRef();
+  const track = useRef();
+  const mesaG = useRef();
+  const heroG = useRef();
+  const bodyG = useRef();
+  const island = useRef([]);
+  const raceT = useRef(0);
+  const camV = useMemo(() => ({ a: new Vector3(), b: new Vector3(), c: new Vector3() }), []);
+
+  const m = useMemo(() => takeWarm("pr-highway-3244", buildWorld), []);
 
   useEffect(() => {
     island.current = islandList(scene);
@@ -187,6 +195,8 @@ export default function Move(cut) {
       for (const g of new Set(geos)) g.dispose();
       const mats = [m.dome.m, m.des.m, m.ov.m, m.standMat, m.flagMat, m.heroMat, m.rivals.material, m.cacti.material, m.poleMat, m.clean.material, m.trail.material, m.bolts.material, m.smoke.mesh.material, m.conf.material, m.streak.material, m.shRiv.material, m.shHero.material, m.flash.material, m.boom.material, m.star.material, m.page.material, m.tyre.material, m.rock.material, m.crowd.body.material, m.crowd.head.material, m.crowd.armR.material, m.crowd.armL.material];
       for (const x of new Set(mats)) x.dispose();
+      m.cape.geometry.dispose();
+      m.cape.material.dispose();
       m.boom.material.map?.dispose();
       for (const x of [m.crowd.body, m.crowd.head, m.crowd.armR, m.crowd.armL, m.wheels, m.rivals, m.cacti, m.flags, m.banner, m.tyre, m.rock, m.smoke.mesh, m.conf, m.streak, m.shRiv, m.shHero]) x.dispose();
     };
@@ -204,6 +214,7 @@ export default function Move(cut) {
   // the guest's pose, the sky, the pools: every frame, in smooth time (this world is not on twos)
   useCutFrame((tc, state) => {
     const t = warp(tc);
+    raceT.current = t;
     const s = live.seal;
     const full = mode === "full";
     const g = rig.current;
@@ -323,8 +334,13 @@ export default function Move(cut) {
       const wake = PASS[i] > 0 ? Math.exp(-(((t - PASS[i]) / 0.3) ** 2)) : 0;
       const sgn = lane >= hz0 ? 1 : -1;
       const zz = lane + sgn * 0.45 * wake;
-      D.position.set(x, 0.015 * Math.sin(t * 9 + i) * (t < T.go + 0.3 ? 1 : 0.3), zz);
-      D.rotation.set(0.02 * Math.sin(t * 5 + i * 2) + 0.05 * wake * sgn, Math.PI + sgn * 0.5 * wake + 0.04 * Math.sin(t * 2 + i), 0);
+      // FLUNG: the chariot runs through each rival; it is hit, arcs off to the side, bounces and tumbles
+      const fl = PASS[i] > 0 ? Math.max(0, t - PASS[i]) : 0;
+      const fs = 1 - Math.exp(-fl * 1.6);
+      const air = fl > 0 ? 3.2 * Math.abs(Math.sin(fl * 4.2)) * Math.exp(-fl * 1.1) : 0;
+      const spin = fl > 0 ? 7 * fs : 0;
+      D.position.set(x + 4 * fs, air + 0.015 * Math.sin(t * 9 + i) * (t < T.go + 0.3 ? 1 : 0.3), zz + sgn * 9 * fs);
+      D.rotation.set(0.02 * Math.sin(t * 5 + i * 2) + 0.05 * wake * sgn + spin * 0.6 * sgn, Math.PI + sgn * 0.5 * wake + 0.04 * Math.sin(t * 2 + i) + spin, spin * 0.35 * sgn);
       D.scale.setScalar(CAR_S);
       D.updateMatrix();
       m.rivals.setMatrixAt(i, D.matrix);
@@ -424,6 +440,18 @@ export default function Move(cut) {
       const boost = 0.75 + 0.25 * smooth(T.go - 0.2, T.go + 0.4, t) + 0.5 * Math.exp(-(((t - T.kachow) / 0.5) ** 2));
       const loc = (lx, ly, lz) => [SM.lx + (lx * cs + lz * sn2) * CAR_S, ly * CAR_S + 0.02, SM.lz + (-lx * sn2 + lz * cs) * CAR_S];
       const pts = [...HOOVES, [CH_WX, CH_R, CH_WZ + 0.55], [CH_WX, CH_R, -CH_WZ - 0.55], [CH_WX, CH_R, CH_WZ], [CH_WX, CH_R, -CH_WZ]];
+      // lightning bursts where each rival is hit
+      for (let i = 0; i < NR; i++) {
+        const fl = PASS[i] > 0 ? t - PASS[i] : -1;
+        if (fl < 0 || fl > 0.45) continue;
+        const bx = rivalX(i, PASS[i]);
+        const bz = rivalZ(i, PASS[i]);
+        for (let k = 0; k < 5; k++) {
+          const a = hash(fk + i * 5 + k, 21) * 6.28;
+          const rr = 1 + 2.4 * fl * (0.5 + hash(fk + k, 22));
+          bl.seg(bx, 0.6, bz, bx + Math.cos(a) * rr, 0.6 + 1.2 * hash(fk + k, 23), bz + Math.sin(a) * rr, 0.09, 1 - fl / 0.45, clx, cly, clz);
+        }
+      }
       pts.forEach((o, i) => {
         let [px, py, pz] = loc(o[0], o[1], o[2]);
         const reach = i < 4 ? 0.7 : 1.1;
@@ -493,6 +521,7 @@ export default function Move(cut) {
       c.material.uniforms.uExcite.value = ex;
     }
     m.flagMat.uniforms.uTime.value = tc;
+    m.cape.material.uniforms.uTime.value = tc;
 
     // KA-CHOW: a glint on the nose and the word, popped over the car, on the last pass
     const kc = t - T.kachow;
@@ -540,6 +569,31 @@ export default function Move(cut) {
     mesaG.current.visible = !back;
   });
 
+  // THE CAMERA, after the rig: a low tracking shot beside the wheels through the charge, a front three-quarter on the
+  // smash of the cars, and a hero push-in on the war cry (AAALALALALAI!)
+  useFrame((state) => {
+    const hg = heroG.current;
+    const t = raceT.current;
+    if (mode !== "full" || !live.arrival.id || !hg?.visible || t >= T.cover[0]) return;
+    const cam = state.camera;
+    hg.updateWorldMatrix(true, false);
+    const low = smooth(T.go - 0.3, T.go + 0.5, t) * (1 - smooth(T.kachow - 1.4, T.kachow - 0.8, t));
+    const front = smooth(T.kachow - 1.2, T.kachow - 0.7, t) * (1 - smooth(T.kachow + 0.9, T.kachow + 1.5, t));
+    const hero = Math.exp(-(((t - T.kachow) / 0.45) ** 2));
+    camV.c.set(0, 1.3 * CAR_S, 0);
+    hg.localToWorld(camV.c); // the pup at the reins
+    for (const [k, off] of [[low, [-0.5, 0.5, 4.2]], [front, [4.4, 1.4, 3.2]], [hero, [3.0, 1.0, 2.1]]]) {
+      if (k < 0.001) continue;
+      camV.a.set(off[0] * CAR_S, off[1] * CAR_S, off[2] * CAR_S);
+      hg.localToWorld(camV.a);
+      camV.b.copy(camV.c);
+      cam.position.lerp(camV.a, 0.85 * k);
+      cam.getWorldDirection(camV.b).multiplyScalar(10).add(cam.position);
+      camV.b.lerp(camV.c, k);
+      cam.lookAt(camV.b);
+    }
+  }, 0.5);
+
   // THE PUP: crouches, hops onto the roof, rides, hops back down where it stood
   usePup(cut, (tc, p, turn) => {
     const t = warp(tc);
@@ -550,25 +604,21 @@ export default function Move(cut) {
     const sn = Math.sin(HERO.yaw);
     ROOFV[0] = HERO.x + CH_ROOF[0] * c * CAR_S;
     ROOFV[2] = HERO.z - CH_ROOF[0] * sn * CAR_S;
-    ROOFV[1] = HERO.y + (CH_ROOF[1] + 0.3) * CAR_S + HERO.bob;
+    ROOFV[1] = HERO.y + (CH_ROOF[1] + 0.3) * CAR_S + HERO.bob + 0.45; // the seat raised: the whole pup stands above the rail
     const kOn = smooth(T.hop[0], T.hop[1], t);
-    const kOff = smooth(T.off, T.off + 0.55, t);
     let x = 0;
     let y = 0;
     let z = 0;
-    if (t >= T.hop[0] && t < T.off) {
+    if (t >= T.hop[0]) {
       y = 1.1 * Math.sin(Math.PI * ramp(t, T.hop[0], T.hop[1]));
       x = ROOFV[0] * kOn;
       y += ROOFV[1] * kOn;
       z = ROOFV[2] * kOn;
-    } else if (t >= T.off) {
-      // the car stands past the pup; the last hop is back over the tail to where it started
-      x = ROOFV[0] * (1 - kOff);
-      y = ROOFV[1] * (1 - kOff) + 0.9 * Math.sin(Math.PI * ramp(t, T.off, T.off + 0.55));
-      z = ROOFV[2] * (1 - kOff);
     }
-    nudge(p, turn, x * o, y * o, z * o);
-    const seat = ramp(t, T.hop[1], T.hop[1] + 0.2) * (1 - ramp(t, T.off - 0.1, T.off));
+    // the pup stays in the chariot until the collapse, then hops out (o falls 1 to 0) to its dock mark, upright
+    nudge(p, turn, x * o, y * o + 0.9 * Math.sin(Math.PI * (1 - o)), z * o);
+    if (o < 1) p.rotation.x = p.rotation.z = 0;
+    const seat = ramp(t, T.hop[1], T.hop[1] + 0.2) * o;
     p.scale.setScalar(1 - 0.08 * seat);
     PUP.seat = seat;
   });
@@ -579,12 +629,12 @@ export default function Move(cut) {
     if (mode !== "full") return;
     const o = 1 - smooth(tl.collapse[0], tl.collapse[1], tc);
     const hopOn = ramp(t, T.hop[0], T.hop[1]);
-    const hopOff = ramp(t, T.off, T.off + 0.55);
+    const hopOff = 1 - o;
     live.pose.sign = signAt(tl, tc) * (1 - smooth(tl.lineA - 0.3, tl.lineA, tc));
     live.pose.crouch = (smooth(T.hop[0] - 0.4, T.hop[0] - 0.05, t) * (1 - smooth(T.hop[0], T.hop[0] + 0.1, t)) + 0.12 * PUP.seat + (hopOn > 0 && hopOn < 1 ? 0.8 : 0)) * o;
     live.pose.spin = hopOff > 0 && hopOff < 1 ? (3 * hopOff) % 1 : 0;
-    live.pose.raise = smooth(T.turn[0] + 0.3, T.turn[1] + 0.3, t) * (1 - smooth(T.off - 0.1, T.off + 0.1, t)) * o;
-    live.pose.fist = smooth(T.off + 0.6, T.off + 0.9, t) * o;
+    live.pose.raise = smooth(T.turn[0] + 0.3, T.turn[1] + 0.3, t) * o;
+    live.pose.fist = smooth(T.stop + 0.1, T.stop + 0.4, t) * o;
   });
 
   const H = m.hero;
@@ -627,6 +677,7 @@ export default function Move(cut) {
         <group ref={heroG} visible={false}>
           <group ref={bodyG}>
             <mesh geometry={H.body} material={m.heroMat} frustumCulled={false} />
+            <primitive object={m.cape} />
           </group>
           <primitive object={m.wheels} />
         </group>

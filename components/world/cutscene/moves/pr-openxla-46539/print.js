@@ -25,12 +25,12 @@ const TABLE = [
   [0.5, 0.36, 0.12, 0.2], // sidewalk
   [0.5, 0.4, 0.0, 0.55], // roof
   [0.3, 0.45, 0.45, 0.45], // rubble
-  [0.0, 0.08, 0.55, 0.0], // sinter: cream yellow
+  [0.0, 0.18, 0.82, 0.0], // sinter: the Nomu's beak, yellow #ffd23a
   [0.0, 0.62, 1.0, 0.0], // heat: orange
   [0.0, 0.06, 1.0, 0.0], // lamp
   [0.35, 0.35, 0.0, 0.85], // pole ink
-  [0.8, 0.62, 0.0, 0.55], // nomu skin: deep violet-blue
-  [0.0, 0.72, 0.2, 0.0], // brain: pink
+  [0.4, 0.38, 0.0, 0.8], // nomu skin: black-blue #1b1c2e
+  [0.0, 0.69, 0.48, 0.0], // brain: exposed pink #ff4f7a
   [0.0, 1.0, 0.95, 0.0], // red
   [1.0, 0.7, 0.0, 0.08], // blue
   [0.0, 0.0, 0.05, 0.0], // paper

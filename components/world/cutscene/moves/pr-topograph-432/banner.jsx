@@ -18,9 +18,9 @@ const CSS = `
 .topo-name { margin: 0; font-size: clamp(40px, 7vw, 88px); line-height: 1; font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; }
 .topo-logo { display: block; margin: 18px auto 0; height: clamp(34px, 5.4vh, 56px); width: auto; max-width: 70%; object-fit: contain; }
 .topo-repo { margin: 12px 0 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: clamp(14px, 2vh, 18px); font-weight: 600; letter-spacing: 0.02em; }
-.topo-dock { position: absolute; left: 0; right: 0; top: 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; color: #fbfaf7; text-align: center; opacity: 0; transition: opacity 420ms cubic-bezier(0, 0, 0.2, 1) 160ms; }
+.topo-dock { position: absolute; left: 0; right: 0; top: calc(var(--nav-h, 56px) + 8px); display: flex; flex-direction: column; align-items: center; gap: 2px; color: #fbfaf7; text-align: center; opacity: 0; transition: opacity 420ms cubic-bezier(0, 0, 0.2, 1) 160ms; }
 .topo-dock strong { font-size: clamp(16px, 3.2vh, 30px); letter-spacing: 0.12em; text-transform: uppercase; }
-@media (max-width: 900px) { .topo-dock { top: 66px; gap: 0; } .topo-dock strong { font-size: 15px; letter-spacing: 0.1em; } .topo-dock span { font-size: 10px; } }
+@media (max-width: 900px) { .topo-dock { top: calc(var(--nav-h, 56px) + 10px); gap: 0; } .topo-dock strong { font-size: 15px; letter-spacing: 0.1em; } .topo-dock span { font-size: 10px; } }
 .topo-dock span { font-family: var(--font-mono, ui-monospace, monospace); font-size: clamp(10px, 1.5vh, 13px); opacity: 0.75; }
 .topo-banner[data-dock="1"] .topo-plate { opacity: 0; transform: translateY(-15vh) scale(0.2); animation: none; }
 .topo-banner[data-dock="1"] .topo-dock { opacity: 1; }
