@@ -45,6 +45,7 @@ const PAINT_Y = 0.045;
 const PERIOD = 3; // m: a 1.2 m dash every 3 m
 const CRAWL = 2.2; // m/s the paint crawls
 const TRIM = 2.2; // m of each leg's joined end kept clear of paint and cars
+const SIGN = HIGHWAY.roundabout.radius / 4.5; // the island's sign scales with the ring
 const GOOGLE = ["#4285f4", "#ea4335", "#fbbc05", "#34a853"];
 
 // ---- the legs as arc-length tables (lib/world/highwayCars.js) ----------------------------
@@ -159,7 +160,7 @@ function buildStatic() {
   const bed = new SphereGeometry(BED, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.28, 1).translate(r.x, 0.2, r.z);
   const rand = mulberry32(3244);
   const flowers = GOOGLE.map(() => []);
-  for (let i = 0; i < 44; i++) {
+  for (let i = 0; i < 44 * Math.round(SIGN * SIGN); i++) {
     const a = rand() * Math.PI * 2;
     const rr = 0.5 + rand() * (BED - 0.8);
     const top = 0.2 + BED * 0.28 * Math.sqrt(1 - (rr / BED) ** 2); // the bed's surface there
@@ -181,10 +182,12 @@ function buildStatic() {
   crown.quadraticCurveTo(-0.36, 0.72, -0.74, 0.57);
   crown.lineTo(-0.74, 0.28);
   const extrude = { depth: 0.12, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.03, bevelSegments: 1, curveSegments: 8 };
-  const signAt = (g, dz) => g.translate(r.x, 2.35, r.z + 0.3 + dz);
+  // the sign and its posts scale with the ring (1.5x the original 4.5 m ring), about the island's centre
+  const big = (g) => g.translate(-r.x, 0, -r.z).scale(SIGN, SIGN, SIGN).translate(r.x, 0, r.z);
+  const signAt = (g, dz) => big(g.translate(r.x, 2.35, r.z + 0.3 + dz));
   const signBlue = signAt(new ExtrudeGeometry(shield, extrude), 0);
   const signRed = signAt(new ExtrudeGeometry(crown, { ...extrude, depth: 0.04 }), 0.14);
-  for (const s of [1, -1]) poles.push(new CylinderGeometry(0.06, 0.06, 2.2, 8).translate(r.x + s * 0.4, 1.1, r.z + 0.25));
+  for (const s of [1, -1]) poles.push(big(new CylinderGeometry(0.06, 0.06, 2.2, 8).translate(r.x + s * 0.4, 1.1, r.z + 0.25)));
 
   const clean = (gs) => gs.map((g) => (g.attributes.uv ? (g.deleteAttribute("uv"), g) : g));
   return {
