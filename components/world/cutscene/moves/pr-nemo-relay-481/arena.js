@@ -12,7 +12,7 @@ import { celMaterial, hullMaterial } from "./cel";
 import { clamp01, flat, hash, hide, inst, put, srgb } from "./util";
 
 export const TOP = 0.03; // the stage's top face, a hair over the island's ground
-export const LEDGE = { x: 6.6, y: 3.4, z: -12.5, r: 4.6 };
+export const LEDGE = { x: 4.0, y: 1.0, z: -8.5, r: 4.6 };
 const PITCH = 2.6;
 const TILE = 2.5;
 const TONE = { a: "#e1d6bd", b: "#cbbfa4", edge: "#b9ab92" };
@@ -98,12 +98,12 @@ export function buildArena(T) {
   const rub = withHull(rubG, RUB, stone, hullR);
   const rubble = Array.from({ length: RUB }, (_, i) => {
     const a = hash(i, 1) * Math.PI * 2;
-    const d = 2.6 + 26 * hash(i, 2) ** 1.5;
+    const d = 5 + 24 * hash(i, 2) ** 1.5; // none within 5 m of the pup: nothing may pass through it
     const x = Math.cos(a) * d;
     const z = Math.sin(a) * d * 0.9 - 4;
-    const s = (0.14 + 0.55 * hash(i, 3) ** 2) * (d < 10 ? 1.25 : 1.6);
+    const s = (0.14 + 0.55 * hash(i, 3) ** 2) * (d < 11 ? 1.25 : 1.6);
     setCol(rub.fill, i, ROCK[i % 3], 1.08);
-    return { x, z, s, near: d < 9 ? 1 : 0, lift: 0.8 + 2.6 * hash(i, 4), h: hash(i, 5), spin: 1 + 3 * hash(i, 6), r: Math.hypot(x, z), delay: (1 - Math.min(1, Math.hypot(x, z) / rmax)) * 1.15 };
+    return { x, z, s, near: d < 10 ? 1 : 0, lift: 0.8 + 2.6 * hash(i, 4), h: hash(i, 5), spin: 1 + 3 * hash(i, 6), r: Math.hypot(x, z), delay: (1 - Math.min(1, Math.hypot(x, z) / rmax)) * 1.15 };
   });
 
   // FLOATING CHUNKS beyond the rim, near ones framing the shot, far ones for depth

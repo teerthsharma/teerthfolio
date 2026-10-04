@@ -4,7 +4,7 @@
 // No gradients, no additive wash: every layer is a flat colour with a hard edge, redrawn on twos.
 // Nothing allocates per frame (temps are module-level).
 
-import { Color, ConeGeometry, IcosahedronGeometry, Matrix4, Mesh, MeshBasicMaterial, OctahedronGeometry, Quaternion, RingGeometry, Vector3 } from "three";
+import { AdditiveBlending, Color, ConeGeometry, IcosahedronGeometry, Matrix4, Mesh, MeshBasicMaterial, OctahedronGeometry, Quaternion, RingGeometry, Vector3 } from "three";
 import { hullMaterial } from "./cel";
 import { hash, hide, inst, put } from "./util";
 
@@ -22,11 +22,12 @@ const FLAMES = 44;
 const CROWN = 7; // the first seven rise over the head: Ultra Instinct's swept spikes, a fan with the middle tallest
 export function buildAura() {
   const cone = new ConeGeometry(0.2, 1, 5).translate(0, 0.5, 0);
-  const layers = [inst(cone, mb("#8ec9ff", 0.85), FLAMES), inst(cone, mb("#dfe7f3", 0.96), FLAMES), inst(cone, mb("#f3fbff"), FLAMES)];
+  const add = (c, o) => Object.assign(mb(c, o), { blending: AdditiveBlending, transparent: true, depthWrite: false });
+  const layers = [inst(cone, add("#6a2fd0", 0.8), FLAMES), inst(cone, add("#a58cf0", 0.7), FLAMES), inst(cone, add("#e6ecff", 0.75), FLAMES)];
   layers[0].renderOrder = 4;
   layers[1].renderOrder = 5;
   layers[2].renderOrder = 6;
-  const sparks = inst(new OctahedronGeometry(1, 0).scale(0.5, 1, 0.5), mb("#eaf2ff"), 40);
+  const sparks = inst(new OctahedronGeometry(1, 0).scale(0.5, 1, 0.5), add("#d8e0ff", 0.9), 40);
   const ring = new Mesh(new RingGeometry(0.86, 1, 44).rotateX(-Math.PI / 2), mb("#cfe6ff", 0.9));
   ring.position.y = 0.05;
   ring.visible = false;

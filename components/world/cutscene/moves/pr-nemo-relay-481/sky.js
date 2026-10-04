@@ -16,8 +16,8 @@ export function skyShell() {
   const m = new ShaderMaterial({
     uniforms: {
       uTime: { value: 0 }, uSpeed: { value: 0 }, uDrain: { value: 0 }, uOut: { value: 0 }, uCell: { value: 6 }, uFocus: { value: new Vector3(0.05, 0.04, -1) },
-      c0: { value: v("#f2e0ff") }, c1: { value: v("#bdb8ff") }, c2: { value: v("#7f92f6") }, c3: { value: v("#4962e0") }, c4: { value: v("#2a37a6") },
-      d0: { value: v("#6a3fb8") }, d1: { value: v("#3a2a96") }, d2: { value: v("#241c6c") },
+      c0: { value: v("#a46bff") }, c1: { value: v("#7a3fe0") }, c2: { value: v("#5a24b8") }, c3: { value: v("#3d1788") }, c4: { value: v("#250a5c") },
+      d0: { value: v("#4b1fa0") }, d1: { value: v("#2e1070") }, d2: { value: v("#1a0646") },
     },
     side: DoubleSide,
     transparent: true,
@@ -90,7 +90,7 @@ export function skyShell() {
         float w = 0.1 + 0.16 * h21(vec2(cellId, tick + 7.0));
         float line = on * step(abs(fract(ang) - 0.5), w * smoothstep(0.1, 0.9, rad) * 1.6) * smoothstep(0.16, 0.3, rad);
         float side = step(0.5, h21(vec2(cellId, 4.0)));
-        vec3 lc = mix(vec3(1.0, 0.98, 1.0), vec3(0.78, 0.96, 1.0), side);
+        vec3 lc = mix(vec3(0.97, 0.96, 1.0), vec3(0.7, 0.82, 1.0), side);
         col = mix(col, lc, line * (1.0 - uDrain));
         // spent: the sky pales to a flat wash and the lines stop
         float l = dot(col, vec3(0.3, 0.59, 0.11));

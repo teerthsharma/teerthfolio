@@ -38,8 +38,9 @@ export function beerus() {
   p.push(ico(0.07, 0, 0.88, -0.22));
   const ink = mergeGeometries(p.map(flat));
   // accents: the gold collar rim and the sash (flat colour on the ink)
-  const gold = mergeGeometries([flat(new CylinderGeometry(0.37, 0.37, 0.025, 10).translate(0, 1.37, 0.03)), flat(new CylinderGeometry(0.225, 0.225, 0.03, 8).translate(0, 0.84, 0))]);
-  return { ink, hull: hullOf(ink), accent: gold, accentColor: "#f2c34a", height: 2.15 };
+  const band = (r, y, h = 0.035) => flat(new CylinderGeometry(r, r, h, 10).translate(0, y, 0));
+  const gold = mergeGeometries([flat(new CylinderGeometry(0.37, 0.37, 0.025, 10).translate(0, 1.37, 0.03)), flat(new CylinderGeometry(0.225, 0.225, 0.03, 8).translate(0, 0.84, 0)), flat(new CylinderGeometry(0.2, 0.37, 0.06, 10).translate(0, 1.48, 0.03)), band(0.25, 0.6), band(0.2, 1.1, 0.05), band(0.215, 1.28, 0.03)]);
+  return { ink, hull: hullOf(ink), accent: gold, accentColor: "#ffd23a", height: 2.15 };
 }
 
 export function whis() {
