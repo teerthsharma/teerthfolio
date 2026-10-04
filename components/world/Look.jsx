@@ -130,9 +130,24 @@ function Glow() {
 // material's program key (tone mapping, colour space) and recompiled every
 // shader in one frame: 5.5-5.9 s frozen on Intel UHD (scripts/perf-frames.mjs).
 // The radiation on the viewer's eyes rides with the bloom: both are glow.
+//
+// The composer sizes its buffers, and every pass its own (N8AO keeps half-size
+// ones), once, from the drawing buffer of that moment, and refits only when
+// the CSS size changes. The rung's DPR arrives after the first frame and
+// moves with every rung and every change of screen, so on a screen above 1x
+// the post stack stayed at the old size: the frame was drawn into a stale
+// buffer, and its scaled copy showed through on 1/DPR of the view as faint
+// ghosts of the buildings and a rectangular seam on the snow. Refit it
+// whenever the DPR moves.
 function Post({ rung }) {
+  const composer = useRef();
+  const dpr = useThree((s) => s.viewport.dpr);
+  useLayoutEffect(() => {
+    composer.current?.setSize();
+    window.__world = { ...(window.__world || {}), composer: composer.current };
+  }, [dpr, rung.msaa]);
   return (
-    <EffectComposer multisampling={rung.msaa}>
+    <EffectComposer ref={composer} multisampling={rung.msaa}>
       {rung.ao ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
       {rung.bloom ? <Glow /> : null}
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
