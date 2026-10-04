@@ -187,7 +187,8 @@ export default function Move(cut) {
     const celOn = (inside || tt > tl.bloom[1]) && tt < T.reveal;
     cel.current?.set(celOn, silver, aura > 0.3 ? 1 : 0);
     m.hair.group.visible = celOn && silver > 0.05;
-    m.hair.group.rotation.set(0.04 * Math.sin(t * 7), 0, 0.03 * Math.sin(t * 5));
+    m.hair.group.rotation.set(0.05 * Math.sin(t * 7), 0, 0.04 * Math.sin(t * 5));
+    m.hair.group.scale.setScalar(1 + 0.03 * Math.sin(t * 9));
     const d = dodgeAt(tt, DODGE);
     const k = celOn ? 1 : 0;
     o.x = d.x * k;
