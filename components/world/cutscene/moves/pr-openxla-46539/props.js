@@ -4,10 +4,10 @@
 // arcs. All instanced or pooled; the cards are two meshes. Every one is in the
 // press's inks; the shard-less pieces fall away on the page's tear.
 
-import { DodecahedronGeometry, DoubleSide, InstancedMesh, Mesh, Object3D, PlaneGeometry, ShaderMaterial, SphereGeometry } from "three";
+import { DodecahedronGeometry, DoubleSide, InstancedBufferAttribute, InstancedMesh, Mesh, Object3D, PlaneGeometry, ShaderMaterial, SphereGeometry } from "three";
 import { hash } from "../p-caustic/parts";
 import { PAL, PRINT, SH, u } from "./print";
-import { build, instHullMaterial, instMaterial, limb, tag } from "./mesh";
+import { build, chunkGeo, chunkMaterial, instHullMaterial, instMaterial, limb, tag } from "./mesh";
 
 const O = new Object3D();
 
@@ -280,3 +280,86 @@ export function rocksFx(groundY, crater, HW) {
   };
 }
 
+
+// ---- the wrecked blocks: every piece pre-split at mount, blown outward and up with spin, falling under gravity ----
+// A piece is at rest (the building, whole) until the dome's front reaches it, then follows a closed-form arc to the
+// ground and lies where it fell. One InstancedMesh and its ink hull; no allocation after mount.
+const BLAST = [1.4, -7.2];
+export function wreckFx(chunks, groundY) {
+  const g = chunkGeo();
+  const m = chunkMaterial();
+  const hm = instHullMaterial();
+  const n = Math.max(1, chunks.length);
+  const mesh = new InstancedMesh(g, m, n);
+  const hull = new InstancedMesh(g, hm, n);
+  hull.instanceMatrix = mesh.instanceMatrix;
+  mesh.frustumCulled = hull.frustumCulled = false;
+  mesh.count = hull.count = chunks.length;
+  const rest = new Float32Array(n * 3);
+  const scl = new Float32Array(n * 3);
+  const pal = new Float32Array(n);
+  const P = chunks.map((c, i) => {
+    const dx = c.x - BLAST[0];
+    const dz = c.z - BLAST[1];
+    const d = Math.hypot(dx, dz) || 1;
+    const far = 1 / (1 + d / 36);
+    const sp = (11 + 12 * hash(i, 51)) * far * (0.6 + 0.8 * Math.min(1, 1 / Math.max(c.y, 0.5) * 3 + 0.3));
+    rest.set([c.x, c.y, c.z], i * 3);
+    scl.set([c.sx, c.sy, c.sz], i * 3);
+    pal[i] = c.pal;
+    return { c, d, delay: (d * 0.6) / 40, vx: (dx / d) * sp + (hash(i, 52) - 0.5) * 3, vz: (dz / d) * sp + (hash(i, 53) - 0.5) * 3, vy: (9 + 12 * hash(i, 54)) * far + 2, wx: (hash(i, 55) - 0.5) * 9, wy: (hash(i, 56) - 0.5) * 7, wz: (hash(i, 57) - 0.5) * 9, fl: Math.min(c.sx, c.sy, c.sz) * 0.5 };
+  });
+  g.setAttribute("aRest", new InstancedBufferAttribute(rest, 3));
+  g.setAttribute("aScl", new InstancedBufferAttribute(scl, 3));
+  g.setAttribute("aPalI", new InstancedBufferAttribute(pal, 1));
+  let state = -1; // 0 whole, 1 moving
+  const put = (i, x, y, z, rx, ry, rz, s) => {
+    const c = P[i].c;
+    O.position.set(x, y, z);
+    O.rotation.set(rx, ry, rz);
+    O.scale.set(c.sx * s, c.sy * s, c.sz * s);
+    O.updateMatrix();
+    mesh.setMatrixAt(i, O.matrix);
+  };
+  return {
+    mesh,
+    hull,
+    geoms: [g],
+    mats: [m, hm],
+    count: chunks.length,
+    tick({ age, brk }) {
+      if (age < 0 && brk <= 0) {
+        if (state !== 0) {
+          for (let i = 0; i < P.length; i++) put(i, P[i].c.x, P[i].c.y, P[i].c.z, 0, 0, 0, 1);
+          mesh.instanceMatrix.needsUpdate = true;
+          state = 0;
+        }
+        hull.visible = false;
+        m.uniforms.uWinK.value = 0;
+        return;
+      }
+      state = 1;
+      hull.visible = true;
+      m.uniforms.uWinK.value = age < 0.17 ? 1 : -1; // a white flash in every pane, then dark
+      for (let i = 0; i < P.length; i++) {
+        const p = P[i];
+        const c = p.c;
+        const tau = age - p.delay;
+        const fall = brk > 0 ? 5.5 * brk * brk * (0.5 + hash(i, 58)) : 0;
+        const s = brk > 1.3 ? 0.0001 : 1;
+        if (tau <= 0) {
+          put(i, c.x, c.y - fall, c.z, 0, 0, 0, s);
+          continue;
+        }
+        // time of landing: the root of y0 + vy t - 4.9 t^2 = floor
+        const tL = (p.vy + Math.sqrt(p.vy * p.vy + 19.6 * Math.max(0, c.y - p.fl))) / 9.8;
+        const q = Math.min(tau, tL);
+        const x = c.x + p.vx * q;
+        const z = c.z + p.vz * q;
+        const y = tau < tL ? c.y + p.vy * q - 4.9 * q * q : groundY(x, z) + p.fl;
+        put(i, x, y - fall, z, p.wx * q, p.wy * q, p.wz * q, s);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    },
+  };
+}

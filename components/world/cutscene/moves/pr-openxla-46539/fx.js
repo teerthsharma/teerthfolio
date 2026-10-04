@@ -153,7 +153,7 @@ export function rainFx(crater, k) {
       const up = age > 0.15;
       const calm = up ? smooth(0.15, 0.7, age) : 0;
       mesh.material.color.copy(cool).lerp(warm, calm);
-      mesh.material.opacity = 0.6 * (up ? 0.5 + 0.5 * smooth(0.3, 1.2, age) : 1) * (gone ? 0 : 1);
+      mesh.material.opacity = 0.6 * (up ? 0.5 + 0.5 * smooth(0.3, 1.2, age) : 1) * (gone ? 0 : 1) * (1 - smooth(0.05, 0.45, age)); // the wind pressure stops the rain
       for (let i = 0; i < RAIN; i++) {
         const s = d[i];
         let x = s.x;
@@ -321,9 +321,9 @@ export function beamFx() {
   return { g, m };
 }
 
-// ---- the shock dome: a printed ring racing out from the fist, gone before it reaches the lens ----
+// ---- the shock dome: a translucent white-gold sphere from the impact to ~40 m, a sharp bright leading edge, a heat-shimmer band riding it ----
 export function domeFx() {
-  const g = new SphereGeometry(1, 36, 18);
+  const g = new SphereGeometry(1, 48, 24);
   const m = new ShaderMaterial({
     uniforms: { ...SH, uFade: u(0) },
     transparent: true,
@@ -345,14 +345,38 @@ export function domeFx() {
       ${PRINT}
       void main() {
         float f = 1.0 - abs(dot(normalize(vN), normalize(vV)));
-        float band = smoothstep(0.5, 0.78, f);
-        float cv;
-        vec3 col = inkPrint(vec4(0.0, 0.1, band, 0.0), cv);
-        col = mix(col, vec3(1.0, 0.98, 0.9), smoothstep(0.82, 0.93, f));
-        col = mix(col, INK_K, smoothstep(0.96, 0.985, f));
-        float a = max(cv * step(0.02, band), smoothstep(0.82, 0.9, f)) * uFade;
+        // the shimmer: rippling bands wobbled by noise, strongest just inside the limb
+        float wob = vnoise(vec2(atan(vN.x, vN.z) * 7.0, vN.y * 7.0 + uTime * 9.0));
+        float shim = smoothstep(0.55, 0.9, f) * (0.5 + 0.5 * sin(f * 70.0 - uTime * 22.0 + wob * 9.0));
+        float edge = smoothstep(0.93, 0.965, f);
+        float a = 0.1 + 0.42 * pow(f, 3.0) + 0.3 * shim + 0.6 * edge;
+        vec3 col = mix(vec3(1.0, 0.86, 0.45), vec3(1.0, 0.99, 0.92), clamp(f * 0.8 + edge, 0.0, 1.0));
+        a *= uFade;
+        if (a < 0.01) discard;
+        gl_FragColor = vec4(pow(col, vec3(2.2)), min(a, 1.0));
+      }`,
+  });
+  return { g, m };
+}
+
+// ---- the ground dust ring: a low wall of dust racing out with the dome's foot ----
+export function dustFx() {
+  const g = new CylinderGeometry(1, 1, 1, 64, 1, true).translate(0, 0.5, 0);
+  const m = new ShaderMaterial({
+    uniforms: { ...SH, uK: u(0), uAge: u(0) },
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+    vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: /* glsl */ `
+      uniform float uK, uAge;
+      varying vec2 vUv;
+      ${PRINT}
+      void main() {
+        float n = fbm(vec2(vUv.x * 46.0, vUv.y * 3.0 - uAge * 2.5));
+        float a = pow(1.0 - vUv.y, 1.1) * smoothstep(0.2, 0.75, n + 0.25) * uK;
         if (a < 0.02) discard;
-        gl_FragColor = vec4(pow(col, vec3(2.2)), a);
+        gl_FragColor = vec4(pow(mix(vec3(0.62, 0.52, 0.4), vec3(0.95, 0.88, 0.7), n), vec3(2.2)), min(a, 0.9));
       }`,
   });
   return { g, m };

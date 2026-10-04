@@ -63,7 +63,7 @@ export function build(parts, jitter = 0) {
 
 // ---- the printed surface ----
 const WORLD_FRAG = /* glsl */ `
-  uniform float uSun, uBreak, uStreet;
+  uniform float uSun, uBreak, uStreet, uWinK;
   uniform vec4 uHaze;
   uniform vec3 uPillar, uCrater;
   varying vec3 vOrig;
@@ -95,6 +95,9 @@ const WORLD_FRAG = /* glsl */ `
         if (h < 0.28) { t = uPal[10]; unlit = 1.0; }
         else if (h < 0.44) { t = vec4(0.0, 0.5, 0.95, 0.0); unlit = 1.0; }
         else t = vec4(0.9, 0.75, 0.1, 0.85);
+        // the shockwave: every lit pane flashes white, then goes dark (uWinK 1 / -1; 0 on the untouched street)
+        if (uWinK > 0.0 && h >= 0.28) { t = vec4(0.0, 0.0, 0.04, 0.0); unlit = 1.0; }
+        if (uWinK < 0.0 && h >= 0.28) { t = vec4(0.65, 0.5, 0.1, 0.96); unlit = 1.0; }
         vec2 f = fract(g) - 0.5;
         if (h > 0.9 && abs(f.x + f.y * 0.8) < 0.07) ink = 1.0; // a smashed pane
       }
@@ -209,6 +212,45 @@ export function instMaterial() {
         vRand = 0.0;
         vPal = aPal;
         gl_Position = projectionMatrix * viewMatrix * w;
+      }`,
+    fragmentShader: WORLD_FRAG,
+  });
+}
+
+// the wrecked blocks' pieces: one unit box, an instance each; the surface is drawn in the piece's REST frame (aRest +
+// aScl) so the windows ride the faces as the piece tumbles; aPalI is the piece's recipe
+export function chunkGeo() {
+  const g = new BoxGeometry(1, 1, 1);
+  const p = g.attributes.position;
+  const sm = new Float32Array(p.count * 3);
+  for (let i = 0; i < p.count; i++) {
+    const x = Math.sign(p.getX(i));
+    const y = Math.sign(p.getY(i));
+    const z = Math.sign(p.getZ(i));
+    const l = Math.hypot(x, y, z) || 1;
+    sm.set([x / l, y / l, z / l], i * 3);
+  }
+  g.setAttribute("aSmooth", new BufferAttribute(sm, 3));
+  return g;
+}
+export function chunkMaterial() {
+  return new ShaderMaterial({
+    uniforms: { ...SH, uPull: u(0), uWinK: u(0) },
+    transparent: true,
+    side: DoubleSide,
+    vertexShader: /* glsl */ `
+      attribute vec3 aRest, aScl;
+      attribute float aPalI;
+      varying vec3 vOrig;
+      varying vec3 vBary;
+      varying float vRand;
+      varying float vPal;
+      void main() {
+        vPal = aPalI;
+        vOrig = aRest + position * aScl;
+        vBary = vec3(0.33);
+        vRand = 0.0;
+        gl_Position = projectionMatrix * viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: WORLD_FRAG,
   });

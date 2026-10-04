@@ -14,18 +14,19 @@ import { AdditiveBlending, ConeGeometry, DoubleSide, Group, Mesh, MeshBasicMater
 import { signAt } from "../../../../../lib/world/cutscene/timeline";
 import { flashQuad, holdFlash, lettering } from "../p-caustic/parts";
 import { buildCity } from "./city";
-import { beamFx, burstFx, domeFx, geyserFx, halosFx, panelFx, pillarFx, rainFx, smokeFx, vortexFx } from "./fx";
+import { beamFx, burstFx, domeFx, dustFx, geyserFx, halosFx, panelFx, pillarFx, rainFx, smokeFx, vortexFx } from "./fx";
 import { hullMaterial, worldMaterial } from "./mesh";
 import { NOMU_H, SHOULDER, nomu } from "./nomu";
 import { gloveGeo } from "./punch";
 import { SH, tickShared } from "./print";
-import { cardFx, crowdFx, flagsFx, rocksFx } from "./props";
+import { cardFx, crowdFx, flagsFx, rocksFx, wreckFx } from "./props";
 import { sky } from "./sky";
 import { crackFx, focusFx, ghostsFx, ringFx } from "./smash";
 
 const CORE_Y = 0.9;
 export const NOMU_AT = [1.7, -12.5];
-const PILLAR = [-0.4, -26, 8];
+const IMP = [1.4, 1.0, -7.2]; // the Detroit Smash's impact, in the rig's frame: the dome, the wreck and the sunlight column are centred here
+const PILLAR = [1.4, -10.5, 7]; // the sky splits open over the impact
 const STRIKES = [0.9, 2.45, 4.15, 5.7, 6.55, 7.9, 9.0]; // the lightning, before the punch
 const V = new Vector3();
 const PQ = new Vector3();
@@ -88,6 +89,7 @@ export function makeWorld({ tl, KN }) {
   const bu = burstFx();
   const bm = beamFx();
   const dm = domeFx();
+  const dust = dustFx();
   const pn = panelFx();
   const gy = geyserFx();
   const vx = vortexFx();
@@ -95,6 +97,7 @@ export function makeWorld({ tl, KN }) {
   const crowd = crowdFx(city.info.roofs);
   const flags = flagsFx(city.info.flags);
   const rocks = rocksFx(city.groundY, crater, city.info.HW);
+  const wreck = wreckFx(city.info.chunks, city.groundY);
   const smash = lettering("SMASH!", "#ffc800", -0.1);
   const rip = lettering("RIIIP!", "#1f5fe0", 0.06);
   const flash = flashQuad("#fff4e4");
@@ -137,15 +140,17 @@ export function makeWorld({ tl, KN }) {
   const inst = new Group();
   const geyser = mk(gy.g, gy.m);
   geyser.visible = false;
-  inst.add(rocks.rubble, rocks.rubbleH, rocks.debris, rocks.debrisH, crowd.A, crowd.B, flags.obj, smoke.obj, halos.obj, rain.obj, pillar.shaft, pillar.pool, geyser, cards.A, cards.B, cards.M);
+  inst.add(rocks.rubble, rocks.rubbleH, rocks.debris, rocks.debrisH, wreck.mesh, wreck.hull, crowd.A, crowd.B, flags.obj, smoke.obj, halos.obj, rain.obj, pillar.shaft, pillar.pool, geyser, cards.A, cards.B, cards.M);
   world.add(mk(city.ground, wMat, -1), mk(city.props, wMat), mk(city.props, hMat, -0.5), nomuRoot, inst);
   const burst = mk(bu.g, bu.m, 20);
   const beam = mk(bm.g, bm.m, 19);
   const dome = mk(dm.g, dm.m, 18);
   const panel = mk(pn.g, pn.m, 35);
+  const dustMesh = mk(dust.g, dust.m, 17);
+  dustMesh.visible = false;
   const vortex = mk(vx.g, vx.m, 12); // the storm's wedges, wound round the hole the punch opened
   for (const x of [burst, beam, dome, panel, vortex]) x.visible = false;
-  root.add(smashW, shell, world, glove, burst, beam, dome, panel, vortex, smash, rip, flashK, crack.mesh, focus.mesh, ring.mesh, ...ghosts.meshes);
+  root.add(smashW, shell, world, glove, burst, beam, dome, dustMesh, panel, vortex, smash, rip, flashK, crack.mesh, focus.mesh, ring.mesh, ...ghosts.meshes);
 
   // the dash's speed-line cone (behind the pup, additive) and the white 8-point impact star at DASH_TO
   const coneG = new ConeGeometry(0.9, 5, 12, 1, true);
@@ -176,7 +181,11 @@ export function makeWorld({ tl, KN }) {
 
   function update(c) {
     const { cam, seal, fist, r, out, width, height, dpr } = c;
-    const t = c.t;
+    const tr = onTwos(c.t); // real time, for the impact frames and the shake
+    const HIT = tl.lineB + 1.1;
+    // the 2-frame impact freeze: the world holds at the hit for two drawings, then catches back up to the clock over a second
+    const FRZ = 2 / 12;
+    const t = c.t < HIT ? c.t : c.t < HIT + FRZ ? HIT : c.t - FRZ * (1 - smooth(HIT + FRZ, HIT + FRZ + 1, c.t));
     const tt = onTwos(t);
     const T0 = tl.lineB; // "I am here!": the pup crouches, then dashes (the Detroit Smash), 2 s there and back
     const hit = T0 + 1.1; // the fist lands on the Nomu (crouch 0.4, out 0.7, hit 0.2, back 0.7)
@@ -188,12 +197,14 @@ export function makeWorld({ tl, KN }) {
     const age2 = tt - hit2;
     const wide = width / height >= 1;
     tickShared({ gl: { getPixelRatio: () => dpr }, size: { width, height } }, t, broken ? brk : -1);
-    odd.v = Math.floor(t * 12) % 2 ? 1 : -1;
+    odd.v = Math.floor(c.t * 12) % 2 ? 1 : -1;
     flash.visible = false;
 
     // the impacts shake the whole frame, two drawings each
     const bump = (a, k) => (tt >= a && tt < a + 0.17 ? k : 0);
-    const amp = bump(hit, 0.2) + bump(hit + 0.17, 0.12) + bump(hit + 0.34, 0.07) + bump(hit2, 0.3) + bump(hit2 + 0.17, 0.22) + bump(hit2 + 0.34, 0.16) + bump(hit2 + 0.51, 0.1) + bump(hit2 + 0.68, 0.06) + bump(2.1, 0.07) + bump(2.5, 0.06) + bump(BRK, 0.1);
+    const ra = tr - hit - FRZ; // seconds since the freeze let go
+    const quake = ra >= 0 && ra < 1.2 ? 0.45 * (1 - ra / 1.2) ** 2 : 0; // the Smash's camera shake
+    const amp = quake + bump(hit, 0.2) + bump(hit + 0.17, 0.12) + bump(hit + 0.34, 0.07) + bump(hit2, 0.3) + bump(hit2 + 0.17, 0.22) + bump(hit2 + 0.34, 0.16) + bump(hit2 + 0.51, 0.1) + bump(hit2 + 0.68, 0.06) + bump(2.1, 0.07) + bump(2.5, 0.06) + bump(BRK, 0.1);
     o.shakeX = amp * odd.v;
     o.shakeY = -amp * 0.6 * odd.v;
     root.position.set(seal.x + o.shakeX, o.shakeY, seal.z);
@@ -214,6 +225,7 @@ export function makeWorld({ tl, KN }) {
     su.uFlash.value = fl;
     su.uOpen.value = smooth(hit, hit + 2.2, tt);
     su.uSwirl.value = age > 0 ? 0.55 * age : 0;
+    su.uBlast.value = age > 0 ? smooth(0, 1.6, age) : 0; // the wind pressure drives the clouds away from the impact
     SH.uSun.value = smooth(hit + 0.2, hit + 1.9, tt);
     const wind = age < 0 ? 0.3 + 0.2 * Math.sin(tt * 1.3) : 0.6 + 2.6 * Math.exp(-age * 0.9);
     const cx = { tt, cam, wind: wind * 0.9, gone: brk > 1.2, hit, brk: broken ? brk : -1, rise: tl.enter, k: smooth(hit + 0.3, hit + 1.6, tt) };
@@ -224,6 +236,10 @@ export function makeWorld({ tl, KN }) {
     crowd.tick(cx);
     flags.tick({ ...cx, wind: Math.min(1.6, wind) });
     rocks.tick(cx);
+    wreck.tick({ age, brk: broken ? brk : -1 });
+    // the roofs go with the blocks: their crowd and flags are blown off
+    crowd.A.visible = crowd.B.visible = !(age > 0.1);
+    flags.obj.visible = !(age > 0.1);
 
     // THE NOMU: out of the street, throws the cards, staggers back at the punch
     const rise = smooth(tl.enter, tl.enter + 1.15, tt);
@@ -297,6 +313,8 @@ export function makeWorld({ tl, KN }) {
     o.dashPos[0] = seal.x + o.dashX;
     o.dashPos[1] = 0.9;
     o.dashPos[2] = seal.z + o.dashZ;
+    const flying = e1 > 0.02 && e1 < 0.98 ? 1 : 0;
+    const flyingBack = e2 > 0.02 && e2 < 0.98 ? 1 : 0;
     o.dashK2 = Math.max(flying, flyingBack) * Math.sin(Math.PI * Math.min(1, Math.max(0, flying ? (du - 0.4) / 0.7 : (du - 1.3) / 0.7)));
     // the speed-line cone trails the pup, apex at the pup, pointing the way it runs
     speedCone.visible = (flying || flyingBack) && !broken && tt < tl.collapse[0];
@@ -314,8 +332,6 @@ export function makeWorld({ tl, KN }) {
       impactStar.scale.setScalar(2.5 * (0.6 + 0.4 * Math.min(1, age / 0.08)));
       impactStar.rotation.z += 0.2 * Math.floor(age * 12);
     }
-    const flying = e1 > 0.02 && e1 < 0.98 ? 1 : 0;
-    const flyingBack = e2 > 0.02 && e2 < 0.98 ? 1 : 0;
     o.yaw = Math.min(1, smooth(0.35, 0.5, du) * (1 - smooth(1.3, 1.5, du)));
     o.pose.sign = signAt(tl, t) * (1 - smooth(1.4, 1.8, tt));
     o.pose.fist = Math.max(smooth(W0, W0 + 0.8, tt) * (1 - smooth(T0 - 0.2, T0, tt)), smooth(hit2 - 1.5, hit2 - 0.9, tt) * (1 - smooth(hit2 - 0.12, hit2, tt))) * out;
@@ -370,11 +386,19 @@ export function makeWorld({ tl, KN }) {
       vx.m.uniforms.uOpen.value = smooth(0.1, 3.0, age);
       pin(vortex, root, cam, 0.1, 0.5, 8, (wide ? 0.3 : 0.6) * (1 + 0.2 * smooth(0, 4, age))); // a wheel of storm over the top of the frame
     }
-    dome.visible = age > 0 && age < 1.1;
+    // THE DOME: from the impact to 40 m in 0.6 s (fast, then easing), its foot a ring of dust
+    dome.visible = age > 0 && age < 1.0;
+    dustMesh.visible = dome.visible;
     if (dome.visible) {
-      dome.position.set(fx, fy, fz);
-      dome.scale.setScalar(0.3 + 30 * smooth(0, 1.0, age) ** 0.8);
-      dm.m.uniforms.uFade.value = (1 - smooth(0.5, 1.1, age)) * (1 - smooth(5, 9, dome.scale.x));
+      const x = Math.min(1, age / 0.6);
+      const R = 0.5 + 39.5 * (1 - (1 - x) ** 2.4);
+      dome.position.set(IMP[0], IMP[1], IMP[2]);
+      dome.scale.setScalar(R);
+      dm.m.uniforms.uFade.value = 1 - smooth(0.55, 1.0, age);
+      dustMesh.position.set(IMP[0], 0, IMP[2]);
+      dustMesh.scale.set(R * 0.96, 1.5 + 2.5 * Math.min(1, age / 0.3), R * 0.96);
+      dust.m.uniforms.uK.value = (1 - smooth(0.45, 1.0, age)) * 0.9;
+      dust.m.uniforms.uAge.value = age;
     }
     const gk = Math.max(0.5 * smooth(tl.enter - 0.4, tl.enter + 0.4, tt), smooth(hit + 0.2, hit + 0.6, tt)) * (1 - smooth(hit + 3.2, hit + 4.2, tt));
     geyser.visible = gk > 0.01;
@@ -409,9 +433,10 @@ export function makeWorld({ tl, KN }) {
     }
     // a little warm flash on the punch and a paler one on the tear (never a white-out)
     // the Detroit Smash's impact frame: two drawings, white then black (inverted), then a pale ring of light
-    const ia = Math.floor(age * 12);
-    holdFlash(flash, cam, (ia === 0 && age >= 0 ? 1 : 0) + Math.max(0, 1 - Math.abs(age2 - 0.04) / 0.09) * 0.2 + Math.max(0, 1 - Math.abs(brk) / 0.1) * 0.14);
-    holdFlash(flashK, cam, ia === 1 && age >= 0 ? 0.92 : 0);
+    const ar = tr - hit; // real age: the two impact drawings land inside the freeze
+    const ia = Math.floor(ar * 12 + 1e-6);
+    holdFlash(flash, cam, (ia === 0 && ar >= 0 ? 1 : 0) + Math.max(0, 1 - Math.abs(age2 - 0.04) / 0.09) * 0.2 + Math.max(0, 1 - Math.abs(brk) / 0.1) * 0.14);
+    holdFlash(flashK, cam, ia === 1 && ar >= 0 ? 1 : 0);
 
     // focus lines round the dash, the afterimages, the shockwave ring
     const asp = cam.aspect;
@@ -469,13 +494,13 @@ export function makeWorld({ tl, KN }) {
   }
 
   function dispose() {
-    const geoms = [coneG, starG, crack.g, focus.g, ring.g, ghosts.g, flashK.geometry, smashW.geometry, vx.g, city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
-    for (const g of [...geoms, ...cards.geoms, ...crowd.geoms, ...flags.geoms, ...rocks.geoms, ...pillar.geoms, smoke.obj.geometry, halos.obj.geometry, rain.obj.geometry]) g.dispose();
-    const mats = [coneM, starM, crack.m, focus.m, ring.m, ...ghosts.ms, flashK.material, smashW.material, vx.m, sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
-    for (const x of [...mats, ...cards.mats, ...crowd.mats, ...flags.mats, ...rocks.mats, ...pillar.mats]) x.dispose();
+    const geoms = [dust.g, coneG, starG, crack.g, focus.g, ring.g, ghosts.g, flashK.geometry, smashW.geometry, vx.g, city.ground, city.props, sk.g, nm.body, nm.armL, nm.armR, gloveGeom, bu.g, bm.g, dm.g, pn.g, gy.g, smash.geometry, rip.geometry, flash.geometry];
+    for (const g of [...geoms, ...cards.geoms, ...crowd.geoms, ...flags.geoms, ...rocks.geoms, ...wreck.geoms, ...pillar.geoms, smoke.obj.geometry, halos.obj.geometry, rain.obj.geometry]) g.dispose();
+    const mats = [dust.m, coneM, starM, crack.m, focus.m, ring.m, ...ghosts.ms, flashK.material, smashW.material, vx.m, sk.m, wMat, hMat, bu.m, bm.m, dm.m, pn.m, gy.m, smash.material, rip.material, flash.material, smoke.obj.material, halos.obj.material, rain.obj.material];
+    for (const x of [...mats, ...cards.mats, ...crowd.mats, ...flags.mats, ...rocks.mats, ...wreck.mats, ...pillar.mats]) x.dispose();
     smash.material.map?.dispose();
     rip.material.map?.dispose();
-    for (const x of [smoke.obj, halos.obj, rain.obj, crowd.A, crowd.B, flags.obj, rocks.rubble, rocks.rubbleH, rocks.debris, rocks.debrisH]) x.dispose();
+    for (const x of [smoke.obj, halos.obj, rain.obj, crowd.A, crowd.B, flags.obj, rocks.rubble, rocks.rubbleH, rocks.debris, rocks.debrisH, wreck.mesh, wreck.hull]) x.dispose();
   }
 
   return { root, flash, update, dispose, textures: [smashW.material.map, smash.material.map, rip.material.map].filter(Boolean) };
