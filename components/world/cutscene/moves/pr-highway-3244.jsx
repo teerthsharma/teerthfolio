@@ -407,16 +407,16 @@ export default function Move(cut) {
     // the slice: a mint window on the road ahead of the guest and one clean line to the next rival in it
     const cl = m.clean;
     cl.begin();
-    const sliceK = smooth(T.go - 0.3, T.go + 0.15, t) * (1 - smooth(T.cover[0] - 0.12, T.cover[0], t)) * (back ? 0 : 1);
+    const sliceK = smooth(T.go - 0.9, T.go - 0.4, t) * (1 - smooth(T.cover[0] - 0.12, T.cover[0], t)) * (back ? 0 : 1);
     if (sliceK > 0.01) {
       const x0 = SM.lx - 2.2;
       const x1 = SM.lx - 15;
       const za = SM.lz - 1.7;
       const zb = SM.lz + 1.7;
-      cl.seg(x0, 0.08, za, x1, 0.08, za, 0.1, 0.9 * sliceK, clx, cly, clz);
-      cl.seg(x0, 0.08, zb, x1, 0.08, zb, 0.1, 0.9 * sliceK, clx, cly, clz);
-      cl.seg(x1, 0.08, za, x1, 0.08, zb, 0.1, 0.9 * sliceK, clx, cly, clz);
-      cl.seg(x0, 0.08, za, x0, 0.08, zb, 0.1, 0.9 * sliceK, clx, cly, clz);
+      cl.seg(x0, 0.08, za, x1, 0.08, za, 0.22, 0.9 * sliceK, clx, cly, clz);
+      cl.seg(x0, 0.08, zb, x1, 0.08, zb, 0.22, 0.9 * sliceK, clx, cly, clz);
+      cl.seg(x1, 0.08, za, x1, 0.08, zb, 0.22, 0.9 * sliceK, clx, cly, clz);
+      cl.seg(x0, 0.08, za, x0, 0.08, zb, 0.22, 0.9 * sliceK, clx, cly, clz);
       const nx = SM.lx - 2.1 * Math.cos(SM.d) * CAR_S;
       const nz = SM.lz + 2.1 * Math.sin(SM.d) * CAR_S;
       const tx = ahead >= 0 ? rivalX(ahead, t) + 0.6 : SM.lx - 15;
@@ -430,7 +430,7 @@ export default function Move(cut) {
         const qx = nx + (tx - nx) * u;
         const qy = 0.62 + (ty - 0.62) * u + 0.05 * Math.sin(u * 20 - t * 18);
         const qz = nz + (tz - nz) * u;
-        cl.seg(px, py, pz, qx, qy, qz, 0.13 * (1 + 0.15 * Math.sin(t * 22)), sliceK, clx, cly, clz);
+        cl.seg(px, py, pz, qx, qy, qz, 0.32 * (1 + 0.15 * Math.sin(t * 22)), sliceK, clx, cly, clz);
         px = qx;
         py = qy;
         pz = qz;

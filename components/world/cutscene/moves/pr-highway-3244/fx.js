@@ -319,10 +319,10 @@ export function pageFlag() {
       varying vec2 vXY; varying vec3 vV; varying vec3 vN; varying float vBack; varying float vEdge;
       void main() {
         if (vEdge < 0.0) discard;
-        float cell = uW / 8.0;
+        float cell = uW / 18.0;
         vec2 q = vec2(vXY.x * uW, vXY.y * uH) / cell;
         float chk = mod(floor(q.x) + floor(q.y), 2.0);
-        vec3 c = mix(vec3(0.07, 0.06, 0.1), vec3(0.99, 0.98, 0.95), chk);
+        vec3 c = mix(vec3(0.2, 0.17, 0.26), vec3(0.99, 0.98, 0.95), chk);
         vec3 n = normalize(vN);
         if (!gl_FrontFacing) n = -n;
         float l = 0.62 + 0.38 * max(dot(n, normalize(vec3(-0.35, 0.5, 0.8))), 0.0);
