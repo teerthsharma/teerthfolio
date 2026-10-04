@@ -616,6 +616,11 @@ export default function Hud() {
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
       <DomainBubbles />
       <CutsceneTitle id={cutscene} />
+      {cutscene && (
+        <button type="button" className="cut-skip" onClick={() => (live.arrival.skip = true)}>
+          Skip
+        </button>
+      )}
       <TopBar list={list} sound={sound} failed={failed} />
       <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />

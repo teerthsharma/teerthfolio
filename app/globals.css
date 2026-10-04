@@ -2244,3 +2244,21 @@ html[data-hud="off"] .domain {
     display: none;
   }
 }
+
+/* Skip for the arrival cutscene: taps on the world walk the seal, so touch
+   screens need their own way out. A small cream chip in the top-right of the
+   picture, below the letterbox bar. */
+.cut-skip {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 96px);
+  right: 16px;
+  z-index: 40;
+  padding: 8px 14px;
+  border: 1px solid rgb(0 0 0 / 0.08);
+  border-radius: 999px;
+  background: #fbf8f2;
+  color: #1c1b22;
+  font: 600 14px/1 var(--font-sans, "Instrument Sans", system-ui, sans-serif);
+  box-shadow: 0 4px 14px rgb(20 18 40 / 0.18);
+  pointer-events: auto;
+}

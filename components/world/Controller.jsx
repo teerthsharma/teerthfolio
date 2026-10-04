@@ -55,11 +55,13 @@ function saveSeen() {
 }
 if (typeof window !== "undefined") loadSeen();
 
-// A key, tap or click the visitor made after the showcase began (not one
-// still held from before it) skips it.
+// A key pressed after the showcase began (not one still held from before it),
+// or the HUD's Skip chip, skips it. Taps and drags on the world do not: on a
+// touch screen they are how the visitor walks, so they would end every
+// arrival a moment after it began.
 function freshInput(arrival) {
   for (const k of live.keys) if (!arrival.keys.has(k)) return true;
-  return (live.target && live.target !== arrival.target) || (live.stick && !arrival.stick);
+  return arrival.skip;
 }
 
 // Reused across every frame and substep so Controller allocates nothing in
@@ -160,6 +162,7 @@ export default function Controller() {
       arrival.keys = new Set(live.keys);
       arrival.target = live.target;
       arrival.stick = live.stick;
+      arrival.skip = false;
       setUi({ cutscene: approach });
     }
 
