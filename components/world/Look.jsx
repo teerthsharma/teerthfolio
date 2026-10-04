@@ -12,25 +12,31 @@
 //          (look/RadiationPov.js: crossing into an area floods and warps the
 //          view, then clears), then the Neutral tone map the palette was
 //          solved for, applied once at the very end.
-//   Tier   2 = AO + bloom, 1 = bloom, 0 = no post (native tone mapping).
-//          PerformanceMonitor steps down when a device cannot hold ~50 fps:
-//          AO goes first, then bloom. ?look=0|1|2 pins a tier (captures).
-//          Resolution is never touched: crispness is not traded for effects.
+//   Tier   a rung of the ladder in lib/world/quality.js (T0 potato .. T4
+//          top): pixel budget, MSAA, sun shadow, AO, bloom, snow, sky.
+//          The renderer string picks the first rung (or the one this GPU
+//          settled on last visit), the loading screen measures it
+//          (Scene.jsx FirstFrame), then PerformanceMonitor moves it both
+//          ways: down below 50 fps, up with headroom. ?look=0..4 pins one.
+//          Resolution is the first thing a rung spends: the frame cost is
+//          mostly per pixel, and a fixed DPR gave the biggest screen
+//          (a laptop) the most pixels and the worst frame.
 
 import { Environment, Lightformer, PerformanceMonitor } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, N8AO, ToneMapping } from "@react-three/postprocessing";
 import { SelectiveBloomEffect, ToneMappingMode } from "postprocessing";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackSide } from "three";
-import { useUi } from "../../lib/world/store";
+import { TIERS, TOP, classify, dprFor, recall, remember } from "../../lib/world/quality";
+import { getUi, setUi, useUi } from "../../lib/world/store";
 import { RadiationPovEffect, stepRadiationPov } from "./look/RadiationPov";
 import { C, LIGHT } from "./palette";
 
 const pinned = () => {
   if (typeof window === "undefined") return null;
   const v = new URLSearchParams(window.location.search).get("look");
-  return v === null || !/^[012]$/.test(v) ? null : Number(v);
+  return v === null || !/^[0-4]$/.test(v) ? null : Number(v);
 };
 
 // Where Island.jsx puts the sun, as a direction.
@@ -108,46 +114,102 @@ function useRadiationPov() {
   return pov;
 }
 
-function Post({ tier }) {
+function Glow() {
   const bloom = useLampBloom();
   const pov = useRadiationPov();
   return (
-    <EffectComposer multisampling={4}>
-      {tier >= 2 ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
+    <>
       <primitive object={bloom} dispose={null} />
       <primitive object={pov} dispose={null} />
+    </>
+  );
+}
+
+// Every rung keeps the composer, with the tone map at least. Dropping it
+// moved drawing from its render target to the screen, which changes every
+// material's program key (tone mapping, colour space) and recompiled every
+// shader in one frame: 5.5-5.9 s frozen on Intel UHD (scripts/perf-frames.mjs).
+// The radiation on the viewer's eyes rides with the bloom: both are glow.
+function Post({ rung }) {
+  return (
+    <EffectComposer multisampling={rung.msaa}>
+      {rung.ao ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
+      {rung.bloom ? <Glow /> : null}
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
     </EffectComposer>
   );
 }
 
+const rendererOf = (gl) => {
+  const ctx = gl.getContext();
+  const info = ctx.getExtension("WEBGL_debug_renderer_info");
+  return info ? ctx.getParameter(info.UNMASKED_RENDERER_WEBGL) : ctx.getParameter(ctx.RENDERER);
+};
+
 export default function Look() {
-  const [pin] = useState(pinned);
-  const [tier, setTier] = useState(pin ?? 2);
   const gl = useThree((s) => s.gl);
+  const size = useThree((s) => s.size);
+  const setDpr = useThree((s) => s.setDpr);
+  const [renderer] = useState(() => rendererOf(gl));
   const ready = useUi((s) => s.ready);
+  const tier = useUi((s) => s.tier);
+  const tierFrom = useUi((s) => s.tierFrom);
   const [watching, setWatching] = useState(false);
 
-  // Judge the device only once the first shaders have compiled; the load
-  // itself always stutters.
+  // The first rung, before the world's first frame.
+  useLayoutEffect(() => {
+    const pin = pinned();
+    const kept = pin === null ? recall(renderer) : null;
+    const tierFrom = pin !== null ? "pin" : kept !== null ? "recall" : "guess";
+    setUi({ tier: pin ?? kept ?? classify(renderer), tierFrom, tierCap: TOP });
+  }, [renderer]);
+
+  const rung = TIERS[tier ?? 0];
+  // The device DPR changes without a resize when the window moves to another
+  // screen (or the page zooms): listen for it, once per current value.
+  const [deviceDpr, setDeviceDpr] = useState(() => window.devicePixelRatio || 1);
   useEffect(() => {
-    if (!ready || pin !== null) return undefined;
-    const t = setTimeout(() => setWatching(true), 4000);
+    const mq = window.matchMedia(`(resolution: ${deviceDpr}dppx)`);
+    const moved = () => setDeviceDpr(window.devicePixelRatio || 1);
+    mq.addEventListener("change", moved);
+    return () => mq.removeEventListener("change", moved);
+  }, [deviceDpr]);
+
+  useEffect(() => {
+    if (tier === null) return;
+    const dpr = dprFor(tier, size.width, size.height, deviceDpr);
+    setDpr(dpr);
+    window.__world = { ...(window.__world || {}), look: tier, dpr, gpu: renderer };
+  }, [tier, size.width, size.height, deviceDpr, setDpr, renderer]);
+
+  // Judge the device only once the first shaders have compiled (the load
+  // always stutters), and again a little after each change of rung, whose
+  // new shaders stutter too.
+  useEffect(() => {
+    setWatching(false);
+    if (!ready || tierFrom === "pin") return undefined;
+    const t = setTimeout(() => setWatching(true), 3000);
     return () => clearTimeout(t);
-  }, [ready, pin]);
+  }, [ready, tierFrom, tier]);
 
-  // Without the composer the renderer tone maps again, as Island.jsx set it.
-  useEffect(() => {
-    if (tier === 0) gl.toneMapping = LIGHT.toneMapping;
-    window.__world = { ...(window.__world || {}), look: tier };
-  }, [tier, gl]);
+  // A rung that failed once is not tried again this visit (tierCap): each
+  // probe of a rung this GPU cannot hold is a visible hitch, so the climb
+  // gets one try per rung, never a swing.
+  const step = (d) => () => {
+    const { tier: now, tierCap } = getUi();
+    const next = Math.max(0, Math.min(tierCap, now + d));
+    if (next === now) return;
+    setUi(d < 0 ? { tier: next, tierCap: next } : { tier: next });
+    remember(renderer, next);
+  };
 
+  if (tier === null) return null;
   return (
     <>
       <Sky />
-      {tier > 0 ? <Post tier={tier} /> : null}
-      {watching && tier > 0 ? (
-        <PerformanceMonitor bounds={() => [50, Infinity]} onDecline={() => setTier((t) => Math.max(0, t - 1))} />
+      <Post rung={rung} />
+      {watching ? (
+        <PerformanceMonitor bounds={(hz) => [50, Math.min(hz * 0.95, 75)]} onDecline={step(-1)} onIncline={step(1)} />
       ) : null}
     </>
   );

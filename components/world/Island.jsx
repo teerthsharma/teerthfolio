@@ -9,13 +9,16 @@
 import { Center, Text3D } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { live } from "../../lib/world/store";
+import { TIERS } from "../../lib/world/quality";
+import { live, useUi } from "../../lib/world/store";
 import Instances from "./Instances";
 import { buildIsland } from "./island/build";
 import { C, LIGHT, mat } from "./palette";
 
 // Offset from the seal to the sun. The shadow camera rides with the seal so
-// the 2048 map is always spent on the part of the island in view.
+// the map is always spent on the part of the island in view. Its size is the
+// rung's (quality.js), never zero: switching shadows off changes every lit
+// material's program and recompiles them all in one frame.
 const SUN = [-14, 26, 12];
 const SHADOW_HALF = 28;
 // The rim: a cool backlight from behind and to the right of the seal (up the
@@ -24,6 +27,13 @@ const RIM = [14, 10, -8];
 
 function Sun() {
   const light = useRef();
+  const { shadow: map, shadowEvery } = TIERS[useUi((s) => s.tier) ?? 0];
+  const gl = useThree((s) => s.gl);
+  const frame = useRef(0);
+  useLayoutEffect(() => {
+    gl.shadowMap.autoUpdate = shadowEvery === 1;
+    gl.shadowMap.needsUpdate = true;
+  }, [gl, shadowEvery]);
   useFrame(() => {
     const l = light.current;
     if (!l) return;
@@ -31,14 +41,17 @@ function Sun() {
     l.position.set(x + SUN[0], SUN[1], z + SUN[2]);
     l.target.position.set(x, 0, z);
     l.target.updateMatrixWorld();
+    frame.current += 1;
+    if (shadowEvery > 1 && frame.current % shadowEvery === 0) gl.shadowMap.needsUpdate = true;
   });
   return (
     <directionalLight
+      key={map /* a new map size needs a new shadow target */}
       ref={light}
       color={LIGHT.sun}
       intensity={LIGHT.sunIntensity}
       castShadow
-      shadow-mapSize={[2048, 2048]}
+      shadow-mapSize={[map, map]}
       shadow-bias={-0.0004}
       shadow-normalBias={0.03}
       shadow-camera-left={-SHADOW_HALF}

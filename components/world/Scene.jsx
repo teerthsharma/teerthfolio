@@ -15,7 +15,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Component, Suspense, useRef } from "react";
 import { PLACES, dockPoint } from "../../lib/world/places";
-import { live, setUi } from "../../lib/world/store";
+import { getUi, live, setUi } from "../../lib/world/store";
 import { BUILDINGS } from "./buildings";
 import Atmosphere from "./Atmosphere";
 import CameraRig from "./CameraRig";
@@ -76,16 +76,42 @@ function Buildings() {
   });
 }
 
+// The loading screen stays up while the world auditions its first rung
+// (Look.jsx guessed it from the renderer string): once shaders settle, the
+// median of a few frames decides, and a rung that cannot hold 50 fps steps
+// down before the visitor sees a frame. A pinned (?look=) or remembered rung
+// needs no audition. The audition never holds the curtain past WARMUP_MS.
+const WARMUP_MS = 6000;
+const SETTLE_MS = 800; // after the world or a new rung appears: shader compiles and uploads hitch
+const SAMPLE = 24;
+
 function FirstFrame() {
-  // useFrame runs before each draw, so the second call means one frame has
-  // actually reached the screen: the only honest moment to say "ready".
-  const frames = useRef(0);
-  useFrame(() => {
-    frames.current += 1;
-    if (frames.current === 2) {
-      window.__world = { ...(window.__world || {}), ready: true };
-      setUi({ ready: true });
+  // useFrame runs before each draw, so a frame counted here has reached the
+  // screen: the only honest moment to say "ready".
+  const run = useRef({ frames: 0, start: 0, since: 0, dts: [] });
+  useFrame((_, dt) => {
+    const ui = getUi();
+    if (ui.ready || ui.tier === null) return;
+    const r = run.current;
+    r.frames += 1;
+    if (r.frames < 2) return;
+    const now = performance.now();
+    r.start ||= now;
+    r.since ||= now;
+    if (ui.tierFrom === "guess" && ui.tier > 0 && now - r.start < WARMUP_MS) {
+      if (now - r.since < SETTLE_MS) return;
+      r.dts.push(dt);
+      if (r.dts.length < SAMPLE) return;
+      const median = r.dts.sort((a, b) => a - b)[SAMPLE >> 1];
+      r.dts = [];
+      if (median > 1 / 50) {
+        r.since = now;
+        setUi({ tier: ui.tier - 1, tierCap: ui.tier - 1 });
+        return;
+      }
     }
+    window.__world = { ...(window.__world || {}), ready: true };
+    setUi({ ready: true });
   });
   return null;
 }
@@ -94,7 +120,7 @@ export default function Scene() {
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
+      dpr={1}
       camera={{ fov: 35, near: 0.5, far: 260, position: [0, 20, 30] }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       onCreated={({ gl }) => {

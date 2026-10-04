@@ -390,8 +390,12 @@ export default function CameraRig() {
       const extra = Math.max(0, camera.position.distanceTo(lookAt.current) - FOLLOW_DISTANCE * pull);
       sceneFog.near = f.near + extra;
       sceneFog.far = f.far + extra;
-      if (camera.far < f.far + extra) {
-        camera.far = f.far + extra;
+      // Set, not ratcheted: a far plane that only grew (after one pulled-back
+      // zoom or arrival flatten) kept the whole island in the frustum for good.
+      // 260 is Scene.jsx's camera far; applyFlatten may raise it this frame.
+      const far = Math.max(260, f.far + extra);
+      if (camera.far !== far) {
+        camera.far = far;
         camera.updateProjectionMatrix();
       }
     }

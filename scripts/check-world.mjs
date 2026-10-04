@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { ARRIVAL } from "../lib/world/moments.js";
 import { DOMAIN, domainBeat, radiusAt, signAt } from "../lib/world/domain.js";
+import { TIERS, classify, dprFor } from "../lib/world/quality.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { PUNCH_IDS, punchFor } from "../lib/world/punch.js";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
@@ -705,4 +706,28 @@ assert.ok(Math.hypot(rimRunner.x, rimRunner.z) <= ISLAND_RADIUS, "the rim let th
   }
 }
 
-console.log(`world check passed: punch lines, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, mutation looks`);
+// Quality ladder: the renderer string picks the right first rung, and a rung
+// spends a pixel budget, so a laptop draws no more than an iPad on the same
+// rung (a DPR cap gave the 1440x900 laptop 5.2 MP to the iPad's 3.9).
+for (const [renderer, tier] of [
+  ["ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)", 0],
+  ["ANGLE (Intel, Intel(R) UHD Graphics (0x0000A788) Direct3D11 vs_5_0 ps_5_0, D3D11)", 1],
+  ["ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)", 2],
+  ["ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)", 2],
+  ["Apple GPU", 2],
+  ["ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)", 3],
+  ["ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)", 3],
+  ["ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)", 4],
+  ["ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11 vs_5_0 ps_5_0, D3D11)", 4],
+]) assert.equal(classify(renderer), tier, `${renderer} starts on T${classify(renderer)}, not T${tier}`);
+const mpx = (tier, w, h, dpr) => (w * dprFor(tier, w, h, dpr)) * (h * dprFor(tier, w, h, dpr)) / 1e6;
+for (let tier = 0; tier < TIERS.length; tier++) {
+  const laptop = mpx(tier, 1440, 900, 2);
+  const macbook16 = mpx(tier, 1728, 1117, 2);
+  const ipad = mpx(tier, 1180, 820, 2);
+  assert.ok(laptop <= ipad * 1.05 || laptop <= TIERS[tier].mpx * 1.05, `T${tier}: the laptop draws ${laptop.toFixed(2)} MP, the iPad ${ipad.toFixed(2)}`);
+  assert.ok(macbook16 <= Math.max(ipad, TIERS[tier].mpx) * 1.05 || dprFor(tier, 1728, 1117, 2) === TIERS[tier].dpr[0], `T${tier}: a 16" MacBook draws ${macbook16.toFixed(2)} MP`);
+  assert.ok(dprFor(tier, 390, 844, 3) <= 2, "no rung draws a phone above DPR 2");
+}
+
+console.log(`world check passed: quality ladder, punch lines, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, mutation looks`);
