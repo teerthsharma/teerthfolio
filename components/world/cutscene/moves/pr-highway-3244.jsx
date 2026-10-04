@@ -31,7 +31,7 @@ import { live } from "../../../../lib/world/store";
 import { Stage, signAt, smooth, useCutFrame } from "../kit";
 import { nudge, usePup } from "./g2/parts";
 import { flashQuad, holdFlash, islandList, lettering } from "./p-caustic/parts";
-import { EYE, ROOF, WHEEL_R, WHEEL_X, WHEEL_Z, carGeometry, doorNumber, eyeGeometry, wheelGeometry } from "./pr-highway-3244/car";
+import { CH_R, CH_ROOF, CH_WX, CH_WZ, HOOVES, carGeometry, chariotGeometry, chariotWheel } from "./pr-highway-3244/car";
 import { confetti, glint, pageFlag, ribbons, shadowPool, smokePool, streaks } from "./pr-highway-3244/fx";
 import { BLOCKS, cactus, crowdData, crowdMeshes, desert, flagMaterial, flagPoles, gantry, mesas, oval, rocks, skyDome, stands, tyres } from "./pr-highway-3244/land";
 import { FINISH, PASS, RIVALS, START, T, heroDist, heroSpeed, heroZ, rivalX, rivalZ, sm } from "./pr-highway-3244/path";
@@ -43,8 +43,6 @@ const SB = Math.sin(BETA);
 const P0 = [1.0, -1.9]; // the guest's grid slot in the rig (x, z): the card's landAt stands the tail here
 const CAR_S = 1.12;
 const NR = RIVALS.length;
-const NP = (NR * (NR - 1)) / 2;
-const SEG = 8; // quads along each comparison arc
 const PUFFS = 110;
 const UP = new Vector3(0, 1, 0);
 const CORE_Y = 0.9;
@@ -65,7 +63,6 @@ function warp(tc) {
   }
   return tc;
 }
-const BLINKS = [2.1, 3.3, 5.0, 7.9, 9.4, 10.6];
 
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const ramp = (t, a, b) => clamp((t - a) / (b - a));
@@ -113,7 +110,6 @@ export default function Move(cut) {
   const mesaG = useRef();
   const heroG = useRef();
   const bodyG = useRef();
-  const eyesM = useRef();
   const island = useRef([]);
 
   const m = useMemo(() => {
@@ -130,8 +126,8 @@ export default function Move(cut) {
     const rock = rocks();
     const mesaGeo = mesas();
     const heroMat = solid({ fogK: 0.0042 });
-    const hero = { body: carGeometry({ hero: true }), eyes: eyeGeometry(), wheel: wheelGeometry(), num: doorNumber() };
-    const wheels = new InstancedMesh(hero.wheel, heroMat, 4);
+    const hero = { body: chariotGeometry(), wheel: chariotWheel() };
+    const wheels = new InstancedMesh(hero.wheel, heroMat, 2);
     wheels.frustumCulled = false;
     const rivalGeo = carGeometry({ res: 0.7 });
     const rivals = new InstancedMesh(rivalGeo, solid({ fogK: 0.0042 }), NR);
@@ -168,33 +164,29 @@ export default function Move(cut) {
     D.rotation.set(0, 0, 0);
     D.scale.set(1, 1, 1);
     const poleMat = solid({ fogK: 0.0042 });
-    const tangle = ribbons(NP * SEG + 8, "#ff6a55");
-    const clean = ribbons(80, "#5dffc2", { additive: true });
-    const trail = ribbons(40, "#ffb347", { additive: true });
+        const clean = ribbons(80, "#5dffc2", { additive: true });
+    const trail = ribbons(40, "#8fd8ff", { additive: true });
+    const bolts = ribbons(120, "#bfe6ff", { additive: true });
     const smoke = smokePool(PUFFS);
     const conf = confetti(240);
     const streak = streaks(120);
     const shRiv = shadowPool(NR);
     const shHero = shadowPool(1);
     const flash = flashQuad("#fff1d0");
-    const boom = lettering("KA-CHOW!", "#e5251c", -0.1);
+    const boom = lettering("AAALALALALAI!", "#ffc926", -0.1);
     const star = glint();
     const page = pageFlag();
-    const pairs = [];
-    for (let i = 0; i < NR; i++) for (let j = i + 1; j < NR; j++) pairs.push([i, j, hash(i * 31 + j, 7) * 6.28]);
-    const arcSin = Array.from({ length: SEG + 1 }, (_, k) => Math.sin((Math.PI * k) / SEG));
-    return { dome, des, ov, stand, standMat, crowd, fp, flagMat, flags, banner, gan, tyre, rock, mesaGeo, heroMat, hero, wheels, rivalGeo, rivals, cactusGeo, cacti, poleMat, tangle, clean, trail, smoke, conf, streak, shRiv, shHero, flash, boom, star, page, pairs, arcSin };
+    return { dome, des, ov, stand, standMat, crowd, fp, flagMat, flags, banner, gan, tyre, rock, mesaGeo, heroMat, hero, wheels, rivalGeo, rivals, cactusGeo, cacti, poleMat, clean, trail, bolts, smoke, conf, streak, shRiv, shHero, flash, boom, star, page };
   }, []);
 
   useEffect(() => {
     island.current = islandList(scene);
     return () => {
       // everything the scene built goes with it
-      const geos = [m.dome.g, m.des.g, m.ov.g, m.stand, m.mesaGeo, m.gan, m.fp.poles, m.rivalGeo, m.cactusGeo, m.hero.body, m.hero.eyes, m.hero.wheel, m.hero.num.geo, m.tangle.geometry, m.clean.geometry, m.trail.geometry, m.smoke.mesh.geometry, m.conf.geometry, m.streak.geometry, m.shRiv.geometry, m.shHero.geometry, m.flash.geometry, m.boom.geometry, m.star.geometry, m.page.geometry, m.tyre.geometry, m.rock.geometry, m.flags.geometry, m.banner.geometry, m.crowd.G.body, m.crowd.G.head, m.crowd.G.armR, m.crowd.G.armL];
+      const geos = [m.dome.g, m.des.g, m.ov.g, m.stand, m.mesaGeo, m.gan, m.fp.poles, m.rivalGeo, m.cactusGeo, m.hero.body, m.hero.wheel, m.clean.geometry, m.trail.geometry, m.bolts.geometry, m.smoke.mesh.geometry, m.conf.geometry, m.streak.geometry, m.shRiv.geometry, m.shHero.geometry, m.flash.geometry, m.boom.geometry, m.star.geometry, m.page.geometry, m.tyre.geometry, m.rock.geometry, m.flags.geometry, m.banner.geometry, m.crowd.G.body, m.crowd.G.head, m.crowd.G.armR, m.crowd.G.armL];
       for (const g of new Set(geos)) g.dispose();
-      const mats = [m.dome.m, m.des.m, m.ov.m, m.standMat, m.flagMat, m.heroMat, m.rivals.material, m.cacti.material, m.poleMat, m.tangle.material, m.clean.material, m.trail.material, m.smoke.mesh.material, m.conf.material, m.streak.material, m.shRiv.material, m.shHero.material, m.flash.material, m.boom.material, m.star.material, m.page.material, m.hero.num.m, m.tyre.material, m.rock.material, m.crowd.body.material, m.crowd.head.material, m.crowd.armR.material, m.crowd.armL.material];
+      const mats = [m.dome.m, m.des.m, m.ov.m, m.standMat, m.flagMat, m.heroMat, m.rivals.material, m.cacti.material, m.poleMat, m.clean.material, m.trail.material, m.bolts.material, m.smoke.mesh.material, m.conf.material, m.streak.material, m.shRiv.material, m.shHero.material, m.flash.material, m.boom.material, m.star.material, m.page.material, m.tyre.material, m.rock.material, m.crowd.body.material, m.crowd.head.material, m.crowd.armR.material, m.crowd.armL.material];
       for (const x of new Set(mats)) x.dispose();
-      m.hero.num.tex.dispose();
       m.boom.material.map?.dispose();
       for (const x of [m.crowd.body, m.crowd.head, m.crowd.armR, m.crowd.armL, m.wheels, m.rivals, m.cacti, m.flags, m.banner, m.tyre, m.rock, m.smoke.mesh, m.conf, m.streak, m.shRiv, m.shHero]) x.dispose();
     };
@@ -309,23 +301,15 @@ export default function Move(cut) {
     body.position.y = bob + 0.02;
     body.rotation.set(roll, 0, pitch + 2 * spring(t, T.go - 0.04, -0.05, 19, 5) + 0.6 * spring(t, T.stop, -0.08, 16, 4.5));
     // the wheels roll
-    const ang = -wheelDist / WHEEL_R;
+    const ang = -wheelDist / CH_R;
     let wi = 0;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      DW.position.set(sx * WHEEL_X, WHEEL_R, sz * WHEEL_Z);
+    for (const sz of [-1, 1]) {
+      DW.position.set(CH_WX, CH_R, sz * CH_WZ);
       DW.rotation.z = ang;
       DW.updateMatrix();
       m.wheels.setMatrixAt(wi++, DW.matrix);
     }
     m.wheels.instanceMatrix.needsUpdate = true;
-    // the eyes blink (and wink on the Ka-chow)
-    let blink = 0;
-    for (const b of BLINKS) {
-      const k = t - b;
-      const dur = b === 5.0 ? 0.3 : 0.15;
-      if (k > 0 && k < dur) blink = Math.max(blink, Math.sin((Math.PI * k) / dur));
-    }
-    eyesM.current.scale.set(1, 1 - 0.9 * blink, 1);
     hero.visible = t > 1.5 && t < T.leave + 1.1 && out > 0.01;
 
     // THE RIVALS: a grid, then a stream; they rock on their springs and fishtail as the guest goes by
@@ -377,37 +361,6 @@ export default function Move(cut) {
     const clx = rx * CB - rz * SB + ANCHOR.x;
     const clz = rx * SB + rz * CB + ANCHOR.z;
     const cly = cam.position.y - GROUND.y;
-    const tg = m.tangle;
-    tg.begin();
-    const grow = smooth(1.75, 2.7, t);
-    const calm = 1 - 0.62 * smooth(T.go + 0.2, T.go + 0.7, t);
-    if (!back && grow > 0.01) {
-      const n = Math.max(1, Math.round(SEG * grow));
-      for (const [i, j, ph] of m.pairs) {
-        const ax = rivalX(i, t);
-        const az = rivalZ(i, t);
-        const bx = rivalX(j, t);
-        const bz = rivalZ(j, t);
-        const dd = Math.hypot(ax - bx, az - bz);
-        if (dd > 15) continue; // a wire only between cars that are near: it reads as the pairs, not a net over the stands
-        const h = 0.2 + 0.025 * dd;
-        let px = ax;
-        let py = 1.0;
-        let pz = az;
-        for (let k = 1; k <= n; k++) {
-          const u = k / SEG;
-          const sn = m.arcSin[k];
-          const qx = ax + (bx - ax) * u;
-          const qz = az + (bz - az) * u + 0.28 * Math.sin(t * 2.1 + ph + u * 9) * sn;
-          const qy = 1.0 + h * sn + 0.18 * Math.sin(t * 3 + ph * 2 + u * 7) * sn;
-          tg.seg(px, py, pz, qx, qy, qz, 0.05, 0.9 * calm, clx, cly, clz);
-          px = qx;
-          py = qy;
-          pz = qz;
-        }
-      }
-    }
-    tg.end();
     // the slice: a mint window on the road ahead of the guest and one clean line to the next rival in it
     const cl = m.clean;
     cl.begin();
@@ -459,6 +412,35 @@ export default function Move(cut) {
       }
     }
     tr2.end();
+
+    // LIGHTNING: blue-white forks crackling round the hooves and both wheel hubs, re-forked 24 times a second
+    const bl = m.bolts;
+    bl.begin();
+    if (hero.visible && !back) {
+      raceAt(t, SM);
+      const cs = Math.cos(SM.d);
+      const sn2 = Math.sin(SM.d);
+      const fk = Math.floor(t * 24);
+      const boost = 0.75 + 0.25 * smooth(T.go - 0.2, T.go + 0.4, t) + 0.5 * Math.exp(-(((t - T.kachow) / 0.5) ** 2));
+      const loc = (lx, ly, lz) => [SM.lx + (lx * cs + lz * sn2) * CAR_S, ly * CAR_S + 0.02, SM.lz + (-lx * sn2 + lz * cs) * CAR_S];
+      const pts = [...HOOVES, [CH_WX, CH_R, CH_WZ + 0.55], [CH_WX, CH_R, -CH_WZ - 0.55], [CH_WX, CH_R, CH_WZ], [CH_WX, CH_R, -CH_WZ]];
+      pts.forEach((o, i) => {
+        let [px, py, pz] = loc(o[0], o[1], o[2]);
+        const reach = i < 4 ? 0.7 : 1.1;
+        const dx = (hash(fk + i * 7, 11) - 0.5) * 2;
+        const dz = (hash(fk + i * 7, 12) - 0.5) * 2;
+        for (let k = 1; k <= 3; k++) {
+          const qx = px + (dx * 0.5 + (hash(fk + i * 7 + k, 13) - 0.5) * 0.8) * reach * CAR_S;
+          const qy = py + (0.15 + 0.35 * hash(fk + i * 7 + k, 14)) * reach * CAR_S;
+          const qz = pz + (dz * 0.5 + (hash(fk + i * 7 + k, 15) - 0.5) * 0.8) * reach * CAR_S;
+          bl.seg(px, py, pz, qx, qy, qz, 0.05 * CAR_S * 3, Math.min(1, boost * (1 - (k - 1) * 0.22)), clx, cly, clz);
+          px = qx;
+          py = qy;
+          pz = qz;
+        }
+      });
+    }
+    bl.end();
 
     // SMOKE: puffs shed from the rear tyres on the launch and every drift, each on its own analytic path
     const puff = m.smoke.mesh;
@@ -566,9 +548,9 @@ export default function Move(cut) {
     const o = 1 - smooth(tl.collapse[0], tl.collapse[1], tc);
     const c = Math.cos(HERO.yaw);
     const sn = Math.sin(HERO.yaw);
-    ROOFV[0] = HERO.x + ROOF[0] * c * CAR_S;
-    ROOFV[2] = HERO.z - ROOF[0] * sn * CAR_S;
-    ROOFV[1] = HERO.y + (ROOF[1] + 0.02) * CAR_S + HERO.bob;
+    ROOFV[0] = HERO.x + CH_ROOF[0] * c * CAR_S;
+    ROOFV[2] = HERO.z - CH_ROOF[0] * sn * CAR_S;
+    ROOFV[1] = HERO.y + (CH_ROOF[1] + 0.02) * CAR_S + HERO.bob;
     const kOn = smooth(T.hop[0], T.hop[1], t);
     const kOff = smooth(T.off, T.off + 0.55, t);
     let x = 0;
@@ -634,9 +616,9 @@ export default function Move(cut) {
             <primitive object={m.cacti} />
             <primitive object={m.rivals} />
             <primitive object={m.shRiv} />
-            <primitive object={m.tangle.mesh} />
             <primitive object={m.clean.mesh} />
             <primitive object={m.trail.mesh} />
+            <primitive object={m.bolts.mesh} />
             <primitive object={m.smoke.mesh} />
             <primitive object={m.conf} />
             <primitive object={m.streak} />
@@ -645,9 +627,6 @@ export default function Move(cut) {
         <group ref={heroG} visible={false}>
           <group ref={bodyG}>
             <mesh geometry={H.body} material={m.heroMat} frustumCulled={false} />
-            <mesh ref={eyesM} geometry={H.eyes} material={m.heroMat} position={EYE.at} rotation={[0, 0, Math.PI / 2 - EYE.slope]} frustumCulled={false} />
-            <primitive object={H.num.meshes[0]} />
-            <primitive object={H.num.meshes[1]} />
           </group>
           <primitive object={m.wheels} />
         </group>
