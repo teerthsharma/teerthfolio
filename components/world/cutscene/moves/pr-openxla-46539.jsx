@@ -26,11 +26,11 @@ const card = (stamp) =>
   ]);
 
 const RACE = [
-  { y: 2.0, v: 0.5, ph: 0.15 },
-  { y: 2.85, v: 0.78, ph: 0.55 },
+  { y: 1.62, v: 0.5, ph: 0.15 },
+  { y: 2.12, v: 0.78, ph: 0.55 },
 ];
 const raceAt = (c, t) => [-6.2 + 12.4 * ((t * c.v + c.ph) % 1), c.y + 0.1 * Math.sin(t * 9 + c.ph * 7)];
-const SLAM = [0.1, 1.95, -0.3];
+const SLAM = [0.1, 1.65, -0.3];
 
 export default function Move(cut) {
   const { card: dock, tl } = cut;
@@ -61,12 +61,12 @@ export default function Move(cut) {
       const c = RACE[i];
       const [x0, y0] = raceAt(c, Math.min(T, m0));
       const e = m * m;
-      mesh.position.set(x0 + (SLAM[0] - x0) * e, y0 + (SLAM[1] - y0) * e, -1.2 + (SLAM[2] + 1.2) * e);
+      mesh.position.set(x0 + (SLAM[0] - x0) * e, y0 + (SLAM[1] - y0) * e, -1.6 + (SLAM[2] + 1.6) * e);
       mesh.rotation.z = (i ? -0.08 : 0.07) * (1 - m);
-      let s = show;
+      let s = show * (0.6 + 0.3 * e);
       if (hit >= 0) {
         if (i) s = 0; // one card is left
-        else s = show * (1 + 0.32 * Math.exp(-hit * 9) * Math.cos(hit * 28));
+        else s = show * 0.9 * (1 + 0.32 * Math.exp(-hit * 9) * Math.cos(hit * 28));
         mesh.position.y += 0.06 * Math.sin(T * 2.4);
       }
       mesh.scale.setScalar(Math.max(0.001, s));

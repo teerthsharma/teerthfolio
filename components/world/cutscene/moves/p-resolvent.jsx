@@ -150,10 +150,10 @@ function operatorMaterial() {
       varying vec2 vUv;
       void main() {
         float r = length(vUv * 2.0 - 1.0);
-        float disc = 1.0 - smoothstep(0.52, 0.56, r);
+        float disc = 1.0 - smoothstep(0.5, 0.52, r);
         float halo = exp(-r * 3.5) * 0.5;
         float rim = smoothstep(0.46, 0.52, r) * (1.0 - smoothstep(0.52, 0.56, r)) * 0.8;
-        gl_FragColor = vec4(uColor * (disc * 0.6 + halo + rim), 1.0);
+        gl_FragColor = vec4(uColor * (disc * 0.8 + halo + rim), 1.0);
       }`,
   });
 }
@@ -215,7 +215,7 @@ export default function Move(cut) {
       m.visible = out > 0.01 && hit < 0.05;
       m.position.set(x0 * out * come + 0.08 * (step % 2 ? 1 : -1) * come, 0.04 * ((step + i) % 2), 0.25 + 0.2 * out * (i ? 1 : -1) * come);
       m.rotation.y = 0.6 + (i ? -0.2 : 0.2);
-      m.scale.setScalar(Math.max(0.001, out * (1 + 0.1 * e)));
+      m.scale.setScalar(Math.max(0.001, 0.72 * out * (1 + 0.1 * e)));
     });
     // the glass: cracks from the pup, then breaks and falls
     g.glass.uniforms.uCrack.value = smooth(CRACK[0], CRACK[1], T);
@@ -225,8 +225,8 @@ export default function Move(cut) {
     // one operator behind it
     const born = smooth(BREAK, BREAK + 0.7, T);
     one.current.visible = born > 0.01;
-    one.current.position.set(0.2, 1.55, -1.4);
-    one.current.scale.setScalar(Math.max(0.001, 1.5 * born * (1 + 0.04 * Math.sin(T * 3))));
+    one.current.position.set(0.3, 1.7, -4.6);
+    one.current.scale.setScalar(Math.max(0.001, 2.6 * born * (1 + 0.04 * Math.sin(T * 3))));
     // the flash where the afterimages meet the pup
     ring.current.visible = hit >= 0 && hit < 0.45;
     if (ring.current.visible) {

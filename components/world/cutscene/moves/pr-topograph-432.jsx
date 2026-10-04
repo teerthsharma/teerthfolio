@@ -15,8 +15,8 @@ import { paletteFor } from "../../../../lib/world/cutscene/look";
 import { DefaultMove, onTwos, smooth } from "../kit";
 import { colorBox, CREAM, FigureAttach, flatMat, inkGeo, inkMats, merged, srgb, useStageGroup } from "./g3/common";
 
-const LINE_Z = -2.85; // the staff's foot, in the pup's space
-const LINE_X1 = 1.54;
+const LINE_Z = -2.87; // the staff's foot, in the pup's space
+const LINE_X1 = 2.1;
 const LINE_W = 10.6;
 const SLAM = 3.35; // s: the staff comes down
 const N = 44;
@@ -24,14 +24,14 @@ const N = 44;
 // the hat and the staff, in the figure's own space (head at y 1.9, staff in the hands)
 function gear() {
   const hat = [
-    new CylinderGeometry(0.46, 0.5, 0.035, 9).translate(0, 2.03, 0.02), // the brim
-    new ConeGeometry(0.27, 0.85, 8).translate(0, 2.47, 0.02), // the crown
-    new ConeGeometry(0.1, 0.34, 6).rotateZ(-0.7).translate(0.17, 2.97, 0.02), // its bent tip
+    new CylinderGeometry(0.44, 0.5, 0.035, 9).translate(0, 2.0, 0.02), // the brim
+    new ConeGeometry(0.26, 0.46, 8).translate(0, 2.23, 0.02), // the crown
+    new ConeGeometry(0.09, 0.26, 6).rotateZ(-0.8).translate(0.12, 2.5, 0.02), // its bent tip
   ];
   const staff = [
-    new CylinderGeometry(0.036, 0.046, 2.25, 6).translate(0.05, 1.12, 0.34),
-    new IcosahedronGeometry(0.11, 0).translate(0.05, 2.3, 0.34),
-    new ConeGeometry(0.04, 0.18, 4).translate(0.05, 2.5, 0.34),
+    new CylinderGeometry(0.034, 0.042, 2.0, 6).translate(0.46, 1.0, 0.12),
+    new IcosahedronGeometry(0.1, 0).translate(0.46, 2.06, 0.12),
+    new ConeGeometry(0.04, 0.16, 4).translate(0.46, 2.22, 0.12),
   ];
   return { hat: inkGeo(hat), staff: inkGeo(staff) };
 }
@@ -74,7 +74,7 @@ export default function Move(cut) {
       line: new BoxGeometry(1, 0.07, 0.12).translate(-0.5, 0.04, 0),
       veil: new PlaneGeometry(1, 3.1).translate(-0.5, 1.55, 0),
       lineMat: new MeshBasicMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, toneMapped: false, fog: false }),
-      veilMat: new MeshBasicMaterial({ transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false, fog: false, opacity: 0.16 }),
+      veilMat: new MeshBasicMaterial({ transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false, fog: false, opacity: 0.2 }),
       ring: new RingGeometry(0.85, 1, 36).rotateX(-Math.PI / 2),
       ringMat: new MeshBasicMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, toneMapped: false, fog: false }),
     };
@@ -131,13 +131,13 @@ export default function Move(cut) {
     veil.current.visible = run > 0.001;
     veil.current.position.set(LINE_X1, 0, LINE_Z);
     veil.current.scale.set(Math.max(0.001, LINE_W * run), smooth(SLAM + 0.05, SLAM + 0.4, T), 1);
-    g.veilMat.opacity = 0.14 + 0.28 * pulse;
+    g.veilMat.opacity = 0.22 + 0.3 * pulse;
     // the rings: the staff's blow, then the pup's
     const age = pup ? T - tl.move[1] : T >= SLAM ? T - SLAM : 9;
     ring.current.visible = age < 0.5;
     if (ring.current.visible) {
-      ring.current.position.set(pup ? 0.3 : LINE_X1 - 0.16, 0.03, pup ? LINE_Z + 0.4 : LINE_Z + 0.33);
-      ring.current.scale.setScalar(0.3 + 3 * Math.min(1, age / 0.45));
+      ring.current.position.set(pup ? 0.3 : LINE_X1 - 0.2, 0.03, pup ? LINE_Z + 0.4 : LINE_Z + 0.33);
+      ring.current.scale.setScalar(0.3 + 1.7 * Math.min(1, age / 0.45));
       g.ringMat.opacity = 1 - age / 0.5;
     }
     // the staff: up before the blow, down on it

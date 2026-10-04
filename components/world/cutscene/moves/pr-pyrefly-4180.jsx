@@ -20,8 +20,8 @@ import { useStageGroup, CREAM } from "./g3/common";
 const SHAFT = 130;
 const HEAD = 12; // columns of the head, 12 + 11 + ... + 1 = 78 dots
 const N = 208;
-const FIST = [-0.55, 1.0, 0.8]; // the pup's raised flipper, in the pup's space (tuned from frames)
-const CHAIN_Y = 2.05;
+const FIST = [-0.3, 0.68, 0.95]; // the pup's raised flipper, in the pup's space (tuned from frames)
+const CHAIN_Y = 1.45;
 const CHAIN_Z = -3.2;
 const CHAIN_X0 = -5.6;
 
@@ -29,10 +29,10 @@ const CHAIN_X0 = -5.6;
 function layout() {
   const pts = [];
   for (let i = 0; i < SHAFT; i++) pts.push([CHAIN_X0 + i * 0.05, 0, 0.032]);
-  const hx = CHAIN_X0 + SHAFT * 0.05 + 0.1;
+  const hx = CHAIN_X0 + SHAFT * 0.05 + 0.08;
   for (let c = 0; c < HEAD; c++) {
     const n = HEAD - c;
-    for (let j = 0; j < n; j++) pts.push([hx + c * 0.125, (j - (n - 1) / 2) * 0.125, 0.052]);
+    for (let j = 0; j < n; j++) pts.push([hx + c * 0.1, (j - (n - 1) / 2) * 0.1, 0.052]);
   }
   return pts; // the last is the tip
 }
@@ -90,7 +90,7 @@ export default function Move(cut) {
       tmp: new Color(),
       sphere: new IcosahedronGeometry(1, 2),
       sphereMat: rasengan(),
-      ringGeo: new TorusGeometry(1.45, 0.045, 4, 32),
+      ringGeo: new TorusGeometry(1.3, 0.03, 4, 36),
       ringMat: new MeshBasicMaterial({ color: "#d6f3ff", toneMapped: false, fog: false, transparent: true, opacity: 0.9 }),
       burst: new RingGeometry(0.8, 1, 40),
       burstMat: new MeshBasicMaterial({ color: "#8fdcff", transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, toneMapped: false, fog: false }),
@@ -120,7 +120,7 @@ export default function Move(cut) {
     for (let i = 0; i < N; i++) {
       const p = g.pts[i];
       const born = 2.0 + 0.9 * (i / (N - 1));
-      let sc = smooth(born, born + 0.14, T) * (i === N - 1 ? 0.07 : i >= SHAFT ? 0.04 : 0.02);
+      let sc = smooth(born, born + 0.14, T) * (i === N - 1 ? 0.07 : i >= SHAFT ? 0.034 : 0.02);
       let dy = 0;
       if (hit >= 0) {
         const d = (N - 1 - i) / 60; // the blow runs back down the chain
@@ -148,7 +148,7 @@ export default function Move(cut) {
     const b = ball.current;
     b.visible = grow > 0.01;
     b.position.set(FIST[0] + (tx - FIST[0]) * e, FIST[1] + (ty - FIST[1]) * e + 0.5 * Math.sin(Math.PI * e), FIST[2] + (tz - FIST[2]) * e);
-    const size = (0.07 + 0.19 * grow + (hit >= 0 ? 0.04 + 0.03 * Math.exp(-hit * 6) : 0)) * (1 + 1.2 * e * k * 0.8);
+    const size = (0.07 + 0.19 * grow + (hit >= 0 ? 0.04 + 0.03 * Math.exp(-hit * 6) : 0)) * (1 + 0.6 * e * k);
     b.scale.setScalar(Math.max(0.001, size));
     b.rotation.set(0.25, 0, 0.35);
     g.sphereMat.uniforms.uT.value = T;
