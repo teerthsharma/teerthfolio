@@ -399,11 +399,15 @@ export function reeds(U) {
     const x = near ? -10 + hash(i, 1) * 22 : -14 + hash(i, 1) * 28;
     const z = near ? -5.0 + hash(i, 2) * 12.5 : -6.5 + hash(i, 2) * 4;
     const y = Math.max(H(x, z), WATER_Y - 0.05);
-    if (y < WATER_Y) continue;
+    if (y < WATER_Y || Math.hypot(x, z) < 4.6) {
+      m.setMatrixAt(i, D.matrix.makeScale(0, 0, 0)); // an identity left here would be a 1 m blade at the origin
+      continue;
+    }
+    if (false) continue; // the pup stands in a clearing: no grass round it, none across the lens' line
     const reed = z < -2.6 || hash(i, 3) > 0.8;
     D.position.set(x, y, z);
     D.rotation.set(0, hash(i, 4) * 6.28, 0);
-    const s = reed ? 0.9 + hash(i, 5) * 1.3 : 0.35 + hash(i, 5) * 0.55;
+    const s = reed ? 0.8 + hash(i, 5) * 0.5 : 0.35 + hash(i, 5) * 0.55;
     D.scale.set(1, s, 1);
     D.updateMatrix();
     m.setMatrixAt(i, D.matrix);

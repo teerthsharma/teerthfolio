@@ -94,7 +94,7 @@ export function substationGeometry() {
   }
   return mergeGeometries(p);
 }
-export const glassGeometry = () => bx(6.6, 0.16, 3.9, 0, -0.08, 0);
+export const glassGeometry = () => bx(11.6, 0.16, 3.9, 2.5, -0.08, 0);
 // the amber core: a thin cylinder up each bushing (kind 0), and a flat disc of glow on the glass (kind 1)
 export function coreGeometry() {
   const p = [];

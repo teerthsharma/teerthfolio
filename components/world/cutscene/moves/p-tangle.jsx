@@ -139,6 +139,9 @@ const TAIL2 = new Vector3();
 const HEAD0 = new Vector3();
 const FALLTO = new Vector3();
 const CDIR = new Vector3();
+const CF = new Vector3();
+const CR = new Vector3();
+const CU = new Vector3();
 const A0 = new Vector3();
 const B0 = new Vector3();
 const CAv = new Vector3();
@@ -254,6 +257,7 @@ export default function Tangle(cut) {
     // ---- the pup: the cord tied (the sign, then the fist before the cheek), leaning back when the shock comes
     twil.current?.set((inside || rt > tl.bloom[1]) && t < 18.3);
     live.pose.sign = signAt(tl, rt) * (1 - ss(1.2, 1.55, t));
+    live.pose.sit = ss(0.4, 1.0, t) * 1.2 * out; // upright on its tail, never lying flat
     const shock = ss(T.pull[0], T.pull[1], t) * (1 - ss(10.2, 10.9, t));
     live.pose.fist = ss(1.3, 1.7, t) * (1 - ss(17.6, 18.4, t)) * out;
     live.pose.crouch = shock * 0.45;
@@ -353,9 +357,12 @@ export default function Tangle(cut) {
     // ---- the comet: one piece, then it splits; one piece falls and lights the far shore
     const cAlpha = ss(1.8, 3.2, t) * (1 - ss(T.comet[0], T.comet[1], t));
     const sp = Math.max(0, t - T.split);
-    const az0 = 8 + 0.35 * t;
-    const el0 = 17.5 + 0.12 * t;
-    dirTo(az0, el0, CDIR);
+    // the comet rides the lens: upper right of the frame, above the girl, wherever the card's view puts the camera
+    cam.getWorldDirection(CF).applyAxisAngle(AUP, -turn);
+    CR.crossVectors(CF, AUP).normalize();
+    CU.crossVectors(CR, CF).normalize();
+    const hh = Math.tan((cam.fov * Math.PI) / 360);
+    CDIR.copy(CF).addScaledVector(CR, (0.3 + 0.012 * t) * hh * cam.aspect).addScaledVector(CU, (0.52 + 0.004 * t) * hh).normalize();
     HEAD0.copy(CDIR).multiplyScalar(SKYD).add(EYEV);
     const c0 = W.comets[0];
     c0.ru.uHead.value.copy(HEAD0);
@@ -363,7 +370,7 @@ export default function Tangle(cut) {
     c0.ru.uLen.value = 70 + 8 * Math.sin(t * 0.7);
     c0.ru.uW.value = 2.4;
     c0.ru.uAlpha.value = cAlpha;
-    c0.hu.uSize.value = 9 + 0.6 * Math.sin(t * 5);
+    c0.hu.uSize.value = 13 + 0.8 * Math.sin(t * 5);
     const c1 = W.comets[1];
     c1.ru.uHead.value.copy(HEAD0).addScaledVector(V.set(1, 0.18, 0.1), sp * sp * 0.9 + sp * 1.2);
     c1.ru.uDir.value.copy(TAILD).add(V.set(0.1, -0.05, 0)).normalize();

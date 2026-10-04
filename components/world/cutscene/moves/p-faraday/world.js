@@ -11,8 +11,8 @@ import { makeFields } from "./fields";
 import { colonyGeometry, figure, kurokoGeometry, toumaGeometry } from "./figures";
 import { DECK_Y, KUROKO_LAMP, bridgeGeometry, carGeometry, cityGeometry, glassGeometry, lampBulbs, rotorGeometry, rotorLines, substationGeometry, trackGeometry } from "./scenery";
 
-export const PHI = 0.5; // the bridge's turn in the rig: its +x runs right and away
-export const TOUMA = { x: 8.2, z: -1.7 };
+export const PHI = 0.1; // the bridge's turn in the rig: its +x runs almost straight across the lens (the duel is a profile two-shot)
+export const TOUMA = { x: 4.0, z: -0.95, y: 0 }; // where Touma ends: on the glass at mid-distance, in the beam's line; the move walks him in and rewrites x, y live
 export const KUROKO = { x: KUROKO_LAMP.x, y: DECK_Y + KUROKO_LAMP.h + 0.1, z: KUROKO_LAMP.z };
 export const NCOLONY = 10;
 export const NBULB = lampBulbs().length;
@@ -125,7 +125,8 @@ export function buildWorld() {
 
   // the figures and the colony
   const touma = figure(toumaGeometry());
-  touma.group.position.set(TOUMA.x, DECK_Y, TOUMA.z);
+  touma.group.position.set(TOUMA.x, 0, TOUMA.z);
+  touma.group.rotation.order = "YXZ";
   touma.group.name = "fa-touma";
   touma.group.scale.setScalar(1.25);
   touma.group.rotation.y = Math.atan2(-TOUMA.x, -TOUMA.z);
