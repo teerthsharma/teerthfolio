@@ -53,6 +53,7 @@ const CEL_VERT = /* glsl */ `
   ${COMMON}
   attribute float aK;
   varying vec3 vP;
+  varying vec3 vL;
   varying vec3 vN;
   varying vec3 vCol;
   varying float vK;
@@ -75,6 +76,7 @@ const CEL_VERT = /* glsl */ `
     #endif
     vec4 w = modelMatrix * lp;
     vP = w.xyz;
+    vL = lp.xyz;
     vN = normalize(mat3(modelMatrix) * nn);
     vK = aK;
     vCol = vec3(1.0);
@@ -90,6 +92,7 @@ const CEL_VERT = /* glsl */ `
 const CEL_FRAG = /* glsl */ `
   ${COMMON}
   varying vec3 vP;
+  varying vec3 vL;
   varying vec3 vN;
   varying vec3 vCol;
   varying float vK;
@@ -128,7 +131,7 @@ const CEL_FRAG = /* glsl */ `
       c *= 0.9 + 0.2 * fbm(vP.xz * 0.35 + vP.yy * 0.8);
     } else if (k > 10.5 && k < 11.5) {
       // THE TERRACE: an eight-point star tiling in turquoise and white, a gold lattice, and a patterned border
-      vec2 p = vP.xz * 0.42;
+      vec2 p = vL.xz * 0.42;
       vec2 f = fract(p) - 0.5;
       float s1 = max(abs(f.x), abs(f.y));
       float s2 = (abs(f.x) + abs(f.y)) * 0.7071;
@@ -141,12 +144,12 @@ const CEL_FRAG = /* glsl */ `
       c = mix(c, vec3(0.06, 0.45, 0.55), step(s2, 0.1) * step(mod(id.x + id.y, 2.0), 0.5));
       c = mix(c, gold, 1.0 - smoothstep(0.012, 0.03, starLine));
       c *= 0.96 + 0.06 * h21(id);
-      float edge = min(11.0 - abs(vP.x), min(vP.z + 10.0, 14.0 - vP.z));
+      float edge = min(11.0 - abs(vL.x), min(vL.z + 10.0, 14.0 - vL.z));
       if (edge < 2.2) {
         float st = fract(edge * 1.6);
         vec3 bc = mix(vec3(0.99, 0.95, 0.88), vec3(0.1, 0.62, 0.66), step(0.5, st));
         bc = mix(bc, gold, step(abs(edge - 1.1), 0.12));
-        float dashes = step(0.5, fract((abs(vP.x) < 12.9 ? vP.z : vP.x) * 1.5));
+        float dashes = step(0.5, fract((abs(vL.x) < 12.9 ? vL.z : vL.x) * 1.5));
         bc = mix(bc, vec3(0.72, 0.16, 0.3), dashes * step(abs(edge - 0.45), 0.2));
         c = mix(c, bc, smoothstep(2.2, 2.1, edge));
       }
