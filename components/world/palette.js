@@ -5,7 +5,7 @@
 // Every hex below is calibrated against LIGHT under NeutralToneMapping, using
 // three's own shading maths checked against a real-Chrome capture (predicted
 // and captured pixels agreed to within 1 level). Rendered values:
-//   snow      sun rgb(246,237,237) L239 / shadow rgb(186,192,219) L193
+//   snow      lit rgb(246,241,246) / Band C re-solve: snow hex #f0f2f7 holds the old lit render within 4 levels
 //   warmWhite front wall L225 / shadow side L186
 //   charcoal  lit top L50 / front L37 / shadow side L23 (the one dark)
 //   sea       rgb(0,128,163) teal-blue
@@ -15,7 +15,7 @@ import { useFrame } from "@react-three/fiber";
 import { AdditiveBlending, MeshBasicMaterial, MeshStandardMaterial, NeutralToneMapping } from "three";
 
 export const C = {
-  snow: "#faf6f0", // ground, snow caps, igloo blocks
+  snow: "#f0f2f7", // ground, snow caps, igloo blocks
   path: "#e4e8f0", // packed-snow paths between neighbourhoods: a cool step below snow, never grey
   warmWhite: "#f3ede4", // painted walls, plaster, ceramic
   ice: "#dbeaf5", // pale ice: cliff face, boulders, glassy blocks
@@ -72,12 +72,14 @@ export const LIGHT = {
   toneMapping: NeutralToneMapping,
   hemiSky: "#d2dcff",
   hemiGround: "#eadfce",
-  hemiIntensity: 2.7 - Math.PI * 0.5,
+  hemiIntensity: 0.2, // was 2.7 - PI * 0.5: less fill, so the pup has a dark side
   env: 0.5, // scene.environmentIntensity
   envSun: 8, // radiance of the sun disc in the environment (highlights only)
   ao: "#98a2d6", // what full occlusion multiplies by: about the sun-to-shade ratio of snow, so creases go lavender, never grey
   sun: "#ffecd0",
-  sunIntensity: 3,
+  sunIntensity: 4.2, // raised by the hemisphere's loss, to hold lit snow
+  rim: "#d2dcff", // the cool backlight that edges the pup and the landforms (Island.jsx Rim)
+  rimIntensity: 0.9,
 };
 
 const cache = new Map();

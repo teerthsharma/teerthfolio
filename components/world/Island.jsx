@@ -18,6 +18,9 @@ import { C, LIGHT, mat } from "./palette";
 // the 2048 map is always spent on the part of the island in view.
 const SUN = [-14, 26, 12];
 const SHADOW_HALF = 28;
+// The rim: a cool backlight from behind and to the right of the seal (up the
+// screen is -z), so the pup's edge reads against its own shade. No shadow.
+const RIM = [14, 10, -8];
 
 function Sun() {
   const light = useRef();
@@ -46,6 +49,19 @@ function Sun() {
       shadow-camera-far={90}
     />
   );
+}
+
+function Rim() {
+  const light = useRef();
+  useFrame(() => {
+    const l = light.current;
+    if (!l) return;
+    const { x, z } = live.seal;
+    l.position.set(x + RIM[0], RIM[1], z + RIM[2]);
+    l.target.position.set(x, 0, z);
+    l.target.updateMatrixWorld();
+  });
+  return <directionalLight ref={light} color={LIGHT.rim} intensity={LIGHT.rimIntensity} castShadow={false} />;
 }
 
 function NameInSnow() {
@@ -85,6 +101,7 @@ export default function Island() {
       <fog attach="fog" args={[C.sky, 80, 190]} />
       <hemisphereLight args={[LIGHT.hemiSky, LIGHT.hemiGround, LIGHT.hemiIntensity]} />
       <Sun />
+      <Rim />
 
       <mesh geometry={kit.rockBatchGeo} material={mat("#ffffff", { vertexColors: true, roughness: 0.6 })} castShadow receiveShadow />
       <mesh geometry={kit.woodBatchGeo} material={mat(C.wood)} castShadow receiveShadow />

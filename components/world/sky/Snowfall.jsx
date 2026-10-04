@@ -13,8 +13,8 @@ import { BufferGeometry, Float32BufferAttribute, ShaderMaterial } from "three";
 import { mulberry32 } from "../life/spawn";
 import { groundFocus } from "./focus";
 
-const COUNT = 1400;
-const FLAKE = 0.13; // m across
+const COUNT = 400;
+const FLAKE = 0.06; // m across
 const FALL = 0.85; // m/s, the slowest flakes
 const WIND = 0.45; // m/s drift toward +x, the sea breeze
 
@@ -40,8 +40,9 @@ const vertexShader = /* glsl */ `
 const fragmentShader = /* glsl */ `
   void main() {
     vec2 c = gl_PointCoord - 0.5;
-    if (dot(c, c) > 0.25) discard;
-    gl_FragColor = vec4(1.0);
+    float a = 0.35 * (1.0 - smoothstep(0.1, 0.25, dot(c, c)));
+    if (a < 0.01) discard;
+    gl_FragColor = vec4(1.0, 1.0, 1.0, a);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -63,6 +64,8 @@ export default function Snowfall() {
   const material = useMemo(() => new ShaderMaterial({
     vertexShader,
     fragmentShader,
+    transparent: true,
+    depthWrite: false,
     uniforms: {
       uTime: { value: 0 },
       uCentre: { value: [0, 0, 0] },
