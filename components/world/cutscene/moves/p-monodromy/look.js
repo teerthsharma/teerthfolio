@@ -28,8 +28,8 @@ U.uSun.value.normalize();
 
 // the colours of Sindria, as hex
 export const C = {
-  marble: "#f7f1e3", gold: "#f2b52e", goldDeep: "#c98a1b", turq: "#1fbdb4", teal: "#0e8a94", sand: "#dfae70", sandDeep: "#c4864f",
-  coral: "#e4566a", crimson: "#b92a4c", violet: "#5b3a9c", palm: "#2c9a5b", palmLight: "#7bd06a", trunk: "#8a6540", ink: "#2a1d3d",
+  marble: "#f6ead2", gold: "#e9b23a", goldDeep: "#c98a1b", turq: "#0f8f8a", teal: "#0f8f8a", sand: "#dfae70", sandDeep: "#c4864f",
+  coral: "#e4566a", crimson: "#b3123a", violet: "#2a1f6b", palm: "#2c9a5b", palmLight: "#7bd06a", trunk: "#8a6540", ink: "#140f3a",
   skin: "#c98a5b", cream: "#fff3d6",
 };
 
@@ -47,7 +47,17 @@ export const COMMON = /* glsl */ `
     return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y);
   }
   float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.07; a *= 0.5; } return s; }
-  vec3 hazeCol() { return mix(vec3(0.99, 0.88, 0.66), vec3(0.34, 0.42, 0.62), uStorm * 0.85); }`;
+  // girih: an 8-fold star lattice (four grids turned by k*pi/4), 1 on the lines; p in cells
+  float girih(vec2 p) {
+    float d = 1.0;
+    for (int k = 0; k < 4; k++) {
+      float a = float(k) * 0.7853982;
+      vec2 b = abs(fract(mat2(cos(a), -sin(a), sin(a), cos(a)) * p) - 0.5);
+      d = min(d, min(b.x, b.y));
+    }
+    return 1.0 - smoothstep(0.02, 0.06, d);
+  }
+  vec3 hazeCol() { return mix(vec3(1.0, 0.7, 0.46), vec3(0.34, 0.42, 0.62), uStorm * 0.85); }`;
 
 const CEL_VERT = /* glsl */ `
   ${COMMON}
@@ -102,20 +112,18 @@ const CEL_FRAG = /* glsl */ `
     vec3 v = normalize(cameraPosition - vP);
     float k = vK;
     vec3 c = vCol;
-    vec3 gold = vec3(0.95, 0.72, 0.2);
+    vec3 gold = vec3(0.914, 0.698, 0.227);
     vec3 ink = vec3(0.16, 0.11, 0.24);
     float nv = clamp(dot(n, v), 0.0, 1.0);
     bool glow = k > 4.5 && k < 5.5;
     if (k > 0.5 && k < 1.5) {
       // white marble: soft veins
       c *= 0.95 + 0.07 * fbm(vP.xy * 0.9 + vP.zz * 0.3);
+      c = mix(c, gold, smoothstep(0.55, 0.2, nv) * 0.5); // ivory, gold at the rim
     } else if (k > 11.5 && k < 12.5) {
-      // the frieze: a gold lattice and dots on teal
+      // the frieze: crimson girih on gold
       vec2 q = abs(n.x) > abs(n.z) ? vP.zy : vP.xy;
-      vec2 f = fract(q * 1.7) - 0.5;
-      float d = abs(abs(f.x) + abs(f.y) - 0.4);
-      float lat = max(1.0 - smoothstep(0.04, 0.09, d), 1.0 - smoothstep(0.09, 0.14, length(f)));
-      c = mix(c, gold, lat);
+      c = mix(gold, vec3(0.7, 0.07, 0.23), girih(q / 0.8));
     } else if (k > 2.5 && k < 3.5) {
       // turquoise tile scales (offset rows, a dark grout)
       vec2 g = vec2(vP.x + vP.z, vP.y * 2.2);
@@ -138,11 +146,12 @@ const CEL_FRAG = /* glsl */ `
       float oct = max(s1, s2 * 1.02);
       float starLine = min(abs(s1 - 0.36), abs(s2 - 0.3));
       vec2 id = floor(p);
-      vec3 tileA = vec3(0.07, 0.62, 0.8);
-      vec3 tileB = vec3(0.98, 0.94, 0.86);
+      vec3 tileA = vec3(0.06, 0.56, 0.54);
+      vec3 tileB = vec3(0.96, 0.92, 0.82);
       c = mix(tileB, tileA, step(oct, 0.37));
       c = mix(c, vec3(0.06, 0.45, 0.55), step(s2, 0.1) * step(mod(id.x + id.y, 2.0), 0.5));
       c = mix(c, gold, 1.0 - smoothstep(0.012, 0.03, starLine));
+      c = mix(c, gold, girih(vL.xz / 0.8) * 0.9 * step(oct, 0.37)); // gold girih on the teal
       c *= 0.96 + 0.06 * h21(id);
       float edge = min(11.0 - abs(vL.x), min(vL.z + 10.0, 14.0 - vL.z));
       if (edge < 2.2) {
@@ -189,7 +198,7 @@ const CEL_FRAG = /* glsl */ `
     if (k > 10.5 && k < 11.5) edgeInk = 0.0;
     if (!glow) col = mix(col, ink, edgeInk);
     col += gold * pow(1.0 - nv, 3.0) * clamp(dot(n, vec3(0.45, 0.2, -0.75)), 0.0, 1.0) * 0.45;
-    if (glow) col = vCol * (1.12 + 0.18 * sin(uTime * 6.0 + vP.x * 2.0 + vP.z)) * (1.0 + 0.6 * uStorm);
+    if (glow) col = vCol * (3.0 + 0.4 * sin(uTime * 6.0 + vP.x * 2.0 + vP.z)) * (1.0 + 0.6 * uStorm);
     // the air: peach haze toward the horizon, then the storm and the flash on top
     float dist = length(vP - cameraPosition);
     float hz = 1.0 - exp(-pow(dist * 0.0075, 1.35));
