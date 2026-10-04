@@ -1312,6 +1312,14 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
     }
     assert.ok(signAt(T, T.impact) > 0.99 && radiusAt(T, T.lineA) > 10 && radiusAt(T, T.duration - 0.01) === 0 && beatAt(T, T.duration) === 0, `${id}: the sign opens the stage and the stage closes`);
   }
+  // MOUNT MUJORUSH IS ONE SCENE: its other two docks play #3396's cinematic (a card's `plays`), and the
+  // Controller's hook (playsAs, seeAll) arrives as it and marks the whole group seen at once.
+  const mount = ["pr-mujoco-warp-1541", "pr-mujoco-3450"];
+  for (const id of mount) assert.equal(cardFor(id).plays, "pr-mujoco-3396", `${id} must play Mount MujoRush's one scene`);
+  assert.ok(!cardFor("pr-mujoco-3396").plays && CARDS.filter((c) => c.plays).every((c) => cardFor(c.plays) && !cardFor(c.plays).plays), "a card plays a real scene, one hop only");
+  assert.deepEqual(CARDS.filter((c) => c.plays === "pr-mujoco-3396").map((c) => c.id).sort(), [...mount].sort(), "the mountain's group is its three docks");
+  const ctl = readFileSync(new URL("../components/world/Controller.jsx", import.meta.url), "utf8");
+  assert.ok(/playsAs\(nearestUnseen\(seal\)/.test(ctl) && (ctl.match(/seeAll\(approach\)/g) ?? []).length === 2, "Controller.jsx arrives as the group's scene and marks the group seen");
   const koan = cardFor("p-aether-lang");
   assert.ok(koan.a.text.includes("Gojeal Satarou") && koan.b.text.includes("Gojeal Fishtarou"), "the Gojeal koan keeps its spellings");
   const T = timelineFor(koan);
