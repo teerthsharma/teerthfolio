@@ -25,7 +25,11 @@ const flat = (g) => {
 function hairGeometry() {
   const parts = [];
   // a close cap over the crown and the back of the skull, a little proud; the face stays bare
+<<<<<<< HEAD
   parts.push(flat(new SphereGeometry(0.55, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.55).rotateX(-0.3).translate(0, 0.1, -0.02)));
+=======
+  parts.push(flat(new SphereGeometry(0.55, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.55).rotateX(-0.85).translate(0, 0.03, -0.04)));
+>>>>>>> scene2/tml
   const spike = (from, dir, len, r) => {
     const g = new ConeGeometry(r, len, 5).translate(0, len / 2, 0);
     g.applyQuaternion(Q.setFromUnitVectors(UP, dir.clone().normalize()));
@@ -45,12 +49,21 @@ function hairGeometry() {
       const u = n === 1 ? 0 : k / (n - 1) - 0.5;
       const j = hash(i++, 3);
       const dir = new Vector3(u * 1.1 + (j - 0.5) * 0.35, lift + 0.3 * j, -0.9 - 0.4 * j);
+<<<<<<< HEAD
       spike([u * 2 * spread, y + 0.12, z + 0.15], dir, len * (0.8 + 0.4 * j), r * (0.85 + 0.3 * j));
     }
   }
   // two long wisps trailing back
   spike([0.04, 0.42, -0.25], new Vector3(0.1, 0.25, -1), 1.7, 0.06);
   spike([-0.05, 0.37, -0.3], new Vector3(-0.15, 0.1, -1), 1.5, 0.055);
+=======
+      spike([u * 2 * spread, y, z], dir, len * (0.8 + 0.4 * j), r * (0.85 + 0.3 * j));
+    }
+  }
+  // two long wisps trailing back
+  spike([0.04, 0.3, -0.4], new Vector3(0.1, 0.25, -1), 1.7, 0.06);
+  spike([-0.05, 0.25, -0.45], new Vector3(-0.15, 0.1, -1), 1.5, 0.055);
+>>>>>>> scene2/tml
   return mergeGeometries(parts);
 }
 
