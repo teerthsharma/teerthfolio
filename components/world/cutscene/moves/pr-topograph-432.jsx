@@ -27,7 +27,7 @@ import { live } from "../../../../lib/world/store";
 import { Stage, useCutFrame } from "../kit";
 import { holdFlash, islandList } from "./p-caustic/parts";
 import { CINDERS, DUST, LASH_N, SPARKS, STARS, compileAssets, disposeAssets, getAssets, getGear } from "./pr-topograph-432/assets";
-import { gemColor, poseAinz } from "./pr-topograph-432/ainz";
+import { gemColor, poseAinz } from "./pr-topograph-432/lich";
 import Banner from "./pr-topograph-432/banner";
 import { U, hash } from "./pr-topograph-432/clay";
 import { poseColony, poseWitnesses } from "./pr-topograph-432/figures";
@@ -310,7 +310,7 @@ export default function Move(cut) {
     A.doorGlow.material.uniforms.uAlpha.value = 1.5 * (0.92 + 0.08 * hash(step, 4)) * (0.4 + 0.6 * lampsOut);
 
     // the pup: turns on the bridge to face Ainz, signs, gathers (squash), stretches, strikes
-    clock.current.yaw = tt > T.turn[0] && tt < T.home + 0.1 ? 0.3 + 0.2 * smooth(T.turn[0], T.turn[1], tt) * (1 - smooth(T.home - 0.2, T.home + 0.1, tt)) : null;
+    clock.current.yaw = tt > T.turn[0] && tt < T.home + 0.1 ? 0.2 + 0.15 * smooth(T.turn[0], T.turn[1], tt) * (1 - smooth(T.home - 0.2, T.home + 0.1, tt)) : null;
     const wind = smooth(T.wind[0], T.wind[1], tt) * (1 - smooth(T.slam - 0.12, T.slam - 0.05, tt));
     const stretch = smooth(T.slam - 0.14, T.slam - 0.07, tt) * (1 - smooth(T.slam, T.slam + 0.06, tt));
     const settle = 0.28 * smooth(T.slam + 0.1, T.slam + 0.4, tt);

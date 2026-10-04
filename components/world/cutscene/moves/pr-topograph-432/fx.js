@@ -323,7 +323,7 @@ export function slateTexture() {
   g.lineTo(476, 214);
   g.stroke();
   g.fillStyle = "#b46bff";
-  g.font = "800 52px sans-serif";
+  g.font = "800 40px sans-serif";
   g.textAlign = "center";
   g.fillText("YOU ARE DISMISSED", 256, 300);
   g.fillStyle = "#f0d68a";

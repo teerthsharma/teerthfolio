@@ -15,7 +15,7 @@ export const smooth = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
-const BODY = "#1c1030";
+const BODY = "#2c1850";
 const HORN = "#e6b43a";
 const WING = "#4a1f8a";
 const FACE = "#ece4cf"; // the bare skull
@@ -138,7 +138,8 @@ function triG(a, b, c, color) {
 }
 
 export function buildAinz() {
-  const bodyMat = clay({ boil: 0.022, rim: 1.9, edge: 0.55, bump: 0.5, tex: 1.2 });
+  const headMat = clay({ boil: 0.01, rim: 1.2, emit: 0.55, edge: 0.4, bump: 0.2, tex: 1.2 });
+  const bodyMat = clay({ boil: 0.022, rim: 3.0, edge: 0.55, bump: 0.5, tex: 1.2 });
   const wingMat = clay({ boil: 0.03, rim: 1.8, edge: 0.5, bump: 0.3, tex: 0.7, side: DoubleSide });
   const eyeMat = clay({ boil: 0.004, emit: 2.4, edge: 0, bump: 0, tex: 1 });
   const mouthMat = clay({ boil: 0.004, emit: 1.3, edge: 0, bump: 0, tex: 1 });
@@ -175,7 +176,7 @@ export function buildAinz() {
   wingR.position.set(-0.5, 1.5, -0.55);
   mk(lower(), bodyMat, hips);
   mk(torso(), bodyMat, chest);
-  mk(head(), bodyMat, neck);
+  mk(head(), headMat, neck);
   mk(eyes(), eyeMat, neck);
   mk(mouthGlow(), mouthMat, neck);
   mk(armGeo(true), bodyMat, armS);
@@ -195,6 +196,7 @@ export function buildAinz() {
   for (let k = 0; k < 4; k++) mk(piece(new TorusGeometry(0.4 - 0.02 * k, 0.025, 4, 12, Math.PI).translate(0, 0.78 + k * 0.17, 0.6), "#f6f0e0"), boneMat, chest); // the ribcage round the orb
   root.position.set(AINZ.x, deckY(AINZ.x), AINZ.z);
   root.rotation.y = AINZ.yaw;
+  root.scale.setScalar(0.6); // the Overlord stands about two and a half metres, so the whole pup and the whole Overlord fit one frame
 
   // fire attachment points: [part, x, y, z, size, kind]  kind 0 body ember, 1 sword edge, 2 whip hand
   const fire = [];
@@ -238,7 +240,7 @@ export function buildAinz() {
     fire,
     dispose() {
       for (const g of geos) g.dispose();
-      for (const m of [bodyMat, wingMat, eyeMat, mouthMat, gemMat, bladeMat, boneMat]) m.dispose();
+      for (const m of [headMat, bodyMat, wingMat, eyeMat, mouthMat, gemMat, bladeMat, boneMat]) m.dispose();
       root.removeFromParent();
     },
   };
@@ -271,7 +273,7 @@ export function poseAinz(B, tt, T) {
   const open = smooth(1.7, 4.6, tt) * (1 - smooth(T.fall + 0.2, T.fall + 0.75, tt));
   B.root.visible = true;
   const x = AINZ.x;
-  B.root.position.set(x + 0.025 * wob * odd, deckY(AINZ.x) + 1.1 * rise - 0.015 * wob, AINZ.z);
+  B.root.position.set(x + 0.025 * wob * odd, deckY(AINZ.x) + 0.6 * rise - 0.015 * wob, AINZ.z);
   B.root.rotation.set(falling ? -1.15 * Math.min(1, fall / 0.9) : 0, AINZ.yaw + (falling ? 0.4 * fall : 0), 0.05 * wob * odd + (falling ? 0.5 * fall : 0));
   B.chest.rotation.set(0.04 * hit * (1 - rec) + 0.22 * Math.max(0, hit - rec) - 0.1 * wind * (1 - hit) + sway, -0.08 * wind + 0.1 * hit * (1 - rec), 0.02 * Math.sin(tt * 1.7));
   B.neck.rotation.set(-0.3 * Math.max(0, hit - rec) - 0.12 * smooth(T.parry, T.parry + 0.1, tt) * (1 - guard), 0.16 + 0.1 * Math.sin(tt * 1.3), 0);
