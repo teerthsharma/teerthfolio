@@ -14,7 +14,7 @@ import { PRINT, SH, u } from "./print";
 export function sky() {
   const g = shardify(new IcosahedronGeometry(1, 4), 0.035);
   const m = new ShaderMaterial({
-    uniforms: { ...SH, uPull: u(1), uOpen: u(0), uSwirl: u(0), uFlash: u(0), uInside: u(0), uVortex: u(new Vector3(0.0, 0.42, -1)), uMaxR: u(0.28) },
+    uniforms: { ...SH, uPull: u(1), uOpen: u(0), uSwirl: u(0), uFlash: u(0), uInside: u(0), uVortex: u(new Vector3(0.0, 0.42, -1)), uMaxR: u(0.28), uBlast: u(0) },
     side: DoubleSide,
     transparent: true,
     depthWrite: false,
@@ -27,7 +27,7 @@ export function sky() {
         gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
       }`,
     fragmentShader: /* glsl */ `
-      uniform float uBreak, uOpen, uSwirl, uFlash, uInside, uMaxR;
+      uniform float uBreak, uOpen, uSwirl, uFlash, uInside, uMaxR, uBlast;
       uniform vec3 uVortex;
       uniform vec4 uHaze;
       varying vec3 vOrig;
@@ -44,8 +44,10 @@ export function sky() {
         float th = atan(dot(v, ud), dot(v, sd));
         // the storm turns round its centre, faster the nearer, once the punch winds it
         float tw = th + uSwirl * (1.7 / (ang + 0.22));
-        vec2 q = vec2(cos(tw), sin(tw)) * ang;
+        // the wind pressure of the Smash: the whole storm layer is driven radially away from the impact and thinned
+        vec2 q = vec2(cos(tw), sin(tw)) * max(ang - 1.3 * uBlast, 0.0);
         float d = fbm(q * 2.4 + vec2(uTime * 0.015, 0.0)) * 0.7 + 0.3 * fbm(q * 5.5 - uTime * 0.02);
+        d -= 0.22 * clamp(uBlast, 0.0, 1.0) * smoothstep(0.0, 0.8, ang);
         float s = clamp((d - 0.30) / 0.42, 0.0, 0.999) * 4.0;
         float band = floor(s);
         float f = fract(s);

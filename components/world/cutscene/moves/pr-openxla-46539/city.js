@@ -53,11 +53,14 @@ function grid(w, d, nx, nz, cx, cz, skip) {
 }
 
 // k: how much the avenue is narrowed for a portrait screen (1 on a wide one)
+// the blocks inside the dome's reach are built as 6-10 loose pieces (info.chunks) instead of one merged box
+export const WRECK_AT = [1.4, -7.2];
+const WRECK_R = 44;
 export function buildCity(k) {
   const HW = 4.4 * k;
   SH.uStreet.value = HW;
   const parts = [];
-  const info = { roofs: [], smoke: [], lamps: [], flags: [], HW };
+  const info = { roofs: [], smoke: [], lamps: [], flags: [], chunks: [], HW };
   const walls = [PAL.wallA, PAL.wallB, PAL.wallC, PAL.wallD];
 
   let n = 0;
@@ -88,16 +91,25 @@ export function buildCity(k) {
         for (let b = 0; b < 3; b++) parts.push(tag(new DodecahedronGeometry(1.2 + 1.2 * hash(i * 3 + b, 1), 0).scale(1, 0.55, 1).translate(side * (inner - 0.6 - 1.6 * b * hash(i + b, 3)), 0.5, cz + (hash(i + b, 2) - 0.5) * w), PAL.rubble));
         info.smoke.push({ x: cx, y: hs + 1.5, z: cz, s: 1 + hash(i, 2) });
       } else {
+        const wreck = Math.hypot(cx - WRECK_AT[0], cz - WRECK_AT[1]) < WRECK_R;
+        if (wreck) {
+          // 3 or 4 storeys x 2 halves, the cornice, the roof tank: 7 to 10 pieces
+          const ny = 3 + (hash(i, 13) < 0.5 ? 1 : 0);
+          for (let j = 0; j < ny; j++) for (let q = 0; q < 2; q++) info.chunks.push({ x: cx, y: ((j + 0.5) * h) / ny, z: cz - w / 4 + (q * w) / 2, sx: depth, sy: h / ny, sz: w / 2, pal });
+          info.chunks.push({ x: cx, y: h + 0.1, z: cz, sx: depth + 0.5, sy: 0.4, sz: w + 0.5, pal: PAL.roof });
+          if (hash(i, 6) < 0.6) info.chunks.push({ x: cx + (hash(i, 7) - 0.5) * depth * 0.5, y: h + 1.4, z: cz + (hash(i, 8) - 0.5) * w * 0.4, sx: 2, sy: 2.4, sz: 2, pal: PAL.steel });
+        } else {
         parts.push(tag(box(depth, h, w, cx, h / 2, cz), pal));
         // a cornice and a roof tank
         parts.push(tag(box(depth + 0.5, 0.4, w + 0.5, cx, h + 0.1, cz), PAL.roof));
         if (hash(i, 6) < 0.6) parts.push(tag(box(2, 2.4, 2, cx + (hash(i, 7) - 0.5) * depth * 0.5, h + 1.4, cz + (hash(i, 8) - 0.5) * w * 0.4), PAL.steel));
-        if (hash(i, 10) < 0.35) {
+        }
+        if (!wreck && hash(i, 10) < 0.35) {
           // a broken storey: a corner torn off the top
           parts.push(tag(box(depth * 0.45, 2.4, w * 0.45, cx - side * depth * 0.25, h - 1.0, cz + w * 0.28, 0.12, 0.2, 0), PAL.rubble));
         }
         if (-z > 8 && -z < 34) info.roofs.push({ x: side * (inner + 0.6), y: h + 0.3, z: cz, w, side, i }); // the roof's street lip: the crowd stands at the front of it
-        if (hash(i, 11) < 0.3 && -z < 60) {
+        if (!wreck && hash(i, 11) < 0.3 && -z < 60) {
           const fx = cx - side * depth * 0.35;
           const fz = cz + w * 0.3;
           parts.push(tag(limb([fx, h + 0.3, fz], [fx, h + 4.6, fz], 0.08, 0.05, 4), PAL.pole));
