@@ -13,12 +13,14 @@ import { awakeBeat, awakeMode } from "../../lib/world/awakening";
 import { WHIRLPOOL } from "../../lib/world/river";
 import { getUi, live, setUi } from "../../lib/world/store";
 import { CARDS, cardFor } from "../../lib/world/cutscene/cards";
+import { warmTick } from "./cutscene/prewarm";
 
 const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
 // live.props is created once and never reassigned (store.js), so the world
 // object can be built once too instead of every frame.
 export const WORLD = { colliders: COLLIDERS, radius: ISLAND_RADIUS, props: live.props, whirlpool: WHIRLPOOL, geyser: GEYSER, fountain: FOUNTAIN_TRAVEL, fountainSeen: false, places: PLACES, time: 0 };
 let seenBursts = 0;
+let lastWarm = 0;
 let seenWins = 0;
 // THE LOOP's hidden win (lib/world/loop.js AWAKENING): once per session, and
 // never on a still (?play, ?spawn, ?hud=off), so a capture never ends up inside it.
@@ -121,6 +123,11 @@ export default function Controller() {
     // THE ARRIVAL (lib/world/cutscene/): for its first `hold` seconds the
     // seal takes no input and no click target, so it stops for the scene.
     const arrival = live.arrival;
+    // the shared prewarm (cutscene/prewarm.js): build and compile the docks the seal is walking up to
+    if (t - lastWarm > 0.4) {
+      lastWarm = t;
+      warmTick(state.gl, state.camera, window.__world?.composer);
+    }
     if (arrival.id && (t - arrival.start >= arrivalLength(arrival.id) || ui.open || freshInput(arrival))) {
       arrival.id = null;
       setUi({ cutscene: null, beat: 0 });

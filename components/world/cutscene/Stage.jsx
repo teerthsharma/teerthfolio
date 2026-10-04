@@ -14,7 +14,7 @@
 import { sceneT } from "../../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { AdditiveBlending, Box3, CircleGeometry, Ray, Color, DoubleSide, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, ShaderMaterial, SphereGeometry, Vector3 } from "three";
+import { AdditiveBlending, Box3, Group, Mesh, CircleGeometry, Ray, Color, DoubleSide, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, Object3D, OctahedronGeometry, ShaderMaterial, SphereGeometry, Vector3 } from "three";
 import { paletteFor } from "../../../lib/world/cutscene/look";
 import { landPoint, radiusAt } from "../../../lib/world/cutscene/timeline";
 import { live } from "../../../lib/world/store";
@@ -299,4 +299,12 @@ export default function Stage({ card, place, tl, mode, bare = false, skip, pool:
       <mesh ref={disc} geometry={k.disc} material={k.discMat} position={[0, 0.02, 0.1]} scale={1.15} />
     </group>
   );
+}
+
+// The shared programs (void, pool, disc) as three throwaway meshes, for the prewarm's first compile (prewarm.js).
+export function stageWarmObjects() {
+  const k = kit();
+  const g = new Group();
+  for (const [geo, mat] of [[k.sphere, k.voidMat], [k.pool, k.poolMat], [k.disc, k.discMat]]) g.add(new Mesh(geo, mat));
+  return g;
 }

@@ -30,6 +30,7 @@ import { rivalGeometry } from "./pr-tensorflow-124410/rival";
 import { reservoir, skyShell } from "./pr-tensorflow-124410/sky";
 import { fistGeometry, standGeometry } from "./pr-tensorflow-124410/stand";
 import { TOWER, WY, crestGeometry, lampGeometry, pylonGeometry, terrain } from "./pr-tensorflow-124410/world";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 const K = 0.74; // the dimension is built at 1:1 and shown at 0.74 beside a pup grown to PUP, so the pup reads at the lens
@@ -85,6 +86,53 @@ function solidPair(geo, U, opts) {
   return [a, b];
 }
 
+// The world, built by the shared prewarm (cutscene/prewarm.js) while the seal walks up to the dock.
+function buildWorld() {
+  const U = sharedUniforms();
+  const shell = skyShell(U);
+  const water = reservoir(U);
+  const land = terrain();
+  const landM = solidMaterial(U, { rim: 0 });
+  const crestG = crestGeometry();
+  const crest = solidPair(crestG, U);
+  const lampG = lampGeometry();
+  const lampM = solidMaterial(U, { glow: 1, haze: 0, rim: 0 });
+  const pylG = pylonGeometry(BEAM_Y.concat([CORAL.y]));
+  const pyl = [solidPair(pylG, U), solidPair(pylG, U)];
+  const standG = standGeometry();
+  const stand = solidPair(standG, U);
+  const aura = new Mesh(standG, new MeshBasicMaterial({ color: AURA[0], side: BackSide, transparent: true, opacity: 0.55, blending: AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
+  aura.frustumCulled = false;
+  aura.scale.setScalar(1.1);
+  const rivalG = rivalGeometry();
+  const rival = new Mesh(rivalG, solidMaterial(U, { rim: 1 }));
+  rival.frustumCulled = false;
+  const beamG = merge([part(new BoxGeometry(1, 1, 1), R.mint)]);
+  const mint = pair(beamG, U, 3, { glow: 0.2, haze: 0, rim: 0 });
+  const coralG = merge([part(new BoxGeometry(1, 1, 1), R.coral)]);
+  const coral = pair(coralG, U, 4, { glow: 0.3, haze: 0, rim: 0 });
+  const fistG = fistGeometry();
+  const fists = pair(fistG, U, JABS, { glow: 0.45, haze: 0, rim: 0 });
+  const dropG = dropGeometry();
+  const spray = new InstancedMesh(dropG, solidMaterial(U, { glow: 0.3, haze: 0, rim: 0 }), SPRAY);
+  spray.frustumCulled = false;
+  const sparkG = merge([part(new OctahedronGeometry(1, 0), R.cream, { sx: 0.4, sz: 0.4 })]);
+  const sparks = new InstancedMesh(sparkG, solidMaterial(U, { glow: 1, haze: 0, rim: 0 }), SPARKS);
+  sparks.frustumCulled = false;
+  const clockG = clockGeometry();
+  const clockM = solidMaterial(U, { haze: 0 });
+  const clockH = solidMaterial(U, { hull: true });
+  const minG = handGeometry(5.6, 0.34, R.ink);
+  const hourG = handGeometry(3.5, 0.5, R.ink);
+  const glyph = glyphs(U, GLYPHS, R.coral);
+  const flashG = new PlaneGeometry(1, 1);
+  const flash = new Mesh(flashG, new MeshBasicMaterial({ color: "#fff0d8", transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false, fog: false }));
+  flash.frustumCulled = false;
+  flash.renderOrder = 40;
+  return { U, aura, shell, water, land, landM, crestG, crest, lampG, lampM, pylG, pyl, standG, stand, rivalG, rival, mint, coral, fists, fistG, dropG, spray, sparkG, sparks, clockG, clockM, clockH, minG, hourG, glyph, flash, flashG, beamG, coralG };
+}
+registerWarm("pr-tensorflow-124410", buildWorld);
+
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
   const scene = useThree((s) => s.scene);
@@ -107,50 +155,7 @@ export default function Move(cut) {
   const state = useRef({ pal: -1, shift: 0, tick1: false, tick2: false, tick3: false });
   const tickSnd = useRef(null);
 
-  const m = useMemo(() => {
-    const U = sharedUniforms();
-    const shell = skyShell(U);
-    const water = reservoir(U);
-    const land = terrain();
-    const landM = solidMaterial(U, { rim: 0 });
-    const crestG = crestGeometry();
-    const crest = solidPair(crestG, U);
-    const lampG = lampGeometry();
-    const lampM = solidMaterial(U, { glow: 1, haze: 0, rim: 0 });
-    const pylG = pylonGeometry(BEAM_Y.concat([CORAL.y]));
-    const pyl = [solidPair(pylG, U), solidPair(pylG, U)];
-    const standG = standGeometry();
-    const stand = solidPair(standG, U);
-    const aura = new Mesh(standG, new MeshBasicMaterial({ color: AURA[0], side: BackSide, transparent: true, opacity: 0.55, blending: AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
-    aura.frustumCulled = false;
-    aura.scale.setScalar(1.1);
-    const rivalG = rivalGeometry();
-    const rival = new Mesh(rivalG, solidMaterial(U, { rim: 1 }));
-    rival.frustumCulled = false;
-    const beamG = merge([part(new BoxGeometry(1, 1, 1), R.mint)]);
-    const mint = pair(beamG, U, 3, { glow: 0.2, haze: 0, rim: 0 });
-    const coralG = merge([part(new BoxGeometry(1, 1, 1), R.coral)]);
-    const coral = pair(coralG, U, 4, { glow: 0.3, haze: 0, rim: 0 });
-    const fistG = fistGeometry();
-    const fists = pair(fistG, U, JABS, { glow: 0.45, haze: 0, rim: 0 });
-    const dropG = dropGeometry();
-    const spray = new InstancedMesh(dropG, solidMaterial(U, { glow: 0.3, haze: 0, rim: 0 }), SPRAY);
-    spray.frustumCulled = false;
-    const sparkG = merge([part(new OctahedronGeometry(1, 0), R.cream, { sx: 0.4, sz: 0.4 })]);
-    const sparks = new InstancedMesh(sparkG, solidMaterial(U, { glow: 1, haze: 0, rim: 0 }), SPARKS);
-    sparks.frustumCulled = false;
-    const clockG = clockGeometry();
-    const clockM = solidMaterial(U, { haze: 0 });
-    const clockH = solidMaterial(U, { hull: true });
-    const minG = handGeometry(5.6, 0.34, R.ink);
-    const hourG = handGeometry(3.5, 0.5, R.ink);
-    const glyph = glyphs(U, GLYPHS, R.coral);
-    const flashG = new PlaneGeometry(1, 1);
-    const flash = new Mesh(flashG, new MeshBasicMaterial({ color: "#fff0d8", transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false, fog: false }));
-    flash.frustumCulled = false;
-    flash.renderOrder = 40;
-    return { U, aura, shell, water, land, landM, crestG, crest, lampG, lampM, pylG, pyl, standG, stand, rivalG, rival, mint, coral, fists, fistG, dropG, spray, sparkG, sparks, clockG, clockM, clockH, minG, hourG, glyph, flash, flashG, beamG, coralG };
-  }, []);
+  const m = useMemo(() => takeWarm("pr-tensorflow-124410", buildWorld), []);
 
   useEffect(() => {
     island.current = scene.children.filter((o) => o.visible && !o.isLight && o.name !== "cutscene" && o.name !== "seal");

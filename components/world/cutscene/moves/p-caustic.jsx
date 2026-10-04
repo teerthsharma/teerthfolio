@@ -32,6 +32,7 @@ import { doomLettering } from "./p-caustic/doom";
 import { flashQuad, flat, hash, hide, holdFlash, inst, islandList, mat, pupParts, put } from "./p-caustic/parts";
 import { limb, susanooGeometry, susanooMaterials } from "./p-caustic/susanoo";
 import { CRATERS, HIT1, HIT2, MOON_R, MOON_TALL, MOON_WIDE, battlefield, groundHeight, meteorGeometry, meteorMaterial, moon, rockGeometry, rockMaterial, skyShell, threadMaterial } from "./p-caustic/world";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 // the clock (s from the arrival); the card's beats put line A at 3.0 and line B at 6.6, on the shatter
@@ -72,6 +73,56 @@ const X = new Vector3();
 const Z = new Vector3();
 const Y = new Vector3();
 
+// The world, built by the shared prewarm (cutscene/prewarm.js) while the seal walks up to the dock.
+function buildWorld() {
+  const shell = skyShell();
+  const ground = battlefield();
+  const tsukiM = moon();
+  const susM = { g: susanooGeometry(), ...susanooMaterials() };
+  const rock = rockMaterial();
+  const rockG = rockGeometry();
+  const rubble = inst(rockG, rock, RUBBLE);
+  const debris = inst(rockG, rock, DEBRIS);
+  const tint = new Color();
+  for (let i = 0; i < RUBBLE; i++) {
+    // scattered over the field, thickest round the old craters; none under the pup
+    const cr = CRATERS[i % CRATERS.length];
+    const near = i % 3 === 0;
+    const a = hash(i, 1) * Math.PI * 2;
+    const d = near ? cr[2] * (0.9 + 0.8 * hash(i, 2)) : 3.5 + 55 * hash(i, 2) ** 1.4;
+    const x = near ? cr[0] + Math.cos(a) * d : (hash(i, 3) - 0.5) * 2 * d;
+    const z = near ? cr[1] + Math.sin(a) * d : -2 - d * (0.3 + 0.7 * hash(i, 4));
+    const s = (0.12 + 0.75 * hash(i, 5) ** 2) * (near ? 1.4 : 1);
+    put(rubble, i, x, groundHeight(x, z) + s * 0.3, z, s * (0.8 + 0.5 * hash(i, 6)), s, s, hash(i, 7) * 3, hash(i, 8) * 3, 0);
+    rubble.setColorAt(i, tint.setRGB(0.42 + 0.14 * hash(i, 9), 0.36 + 0.1 * hash(i, 9), 0.3 + 0.06 * hash(i, 10)));
+  }
+  for (let i = 0; i < DEBRIS; i++) {
+    hide(debris, i);
+    debris.setColorAt(i, tint.setRGB(0.4, 0.33, 0.27));
+  }
+  const ink = mat({ color: "#1d1813" });
+  const crowdA = inst(shinobi(false), ink, CROWD / 2);
+  const crowdB = inst(shinobi(true), ink, CROWD / 2);
+  const bands = inst(flat(new BoxGeometry(0.3, 0.045, 0.3)), mat({ color: "#d8ccb6" }), CROWD);
+  const crowd = Array.from({ length: CROWD }, (_, i) => {
+    const x = -34 + (68 * (i + hash(i, 1) * 0.8)) / CROWD;
+    const z = -31.5 - 4 * hash(i, 2);
+    return { x, z, y: groundHeight(x, z), yaw: (hash(i, 3) - 0.5) * 0.7, s: 0.95 + 0.3 * hash(i, 4), lag: hash(i, 5) * 0.25 };
+  });
+  const threads = inst(new PlaneGeometry(0.07, 1).translate(0, 0.5, 0), threadMaterial(), THREADS);
+  const thread = Array.from({ length: THREADS }, (_, i) => {
+    const base = new Vector3((hash(i, 1) - 0.5) * 80, 0, -12 - 75 * hash(i, 2));
+    base.y = groundHeight(base.x, base.z);
+    return { base, dir: new Vector3(), len: 4 + 9 * hash(i, 3), speed: 2 + 3 * hash(i, 4), phase: hash(i, 5) * 40 };
+  });
+  const metG = meteorGeometry();
+  const metM = meteorMaterial();
+  const boom = doomLettering("DOOOM");
+  const flash = flashQuad("#fff4e4");
+  return { shell, ground, tsuki: tsukiM, sus: susM, rock, rockG, rubble, debris, ink, crowdA, crowdB, bands, crowd, threads, thread, metG, metM, boom, flash };
+}
+registerWarm("p-caustic", buildWorld);
+
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
   const scene = useThree((s) => s.scene);
@@ -87,53 +138,7 @@ export default function Move(cut) {
   const pup = useRef(null);
   const shake = useRef(new Vector3());
 
-  const m = useMemo(() => {
-    const shell = skyShell();
-    const ground = battlefield();
-    const tsukiM = moon();
-    const susM = { g: susanooGeometry(), ...susanooMaterials() };
-    const rock = rockMaterial();
-    const rockG = rockGeometry();
-    const rubble = inst(rockG, rock, RUBBLE);
-    const debris = inst(rockG, rock, DEBRIS);
-    const tint = new Color();
-    for (let i = 0; i < RUBBLE; i++) {
-      // scattered over the field, thickest round the old craters; none under the pup
-      const cr = CRATERS[i % CRATERS.length];
-      const near = i % 3 === 0;
-      const a = hash(i, 1) * Math.PI * 2;
-      const d = near ? cr[2] * (0.9 + 0.8 * hash(i, 2)) : 3.5 + 55 * hash(i, 2) ** 1.4;
-      const x = near ? cr[0] + Math.cos(a) * d : (hash(i, 3) - 0.5) * 2 * d;
-      const z = near ? cr[1] + Math.sin(a) * d : -2 - d * (0.3 + 0.7 * hash(i, 4));
-      const s = (0.12 + 0.75 * hash(i, 5) ** 2) * (near ? 1.4 : 1);
-      put(rubble, i, x, groundHeight(x, z) + s * 0.3, z, s * (0.8 + 0.5 * hash(i, 6)), s, s, hash(i, 7) * 3, hash(i, 8) * 3, 0);
-      rubble.setColorAt(i, tint.setRGB(0.42 + 0.14 * hash(i, 9), 0.36 + 0.1 * hash(i, 9), 0.3 + 0.06 * hash(i, 10)));
-    }
-    for (let i = 0; i < DEBRIS; i++) {
-      hide(debris, i);
-      debris.setColorAt(i, tint.setRGB(0.4, 0.33, 0.27));
-    }
-    const ink = mat({ color: "#1d1813" });
-    const crowdA = inst(shinobi(false), ink, CROWD / 2);
-    const crowdB = inst(shinobi(true), ink, CROWD / 2);
-    const bands = inst(flat(new BoxGeometry(0.3, 0.045, 0.3)), mat({ color: "#d8ccb6" }), CROWD);
-    const crowd = Array.from({ length: CROWD }, (_, i) => {
-      const x = -34 + (68 * (i + hash(i, 1) * 0.8)) / CROWD;
-      const z = -31.5 - 4 * hash(i, 2);
-      return { x, z, y: groundHeight(x, z), yaw: (hash(i, 3) - 0.5) * 0.7, s: 0.95 + 0.3 * hash(i, 4), lag: hash(i, 5) * 0.25 };
-    });
-    const threads = inst(new PlaneGeometry(0.07, 1).translate(0, 0.5, 0), threadMaterial(), THREADS);
-    const thread = Array.from({ length: THREADS }, (_, i) => {
-      const base = new Vector3((hash(i, 1) - 0.5) * 80, 0, -12 - 75 * hash(i, 2));
-      base.y = groundHeight(base.x, base.z);
-      return { base, dir: new Vector3(), len: 4 + 9 * hash(i, 3), speed: 2 + 3 * hash(i, 4), phase: hash(i, 5) * 40 };
-    });
-    const metG = meteorGeometry();
-    const metM = meteorMaterial();
-    const boom = doomLettering("DOOOM");
-    const flash = flashQuad("#fff4e4");
-    return { shell, ground, tsuki: tsukiM, sus: susM, rock, rockG, rubble, debris, ink, crowdA, crowdB, bands, crowd, threads, thread, metG, metM, boom, flash };
-  }, []);
+  const m = useMemo(() => takeWarm("p-caustic", buildWorld), []);
 
   // the costume rides the pup's own head and body; the island list is taken before the stage hides it
   const costume = useRef(null);

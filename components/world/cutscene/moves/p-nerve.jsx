@@ -37,6 +37,7 @@ import { buildRoof } from "./p-nerve/roof";
 import { SKY_R, buildRealm, skyDome } from "./p-nerve/sky";
 import { T, gaugesAt, tollPulse, unwarp } from "./p-nerve/timeline";
 import { TOWER, buildTower } from "./p-nerve/tower";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 const TOWER_X = TOWER.x;
@@ -48,6 +49,32 @@ const sm = smooth;
 const MOUTH0 = new Vector3(RYUK.x, RYUK.y + 2.0, RYUK.z + 0.78);
 const APPLES = 9; // 0: the pup's apple, 1..8: the colony's tiny ones
 
+// The world, built by the shared prewarm (cutscene/prewarm.js) while the seal walks up to the dock.
+function buildWorld() {
+  const mats = figureMaterials();
+  return {
+    mats,
+    dome: skyDome(),
+    roof: buildRoof(),
+    beam: buildBeam(),
+    rain: buildRain(),
+    splashes: buildSplashes(),
+    grains: buildGrains(),
+    city: buildCity(),
+    tower: buildTower(),
+    realm: buildRealm(),
+    chain: buildChain(),
+    ryuk: buildRyuk(mats),
+    L: buildL(mats),
+    colony: buildColony(mats),
+    apples: buildApples(mats, APPLES),
+    dong: lettering("DONG", "#8a1219"),
+    crunch: lettering("CRUNCH", "#8a1219"),
+    flash: flashQuad("#fff1d6"),
+  };
+}
+registerWarm("p-nerve", buildWorld);
+
 export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
@@ -57,29 +84,7 @@ export default function Move(cut) {
   const pup = useRef(null);
   const island = useRef([]);
 
-  const m = useMemo(() => {
-    const mats = figureMaterials();
-    return {
-      mats,
-      dome: skyDome(),
-      roof: buildRoof(),
-      beam: buildBeam(),
-      rain: buildRain(),
-      splashes: buildSplashes(),
-      grains: buildGrains(),
-      city: buildCity(),
-      tower: buildTower(),
-      realm: buildRealm(),
-      chain: buildChain(),
-      ryuk: buildRyuk(mats),
-      L: buildL(mats),
-      colony: buildColony(mats),
-      apples: buildApples(mats, APPLES),
-      dong: lettering("DONG", "#8a1219"),
-      crunch: lettering("CRUNCH", "#8a1219"),
-      flash: flashQuad("#fff1d6"),
-    };
-  }, []);
+  const m = useMemo(() => takeWarm("p-nerve", buildWorld), []);
 
   // the title banner: the instant the scene starts (static under reduced motion)
   useEffect(() => {

@@ -24,6 +24,7 @@ import { Mesh, Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../../lib/world/places";
 import { figureAt, figureScale, radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
+import { registerWarm, takeWarm } from "../prewarm";
 import { Speaker, Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { SHARED, pupCosmic } from "./p-aether-lang/cosmic";
 import { glintSprite, gojo } from "./p-aether-lang/gojo";
@@ -78,23 +79,8 @@ function buildVoid() {
   return { nebula, stars, gal, core: coreSprite(), fl: flood(), ring: closingRing(), kr: krackle(), floor: glassFloor(), gj: gojo(), glint, glints, still: lettering("STILL", "#9b6bff", -0.1), flash: flashQuad("#cdbdff") };
 }
 
-// THE APPROACH: every mesh, geometry and material of the void is built while the seal walks up to the dock,
-// not on the arrival frame (a build at mount stalled the first frames). A 0.4 s watch builds it once the seal is
-// within 45 m of the dock and the arrival takes it; the next approach builds a fresh one.
-let ready = null;
-let watch = 0;
-const DOCK = PLACE_BY_ID["p-aether-lang"];
-function approach() {
-  if (ready || live.arrival.id) return;
-  const s = live.seal;
-  if (Math.hypot(s.x - DOCK.x, s.z - DOCK.z) < 45) ready = buildVoid();
-}
-if (typeof window !== "undefined" && !watch) watch = window.setInterval(approach, 400);
-function takeVoid() {
-  const m = ready ?? buildVoid();
-  ready = null;
-  return m;
-}
+// THE APPROACH: the shared prewarm (../prewarm.js) builds the void while the seal walks up to the dock; the arrival takes it.
+registerWarm("p-aether-lang", buildVoid);
 
 export default function Move(cut) {
   const { card, tl, mode } = cut;
@@ -112,7 +98,7 @@ export default function Move(cut) {
   const upfall = useRef(null);
   const clock = useRef({ flow: 0 });
 
-  const m = useMemo(takeVoid, []);
+  const m = useMemo(() => takeWarm("p-aether-lang", buildVoid), []);
 
   // the flood sits on layer 2, which only the main pass's lens draws: the post stack's own re-renders of the scene never see it
   const camera = useThree((s) => s.camera);

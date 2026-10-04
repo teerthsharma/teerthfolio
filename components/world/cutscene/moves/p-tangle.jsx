@@ -20,9 +20,9 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Quaternion, Scene, Vector3 } from "three";
-import { PLACE_BY_ID } from "../../../../lib/world/places";
-import { cutsceneMode, radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
+import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
+import { registerWarm, takeWarm } from "../prewarm";
 import { Stage, signAt, smooth, useCutFrame } from "../kit";
 import { islandList, pupParts } from "./p-caustic/parts";
 import { WATER_Y } from "./p-tangle/land";
@@ -32,57 +32,17 @@ import { REST, buildSteps } from "./p-tangle/world";
 import { flipperWrap, pupTwilight, tiePoint } from "./p-tangle/pup";
 
 // ---------------------------------------------------------------------------------------------- prewarm
-// The world is built in small steps from the moment the seal is within reach of the lab (one step per 50 ms),
-// then its shaders compile (in the composer's target, so the program keys are the ones the scene will use).
-let HELD = null; // { W, steps, i, state }
-const PLACE = PLACE_BY_ID["p-tangle"];
-function advance() {
-  const h = HELD;
-  if (!h || h.i >= h.steps.length) return false;
-  h.steps[h.i++]();
-  return true;
-}
-function takeWorld() {
-  HELD ??= { ...buildSteps(), i: 0, state: "building" };
-  while (advance());
-  HELD.state = "used";
-  return HELD.W;
-}
-function compileHeld(h) {
-  const w = typeof window !== "undefined" ? window.__world : null;
-  if (!w?.gl || !w?.camera || !h.W.root) return;
-  const tmp = new Scene();
-  tmp.add(h.W.root);
-  const prev = w.gl.getRenderTarget();
-  try {
-    if (w.composer?.inputBuffer) w.gl.setRenderTarget(w.composer.inputBuffer);
-    const p = w.gl.compileAsync(tmp, w.camera);
-    w.gl.setRenderTarget(prev);
-    p.then(() => {
-      if (h.state === "compiling") h.state = "ready";
-    });
-  } catch {
-    w.gl.setRenderTarget(prev);
-  } finally {
-    tmp.remove(h.W.root);
+// The shared prewarm (../prewarm.js) builds the world one step per tick from the moment the seal is within reach
+// of the lab, then compiles its shaders in the composer's target.
+function* buildWorld() {
+  const { W, steps } = buildSteps();
+  for (const step of steps) {
+    step();
+    yield;
   }
+  return W;
 }
-function prewarmTick() {
-  if (!PLACE || !cutsceneMode("p-tangle") || live.seen.has("p-tangle")) return;
-  const d = Math.hypot(live.seal.x - PLACE.x, live.seal.z - PLACE.z);
-  if (!HELD) {
-    if (d < 85) HELD = { ...buildSteps(), i: 0, state: "building" };
-  } else if (HELD.state === "building") {
-    if (!advance()) {
-      HELD.state = "compiling";
-      compileHeld(HELD);
-    }
-  } else if (HELD.state !== "used" && d > 170) {
-    HELD.W.dispose();
-    HELD = null;
-  }
-}
-if (typeof window !== "undefined" && !window.__tanglePrewarm) window.__tanglePrewarm = setInterval(prewarmTick, 50);
+registerWarm("p-tangle", buildWorld);
 
 // ---------------------------------------------------------------------------------------------- the clock
 // seconds from the arrival; the card's beats put line A at 3.0, B at 6.9, C at 11.3, the credit card at 15.3
@@ -177,7 +137,7 @@ export default function Tangle(cut) {
   const { card, place, tl, mode } = cut;
   const scene = useThree((s) => s.scene);
   const rig = useRef();
-  const W = useMemo(() => takeWorld(), []);
+  const W = useMemo(() => takeWarm("p-tangle", buildWorld), []);
   const island = useRef([]);
   const twil = useRef(null);
   const wrap = useRef(null);
@@ -199,7 +159,6 @@ export default function Tangle(cut) {
       if (wrap.current && !s.tied) wrap.current.scale.setScalar(0.0001);
       wrap.current = null;
       W.dispose();
-      HELD = null;
     };
   }, [scene, W]);
 

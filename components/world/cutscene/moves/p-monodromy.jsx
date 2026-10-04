@@ -25,6 +25,7 @@ import { crackLens, foldPlane, loopRing, placeLens } from "./p-monodromy/crack";
 import { jafar, sinbad, stormColumn } from "./p-monodromy/hero";
 import { U, celMat, hash, pupCel } from "./p-monodromy/look";
 import { FLEET, LANTERN_COLORS, PALM_AT, ROBES, SEA_Y, landscape, lanternGeometry, palmGeometry, personGeometry, sea, shipGeometry, skyShell, strings } from "./p-monodromy/world";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 // the clock (s from the arrival). The card's beats: Relax 4.6, Oops 7.0, the flex 9.6, the credit 12.0, out 13.6
@@ -74,6 +75,67 @@ function panicBubble() {
   return wrap;
 }
 
+// The world, built by the shared prewarm (cutscene/prewarm.js) while the seal walks up to the dock.
+function buildWorld() {
+  const cel = celMat();
+  const palmMat = celMat({ wind: true });
+  const shell = skyShell();
+  const seaM = sea();
+  const land = landscape();
+  const palmG = palmGeometry();
+  const palms = new InstancedMesh(palmG, palmMat, PALM_AT.length);
+  PALM_AT.forEach(([x, z, y], i) => {
+    O.position.set(x, y, z);
+    O.rotation.set(0, hash(i, 1) * 6.28, 0);
+    O.scale.setScalar(0.85 + 0.45 * hash(i, 2));
+    O.updateMatrix();
+    palms.setMatrixAt(i, O.matrix);
+  });
+  const shipG = shipGeometry();
+  const ships = new InstancedMesh(shipG, cel, FLEET.length);
+  const sails = ["#fff3d6", "#1fbdb4", "#e4566a", "#f2b52e", "#ffffff", "#7d4fc4"];
+  FLEET.forEach((_, i) => ships.setColorAt(i, COL.set(sails[i % sails.length])));
+  const personG = personGeometry();
+  const crowd = new InstancedMesh(personG, cel, CROWD);
+  const folk = Array.from({ length: CROWD }, (_, i) => {
+    const side = i % 2 ? 1 : -1;
+    const z = -9.4 + 6.4 * hash(i, 1);
+    const x = side * (2.5 + hash(i, 2) ** 1.3 * 6.8);
+    crowd.setColorAt(i, COL.set(ROBES[Math.floor(hash(i, 3) * ROBES.length)]));
+    return { x, z, yaw: Math.atan2(-x, 9 - z) * 0.8 + (hash(i, 4) - 0.5) * 0.4, s: 0.9 + 0.22 * hash(i, 5), lag: hash(i, 6) * 0.35, ph: hash(i, 7) * 6.28 };
+  });
+  const str = strings();
+  const ropes = new Mesh(str.rope, cel);
+  const lampG = lanternGeometry();
+  const lampList = str.lamps.slice(0, LAMPS);
+  const lamps = new InstancedMesh(lampG, cel, lampList.length);
+  lampList.forEach((l, i) => lamps.setColorAt(i, COL.set(LANTERN_COLORS[l.hue])));
+  for (const im of [palms, ships, crowd, lamps]) im.frustumCulled = false;
+  const landMesh = new Mesh(land, cel);
+  landMesh.frustumCulled = false;
+  ropes.frustumCulled = false;
+  const mega = new Mesh(megaBoltGeometry(), boltMaterial());
+  const wreath = new Mesh(wreathGeometry(), boltMaterial());
+  const burst = new Mesh(burstGeometry(), boltMaterial());
+  for (const b of [mega, wreath, burst]) {
+    b.frustumCulled = false;
+    b.renderOrder = 6;
+    b.visible = false;
+  }
+  mega.material.uniforms.uJit.value = 0.45;
+  wreath.material.uniforms.uJit.value = 0.05;
+  burst.material.uniforms.uJit.value = 0.12;
+  const storm = stormColumn();
+  const ja = jafar(cel);
+  const lens = crackLens();
+  lens.m.uniforms.uC.value = CRACK_AT;
+  lens.m.uniforms.uAng.value = CRACK_ANG;
+  const ring = loopRing();
+  const flash = flashQuad("#cfe6ff");
+  return { cel, palmMat, shell, seaM, land, landMesh, palmG, palms, shipG, ships, personG, crowd, folk, str, lampList, ropes, lampG, lamps, mega, wreath, burst, storm, ja, lens, ring, flash };
+}
+registerWarm("p-monodromy", buildWorld);
+
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
   const scene = useThree((s) => s.scene);
@@ -86,64 +148,7 @@ export default function Move(cut) {
   const pup = useRef(null);
   const st = useRef({ shake: new Vector3(), step: new Vector3(), scale: 1, faceTo: 0, faceK: 0, bubble: null, lastTt: -1 });
 
-  const m = useMemo(() => {
-    const cel = celMat();
-    const palmMat = celMat({ wind: true });
-    const shell = skyShell();
-    const seaM = sea();
-    const land = landscape();
-    const palmG = palmGeometry();
-    const palms = new InstancedMesh(palmG, palmMat, PALM_AT.length);
-    PALM_AT.forEach(([x, z, y], i) => {
-      O.position.set(x, y, z);
-      O.rotation.set(0, hash(i, 1) * 6.28, 0);
-      O.scale.setScalar(0.85 + 0.45 * hash(i, 2));
-      O.updateMatrix();
-      palms.setMatrixAt(i, O.matrix);
-    });
-    const shipG = shipGeometry();
-    const ships = new InstancedMesh(shipG, cel, FLEET.length);
-    const sails = ["#fff3d6", "#1fbdb4", "#e4566a", "#f2b52e", "#ffffff", "#7d4fc4"];
-    FLEET.forEach((_, i) => ships.setColorAt(i, COL.set(sails[i % sails.length])));
-    const personG = personGeometry();
-    const crowd = new InstancedMesh(personG, cel, CROWD);
-    const folk = Array.from({ length: CROWD }, (_, i) => {
-      const side = i % 2 ? 1 : -1;
-      const z = -9.4 + 6.4 * hash(i, 1);
-      const x = side * (2.5 + hash(i, 2) ** 1.3 * 6.8);
-      crowd.setColorAt(i, COL.set(ROBES[Math.floor(hash(i, 3) * ROBES.length)]));
-      return { x, z, yaw: Math.atan2(-x, 9 - z) * 0.8 + (hash(i, 4) - 0.5) * 0.4, s: 0.9 + 0.22 * hash(i, 5), lag: hash(i, 6) * 0.35, ph: hash(i, 7) * 6.28 };
-    });
-    const str = strings();
-    const ropes = new Mesh(str.rope, cel);
-    const lampG = lanternGeometry();
-    const lampList = str.lamps.slice(0, LAMPS);
-    const lamps = new InstancedMesh(lampG, cel, lampList.length);
-    lampList.forEach((l, i) => lamps.setColorAt(i, COL.set(LANTERN_COLORS[l.hue])));
-    for (const im of [palms, ships, crowd, lamps]) im.frustumCulled = false;
-    const landMesh = new Mesh(land, cel);
-    landMesh.frustumCulled = false;
-    ropes.frustumCulled = false;
-    const mega = new Mesh(megaBoltGeometry(), boltMaterial());
-    const wreath = new Mesh(wreathGeometry(), boltMaterial());
-    const burst = new Mesh(burstGeometry(), boltMaterial());
-    for (const b of [mega, wreath, burst]) {
-      b.frustumCulled = false;
-      b.renderOrder = 6;
-      b.visible = false;
-    }
-    mega.material.uniforms.uJit.value = 0.45;
-    wreath.material.uniforms.uJit.value = 0.05;
-    burst.material.uniforms.uJit.value = 0.12;
-    const storm = stormColumn();
-    const ja = jafar(cel);
-    const lens = crackLens();
-    lens.m.uniforms.uC.value = CRACK_AT;
-    lens.m.uniforms.uAng.value = CRACK_ANG;
-    const ring = loopRing();
-    const flash = flashQuad("#cfe6ff");
-    return { cel, palmMat, shell, seaM, land, landMesh, palmG, palms, shipG, ships, personG, crowd, folk, str, lampList, ropes, lampG, lamps, mega, wreath, burst, storm, ja, lens, ring, flash };
-  }, []);
+  const m = useMemo(() => takeWarm("p-monodromy", buildWorld), []);
 
   const costume = useRef(null);
   const skin = useRef(null);

@@ -34,6 +34,7 @@ import { createOrb } from "./p-topological-ml-toolkit/orb";
 import { RIVAL_AT, RIVAL_YAW, rival as makeRival } from "./p-topological-ml-toolkit/rival";
 import { INK, SUN_RIG, celMaterial, celUniforms, pupToon } from "./p-topological-ml-toolkit/shade";
 import { POP_AT, T } from "./p-topological-ml-toolkit/timing";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 const UP = new Vector3(0, 1, 0);
@@ -45,6 +46,47 @@ const QC = new Quaternion();
 const O = new Object3D();
 const AWAY = new Vector3(RIVAL_AT[0], 0, RIVAL_AT[2]).normalize(); // from the pup out past the rival (the knock-back)
 
+// The world, built by the shared prewarm (cutscene/prewarm.js) while the seal walks up to the dock.
+function buildWorld() {
+  const U = celUniforms();
+  const skyM = sky(U);
+  const cityMat = celMaterial(U);
+  const rotG = rotorGeometry();
+  const leaf = leaves().map(({ g, rotors }) => {
+    const mesh = new Mesh(g, cityMat);
+    mesh.frustumCulled = false;
+    const rot = new InstancedMesh(rotG, cityMat, Math.max(1, rotors.length));
+    rot.frustumCulled = false;
+    const group = new Group();
+    group.add(mesh, rot);
+    return { group, mesh, rot, rotors, angle: Float32Array.from(rotors, (r) => r[4]) };
+  });
+  // the creases: A is fixed, B hinges at -22, C at B's far end, D at C's
+  leaf[1].group.position.set(0, 0.05, HINGE[1]);
+  leaf[2].group.position.set(0, -0.05, HINGE[2] - HINGE[1]);
+  leaf[3].group.position.set(0, 0.05, HINGE[3] - HINGE[2]);
+  leaf[1].group.add(leaf[2].group);
+  leaf[2].group.add(leaf[3].group);
+  const arrows = arrowPool(140);
+  const flow = createFlow(U, arrows);
+  const orb = createOrb(arrows);
+  const rival = makeRival(U);
+  const rivalG = new Group();
+  rivalG.add(rival.body, rival.arm);
+  rivalG.visible = false;
+  const shadowG = new CircleGeometry(1, 32).rotateX(-Math.PI / 2);
+  const shadowM = new MeshBasicMaterial({ color: INK, transparent: true, opacity: 0.3, depthWrite: false, toneMapped: false, fog: false });
+  const shadowPup = new Mesh(shadowG, shadowM);
+  shadowPup.position.set(0.05, 0.06, -0.1);
+  shadowPup.scale.set(1.3, 1, 1.0);
+  const shadowRival = new Mesh(shadowG, shadowM);
+  shadowRival.scale.set(0.8, 1, 0.8);
+  shadowRival.visible = false;
+  const flash = flashQuad("#e4f1ff");
+  return { U, skyM, cityMat, leaf, rotG, arrows, flow, orb, rival, rivalG, shadowG, shadowM, shadowPup, shadowRival, flash };
+}
+registerWarm("p-topological-ml-toolkit", buildWorld);
+
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
   const scene = useThree((s) => s.scene);
@@ -54,44 +96,7 @@ export default function Move(cut) {
   const pup = useRef(null);
   const shake = useRef(new Vector3());
 
-  const m = useMemo(() => {
-    const U = celUniforms();
-    const skyM = sky(U);
-    const cityMat = celMaterial(U);
-    const rotG = rotorGeometry();
-    const leaf = leaves().map(({ g, rotors }) => {
-      const mesh = new Mesh(g, cityMat);
-      mesh.frustumCulled = false;
-      const rot = new InstancedMesh(rotG, cityMat, Math.max(1, rotors.length));
-      rot.frustumCulled = false;
-      const group = new Group();
-      group.add(mesh, rot);
-      return { group, mesh, rot, rotors, angle: Float32Array.from(rotors, (r) => r[4]) };
-    });
-    // the creases: A is fixed, B hinges at -22, C at B's far end, D at C's
-    leaf[1].group.position.set(0, 0.05, HINGE[1]);
-    leaf[2].group.position.set(0, -0.05, HINGE[2] - HINGE[1]);
-    leaf[3].group.position.set(0, 0.05, HINGE[3] - HINGE[2]);
-    leaf[1].group.add(leaf[2].group);
-    leaf[2].group.add(leaf[3].group);
-    const arrows = arrowPool(140);
-    const flow = createFlow(U, arrows);
-    const orb = createOrb(arrows);
-    const rival = makeRival(U);
-    const rivalG = new Group();
-    rivalG.add(rival.body, rival.arm);
-    rivalG.visible = false;
-    const shadowG = new CircleGeometry(1, 32).rotateX(-Math.PI / 2);
-    const shadowM = new MeshBasicMaterial({ color: INK, transparent: true, opacity: 0.3, depthWrite: false, toneMapped: false, fog: false });
-    const shadowPup = new Mesh(shadowG, shadowM);
-    shadowPup.position.set(0.05, 0.06, -0.1);
-    shadowPup.scale.set(1.3, 1, 1.0);
-    const shadowRival = new Mesh(shadowG, shadowM);
-    shadowRival.scale.set(0.8, 1, 0.8);
-    shadowRival.visible = false;
-    const flash = flashQuad("#e4f1ff");
-    return { U, skyM, cityMat, leaf, rotG, arrows, flow, orb, rival, rivalG, shadowG, shadowM, shadowPup, shadowRival, flash };
-  }, []);
+  const m = useMemo(() => takeWarm("p-topological-ml-toolkit", buildWorld), []);
 
   const costume = useRef(null);
   const toon = useRef(null);
