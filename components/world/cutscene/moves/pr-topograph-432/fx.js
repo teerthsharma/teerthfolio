@@ -323,7 +323,7 @@ export function slateTexture() {
   g.lineTo(476, 214);
   g.stroke();
   g.fillStyle = "#6ff0c4";
-  g.font = "800 62px sans-serif";
+  g.font = "800 52px sans-serif";
   g.textAlign = "center";
   g.fillText("THAT'S A WRAP", 256, 300);
   g.fillStyle = "#f3ead8";
