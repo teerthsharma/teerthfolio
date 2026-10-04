@@ -162,7 +162,9 @@ export default function Move(cut) {
     const steam = inst(smokeG, smokeM, NSTEAM);
     for (let i = 0; i < NSMOKE; i++) smoke.setColorAt(i, C.setRGB(0, 0, 0).clone());
     for (let i = 0; i < NSTEAM; i++) steam.setColorAt(i, C.setRGB(0, 0, 0).clone());
-    const orca = new Mesh(orcaGeometry(), wash({ flat: true, paper: 0.8, edge: 0.38, rim: 0.7 }));
+    const orcaM = wash({ paper: 0.8, edge: 0.3, rim: 0.8 });
+    const orca = new Mesh(orcaGeometry(), orcaM);
+    const calf = new Mesh(orca.geometry, orcaM);
     // the V-wake: two long soft arms trailing from the apex
     const arm = (s) => new PlaneGeometry(0.34, 3.0, 1, 1).translate(0, -1.5, 0).rotateX(Math.PI / 2).rotateY(s * 0.42);
     const wakeM = wash({ vertexColors: false, transparent: true, depthWrite: false, paper: 1, edge: 0, rim: 0, albedo: "return vec3(0.95, 0.96, 0.96);", alpha: "0.8 * vUv.y * smoothstep(0.0, 0.2, 1.0 - vUv.y)" });
@@ -188,7 +190,7 @@ export default function Move(cut) {
     for (let i = 0; i < NFLOE; i++) hide(floes, i);
     smoke.renderOrder = steam.renderOrder = flames.renderOrder = 3;
     const flash = flashQuad("#f6eddc");
-    return { L, shell, landM, waterM, vin, floes, floe, floeG, floeM, houses, iglooG, iglooM, scopeG, jetty, ship, shields, shieldG, shieldM, beacons, cairns, flames, smoke, steam, smokeM, smokeG, orca, wake, wakeL, wakeM, rings, thorsBody, thorsCloak, peng, gullBody, wingG, rain, flash };
+    return { L, shell, landM, waterM, vin, floes, floe, floeG, floeM, houses, iglooG, iglooM, scopeG, jetty, ship, shields, shieldG, shieldM, beacons, cairns, flames, smoke, steam, smokeM, smokeG, orca, wake, wakeL, wakeM, rings, calf, thorsBody, thorsCloak, peng, gullBody, wingG, rain, flash };
   }, [rainU]);
 
   // the island list is taken before the stage hides it; the pup's wash twins and the banner mount with the scene
@@ -480,6 +482,9 @@ export default function Move(cut) {
           </group>
           <group ref={orcaG}>
             <primitive object={m.orca} />
+            <group position={[2.0, -0.45, -1.3]} rotation={[0, -0.25, 0]} scale={0.42}>
+              <primitive object={m.calf} />
+            </group>
           </group>
           <group ref={wakeRef}>
             <primitive object={m.wake} />

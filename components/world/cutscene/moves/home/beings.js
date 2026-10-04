@@ -22,35 +22,38 @@ function limb(a, b, r1, r2, seg = 7) {
 }
 
 // ---- the orca -------------------------------------------------------------------------
-// local frame: the nose along +z, the back up; its length 5.2 m, centred
+// local frame: the nose along +z, the back up; a plump, well-fed torpedo 5.2 m long, centred
 const ORCA_L = 5.2;
+const ORCA_R = 1.0;
+// radius along the body, t 0 tail stock .. 1 nose: a slim stock swelling into a deep chest and a round blunt head
+function orcaR(t) {
+  if (t < 0.62) return ORCA_R * (0.1 + 0.9 * Math.pow(Math.sin((Math.PI / 2) * (t / 0.62)), 1.3));
+  const u = (t - 0.62) / 0.38;
+  return ORCA_R * Math.pow(Math.max(1 - u * u, 0), 0.5) + 0.02;
+}
 export function orcaGeometry() {
-  const ST = 15;
-  const RING = 10;
+  const ST = 28;
+  const RING = 16;
   const pos = [];
   const col = [];
   const idx = [];
-  const black = rgb("#161f2e");
-  const white = rgb("#f4f0e8");
-  const grey = rgb("#8f96a8");
+  const black = rgb("#1b2638");
+  const white = rgb("#f7f3ea");
+  const grey = rgb("#9aa2b6");
   for (let i = 0; i <= ST; i++) {
-    const t = i / ST; // 0 tail, 1 nose
+    const t = i / ST;
     const z = (t - 0.5) * ORCA_L;
-    // a spindle: slim at the tail stock, fullest behind the fin, tapering to a blunt rounded nose
-    const r = 0.62 * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.72)), 0.8) + 0.04;
-    const hy = 0.92 - 0.25 * t; // a little flatter in the head
+    const r = orcaR(t);
     for (let k = 0; k < RING; k++) {
       const th = (k / RING) * Math.PI * 2; // 0 = top
       const sx = Math.sin(th);
       const cy = Math.cos(th);
-      pos.push(sx * r * (1.12 - 0.3 * Math.max(0, t - 0.8) * 5 * 0.2), cy * r * hy, z);
-      // paint: black over the back and flanks, bare paper below, the eye patch, the grey saddle
-      const wob = 0.12 * Math.sin(t * 17 + th * 2);
+      pos.push(sx * r * 1.05, cy * r * 0.95, z);
       let c = black;
-      if (cy < -0.1 + wob * 0.8 - 0.3 * Math.sin(Math.PI * t) * 0.2) c = white;
-      if (t > 0.78 && t < 0.88 && Math.abs(sx) > 0.7 && cy > -0.15) c = white; // the eye patch
-      if (t > 0.5 && t < 0.58 && cy > 0.55) c = grey; // the saddle behind the fin
-      if (t > 0.9 && cy < 0.1) c = white; // the chin
+      if (cy < -0.25 + 0.12 * Math.sin(t * 14)) c = white; // the white belly
+      if (t > 0.72 && t < 0.9 && Math.abs(sx) > 0.55 && cy > -0.2 && cy < 0.55) c = white; // the eye patch
+      if (t > 0.36 && t < 0.5 && cy > 0.45) c = grey; // the grey saddle behind the fin
+      if (t > 0.9 && cy < 0.25) c = white; // the chin
       col.push(...c);
     }
   }
@@ -65,29 +68,38 @@ export function orcaGeometry() {
   body.setAttribute("position", new Float32BufferAttribute(pos, 3));
   body.setAttribute("color", new Float32BufferAttribute(col, 3));
   body.setIndex(idx);
-  const flatBody = body.toNonIndexed();
-  flatBody.computeVertexNormals();
-  // the dorsal fin: a squashed four-sided cone, its tip swept back and curved, lit
-  const fin = new ConeGeometry(0.34, 1.15, 4, 4).rotateY(Math.PI / 4).translate(0, 0.575, 0);
+  body.computeVertexNormals();
+  // the tall dorsal fin, swept back at the tip
+  const fin = new ConeGeometry(0.46, 1.9, 4, 6).rotateY(Math.PI / 4).translate(0, 0.95, 0);
   const p = fin.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const y = p.getY(i);
-    p.setX(i, p.getX(i) * 0.26);
-    p.setZ(i, p.getZ(i) * 1.1 - 0.5 * y * y - 0.14 * y); // the sweep: the tip trails behind (toward the tail)
+    p.setX(i, p.getX(i) * 0.22);
+    p.setZ(i, p.getZ(i) * 1.2 - 0.32 * y * y - 0.1 * y);
   }
-  fin.translate(0, 0.5, -0.1);
+  fin.translate(0, 0.8, 0.25);
   fin.computeVertexNormals();
-  // flippers (paddles) and the fluke (two flat wings), bare paper underneath
-  const flip = (s) => new SphereGeometry(0.5, 7, 4).scale(0.05, 0.28, 0.5).rotateZ(s * 0.5).translate(s * 0.62, -0.35, 0.55);
-  const fluke = (s) => new SphereGeometry(0.5, 7, 4).scale(0.9, 0.05, 0.4).translate(s * 0.4, 0.02, -2.75).rotateY(s * 0.0);
-  const parts = [
-    flatBody,
-    paint(fin, "#161f2e", 0.04, 300),
-    paint(flip(-1), "#161f2e", 0.04, 301),
-    paint(flip(1), "#161f2e", 0.04, 302),
-    paint(fluke(-1), "#161f2e", 0.04, 303),
-    paint(fluke(1), "#161f2e", 0.04, 304),
-  ];
+  // chunky pectoral paddles (black above, a white tip), and a broad fluke
+  const flip = (s) => new SphereGeometry(0.5, 8, 6).scale(0.14, 0.95, 0.7).translate(0, -0.42, 0).rotateZ(s * 0.75).translate(s * 0.88, -0.38, 0.55);
+  const fluke = (s) => new SphereGeometry(0.5, 8, 5).scale(1.5, 0.1, 0.62).translate(s * 0.62, 0.02, -2.78);
+  const eyeT = 0.81;
+  const er = orcaR(eyeT);
+  const eye = (s) => new SphereGeometry(0.1, 8, 6).translate(s * er * 0.98, er * 0.16, (eyeT - 0.5) * ORCA_L + 0.02);
+  const glint = (s) => new SphereGeometry(0.035, 6, 4).translate(s * (er * 0.98 + 0.07), er * 0.16 + 0.05, (eyeT - 0.5) * ORCA_L + 0.07);
+  const parts = [body.toNonIndexed(), paint(fin, "#1b2638", 0.03, 300)];
+  const add = (g, hex, seed) => parts.push(paint(g, hex, 0.03, seed));
+  for (const s of [-1, 1]) {
+    add(flip(s), "#1b2638", 301 + s);
+    add(fluke(s), "#1b2638", 303 + s);
+    add(eye(s), "#0b0f18", 305 + s);
+    add(glint(s), "#ffffff", 307 + s);
+  }
+  // splash droplets: a spray of white beads round the surfacing head and shoulders
+  for (let i = 0; i < 16; i++) {
+    const a = i * 2.4;
+    const rr = 1.3 + 0.9 * ((i * 37) % 10) / 10;
+    add(new IcosahedronGeometry(0.06 + 0.05 * ((i * 13) % 5) / 5, 1).translate(Math.sin(a) * rr, 0.7 + 0.8 * ((i * 29) % 10) / 10, 0.8 + Math.cos(a) * 1.1), "#f7fbff", 320 + i);
+  }
   for (const g of parts) {
     g.deleteAttribute("uv");
     if (!g.attributes.normal) g.computeVertexNormals();
