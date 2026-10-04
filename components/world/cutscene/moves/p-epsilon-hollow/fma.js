@@ -57,7 +57,8 @@ export function rimMaterial() {
         vec3 v = normalize(cameraPosition - vWorld + vec3(0.0, 0.0001, 0.0));
         float rim = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 2.2);
         vec3 rc = mix(vec3(1.0, 0.72, 0.25), vec3(0.25, 0.85, 1.0), step(0.0, n.x));
-        gl_FragColor = vec4(base * shade + rc * rim * 0.9, 1.0);
+        rim *= 1.0 - smoothstep(0.45, 0.9, abs(n.y));
+        gl_FragColor = vec4(base * shade + rc * rim * 1.1, 1.0);
       }`,
   });
 }
@@ -102,8 +103,8 @@ const glowMat = (color) =>
 export function plaza(mat) {
   const L = layer();
   const bands = ["#e8863a", "#c9482b", "#f5b44e", "#d9622f", "#ffc86a", "#b83a2c"];
-  for (let i = 0; i < 6; i++) L.add(ringShape(30 - (i + 1) * 5, 30 - i * 5 + 0.02, 0.1, 48).rotateX(-Math.PI / 2), bands[i], {});
-  for (let k = 0; k < 24; k++) L.add(new BoxGeometry(0.1, 0.12, 29).translate(0, 0.05, 14.5), "#6a2230", {}, 0, 0.02, 0, (k / 24) * Math.PI * 2);
+  for (let i = 0; i < 6; i++) L.add(ringShape(Math.max(0.4, 30 - (i + 1) * 5), 30 - i * 5 + 0.02, 0.1, 48).rotateX(-Math.PI / 2), bands[i], {});
+  for (let k = 0; k < 24; k++) L.add(new BoxGeometry(0.06, 0.12, 29).translate(0, 0.05, 14.5), "#7a1f2a", {}, 0, 0.02, 0, (k / 24) * Math.PI * 2);
   for (let k = 0; k < 9; k++) {
     const a = 0.5 + (k / 9) * Math.PI * 2;
     const h = 14 + 5 * hash(k, 2);
@@ -161,8 +162,8 @@ export function column() {
   return { mesh: m, glowMat: gm, dispose: () => (m.geometry.dispose(), gm.dispose()) };
 }
 
-const STEEL = "#6f8cc0";
-const DARK = "#252c4e";
+const STEEL = "#5873ae";
+const DARK = "#1b2142";
 const RED = "#e0262b";
 const GOLD = "#f4b942";
 // ALPHONSE: a hollow suit of armour, horned helmet, red loincloth, glowing eye-dots in a dark visor (about 5.7 m tall at scale 1)
@@ -326,8 +327,8 @@ export function gate(mat) {
       root.scale.set(1, Math.max(0.001, rise), 1);
       doors[0].rotation.y = -open * 1.5;
       doors[1].rotation.y = open * 1.5;
-      truth.scale.setScalar(Math.max(0.0001, truthK) * (1 + 0.03 * Math.sin(t * 2)));
-      truth.position.y = 3.2 + truthK;
+      truth.scale.setScalar(Math.max(0.0001, truthK) * 1.6 * (1 + 0.03 * Math.sin(t * 2)));
+      truth.position.y = 4.4 + 0.8 * truthK;
       eyeAt.forEach((e, i) => {
         const blink = Math.sin(t * 1.4 + e.p) > -0.9 ? 1 : 0.05;
         const k = Math.max(0.0001, e.s * smooth(0.2, 0.9, open) * blink);

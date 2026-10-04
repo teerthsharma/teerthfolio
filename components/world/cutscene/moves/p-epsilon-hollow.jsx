@@ -19,7 +19,7 @@ import { alphonse, circle, column, gate, hollowSphere, plaza, rimMaterial, skyDo
 import { layer } from "./p-epsilon-hollow/paper";
 
 const AL = [-3.6, 0, -1.2]; // Alphonse beside the pup
-const GATE_AT = [0, 0, -13];
+const GATE_AT = [0, 0, -19];
 const SPHERE_AT = [2.4, 2.3, 0.4];
 const bump = (x, c, w) => Math.max(0, 1 - Math.abs(x - c) / w);
 
