@@ -50,10 +50,17 @@ const T = {
   pin: [9.2, 9.55],
   clack: [9.55, 9.85],
   cheer: 9.7,
-  K: [9.6, 13.1],
+  K: [13.4, 18.6], // REAL seconds (Kushina's line, 5.2 s, right after the pin clacks home)
   plaque: 15.6,
   fold: 16.9,
   reveal: 17.3,
+};
+// the play's own clock `t` runs slower than the render clock `tr` (the owner's pacing law: every bubble up 5 s, the flex 7.7 s,
+// the credit 4 s+, a breath between beats). Every T above is on the play's clock; these pairs [play, real] join them.
+const ANCH = [[0, 0], [2.3, 2.3], [6.0, 8.3], [10.5, 14.3], [15.5, 22.8], [16.9, 26.0], [17.3, 26.8], [19.4, 28.4]];
+const remap = (tr) => {
+  for (let i = 1; i < ANCH.length; i++) if (tr <= ANCH[i][1]) return ANCH[i - 1][0] + ((tr - ANCH[i - 1][1]) * (ANCH[i][0] - ANCH[i - 1][0])) / (ANCH[i][1] - ANCH[i - 1][1]);
+  return tr - 28.4 + 19.4;
 };
 const HOOP_AT = T.grow[0] + (T.grow[1] - T.grow[0]) * (DOOR / (N - 1));
 const FOX = new Vector3(3.5, groundY(-8.5), -8.5);
@@ -254,17 +261,60 @@ export default function Move(cut) {
       gl.setRenderTarget(prevRt);
       rig.current.visible = rv;
       for (const [o, v] of saved) o.visible = v;
-      done.then(() => {
-        for (const d of warm) (d.removeFromParent(), d.geometry.dispose());
+      let ready = false;
+      done.then(
+        () => {
+          for (const d of warm) (d.removeFromParent(), d.geometry.dispose());
+          ready = true;
+        },
+        () => (ready = true)
+      );
+      // GEOMETRY AND TEXTURE UPLOAD, one object a slice: each child of the theatre is drawn once into the 8x8 target with the
+      // island and everything else hidden, so no buffer is first uploaded on a visible frame. Waits for the async compile first.
+      let top = rig.current;
+      while (top.parent && top.parent !== scene) top = top.parent;
+      for (const child of [...th.children]) {
+        queue.push(() => {
+          if (!ready) return "wait";
+          const keep = [];
+          scene.traverse((o) => keep.push([o, o.visible]));
+          for (const c of scene.children) c.visible = c === top || c.isLight;
+          const rv2 = rig.current.visible;
+          const tv = th.visible;
+          rig.current.visible = th.visible = true;
+          const cv = th.children.map((c) => c.visible);
+          th.children.forEach((c) => (c.visible = c === child));
+          const prev = gl.getRenderTarget();
+          gl.setRenderTarget(rt);
+          try {
+            gl.render(scene, camera);
+          } catch {
+            // a lost context draws nothing
+          }
+          gl.setRenderTarget(prev);
+          th.children.forEach((c, i) => (c.visible = cv[i]));
+          th.visible = tv;
+          rig.current.visible = rv2;
+          for (const [o, v] of keep) o.visible = v;
+        });
+      }
+      queue.push(() => {
         rt.dispose();
+        s.built = true;
       });
-      s.built = true;
     });
 
     const pump = () => {
       if (dead) return;
       const t0 = performance.now();
-      while (queue.length && performance.now() - t0 < 10) queue.shift()();
+      while (queue.length && performance.now() - t0 < 4) {
+        const f = queue.shift();
+        if (f() === "wait") {
+          queue.unshift(f);
+          timer = setTimeout(pump, 40);
+          return;
+        }
+      }
       if (queue.length) timer = setTimeout(pump, 0);
     };
     timer = setTimeout(pump, 0);
@@ -312,7 +362,8 @@ export default function Move(cut) {
     s.flip = flipperAt(prig.flipR, theatre.current, [0.66, 0.06, 0]);
   });
 
-  useCutFrame((t, state, dt) => {
+  useCutFrame((tr, state, dt) => {
+    const t = remap(tr);
     const s = S.current;
     const g = rig.current;
     const full = mode === "full";
@@ -336,15 +387,15 @@ export default function Move(cut) {
     g.rotation.y = turn;
 
     // THE STAGE: the bloom's night, then the dome the theatre stands in
-    const r = radiusAt(tl, t);
+    const r = radiusAt(tl, tr);
     V.set(seal.x, 0.9, seal.z);
     const inside = r > cam.position.distanceTo(V) + 0.3;
-    const over = t > tl.collapse[1];
+    const over = tr > tl.collapse[1];
     shellRef.current.visible = r > 0.02 && !over;
     shellRef.current.scale.setScalar(inside ? 140 : Math.max(r, 0.02));
     shell.m.uniforms.uInside.value = inside ? 1 : 0;
     shell.m.uniforms.uCore.value.set(seal.x, 0.9, seal.z);
-    th.visible = (inside || t > tl.bloom[1]) && s.built && !over;
+    th.visible = (inside || tr > tl.bloom[1]) && s.built && !over;
 
     // THE LAMP: the light behind the paper, dying as the play ends
     U.uFade.value = 1 - 0.78 * smooth(T.plaque + 0.5, T.fold + 0.6, t);
@@ -355,12 +406,12 @@ export default function Move(cut) {
     th.position.set(0, 0, -1.2 + 2.4 * smooth(1.5, 17, t));
 
     // the pup: the sign, the throw (flippers out), the slam, the flex
-    const lower = 1 - smooth(tl.collapse[0], tl.collapse[1], t);
-    live.pose.sign = signAt(tl, t) * (1 - smooth(1.8, 2.3, t));
+    const lower = 1 - smooth(tl.collapse[0], tl.collapse[1], tr);
+    live.pose.sign = signAt(tl, tr) * (1 - smooth(1.8, 2.3, t));
     live.pose.raise = smooth(T.throw[0], T.throw[1], t) * (1 - smooth(T.burst - 0.05, T.burst + 0.1, t)) * lower;
     live.pose.crouch = bump(T.slam[0], T.slam[1], T.slam[2], T.slam[3], t) * 0.8 * lower;
     live.pose.fist = smooth(T.clack[1] + 0.8, T.clack[1] + 1.2, t) * (1 - smooth(15.6, 16.0, t)) * lower;
-    const on = (inside || t > tl.bloom[1]) && t < T.reveal + 0.2;
+    const on = (inside || tr > tl.bloom[1]) && t < T.reveal + 0.2;
     s.toon?.set(on);
     if (s.haori) {
       const k = smooth(0.6, 1.2, t);
@@ -514,8 +565,8 @@ export default function Move(cut) {
     const sinkW = 60 * smooth(T.fold + 0.25, T.fold + 1.0, t);
     const shock = bump(T.burst, T.burst + 0.05, T.burst + 0.4, T.burst + 1.1, t) + 0.6 * bump(T.pin[1], T.pin[1] + 0.05, T.pin[1] + 0.3, T.pin[1] + 0.8, t);
     kush.root.visible = kStir > 0.01 && sinkW < 59;
-    kush.root.position.set(5.1 * ax, groundY(-2.4) - sinkW, -2.4);
-    kush.root.scale.set(-(0.7 + 0.3 * kStir), 0.7 + 0.3 * kStir, 1);
+    kush.root.position.set(4.6 * ax, groundY(-2.4) - sinkW, -2.4);
+    kush.root.scale.set(-(1.2 + 0.7 * kStir) * Math.max(fs / 0.9, 0.7), (1.2 + 0.7 * kStir) * Math.max(fs / 0.9, 0.7), 1);
     poseKushina(kush, onTwos(t), { shock, wave: 1, reach: smooth(T.grow[0] - 0.2, T.grow[0] + 0.4, t) });
     // her mouth, on screen, for her bubble's tail
     kush.root.updateWorldMatrix(true, false);
@@ -524,8 +575,8 @@ export default function Move(cut) {
     s.kp.y = (0.5 - V.y * 0.5) * state.size.height;
     const hk = s.hoke.root;
     hk.visible = kStir > 0.01 && sinkW < 59;
-    hk.position.set(9.4 * ax, FLOOR + 3.4 - sinkW, -22);
-    hk.scale.setScalar(1.15);
+    hk.position.set(8.2 * ax, FLOOR + 5.2 - sinkW, -16);
+    hk.scale.setScalar(2.1);
     s.hoke.staff.rotation.z = 0.04 * Math.sin(t * 0.8);
     // the masked shinobi crouch on a branch; they flinch at the roar
     s.branch.visible = kStir > 0.01 && sinkW < 59;
@@ -577,7 +628,9 @@ export default function Move(cut) {
     s.plaque.rotation.z = 0.05 * Math.sin(t * 2.2) * pq;
 
     // THE ISLAND, BACK, gradually, under the falling flats
-    if (t > T.reveal && t < tl.collapse[0]) for (const o of island.current) o.visible = true;
+    // the island steps back in a few objects a frame while the flats go down (never its 273 draws in one frame), from 26.0 s to 27.4 s
+    const list = island.current;
+    if (tr > 26.0 && tr < tl.collapse[0]) for (let i = 0; i < list.length; i++) if (tr > 26.0 + (1.4 * i) / list.length) list[i].visible = true;
   });
 
   return (

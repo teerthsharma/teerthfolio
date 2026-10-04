@@ -18,13 +18,13 @@ const CSS = `
 .pyre-hud{position:fixed;inset:0;z-index:25;pointer-events:none;overflow:hidden}
 .pyre-hud .comic{position:absolute;inset:0;--accent:#e0452a;--deep:#1d1240;--paper-dots:#cebaff}
 .cut-title{opacity:0 !important}
-.pyre-banner{position:absolute;left:0;right:0;top:16vh;margin-inline:auto;width:min(1180px,calc(100vw - 2 * var(--gutter,16px)));text-align:center;color:#1c1b19;opacity:0;transform:scale(.96);transform-origin:50% 0}
-.pyre-banner::before{content:"";position:absolute;inset:-28px -48px;z-index:-1;border-radius:28px;background:radial-gradient(ellipse at center,rgba(251,250,247,.95) 0%,rgba(251,250,247,.84) 58%,rgba(251,250,247,0) 100%)}
+.pyre-banner{position:absolute;left:0;right:0;top:16vh;margin-inline:auto;width:min(1180px,calc(100vw - 2 * var(--gutter,16px)));text-align:center;color:#120e08;opacity:0;transform:scale(.96);transform-origin:50% 0}
+.pyre-banner::before{content:"";position:absolute;inset:-26px -44px;z-index:-1;border-radius:26px;background:linear-gradient(180deg,rgba(232,211,164,.98),rgba(214,186,128,.98));box-shadow:0 0 0 3px rgba(29,18,64,.85),0 12px 44px rgba(10,5,24,.6)}
 .pyre-banner .hud-banner-band{background:#e0a82e}
-.pyre-banner .hud-banner-name{text-shadow:0 2px 24px rgba(28,27,25,.18);text-wrap:balance}
+.pyre-banner .hud-banner-name{color:#120e08;text-shadow:none;text-wrap:balance}
 .pyre-banner .pyre-repo{display:flex;align-items:center;justify-content:center;gap:10px;margin:16px 0 0}
 .pyre-banner .pyre-repo img{width:28px;height:28px;object-fit:contain}
-.pyre-banner .pyre-repo span{font-family:var(--mono);font-size:15px;color:#5b5663}
+.pyre-banner .pyre-repo span{font-family:var(--mono);font-size:15px;color:#2b2233}
 .pyre-banner[data-ph="live"]{animation:pyre-life 2.3s linear forwards}
 .pyre-banner[data-ph="still"]{opacity:1;transform:none}
 @keyframes pyre-life{0%{opacity:0;transform:scale(.96)}6%{opacity:1;transform:scale(1.035);animation-timing-function:step-end}14%{opacity:1;transform:scale(1.035)}17%{opacity:1;transform:scale(1)}68%{opacity:1;transform:translateY(0) scale(1);animation-timing-function:cubic-bezier(.5,0,.8,.3)}86%{opacity:.9;transform:translateY(-6vh) scale(.62)}100%{opacity:0;transform:translateY(-13vh) scale(.28)}}

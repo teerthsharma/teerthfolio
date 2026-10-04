@@ -101,6 +101,8 @@ export function* worldLayers() {
   }
 
   // 2. the terraces: a paper contour model, each step one card thicker than the last
+  // (terraces, boulders and cedars are ONE merged layer: fewer draw calls)
+  const ground = [];
   {
     const parts = [];
     const cols = ["#33203f", "#3a2342", "#41273f", "#472a3b", "#4d2e3a", "#512f38"];
@@ -113,7 +115,7 @@ export function* worldLayers() {
       parts.push(patch((R(i, 6) - 0.5) * 16, z, 1.0 + 1.8 * R(i, 7), 0.6 + 1.1 * R(i, 8), TOP[k], "#0d0916", i));
     }
     parts.push(patch(2.4, 1.6, 2.2, 0.9, 0, "#120c1a", 41), patch(-3.4, -0.4, 1.6, 0.8, 0, "#120c1a", 42), patch(5.2, -1.2, 1.3, 0.7, 0, "#150d1c", 43));
-    yield add("terraces", merge(parts), "solid", 0, { order: 1, sink: true });
+    ground.push(merge(parts));
   }
 
   // 3. boulders and uprooted cedars on the terraces (foreground items scale in x on a narrow screen)
@@ -124,7 +126,7 @@ export function* worldLayers() {
       const x = (i < 5 ? -1 : 1) * (3.2 + 6 * R(i, 20));
       parts.push(rock(x, TOP[k] - 0.05, FRONT[k] - 0.8 - 1.4 * R(i, 21), 1.0 + 1.8 * R(i, 22), 0.7 + 1.2 * R(i, 23), i, i % 2 ? "#1a1228" : "#221832"));
     }
-    yield add("rocks", merge(parts), "solid", 0, { order: 2, sink: true });
+    ground.push(merge(parts));
   }
   {
     // two uprooted giant cedars lying on the terraces, root fans up in the air
@@ -137,7 +139,8 @@ export function* worldLayers() {
       g.scale(f, 1, 1);
       return g.translate(x, y, z);
     };
-    yield add("logs", merge([tree(-5.4, TOP[1], -4.0, 5.6, 0.9, true, 1), tree(8.4, TOP[2], -7.4, 7.0, 1.2, false, 2)]), "solid", 0, { order: 3, sink: true });
+    ground.push(merge([tree(-5.4, TOP[1], -4.0, 5.6, 0.9, true, 1), tree(8.4, TOP[2], -7.4, 7.0, 1.2, false, 2)]));
+    yield add("terraces", merge(ground), "solid", 0, { order: 1, sink: true });
   }
 
   // 4. the pin: the basalt stack from the Pyrefly Floes, promoted to a tall black card pillar (foot at the pup's side)
@@ -195,8 +198,8 @@ export function* worldLayers() {
         const wx = x + 0.5 + (c * (w - 1)) / cols;
         holes.push([[wx, h * 0.35], [wx, h * 0.35 + 0.8], [wx + 0.62, h * 0.35 + 0.8], [wx + 0.62, h * 0.35]].reverse());
       }
-      houses.push(card(wall, { holes, color: "#241638", depth: 0.5 }).translate(0, 0, 0));
-      houses.push(card([[x - 0.9, h - 0.15], [x + w + 0.9, h - 0.15], [x + w + 1.4, h + 0.15], [x + w + 0.2, h + roof * 0.6], [x + w * 0.5, h + roof], [x - 0.2, h + roof * 0.6], [x - 1.4, h + 0.15]], { color: "#1a1030", depth: 0.7 }).translate(0, 0, 0.1));
+      houses.push(card(wall, { holes, color: "#150b28", depth: 0.5 }).translate(0, 0, 0));
+      houses.push(card([[x - 0.9, h - 0.15], [x + w + 0.9, h - 0.15], [x + w + 1.4, h + 0.15], [x + w + 0.2, h + roof * 0.6], [x + w * 0.5, h + roof], [x - 0.2, h + roof * 0.6], [x - 1.4, h + 0.15]], { color: "#0b0618", depth: 0.7 }).translate(0, 0, 0.1));
       glows.push(card(wall, { color: "#ff8a3a", depth: 0.2 }).translate(0, 0, -0.6));
       if (R(i, 43) > 0.55) {
         // a burning roof: three jagged tongues of flame
@@ -211,6 +214,8 @@ export function* worldLayers() {
       i++;
     }
     yield add("village", merge(houses), "solid", -62, { y: FLOOR, order: 10 });
+    // an ember haze standing behind the rooftops (low, hot) so their silhouettes and lit windows read
+    glows.push(card([[-150, 0], [150, 0], [150, 7], [-150, 7]], { color: "#ff6a2a", depth: 0.1 }).translate(0, 0, -7));
     yield add("villageGlow", merge(glows), "glow", -63, { y: FLOOR, order: 10 });
     yield add("flames", merge(flames), "glow", -61.4, { y: FLOOR, order: 10, flame: true });
     // smoke: tall curling ribbons on thin rods, a few columns rocking
@@ -231,7 +236,7 @@ export function* worldLayers() {
     const top = [];
     for (let i = 0; i <= 28; i++) top.push([-70 + (140 * i) / 28, 24 + 7 * R(i, 50) + 5 * Math.sin(i * 0.5)]);
     const poly = [[-70, FLOOR - 1], ...top, [70, FLOOR - 1]];
-    yield add("cliff", card(poly, { color: "#3a2a52", depth: 1.2 }), "solid", -100, { order: 11 });
+    const cliffCard = card(poly, { color: "#3a2a52", depth: 1.2 });
     // four heads: round crown, a hair line cut differently on each, neck, shoulders (blank)
     const heads = [];
     const hairs = [
@@ -247,7 +252,7 @@ export function* worldLayers() {
       heads.push(card([[-r * 1.5, -r * 1.6], [-r * 0.62, -r * 0.7], [r * 0.62, -r * 0.7], [r * 1.5, -r * 1.6]], { color: "#b49ab0", depth: 0.5 }).translate(hx, 14 + 0.8 * Math.sin(n), 1.5));
       heads.push(card(head, { color: "#c2a8bc", depth: 0.7 }).translate(hx, 14 + 0.8 * Math.sin(n) + 2.6, 1.8));
     }
-    yield add("heads", merge(heads), "solid", -100, { order: 11 });
+    yield add("cliff", merge([cliffCard, ...heads]), "solid", -100, { order: 11 });
     const hill = (pts, c) => card(pts, { color: c, depth: 1.5 });
     const h1 = [[-130, FLOOR - 1]];
     const h2 = [[-130, FLOOR - 1]];
@@ -257,18 +262,17 @@ export function* worldLayers() {
     }
     h1.push([130, FLOOR - 1]);
     h2.push([130, FLOOR - 1]);
-    yield add("hill1", hill(h1, "#432d5c"), "solid", -108, { order: 12 });
-    yield add("hill2", hill(h2, "#53376a"), "solid", -114, { order: 12 });
+    yield add("hills", merge([hill(h1, "#3a2552").translate(0, 0, 6), hill(h2, "#4a2f66")]), "solid", -114, { order: 12 });
   }
 
   // 8. the moon behind thin cloud, and the sky
   {
     const mx = -2;
     const my = 25;
-    yield add("moon", merge([card(circle(0, 0, 13.5, 44), { color: "#f1e6d2", depth: 0.5 }).translate(mx, my, 0)]), "moon", -118, { order: 13 });
-    const cr = [];
-    [[-3, 3, 2.4], [4, -2, 1.9], [-5, -4, 1.4], [1, 6, 1.2], [6, 4, 1.0]].forEach(([cx, cy, r], i) => cr.push(card(circle(cx, cy, r, 12), { color: "#d9c9b0", depth: 0.2 }).translate(mx, my, 0.4 + i * 0.01)));
-    yield add("moonCraters", merge(cr), "moon", -118, { order: 13 });
+    // value contrast: a pale halo ring, a near-white disc, and deep dusk-violet seas so the moon reads against the night
+    const cr = [card(circle(0, 0, 16.5, 44), { color: "#c9b8ee", depth: 0.2 }).translate(mx, my, -0.6), card(circle(0, 0, 13.5, 44), { color: "#fff6e0", depth: 0.5 }).translate(mx, my, 0)];
+    [[-3, 3, 2.9], [4, -2, 2.3], [-5, -4, 1.8], [1, 6, 1.5], [6, 4, 1.3]].forEach(([cx, cy, r], i) => cr.push(card(circle(cx, cy, r, 12), { color: "#8f7aa8", depth: 0.2 }).translate(mx, my, 0.4 + i * 0.01)));
+    yield add("moon", merge(cr), "moon", -118, { order: 13 });
     const clouds = [];
     for (let i = 0; i < 3; i++) {
       const pts = [];
@@ -287,8 +291,7 @@ export function* worldLayers() {
       stars.push([[sx, sy - r], [sx + r * 0.3, sy], [sx, sy + r], [sx - r * 0.3, sy]]);
     }
     const top = card([[-150, 38], [150, 38], [150, 90], [-150, 90]], { holes: stars, color: "#1a1140", depth: 0.12 });
-    yield add("skyTop", top, "wash", -124, { order: 14 });
-    yield add("skyMid", merge([sky(14, 38.1, "#2b1a55").translate(0, 0, 0.6), sky(FLOOR - 1, 14.1, "#52295a").translate(0, 0, 1)]), "wash", -124, { order: 14 });
+    yield add("sky", merge([top, sky(14, 38.1, "#2b1a55").translate(0, 0, 0.6), sky(FLOOR - 1, 14.1, "#52295a").translate(0, 0, 1)]), "wash", -124, { order: 14 });
     yield add("skyLight", card([[-150, 36], [150, 36], [150, 92], [-150, 92]], { color: "#cdd3ff", depth: 0.1 }), "glow", -126, { order: 14 });
   }
 }
