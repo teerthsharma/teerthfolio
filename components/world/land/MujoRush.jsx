@@ -24,10 +24,11 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { Color, IcosahedronGeometry, Object3D, OctahedronGeometry, SphereGeometry } from "three";
+import { BoxGeometry, Color, CylinderGeometry, Float32BufferAttribute, IcosahedronGeometry, Object3D, OctahedronGeometry, SphereGeometry } from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { live, useUi } from "../../../lib/world/store";
 import { lamp, mat } from "../palette";
-import { buildStone, CRYSTALS, EYES, FACES, FLOATERS, SPARKS, TALUS } from "./parts/mujorush-build";
+import { buildStone, CRYSTALS, EYES, faceZ, FACES, FLOATERS, SPARKS, TALUS } from "./parts/mujorush-build";
 
 const RAD = FACES[0].place.radiation;
 
@@ -38,6 +39,29 @@ const ROCK_GEO = new IcosahedronGeometry(1, 0);
 const CRYSTAL_GEO = new OctahedronGeometry(1, 0);
 const EYE_GEO = new SphereGeometry(1, 20, 14);
 const dummy = new Object3D();
+// One banner per face (blue / green / orange): a 0.4 m cloth on a pole at the
+// cliff foot beside its face, merged into a single vertex-coloured mesh.
+const BANNER_HEX = ["#4f7cff", "#22c55e", "#f59e0b"];
+const tinted = (g, hex) => {
+  const c = new Color(hex);
+  const n = g.attributes.position.count;
+  const a = new Float32Array(n * 3);
+  for (let v = 0; v < n; v++) a.set([c.r, c.g, c.b], v * 3);
+  g.setAttribute("color", new Float32BufferAttribute(a, 3));
+  return g;
+};
+const BANNERS = mergeGeometries(
+  FACES.flatMap((f, i) => {
+    const x = f.x + 2.8;
+    const z = faceZ(x, 1.5) + 0.7;
+    return [
+      tinted(new CylinderGeometry(0.05, 0.06, 3, 6).translate(x, 1.5, z), "#43434c"),
+      tinted(new BoxGeometry(0.4, 1.0, 0.04).translate(x + 0.25, 2.35, z), BANNER_HEX[i]),
+    ];
+  }),
+);
+const BANNER_MAT = mat("#ffffff", { vertexColors: true, roughness: 0.6, emissive: "#ffffff", emissiveIntensity: 0.12 });
+const EYE_MAT = mat("#1c1824", { flat: false, roughness: 0.28, emissive: "#ff9a3d", emissiveIntensity: 0.55 }); // eyes glow
 const tint = new Color();
 const GRANITE_C = new Color("#b0a49d");
 const RAD_C = new Color(RAD);
@@ -179,7 +203,8 @@ export default function MujoRush() {
         <mesh key={FACES[i].id} geometry={geo} material={numberMats[i]} />
       ))}
 
-      <instancedMesh ref={eyes} args={[EYE_GEO, mat("#1c1824", { flat: false, roughness: 0.28 }), EYES.length]} frustumCulled={false} />
+      <mesh geometry={BANNERS} material={BANNER_MAT} castShadow />
+      <instancedMesh ref={eyes} args={[EYE_GEO, EYE_MAT, EYES.length]} frustumCulled={false} />
       <instancedMesh ref={sparks} args={[EYE_GEO, mat("#ddd4cc", { flat: false, roughness: 0.9 }), SPARKS.length - N_EVIL]} frustumCulled={false} />
       <instancedMesh ref={pupils} args={[EYE_GEO, lamp(RAD, 1.2), N_EVIL]} frustumCulled={false} />
 
