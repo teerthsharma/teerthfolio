@@ -62,9 +62,9 @@ export function archBay() {
   s.lineTo(-w, H);
   s.lineTo(-w, 0);
   const wall = new ExtrudeGeometry(s, { depth: 1.3, bevelEnabled: false, curveSegments: 6 }).translate(0, 0, -0.65);
-  const parts = [paint(wall, "#dcc48a")];
-  for (const sx of [-1, 1]) parts.push(paint(new CylinderGeometry(0.22, 0.26, H - 0.5, 7).translate(sx * (r + 0.42), (H - 0.5) / 2 + 0.1, 0.8), "#e8d29a"));
-  parts.push(paint(new BoxGeometry(BAY_W + 0.1, 0.3, 1.7).translate(0, H + 0.1, 0.12), "#cfb078"));
+  const parts = [paint(wall, "#d6247a")];
+  for (const sx of [-1, 1]) parts.push(paint(new CylinderGeometry(0.22, 0.26, H - 0.5, 7).translate(sx * (r + 0.42), (H - 0.5) / 2 + 0.1, 0.8), "#a02a9a"));
+  parts.push(paint(new BoxGeometry(BAY_W + 0.1, 0.3, 1.7).translate(0, H + 0.1, 0.12), "#7a2290"));
   return merge(parts);
 }
 function atticBay() {
@@ -84,7 +84,7 @@ function atticBay() {
   win.lineTo(-0.38, 0.9);
   s.holes.push(win);
   const wall = new ExtrudeGeometry(s, { depth: 1.2, bevelEnabled: false, curveSegments: 4 }).translate(0, 0, -0.6);
-  return merge([paint(wall, "#d5b87c"), paint(new BoxGeometry(BAY_W + 0.1, 0.3, 1.6).translate(0, H + 0.1, 0.12), "#cfb078")]);
+  return merge([paint(wall, "#5a1a8c"), paint(new BoxGeometry(BAY_W + 0.1, 0.3, 1.6).translate(0, H + 0.1, 0.12), "#7a2290")]);
 }
 
 // The ring: bays on the ellipse (A, B) about the arena's centre, equal steps of the eccentric angle, the
@@ -200,7 +200,7 @@ export function floor(L) {
       tri(b, c, d);
     }
   }
-  const floorG = paintBy(build(pos), (x, y, z, t) => (hash(t, 5) < 0.18 ? "#e0b784" : hash(t, 6) < 0.4 ? "#dcc088" : "#e4cb94"), 2);
+  const floorG = paintBy(build(pos), (x, y, z, t) => (hash(t, 5) < 0.18 ? "#ffcc33" : hash(t, 6) < 0.4 ? "#2b1240" : "#3a1856"), 2);
   // the skirt: the floor's edge dropping to the trench
   const skirt = [];
   for (let j = 0; j < NS; j++) {
@@ -208,7 +208,7 @@ export function floor(L) {
     const b = P(1, j + 1);
     skirt.push(...a, ...b, a[0], TRENCH_Y, a[2], ...b, b[0], TRENCH_Y, b[2], a[0], TRENCH_Y, a[2]);
   }
-  const skirtG = paint(build(skirt), "#c9a56e", 0);
+  const skirtG = paint(build(skirt), "#5a1a8c", 0);
   // the trench floor: an annulus at TRENCH_Y between the floor's edge and the stands
   const tr = [];
   const R1 = { a: (L.aF + 3.4) / L.aF, b: (L.bF + 3.2) / L.bF };
