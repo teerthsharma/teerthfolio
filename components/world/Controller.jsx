@@ -8,7 +8,7 @@ import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
 import { PEAK_WORLD } from "../../lib/world/peak";
 import { FOUNTAIN_TRAVEL, GEYSER, LAND_COLLIDERS } from "../../lib/world/land";
 import { arrivalHold, arrivalLength, beatAt, cutFor, cutsceneMode } from "../../lib/world/cutscene/timeline";
-import { ISLAND_RADIUS, NORTH_RIM, PLACES, districtAt } from "../../lib/world/places";
+import { ISLAND_RADIUS, NORTH_RIM, PLACES, SPAWN, SPAWN_PLAY, districtAt } from "../../lib/world/places";
 import { AWAKENING, mustFinish } from "../../lib/world/loop";
 import { awakeBeat, awakeMode } from "../../lib/world/awakening";
 import { WHIRLPOOL } from "../../lib/world/river";
@@ -38,6 +38,7 @@ function loopWinAllowed() {
 // m of open snow between the seal and a place at which its arrival fires
 // (nearestPlace's dock reach is 3.2): the cutscene starts on the approach.
 const APPROACH_REACH = 7;
+let awayFromSpawn = false; // the seal has walked off the plinth (the statue play waits for its return)
 
 // The nearest place within APPROACH_REACH whose arrival has not played yet: a
 // seen neighbour must not mask the next one. No allocation (runs every frame).
@@ -266,6 +267,22 @@ export default function Controller() {
       arrival.stick = live.stick;
       arrival.skip = false;
       setUi({ cutscene: approach });
+    }
+
+    // The seal's own play (the Tensura card, on the SEAL SEAL statue): it fires once a session, when the seal comes home to the plinth after a walk.
+    const homeGap = Math.hypot(seal.x - SPAWN.x, seal.z - SPAWN.z);
+    if (homeGap > 16) awayFromSpawn = true;
+    if (awayFromSpawn && homeGap < 4 && cutsceneMode(SPAWN_PLAY) && ui.started && !live.seen.has(SPAWN_PLAY) && !ui.open && !arrival.id && !mustFinish(seal) && t - live.lastArrivalEnd > 4) {
+      awayFromSpawn = false;
+      seeAll(SPAWN_PLAY);
+      saveSeen();
+      arrival.id = SPAWN_PLAY;
+      arrival.start = t;
+      arrival.keys = new Set(live.keys);
+      arrival.target = live.target;
+      arrival.stick = live.stick;
+      arrival.skip = false;
+      setUi({ cutscene: SPAWN_PLAY });
     }
 
     // A building that was clicked opens itself once the seal has arrived,

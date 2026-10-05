@@ -1382,7 +1382,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
 {
   const json = readFileSync(new URL("../data/showcase.json", import.meta.url), "utf8");
   const ids = PLACES.map((p) => p.id).sort();
-  assert.deepEqual(CARDS.map((c) => c.id).sort(), ids, "a card for exactly the places");
+  assert.deepEqual(CARDS.map((c) => c.id).filter((id) => id !== "spawn-seal").sort(), ids, "a card for exactly the places (spawn-seal is the statue play)");
   const moves = readFileSync(new URL("../components/world/cutscene/moves/index.js", import.meta.url), "utf8");
   for (const id of ids) {
     assert.ok(existsSync(new URL(`../lib/world/cutscene/cards/${id}.js`, import.meta.url)), `${id} has no card file`);
