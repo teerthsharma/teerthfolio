@@ -87,9 +87,19 @@ Return is always the same: the pocket world cracks and the real dock is what was
 **The centre is a statue of the seal. The sphere moves to a corner of the plaza.**
 
 - Statue: the pup, bronze or dressed granite, on the snow at the place origin. Dock (+z) looks at the statue first. HUD-off still names Epsilon-Hollow from the silhouette of a seal, not a circle.
+- **Plaque stone** at the statue’s feet, facing the dock. Dressed stone in the world, not a HUD card, not a DOM overlay.
+  - Live GitHub pfp: fetch `https://github.com/teerthsharma.png` (the handle already in `PROFILE.github` in `lib/world/places.js`). Cameo inset in the stone. Real-life face, current avatar — not a PNG checked into the repo. `TextureLoader` with CORS. If GitHub is down, a bronze relief of the pup face; never a broken quad.
+  - Lettering cut into the stone, exact, two lines:
+
+    ```
+    SEAL SEAL
+    founder of seal city
+    ```
+
+  - Palette: stone `#9e928d` / `#6a625c`. Incised fill `#1c1824` or the place radiation `#06b6d4` so it reads at dusk. Cameo rim bronze `#8a7a68`.
 - Sphere: the existing geodesic (struts, inner Epsilon, payload thread) shifts to one plaza corner — northwest preferred, so it does not sit between dock and statue. It stays readable as “the one sphere” from the dock, just no longer the optical centre.
 - Anomalies (`LabAnomalies.jsx` orbiting boulders) orbit the statue or the corner sphere, not an invisible centre in the middle.
-- Cutscene (Tensura, Veldora, Megiddo, Predator) plays in the pocket dimension. On return the statue is what the lens finds. The sphere is in the corner of that still too.
+- Cutscene (Tensura, Veldora, Megiddo, Predator) plays in the pocket dimension. On return the statue is what the lens finds — plaque readable, pfp loaded. The sphere is in the corner of that still too.
 
 This is a building change and a cutscene-return change. It is in this issue. It is not a separate graphic-67 task.
 
@@ -164,8 +174,8 @@ Each dock below: class, homage, palette, live Chrome, **zoom-in** after the swit
 - **Zoom-in:** after the switch, 35° off +z, eye 1.2 m, onto the seal with Veldora’s sphere in the sky. On return, land on the **statue**; sphere stays in the northwest corner.
 - **Settle:** Veldora land-speaker, Great Sage off-screen, pup at the pool.
 - **Kill:** Predator. The maw eats sky, ground, and the seal. That is the explained return.
-- **Home:** statue at `[18, 30]`. Sphere in the corner. Flex: “Bare metal x86_64. No POSIX. No libc…”
-- **Building demand:** statue at origin. Globe (`Collapse.jsx`) translated to a plaza corner. Dock still open +z. HUD-off still names a seal, not a circle. Orbiting boulders retarget.
+- **Home:** statue at `[18, 30]`. Plaque facing the dock: live GitHub pfp + `SEAL SEAL` / `founder of seal city`. Sphere in the corner. Flex: “Bare metal x86_64. No POSIX. No libc…”
+- **Building demand:** statue at origin. Plaque stone at its feet (live `teerthsharma` avatar, exact lettering). Globe (`Collapse.jsx`) translated to a plaza corner. Dock still open +z. HUD-off still names a seal, not a circle. Orbiting boulders retarget.
 - **Lines stay:** “Kwahaha! What does that one do?” / “Oops. Wrong place.” / the bare-metal flex.
 
 ---
@@ -448,7 +458,7 @@ Chrome, `channel: "chrome"`, 1280×800, HUD on.
 | `pr-highway-3244` 8 s | race still visible. Not black 0.85. |
 | `pr-polychrom-79` 3 s | sky of gates. Not a magenta card. |
 | `pr-topograph-432` any | title is Nazarick or Topograph, not NVIDIA MOAT. |
-| `p-epsilon-hollow` HUD-off | statue names the place. Sphere in a corner. |
+| `p-epsilon-hollow` HUD-off | statue + plaque (live GitHub pfp, stone reads `SEAL SEAL` / `founder of seal city`). Sphere in a corner. |
 | `p-monodromy` 8 s | crack / remade, not only a choir still. |
 | every other 3 s | already *in* the pocket world, zooming onto the seal from a bent degree. Landform or guest fills the sky. A straight +z push is a miss. |
 
