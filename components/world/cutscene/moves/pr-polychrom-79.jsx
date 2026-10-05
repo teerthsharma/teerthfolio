@@ -19,7 +19,7 @@ import { SIL_KINDS, armourGeometry, eaParts, gateMaterial, glowMaterial, goldMat
 
 const CORE_Y = 0.9;
 // the clock (real s from the arrival; the card puts line A at 2.3, B at 8.3, the flex line at 14.0, the credit at 23.0)
-const T = { hair: [0.55, 1.15], eyes: [2.3, 3.0], open: 2.5, step: 0.075, key: [7.0, 8.2], spread: [8.8, 13.0], gate: [8.3, 9.6], opens: [12.6, 14.2], keyAway: [13.6, 14.4], draw: [14.4, 16.4], aim: [18.0, 19.2], blast: [19.4, 19.9], word: [19.6, 21.6], shatter: 20.3, ret: 21.2, windEnd: [21.4, 22.2], shardEnd: 22.8 };
+const T = { hair: [0.55, 1.15], eyes: [2.3, 3.0], open: 0.9, step: 0.05, key: [7.0, 8.2], spread: [8.8, 13.0], gate: [1.6, 3.2], opens: [12.6, 14.2], keyAway: [13.6, 14.4], draw: [14.4, 16.4], aim: [18.0, 19.2], blast: [19.4, 19.9], word: [19.6, 21.6], shatter: 20.3, ret: 21.2, windEnd: [21.4, 22.2], shardEnd: 22.8 };
 const NP = 42;
 const NS = 240;
 const KEY_AT = [0.55, 1.35, 0.6];

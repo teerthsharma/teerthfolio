@@ -20,6 +20,7 @@ import { PLACE_BY_ID, PLACES, PROFILE, districtAt, dockPoint } from "../../lib/w
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import { replayArrival } from "./Controller";
 import { cutsceneMode } from "../../lib/world/cutscene/timeline";
+import { cardFor } from "../../lib/world/cutscene/cards/index.js";
 import Minimap from "./ui/Minimap";
 import MoveCoach from "./ui/MoveCoach";
 import AwakeningLayer from "./ui/AwakeningLayer";
@@ -106,7 +107,7 @@ function CutsceneTitle({ id }) {
     if (place) setShown(place);
   }, [place]);
   if (!shown) return null;
-  const title = shown.section === "upstream" ? shown.district?.name ?? shown.name : shown.name;
+  const title = cardFor(shown.id)?.hudTitle ?? (shown.section === "upstream" ? shown.district?.name ?? shown.name : shown.name); // a card's hudTitle names the dimension, not the island district it sits in
   const sub = shown.section === "upstream" ? `${shown.repo} #${shown.pr}` : shown.section === "lab" ? shown.kind : null;
   return (
     <div className="cut-title" data-on={!!place} data-top={top} aria-live="polite">
