@@ -117,7 +117,9 @@ export const INK = /* glsl */ `
     c = mix(c, gilt * bevel, 1.0 - smoothstep(0.018, 0.022, edge));
     return mix(c, vec3(0.1, 0.05, 0.02), (1.0 - smoothstep(0.0, 0.003, abs(edge - 0.0225))) * 0.8);
   }
-  vec4 outColor(vec3 c, float a) { return vec4(pow(max(framed(burn(c)), 0.0), vec3(2.2)), a); }
+  // burn outside framed, never framed(burn(c)): ANGLE's D3D11 compiler rejects that nesting ("invalid access of
+  // unbound variable"), every charcoal draw is dropped and the scene is a void
+  vec4 outColor(vec3 c, float a) { return vec4(pow(max(burn(framed(c)), 0.0), vec3(2.2)), a); }
 `;
 
 // A shaded charcoal material. tone: the surface's own value (0 black .. 1 paper);
