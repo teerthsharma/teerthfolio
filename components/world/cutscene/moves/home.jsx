@@ -21,6 +21,7 @@
 // Card: lib/world/cutscene/cards/home.js. Parts: ./home/.
 
 import { useFrame, useThree } from "@react-three/fiber";
+import { faceMesh } from "../cel";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, IcosahedronGeometry, Mesh, PlaneGeometry, Vector2, Vector3 } from "three";
 import { radiusAt } from "../../../../lib/world/cutscene/timeline";
@@ -180,6 +181,7 @@ export default function Move(cut) {
     const th = thorsGeometry();
     const thorsBody = new Mesh(th.body, inkMaterial(false));
     const thorsCloak = new Mesh(th.cloak, inkMaterial(true));
+    thorsBody.add(faceMesh({ eyes: { shape: "hooded", iris: "#3a5a8a", sclera: "#f2ead8" }, brow: { tilt: -0.12, color: "#3a2a1a", thick: 0.12 }, mouth: null }, [0, 2.1, 0.03], 0.32, 0.8)); // Thors: calm, level eyes over the beard
     const peng = inst(penguinGeometry(), wash({ paper: 0.5, edge: 0.3, rim: 0.4 }), 2);
     const gullBody = new Mesh(gullBodyGeometry(), wash({ paper: 0.9, edge: 0.3, rim: 0.4 }));
     const wingG = gullWingGeometry();

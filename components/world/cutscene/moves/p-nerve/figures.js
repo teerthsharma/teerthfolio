@@ -8,6 +8,7 @@
 
 import { BufferAttribute, BufferGeometry, ConeGeometry, Group, InstancedBufferAttribute, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, SphereGeometry, TorusGeometry, Vector3 } from "three";
 import { GAP, CURB_H } from "./roof";
+import { faceMesh } from "../../cel";
 import { T } from "./timeline";
 import { ball, box, ease, hash, limb, merge, prep, sm, tene } from "./look";
 
@@ -132,6 +133,11 @@ export function buildRyuk(mats) {
   const eyeM = new MeshBasicMaterial({ color: "#ffdd00", toneMapped: false, fog: false });
   const eyes = mk(merge([ball(0.028, -0.09, 2.14, 0.74, 1.4, 1, 0.6, 6, 4), ball(0.028, 0.09, 2.14, 0.74, 1.4, 1, 0.6, 6, 4)]), eyeM, bust);
   eyes.position.set(0, -0.85, 0.15);
+  // the face plate: a wide grin full of teeth under the yellow eyes (unlit, dimmed to the rooftop's umber)
+  const ryukFace = faceMesh({ eyes: { shape: "sharp", iris: "#ff3b2e", sclera: "#ffe24a" }, brow: { tilt: 0.45, color: "#0a0610", thick: 0.1 }, mouth: { kind: "grin" }, nose: "hole" }, [0, 2.12, 0.58], 0.2, 0.75);
+  ryukFace.position.set(0, -0.85, 0.15);
+  bust.add(ryukFace);
+  geos.push(ryukFace.geometry);
   const wings = [-1, 1].map((s) => {
     const w = new Group();
     w.position.set(s * 0.28, 1.68, -0.15);
@@ -255,6 +261,7 @@ export function buildL(mats) {
   const skin = [...feet, limb([0, 1.52, lean], [0, 1.68, lean + 0.12], 0.08, 0.07, 5), ball(0.17, 0, 1.8, lean + 0.24, 1, 1.05, 1, 10, 8), ball(0.055, handLip[0], handLip[1], handLip[2] + 0.04, 1, 1, 1, 6, 4), limb(handLip, [0.0, 1.69, 0.5], 0.025, 0.02, 4), ball(0.06, 0.64, 0.74, 0.32, 1, 1, 1, 6, 4)];
   mk(merge(skin), mats.skin);
   mk(lHair(), mats.hair);
+  g.add(faceMesh({ eyes: { shape: "hooded", iris: "#1a1420", sclera: "#f2efe8" }, brow: { tilt: -0.1, color: "#0a0610" }, mouth: { kind: "flat" }, marks: [] }, [0, 1.8, lean + 0.24], 0.17, 0.7)); // L: wide, ringed, unblinking
   mk(merge([new TorusGeometry(0.075, 0.018, 5, 10).rotateY(Math.PI / 2).translate(0.62, 0.8, 0.3)]), mats.cuff); // the cuff, the chain's end
   const wrist = new Vector3(0.62, 0.8, 0.3).add(g.position);
   const dripG = own(prep(new SphereGeometry(0.018, 5, 4).scale(1, 2.2, 1)));

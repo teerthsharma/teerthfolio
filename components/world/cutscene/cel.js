@@ -3,7 +3,7 @@
 // ink hull (the offset is in clip space, so the line is the same pixels at 32 px and at close range). Faces are
 // flat unlit strokes on the head. Everything is built from lib/world/cutscene/cast.js.
 
-import { BackSide, BoxGeometry, BufferAttribute, BufferGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, Quaternion, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3 } from "three";
+import { Mesh, BackSide, BoxGeometry, BufferAttribute, BufferGeometry, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, Quaternion, ShaderMaterial, SphereGeometry, TorusGeometry, Vector3 } from "three";
 import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { BUILDS } from "../../../lib/world/cutscene/timeline";
 
@@ -320,6 +320,18 @@ function accessories(spec, head, r, b) {
 const CACHE = new WeakMap();
 // the face alone, for a figure a move draws itself (Gojo): head centre and radius, the same strokes
 export const faceGeometry = (face, head, r) => mergeGeometries(faceParts(face, head, r));
+
+// a ready face mesh for a figure a move draws itself; `dim` darkens it to sit in a dim scene (the plate is unlit)
+export function faceMesh(face, head, r, dim = 1) {
+  const g = faceGeometry(face, head, r);
+  if (dim !== 1) {
+    const c = g.attributes.color;
+    for (let i = 0; i < c.array.length; i++) c.array[i] *= dim;
+  }
+  const m = new Mesh(g, faceMaterial());
+  m.frustumCulled = false;
+  return m;
+}
 
 export function celFigure(sp, spec) {
   let f = CACHE.get(sp);
