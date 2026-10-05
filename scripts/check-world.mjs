@@ -1412,6 +1412,13 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
     }
     assert.ok(POSES.includes(move?.pose) && (!move.then || POSES.includes(move.then)), `${id}'s move pose is not a pose hook`);
     for (const n of `${a.text} ${b.text} ${c.c?.text ?? ""} ${c.credit?.title ?? ""} ${c.credit?.sub ?? ""} ${c.num ?? ""} ${c.sub ?? ""}`.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) assert.ok(n === "0" || json.includes(n), `${id}'s line says ${n}, which showcase.json does not`);
+    if (c.jokes) {
+      const slot = c.jokeSlot ?? "a";
+      assert.ok(["a", "b", "c"].includes(slot) && c[slot]?.text, `${id}: jokeSlot "${slot}" names no line`);
+      assert.ok(!/\d/.test(c[slot].text), `${id}: jokeSlot "${slot}" is a flex line (it has numbers); jokes never replace those`);
+      assert.ok(Array.isArray(c.jokes) && c.jokes.length === 15 && new Set(c.jokes).size === 15, `${id}: jokes must be 15 unique strings`);
+      for (const j of c.jokes) assert.ok(typeof j === "string" && j.trim() && j.trim().split(/\s+/).length <= 12, `${id}: joke "${j}" is empty or over 12 words`);
+    }
     const T = timelineFor(c);
     const PACED = (i) => i in PACE;
     const w = [T.sign[0], T.sign[1], T.impact, T.bloom[1], T.enter, T.lineA, T.move[0], T.lineB, T.collapse[0], T.collapse[1], T.duration];
