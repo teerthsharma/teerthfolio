@@ -153,8 +153,8 @@ export function horrorMaterial(map = null) {
         float pulse = 0.6 + 0.4 * sin(uTime * 1.3 + vSeed * 30.0);
         // the cracks: thin ridges of noise, light leaking through
         float cr = abs(n3(vObj * 1.7 + vSeed * 9.0) - 0.5);
-        float crack = smoothstep(0.035, 0.0, cr) * step(0.25, vObj.y);
-        vec3 col = basalt + light * crack * 1.2 * pulse + light * vGlow * 1.8 * pulse;
+        float crack = smoothstep(0.022, 0.0, cr) * step(0.25, vObj.y);
+        vec3 col = basalt + light * crack * 0.6 * pulse + light * vGlow * 0.75 * pulse;
         #ifdef NAMED
           if (vObj.z > 0.2) {
             vec2 uv = vec2(vObj.x / 1.4 + 0.5, vObj.y / 0.42);

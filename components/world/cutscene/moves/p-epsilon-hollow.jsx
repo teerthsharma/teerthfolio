@@ -130,7 +130,7 @@ export default function Move(cut) {
     const swing = still ? 0 : smooth(tl.collapse[0] - 0.2, tl.collapse[0] + 0.25, t);
     const d = g.drawn;
     d.visible = show > 0.002;
-    d.position.set(s.x + 0.75, -1.0 + 2.2 * draw, s.z + 0.25);
+    d.position.set(s.x + 1.1, -1.9 + 2.2 * draw, s.z - 0.4);
     d.rotation.set(0, 0, 0.25 * draw - 2.4 * swing);
     d.scale.setScalar(1);
 
