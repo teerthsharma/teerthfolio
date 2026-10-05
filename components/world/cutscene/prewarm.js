@@ -11,12 +11,13 @@ import { stageWarmObjects } from "./Stage";
 
 const DOCKS = [...PLACES, PLACE_BY_ID[SPAWN_PLAY]]; // the spawn statue's play is not in PLACES
 const WARM = new Map(); // id -> { build, gen, held, state: "idle"|"built"|"compiled"|"used" }
-const BUILD_REACH = 60;
-const DROP_REACH = 150;
+if (typeof window !== "undefined") window.__warm = WARM; // capture probes read each dock's warm state
+const BUILD_REACH = 110; // m: start early, the nearest dock first; a walk across the island is 8-30 s
+const DROP_REACH = 170;
 let stageDone = false;
 
 export function registerWarm(id, build) {
-  WARM.set(id, { build, gen: null, held: null, state: "idle" });
+  WARM.set(id, { id, build, gen: null, held: null, state: "idle" });
 }
 
 function finish(e) {
@@ -77,7 +78,8 @@ function compileStep(e, gl, camera, composer, extra) {
     e.queue = [];
     e.pending = [];
     for (const r of [...objects(e.held), ...(extra ? [extra] : [])]) r.traverse((n) => {
-      const ms = n.material ? (Array.isArray(n.material) ? n.material : [n.material]) : [];
+      if (!n.material) return; // groups would compile every descendant in one tick
+      const ms = Array.isArray(n.material) ? n.material : [n.material];
       if (ms.some((x) => !seen.has(x))) { ms.forEach((x) => seen.add(x)); e.queue.push(n); }
     });
   }
@@ -98,6 +100,13 @@ function compileStep(e, gl, camera, composer, extra) {
 
 // at most one build step or compile per call
 export function warmTick(gl, camera, composer) {
+  const t0 = performance.now();
+  const e = warmStep(gl, camera, composer);
+  const d = performance.now() - t0;
+  if (e && d > 30) (window.__warmLog ??= []).push([e.id, e.state, e.queue?.length ?? -1, Math.round(d)]); // slow ticks, for the capture probes
+}
+
+function warmStep(gl, camera, composer) {
   if (!gl || !camera || live.arrival.id) return;
   const { x, z } = live.seal;
   let near = null;
@@ -105,15 +114,18 @@ export function warmTick(gl, camera, composer) {
   for (const p of DOCKS) {
     const e = WARM.get(p.id);
     if (!e) continue;
-    const d = Math.hypot(x - p.x, z - p.z);
+    let d = Math.hypot(x - p.x, z - p.z);
     if (e.state !== "used" && d > DROP_REACH && (e.held || e.gen)) dispose(e);
     if (e.state === "used" || live.seen.has(p.id) || !cutsceneMode(p.id)) continue;
+    // the dock the seal is travelling to goes first
+    const tg = live.target;
+    if (tg && Math.hypot(tg.x - p.x, tg.z - p.z) < 12) d -= 1000;
     if ((e.state === "idle" || e.state === "built") && d < nearD) {
       near = e;
       nearD = d;
     }
   }
-  if (!near) return;
+  if (!near) return null;
   if (near.state === "idle") {
     if (!near.gen && !near.held) {
       const r = near.build();
@@ -125,13 +137,14 @@ export function warmTick(gl, camera, composer) {
       if (r.done) { near.held = r.value; near.gen = null; }
     }
     if (near.held) near.state = "built";
-    return;
+    return near;
   }
   if (near.state === "built" && !near.compiling) {
     let extra = null;
     if (!stageDone && !near.queue) { stageDone = true; extra = stageWarmObjects(); }
     compileStep(near, gl, camera, composer, extra);
   }
+  return near;
 }
 
 // true while a dock the seal is already within reach of still has world to build or programs to link: the boot curtain waits for it,

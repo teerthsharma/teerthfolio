@@ -8,6 +8,7 @@
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 import { APPROVED, arrivalLength } from "../lib/world/cutscene/timeline.js";
+import { PLACE_BY_ID, dockPoint } from "../lib/world/places.js";
 import { CARDS } from "../lib/world/cutscene/cards/index.js";
 
 const arg = (k, d) => (process.argv.includes(`--${k}`) ? process.argv[process.argv.indexOf(`--${k}`) + 1] : d);
@@ -59,13 +60,21 @@ for (const id of ids) {
   let tStart = 0;
   const row = { id, started: false, t3: "-", t8: "-", ended: false, errors: 0, why: [] };
   try {
-    await page.goto(`${base}/?play&spawn=${id}&debug`, { waitUntil: "load" });
+    await page.goto(`${base}/?play&debug`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__world?.ready && window.__world?.live && window.__replay, null, { timeout: 60000 });
-    await page.evaluate(() => sessionStorage.removeItem("seal:seen"));
+    // THE WALK: from the spawn the seal travels to the dock (click-to-travel), so the shared prewarm builds and compiles on the way, as in play;
+    // the arrival then starts by proximity. Frame gaps of the walk and of the scene are measured apart.
+    await page.evaluate((i) => { sessionStorage.removeItem("seal:seen"); window.__world.live.seen.delete(i); }, as);
     tStart = await page.evaluate(() => performance.now());
-    await page.waitForTimeout(Number(arg("approach", 8)) * 1000); // the walk up to the dock: the prewarm builds and compiles during it
-    const already = await page.evaluate((i) => window.__world.live.arrival.id === i, as);
-    if (!already) await page.evaluate((i) => window.__replay(i), id);
+    const dock = dockPoint(PLACE_BY_ID[as === "spawn-seal" ? as : id] ?? PLACE_BY_ID[as]);
+    await page.evaluate((d) => { window.__world.live.target = d; }, dock);
+    const arrived = await page.waitForFunction((i) => window.__world.live.arrival.id === i, as, { timeout: as === "spawn-seal" ? 40000 : 120000, polling: 100 }).then(() => true, () => false);
+    const tArr = await page.evaluate(() => performance.now());
+    row.warm = await page.evaluate(([t, u]) => Math.round(window.__gaps.filter(([at]) => at > t + 1000 && at < u).reduce((m, [, d]) => Math.max(m, d), 0)), [tStart, tArr]);
+    row.walk = Math.round((tArr - tStart) / 1000);
+    if (!arrived) { row.why.push("never arrived"); await page.evaluate((i) => window.__replay(i), id); }
+    if (process.env.WARMLOG) console.log(id, JSON.stringify(await page.evaluate(() => window.__warmLog)));
+    tStart = tArr;
     const t0 = Date.now();
     row.started = (await page.evaluate(probe)).id === as;
     const len = arrivalLength(as);
@@ -92,13 +101,14 @@ for (const id of ids) {
   row.gap = Math.round(worst);
   row.lt = await page.evaluate((t) => Math.round((window.__lt ?? []).filter(([at]) => at > t + 1000).reduce((a, [, d]) => a + d, 0)), tStart).catch(() => -1); // long-task ms (informational)
   if (worst > GAP) row.why.push(`frame gap ${row.gap} ms > ${GAP}`);
+  if (row.warm > GAP) row.why.push(`walk gap ${row.warm} ms > ${GAP}`);
   row.errors = errors.length;
   if (!row.started) row.why.push("never started");
   if (!row.ended) row.why.push("did not end");
   if (errors.length) row.why.push(errors[0]);
   row.pass = row.why.length === 0;
   rows.push(row);
-  console.log(`${row.pass ? "PASS" : "FAIL"}  ${id.padEnd(26)} 3s:${row.t3.padEnd(10)} 8s:${row.t8.padEnd(10)} gap:${String(row.gap ?? "-").padEnd(5)} longtask:${String(row.lt ?? "-").padEnd(5)} ${row.why.join("; ")}`);
+  console.log(`${row.pass ? "PASS" : "FAIL"}  ${id.padEnd(26)} 3s:${row.t3.padEnd(10)} 8s:${row.t8.padEnd(10)} walk:${String(row.walk ?? "-").padEnd(3)}s warm:${String(row.warm ?? "-").padEnd(5)} gap:${String(row.gap ?? "-").padEnd(5)} longtask:${String(row.lt ?? "-").padEnd(5)} ${row.why.join("; ")}`);
   await page.close();
 }
 await browser.close();
