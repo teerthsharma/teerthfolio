@@ -238,10 +238,12 @@ function smoothDamp(cur, vel, tgt, dt, time) {
 
 // one ray from the eye to world point `p`: the first opaque hit that is not the pup, or null. A merged pocket set
 // (a tower in a 200 m mesh) counts like anything else; only domes (BackSide) never do.
+const BK = new Vector3();
 export function blocker(scene, eye, p, root) {
   // both ways: eye -> pup finds what stands between; pup -> eye finds the shell of a mesh the eye sits INSIDE
   // (its faces point away from the eye, so the forward ray never sees them)
-  return cast(scene, eye, p, root) || cast(scene, p, eye, root);
+  // the back ray starts 1 m out from the pup, past anything hugging it (an aura, a costume)
+  return cast(scene, eye, p, root) || cast(scene, BK.copy(eye).sub(p).setLength(1).add(p), eye, root);
 }
 function cast(scene, from, to, root) {
   D.copy(to).sub(from);
