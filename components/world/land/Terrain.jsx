@@ -19,6 +19,7 @@ import { BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } f
 import { ISLAND_RADIUS } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
 import { fbm, groundAt, KEEP_TOP } from "../../../lib/world/terrain";
+import { HIDEOUT } from "../../../lib/world/hideout";
 import { C, SURFACE } from "../palette";
 
 const STEP = 1;
@@ -53,6 +54,8 @@ const K = {
   bedDeep: col("#2b5a72"),
   cliff: col(C.ice),
   cliffLow: col(C.deepIce),
+  hideout: col(HIDEOUT.rock), // the Akatsuki hideout's hill
+  hideoutEdge: col(HIDEOUT.edge),
 };
 
 const s01 = (a, b, x) => {
@@ -86,6 +89,9 @@ function faceColor(out, ny, h, g, seed) {
       const band = Math.floor(h * 1.6);
       out.copy(K.rock).lerp(K.rockLit, 0.25 + 0.6 * rnd(band, 9.1)).lerp(K.graniteDark, band % 3 === 0 ? 0.35 : 0);
       if (ny > 0.62 || h > 19.2) out.copy(K.snow).lerp(K.snowCool, 0.3 * wobble);
+    } else if (g.stuff === 5) {
+      // the hideout hill: dark rock, its ice-edge on the ledges and the foot
+      out.copy(K.hideout).lerp(K.hideoutEdge, ny > 0.82 || h < 0.9 ? 0.55 + 0.3 * wobble : 0.12 * wobble);
     } else {
       // the Google range: snow wherever it can hold, dark rock ribs where not
       out.copy(ny < 0.52 ? K.rockLit : K.snow).lerp(K.rock, ny < 0.52 ? 0.4 + 0.6 * wobble : 0);

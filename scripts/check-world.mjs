@@ -1223,8 +1223,11 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   const me = PLACE_BY_ID["pr-polychrom-79"];
   // remote: clear of every other place and landform by a wide margin (the owner: "VERY FAR from other buildings")
   let nearest = Infinity;
-  for (const q of PLACES) if (q.id !== me.id) nearest = Math.min(nearest, Math.hypot(q.x - me.x, q.z - me.z) - q.radius);
-  for (const c of LAND_COLLIDERS) nearest = Math.min(nearest, Math.hypot(c.x - me.x, c.z - me.z) - c.radius);
+  // the Akatsuki hideout (issue 10 W3 pins it at [48, 68], hill [48, 58]) is the fountain's one near neighbour: 12 m, not 20
+  const hideoutGap = Math.min(Math.hypot(48 - me.x, 68 - me.z) - PLACE_BY_ID["p-epsilon-hollow"].radius, ...LAND_COLLIDERS.filter((c) => c.land === "hideout").map((c) => Math.hypot(c.x - me.x, c.z - me.z) - c.radius));
+  assert.ok(hideoutGap >= 12, `the fountain is only ${hideoutGap.toFixed(1)} m from the hideout`);
+  for (const q of PLACES) if (q.id !== me.id && q.id !== "p-epsilon-hollow") nearest = Math.min(nearest, Math.hypot(q.x - me.x, q.z - me.z) - q.radius);
+  for (const c of LAND_COLLIDERS) if (c.land !== "hideout") nearest = Math.min(nearest, Math.hypot(c.x - me.x, c.z - me.z) - c.radius);
   assert.ok(nearest >= 20, `the fountain is only ${nearest.toFixed(1)} m from the nearest place or landform`);
   assert.ok(Math.hypot(me.x - PEAK.x, me.z - PEAK.z) < 0.01 && PEAK.top >= 18 && PEAK.top <= 25, "the fountain is not on the summit of an 18-25 m peak");
   // the climb: the path starts on the plain, ends at the dock on the summit, and its slope is walkable
