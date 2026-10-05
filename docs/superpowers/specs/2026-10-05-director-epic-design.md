@@ -2,13 +2,274 @@
 
 Supersedes [#9](https://github.com/teerthsharma/teerthfolio/issues/9) (grandify dump) and [#7](https://github.com/teerthsharma/teerthfolio/issues/7) (Band 1000 + graphic 67 history). Those threads are closed. This file is the demand.
 
-Live `teerthfolio.vercel.app` on `origin/main` already plays 24 approved first-arrival cutscenes. Chrome stills (2026-10-05, Playwright `channel: "chrome"`, 1280×800) name 22 pictures and 2 voids. The pictures sit at **7.5**. This issue is **8.5–10**.
-
 No stills reskin. No new package. No copied face. `data/showcase.json` numbers stay. `plays: "pr-mujoco-3396"` stays for the three mountain docks. `?hud=off` never fires a cutscene. Igloo never switches dimension. Do not split MujoRush.
 
 ---
 
-## Six workstreams
+## Instrument (not a vibe)
+
+**Score = 10.0 − 0.1 × (failed ticks).** One hundred authored ticks (T01–T100). Each 0.1 is a named, fail-able fact. There is no “feels better +0.3.”
+
+**Live review**
+
+| field | value |
+|---|---|
+| Date | 2026-10-05, 23:57 IST (Chrome observe finished 18:27 UTC) |
+| Commit | `460bafd3253744f8f016f84276301107240d35fb` |
+| Message | `test(cutscene): the smoke fails on ANGLE shader warnings and allows the zoom-out wide` |
+| URL | `https://teerthfolio.vercel.app` (assumed = `origin/main`; confirm the Vercel SHA) |
+| Probe | Playwright `channel: "chrome"`, 1280×800, `?play&spawn=<id>&debug`, stills at 3 s and 8 s, 2 workers |
+| Report | `verification/observe-all/report.json` + 48 PNGs |
+| Black-void | max(black-share) ≥ 0.72 |
+
+**What changed since the old 7.5 review (same calendar day, older deploy):** that review had 2 black-voids (`p-aether-lang` 0.88/0.83, `pr-highway-3244` 8 s = 0.85). **This probe: 24 started, 0 black-voids, 0 console errors.** The owner’s “all 24 work” is true for *playback*. It is not a 10.0.
+
+Mean RGB of each still (64×40 downsample) is the colour fact. `pr-polychrom-79` 3 s **and** 8 s are exactly `rgb(155, 25, 89)` — a magenta card, not a sky of gates.
+
+The old **7.5** meant “a picture exists.” This ledger does not inherit it.
+
+**How to read a row:** *why* = the miss. *fix* = camera / shader / poly / HUD / terrain / 2D. *earn* = the one change that flips FAIL→PASS.
+
+**Targets:** 8.5 = ≤15 fails. 9.0 = ≤10 fails. 10.0 = 0 authored fails **and** every moderator tick the mod filled.
+
+---
+
+## Current score (`460bafd`)
+
+**5.2 / 10.0** = 10.0 − 0.1 × 48 fails. (52 pass. Ledger below.)
+
+Playback is fixed (T54–T77). The 48 left are: pull not out of the world, polychrom magenta plate, MujoRush banner field, statue/hideout not FLOOR, pocket MeshStandard cities, no Genshin figure law, fountain hills unread, Band 1000 still a bubble on a stage.
+
+---
+
+## Ledger T01–T100
+
+`P` = pass now. `F` = fail now. Each row is **0.1**.
+
+### W1 Director kit (T01–T15)
+
+| id | now | why | fix | earn / math |
+|---|---|---|---|---|
+| T01 | P | — | — | Grammar `zoom out → switch → zoom in` exists in `camera.js` on this SHA. |
+| T02 | P | — | — | `grammarFor("home")` is null. Igloo does not switch. |
+| T03 | P | — | — | `\|into.from\| < 0.2` is forced off-axis. |
+| T04 | P | — | — | Eye on pull never nearer than follow (`shot()`). |
+| T05 | P | — | — | `?hud=off` returns no cutscene. |
+| T06 | P | — | — | Skip / reduced-motion path exists (`still` two-shot). |
+| T07 | P | — | — | Default `camFar` 1000; drawings may set their own. |
+| T08 | F | `PULL_FAR = 44`. Island θ = 2 arctan(84/44) ≈ **125°**. Still the dock. | cam | Set pull `d ≥ 420` (θ ≤ 23°). Prefer 900 on myth docks. |
+| T09 | F | Widest live pull is Mujo **70 m** (θ ≈ 100°). Aether pull is **18 m** (into the void, not out of the world). | cam | No card `pull.far < 420` except `home`. |
+| T10 | F | FOV open is +8 to +16, not 28→40–48 on a *far* pull. | cam | `fov0=28`, `fov1≥40` while `d≥420`. |
+| T11 | F | Switch does not happen on a coin. Smash cut is a shrug. | cam | Chrome still at bloom: island θ ≤ 23°. |
+| T12 | F | Follow 35.5 m never enters fog 80–190. Fog exists and is wasted. | cam | Pull crosses fog far, or drawing owns fog and hands it back. |
+| T13 | P | — | — | Per-card `fog` / `camFar` fields exist (W1 kit landed). |
+| T14 | P | — | — | Topograph card `title` is `Throne Room of Nazarick` (HUD lie from the old review is gone in the card). |
+| T15 | F | Default two-shot `EYE [-0.1, 0.85, 7.4]` still the reduced-motion picture. | cam | `still` mode uses the bent `into`, not the passport two-shot. |
+
+W1 now: 10 P / 5 F → **1.0 / 1.5**
+
+### W2 Beauty / cost (T16–T30)
+
+| id | now | why | fix | earn |
+|---|---|---|---|---|
+| T16 | P | — | — | Island terrain is one mesh (`Terrain.jsx`). Bruno-ish. |
+| T17 | P | — | — | Repeated props are `InstancedMesh`. |
+| T18 | P | — | — | Seal already has a `ShaderMaterial` (`Seal.jsx`). |
+| T19 | F | Pockets are MeshStandard sculpture museums. Cost is vertex count. | shader | Pocket ≤ 8 draws. Measure in `?debug`. |
+| T20 | F | Env tris per pocket not budgeted. | poly | ≤ 12k environment tris in the stage. |
+| T21 | F | Place is not named by a fragment. | shader | ≥ 1 shader whose still names the homage (void flood, Susanoo volume, cave pool). |
+| T22 | F | Extra MeshStandard cities in the pocket. | shader | 0 extra PBR cities. Hull + fragment. |
+| T23 | F | Rimuru / guests as stock-PBR humans. Owner: vomit. | shader+poly | Genshin test or 2D card. Ramp + face SDF or ink. No lathe+`MeshStandard`. |
+| T24 | F | No bake (normal / ramp / ID) on hero guests. | shader | Frequency in maps, not extra loops. |
+| T25 | F | Statue is not a Lusion material. Bowling-pin + stock light. | shader | Written bronze/toon. Rim `#c4a574`. |
+| T26 | F | Hideout hill not a heightfield (place still a plaza). | terrain | Bruno: one terrain peak, not a second mountain mesh. |
+| T27 | F | No AT FBO / volume for kills (Predator, Hollow Purple, Enuma). | shader | Kill is a fullscreen / FBO pass, not a new crowd mesh. |
+| T28 | F | LOD: 35 m, FOV 28°, 2.6 m statue ≈ 4.3° ≈ 96 px. Extra tris past that are invisible. | poly | LOD contract: silhouette first. |
+| T29 | F | No mobile quality drop (Bruno does this). | shader | Low preset drops bloom/shadow maps. |
+| T30 | P | — | — | Sea / moat / snowfall already opt into custom shaders. Island side is not empty. |
+
+W2 now: 4 P / 11 F → **0.4 / 1.5**
+
+### W3 Epsilon hideout + SEAL SEAL (T31–T45)
+
+Live `LAB_AT` is `S(18,30) = [27, 45]`, not `[18, 30]` and not the FLOOR `[48, 68]`.
+
+| id | now | why | fix | earn |
+|---|---|---|---|---|
+| T31 | F | Not on the SE rim `[48, 68]`. | terrain | Move origin to `[48, 68]`. |
+| T32 | F | No 14 m hill at `[48, 58]`. | terrain | Heightfield peak, r 11, rock `#3a3228`. |
+| T33 | F | No Akatsuki mouth at `[44, 66]`. | poly+shader | Carved gate + instanced lanterns. |
+| T34 | F | Interior is not hall `#1c1824` / cloud `#b3122a`. | shader | AT volume, not a white plaza. |
+| T35 | F | Statue silhouette ≠ live pup (`A-body.js`). | poly | Same head-ball + flippers. |
+| T36 | F | Height / plinth below FLOOR (≥ 3.4 m total). | poly | 2.6–3.0 m + 0.85 m plinth. |
+| T37 | F | Plaque is a sign, not a stone 1.2×0.7 facing +z. | poly | Dressed granite `#9e928d`. |
+| T38 | F | Cameo is not live `github.com/teerthsharma.png`. | shader | Fetch + CORS. Fallback bronze pup. |
+| T39 | F | Lettering not two exact cut lines. | poly | `SEAL SEAL` / `founder of seal city`. |
+| T40 | F | Clip-art plaza (benches, stanchion, toy globe as subject). | poly | Delete. Sphere wreck scale ≤ 0.45 if kept. |
+| T41 | F | No second switch onto the statue. | cam | After Predator, LOW 20° west, eye 1.6 m on the plaque. |
+| T42 | P | — | — | Tensura line plays: “Kwahaha! What does that one do?” (Chrome 3–8 s). |
+| T43 | P | — | — | Card `into.from = 0.611` (35°). Not azimuth 0. |
+| T44 | F | Pull `far = 22`. Opposite of out-of-world. | cam | Epsilon pull `d ≥ 900`. |
+| T45 | F | HUD-off still does not name SEAL SEAL from silhouette. | poly+cam | HUD-off 3 s gate. |
+
+W3 now: 2 P / 13 F → **0.2 / 1.5**
+
+### W4 Fountain hills (T46–T53)
+
+Place exists: district **The Fountain of Immortality**, dock `S(30,57) = [45, 85.5]`, `PEAK` top 21 m.
+
+| id | now | why | fix | earn |
+|---|---|---|---|---|
+| T46 | P | — | — | Fountain district + `peak.js` exist on this SHA. |
+| T47 | F | Hills are cone-sum. No two saddles. | terrain | ≥ 2 saddles on the ridge. |
+| T48 | F | Path does not read from the dock (hairpins / ledge). | terrain | Three hairpins or a carved ledge in the still. |
+| T49 | F | Fall / basin not the 3 s subject. | cam+shader | 3 s names water + ridge, not a card. |
+| T50 | F | Polychrom 3 s mean RGB **(155, 25, 89)** = 8 s. Magenta plate. | shader+cam | Sky of gates. RGB must move between 3 s and 8 s. |
+| T51 | F | Pull `far = 44`. | cam | `d ≥ 900`. |
+| T52 | P | — | — | `into.from = −0.524` (30° east), elev −1.2 (basin look-up) is in the card. |
+| T53 | F | Remade still is the same magenta. Death does not land on the basin. | shader+cam | Home still is the fountain, gold `#d9a441` / crimson `#c3122e`. |
+
+W4 now: 2 P / 6 F → **0.2 / 0.8**
+
+### W5 Twenty-four docks — playback + picture (T54–T85)
+
+**Playback (T54–T77): one tick per id, PASS if the arrival starts and max black-share < 0.72.** Recheck 2026-10-05 18:27 UTC:
+
+| id | black 3/8 | RGB 3s | now |
+|---|---|---|---|
+| T54 home | 0 / 0 | 156,147,153 | P |
+| T55 p-aether-lang | 0.28 / 0.49 | 45,18,57 | P (was void 0.88; now a purple domain, still dark) |
+| T56 p-caustic | 0 / 0 | 102,79,65 | P |
+| T57 p-epsilon-hollow | 0 / 0 | 87,96,134 | P |
+| T58 p-faraday | 0 / 0 | 95,138,163 | P |
+| T59 p-monodromy | 0 / 0 | 173,153,118 | P |
+| T60 p-nerve | 0.53 / 0.54 | 44,29,28 | P (dark on purpose) |
+| T61 p-planimeter | 0 / 0 | 195,185,184 | P |
+| T62 p-resolvent | 0 / 0 | 117,84,55 | P |
+| T63 p-separatrix | 0 / 0 | 135,99,124 | P |
+| T64 p-tangle | 0 / 0 | 145,99,135 | P |
+| T65 p-topological-ml-toolkit | 0 / 0 | 139,159,194 | P |
+| T66 pr-highway-3244 | 0.01 / 0.03 | 147,89,117 | P (**8 s was 0.85 black; fixed**) |
+| T67 pr-mujoco-3396 | 0.01 / 0 | 107,80,45 | P |
+| T68 pr-mujoco-warp-1541 | 0.01 / 0 | 107,81,47 | P (same mountain) |
+| T69 pr-mujoco-3450 | 0.01 / 0.01 | 104,69,23 | P |
+| T70 pr-nemo-relay-481 | 0 / 0 | 155,134,157 | P |
+| T71 pr-openxla-46539 | 0.03 / 0.03 | 52,54,70 | P |
+| T72 pr-polychrom-79 | 0 / 0 | **155,25,89** | P *playback* (colour fail is T50/T80) |
+| T73 pr-pyrefly-4180 | 0.02 / 0.01 | 137,108,117 | P |
+| T74 pr-tensorflow-124410 | 0 / 0 | 147,102,131 | P |
+| T75 pr-topograph-432 | 0.18 / 0.31 | 67,44,54 | P |
+| T76 pr-triton-kernels-22 | 0.05 / 0.25 | 116,101,97 | P |
+| T77 pr-xnnpack-10801 | 0 / 0.11 | 169,164,166 | P |
+
+**Picture quality (T78–T85):** the still names the homage with HUD ignored.
+
+| id | now | why | fix | earn |
+|---|---|---|---|---|
+| T78 | F | Aether 3 s is still type-on-purple (mean 45,18,57). Not flood/core as the subject. | shader+cam | 3 s: flood or white-violet core occupies ≥ 40% of the frame. |
+| T79 | F | Caustic 3 s is the hall (warm 102,79,65), not LOW Susanoo. | cam | 3 s is the LOW lens `eye [7.5, −3.4, 14]`. |
+| T80 | F | Polychrom 3 s = 8 s = rgb(155,25,89). No gates. | shader | 3 s sky of gold rings `#d9a441`. Mean RGB must change by 3 s → 8 s. |
+| T81 | F | MujoRush 3 s is a brown field + banner, not three faces filling the sky. | cam+poly | Wall Maria + three faces. Pup a speck. |
+| T82 | P | Highway 8 s now has chroma (134,81,104), black 0.03. Race survived. | — | — |
+| T83 | P | Topograph card title is Nazarick, not NVIDIA MOAT. | — | — |
+| T84 | F | Epsilon 3 s is cave/orb (87,96,134), not the statue+plaque (HUD-off). | cam | Separate HUD-off still on SEAL SEAL. |
+| T85 | F | Monodromy 3 s is palace wash, not the page-tear crack. | shader | 8 s crack reads as a torn page. |
+
+W5 now: 26 P / 6 F → **2.6 / 3.2**
+
+### W6 Band 1000 (T86–T93)
+
+| id | now | why | fix | earn |
+|---|---|---|---|---|
+| T86 | P | — | — | 2D / bubble system plays on first arrival. |
+| T87 | P | — | — | No copied face (house). |
+| T88 | P | — | — | `?play` stills are 3D stages, not only DOM. |
+| T89 | F | Most 3 s stills are one bubble, not two-voice in the *picture*. Faraday/Monodromy are the exceptions. | 2D | Silhouette in frame at 3 s on ≥ 20 of 24. |
+| T90 | F | Guest is a 3D mesh, not silhouette + one prop. | 2D/shader | House rule enforced. |
+| T91 | F | Bubble is the subject on polychrom (magenta + one line). | 2D+shader | Picture names the place if the bubble is ignored. |
+| T92 | P | — | — | Lines sit on the claim (Gojeal, Kwahaha, Via Expugnatio, etc. live). |
+| T93 | F | Aether 8 s is still a koan on dark purple, not a domain you could draw. | shader | Hollow Purple is visible as a collision, not a caption. |
+
+W6 now: 4 P / 4 F → **0.4 / 0.8**
+
+### Island leftover (T94–T100)
+
+| id | now | why | fix | earn |
+|---|---|---|---|---|
+| T94 | P | — | — | Bruno first-read: avatar + world + name in one spawn still. |
+| T95 | P | — | — | 12th PR `pr-polychrom-79` is a live place. |
+| T96 | P | — | — | Fog colour `#cfe6f8` 80–190 exists. |
+| T97 | F | Follow never enters the fog band. | cam | Same as T12. |
+| T98 | F | Snowfall skips fog. | shader | Snowfall opts in (`UniformsLib.fog`). |
+| T99 | P | — | — | Cream HUD chrome is not the grade. |
+| T100 | F | Object-world stills without arrivals remain 67/100. Not this epic’s 10, but it caps the *site*. | terrain | Separate 67→100 work. This tick fails until that grade moves or is scoped out by a mod. |
+
+Island now: 4 P / 3 F → **0.4 / 0.7**
+
+### Sum
+
+| band | pass | fail | points |
+|---|---:|---:|---:|
+| W1 kit | 10 | 5 | 1.0 / 1.5 |
+| W2 beauty | 4 | 11 | 0.4 / 1.5 |
+| W3 epsilon | 2 | 13 | 0.2 / 1.5 |
+| W4 fountain | 2 | 6 | 0.2 / 0.8 |
+| W5 docks | 26 | 6 | 2.6 / 3.2 |
+| W6 punches | 4 | 4 | 0.4 / 0.8 |
+| Island | 4 | 3 | 0.4 / 0.7 |
+| **Total** | **52** | **48** | **5.2 / 10.0** |
+
+Recount: 10+4+2+2+26+4+4 = 52 P. 5+11+13+6+6+4+3 = 48 F. 52+48=100.
+
+**Score = 10.0 − 4.8 = 5.2 / 10.0.**
+
+**5.2 is the ledger. 7.5 was the vibe. 24/24 working is T54–T77 only (2.4 of 10).**
+
+To **8.5**: need 33 of the 48 fails flipped (15 fails left). Cheapest 33 are T08–T12 (cam pull), T50 T78–T81 T84–T85 (pictures), T19–T23 (shader law), T31–T41 (hideout+statue). That is W1+W2+W3+W5, not W6 first.
+
+---
+
+## Moderator ledger (author cannot fill)
+
+Mod adds rows. Each filled row is **+0.1 on the denominator** and starts **F** until the mod marks P. The author does not write the *why*.
+
+| id | now | why (mod) | fix | earn |
+|---|---|---|---|---|
+| M01 | — | | | |
+| M02 | — | | | |
+| M03 | — | | | |
+| M04 | — | | | |
+| M05 | — | | | |
+| M06 | — | | | |
+| M07 | — | | | |
+| M08 | — | | | |
+| M09 | — | | | |
+| M10 | — | | | |
+| M11 | — | | | |
+| M12 | — | | | |
+| M13 | — | | | |
+| M14 | — | | | |
+| M15 | — | | | |
+| M16 | — | | | |
+| M17 | — | | | |
+| M18 | — | | | |
+| M19 | — | | | |
+| M20 | — | | | |
+
+If the mod fills *k* rows, **Score = 10 × (pass) / (100 + k)**. A 10.0 on the authored ledger with 3 open M-fails is 10 × 100 / 103 ≈ 9.7.
+
+---
+
+## What 0.1 *is* (so the size stays huge and honest)
+
+- **0.1** = one still, one number, or one law. Example: Highway 8 s going from black 0.85 → 0.03 earned **T66** only. It did not earn T08.
+- **1.0** = ten such facts. W1 is 1.5. The whole hideout+statue is 1.5.
+- **8.5** is not a mood. It is ≤15 open authored fails.
+- Re-run the Chrome probe on a new SHA and re-mark the T-column. Do not edit *why* to match a feeling.
+
+---
+
+## Six workstreams (how to earn the fails)
 
 | # | name | job |
 |---|---|---|
