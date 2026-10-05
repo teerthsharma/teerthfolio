@@ -243,9 +243,16 @@ export default function Speaker(props) {
   return speakersOf(props.card).map((sp, i) => <Figure key={i} {...props} sp={sp} index={i} />);
 }
 
-function Figure({ card, tl, mode, lean = 0.035, sp, index }) {
+export function Figure({ card, tl, mode, lean = 0.035, sp, index, follow = false }) {
   const fig = useMemo(() => figureFor(sp), [sp]);
-  const m = mats();
+  const shared = mats();
+  // a guest draws over any pocket wall or dome: its own materials, depth test off
+  const m = useMemo(() => {
+    if (!follow) return shared;
+    const o = { ink: shared.ink.clone(), outline: shared.outline.clone(), prop: shared.prop.clone() };
+    for (const x of Object.values(o)) x.depthTest = false;
+    return o;
+  }, [follow, shared]);
   const root = useRef();
   useEffect(() => {
     const p = paletteFor(card);
@@ -253,6 +260,29 @@ function Figure({ card, tl, mode, lean = 0.035, sp, index }) {
     m.ink.uniforms.uRim.value.set(p.rim);
     m.outline.uniforms.uRim.value.set(p.rim);
   }, [card, m]);
+
+  // a guest on a "land" card stands in the lens's right third, a third of the frame tall, wherever the camera ends up:
+  // placed at draw time, after the rig and the frame guard have moved the camera
+  const place = useMemo(
+    () =>
+      follow
+        ? (_r, _s, c) => {
+            const f = root.current;
+            const [sx, sy] = f?.userData.k ?? [1, 1];
+            const s = live.seal;
+            const half = Math.tan((c.fov * Math.PI) / 360);
+            const d = Math.min(12, Math.max(5, Math.hypot(c.position.x - s.x, c.position.y - (s.climb || 0), c.position.z - s.z) + 2.5));
+            const sc = (0.34 * 2 * d * half) / 2.2;
+            c.getWorldDirection(A);
+            B.crossVectors(A, UP).setY(0).normalize();
+            const o = 0.3 * d * half * c.aspect;
+            f.position.set(c.position.x + A.x * d + B.x * o, c.position.y + A.y * d - 1.1 * sc, c.position.z + A.z * d + B.z * o);
+            f.scale.set(sc * sx, sc * sy, sc * sx);
+            f.updateMatrixWorld(true);
+          }
+        : undefined,
+    [follow],
+  );
 
   useFrame((state) => {
     const f = root.current;
@@ -265,17 +295,18 @@ function Figure({ card, tl, mode, lean = 0.035, sp, index }) {
     const t = sceneT(arrival.id, state.clock.elapsedTime - arrival.start);
     const s = live.seal;
     const at = figureAt(card, index);
-    const scale = figureScale(card, index);
     f.position.set(s.x + at[0], at[1], s.z + at[2]);
+    let scale = figureScale(card, index);
     m.ink.uniforms.uCell.value = (card.stage?.halftone ?? 6) * 0.6 * state.gl.getPixelRatio(); // a finer screen on the figure
-    const inF = Math.floor((t - tl.enter) * 12);
+    const inF = Math.floor((t - (follow ? Math.min(tl.enter, 1.0) : tl.enter)) * 12); // a guest is in frame by the 3 s still of a paced card
     const outF = Math.floor((t - tl.collapse[0]) * 12);
     const frame = mode === "still" ? 9 : outF >= 0 ? 2 - outF : inF;
     f.visible = frame >= 0;
     if (f.visible) {
       const [sx, sy] = ENTER[frame] ?? [1, 1];
       const tt = onTwos(t);
-      f.scale.set(scale * sx, scale * sy, scale * sx);
+      f.userData.k = [sx, sy];
+      if (!follow) f.scale.set(scale * sx, scale * sy, scale * sx);
       f.rotation.set(0, -0.42, mode === "full" ? 0.015 * Math.sin(tt * 2.2) + (t > tl.lineB ? lean : 0) : 0);
     }
   });
@@ -283,9 +314,9 @@ function Figure({ card, tl, mode, lean = 0.035, sp, index }) {
   if (!fig) return null;
   return (
     <group ref={root} visible={false}>
-      <mesh geometry={fig.outline} material={m.outline} />
-      <mesh geometry={fig.ink} material={m.ink} />
-      {fig.prop ? <mesh geometry={fig.prop} material={m.prop} /> : null}
+      <mesh geometry={fig.outline} material={m.outline} renderOrder={follow ? 900 : 0} onBeforeRender={place} frustumCulled={!follow} />
+      <mesh geometry={fig.ink} material={m.ink} renderOrder={follow ? 901 : 0} frustumCulled={!follow} />
+      {fig.prop ? <mesh geometry={fig.prop} material={m.prop} renderOrder={follow ? 902 : 0} frustumCulled={!follow} /> : null}
     </group>
   );
 }
