@@ -19,7 +19,7 @@ import { grammarFor, shot } from "../../lib/world/cutscene/camera";
 import { awakeFov, awakeMode, awakeView } from "../../lib/world/awakening";
 import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { MOTION } from "../../lib/world/motion";
-import { PLACES, PLACE_BY_ID, SPAWN } from "../../lib/world/places";
+import { PLACES, PLACE_BY_ID } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
 
 // Direction from the seal to the camera: 42 degrees of elevation, so the
@@ -68,9 +68,12 @@ const LOOK_TALL = 6; // m: from this look.y up the elevation rises
 // The first frame: at the spawn the view leans north so the igloo, the
 // highway and the landforms behind them are the picture, not the snow; it
 // eases back once the seal has slid off the spawn.
-const SPAWN_LEAN = 16; // m
-const SPAWN_ZOOM = 0.55; // share the view pulls back by
-const SPAWN_RADIUS = 3; // m the seal may drift before the lean lets go
+// The spawn statue (plinth z 8, plaque 1.2 m wide): within 4 m of it the view comes in and down until the plaque
+// is ~22% of a 1280 frame (d ~ 7 m at fov 28), and eases back out as the seal leaves.
+const SPAWN_LEAN = 0; // m
+const SPAWN_ZOOM = -0.8; // share the view comes in by (1 - 0.8 = 0.2 of the follow distance)
+const STATUE = { x: 0, z: 8 };
+const SPAWN_RADIUS = 4; // m from the statue before the framing lets go
 const CUT_EYE = new Vector3();
 const CUT_LOOK = new Vector3();
 const G_OUT = { eye: [0, 0, 0], look: [0, 0, 0], fov: 0 };
@@ -217,7 +220,7 @@ export default function CameraRig() {
     lookK.current += ((docked ? 1 : 0) - lookK.current) * damp(LOOK_DAMP, dt);
     const dock = lookRef.current;
     const lk = reduced.current ? 0 : lookK.current;
-    const atSpawn = !ui.near && !ui.open && Math.hypot(seal.x - SPAWN.x, seal.z - SPAWN.z) < SPAWN_RADIUS;
+    const atSpawn = !ui.near && !ui.open && Math.hypot(seal.x - STATUE.x, seal.z - STATUE.z) < SPAWN_RADIUS;
     spawnK.current += ((atSpawn && !reduced.current ? 1 : 0) - spawnK.current) * damp(LOOK_DAMP, dt);
     const dNow = (1 + SPAWN_ZOOM * spawnK.current) * (1 + ((dock?.zoom ?? 1) - 1) * lk) * pull * zoom.current * userZoom.current * speedZoom.current * modeZoom.current * radZoom;
     const dTarget = pull * zoom.current * live.zoom * speedZoomTarget * modeZoomTarget;
