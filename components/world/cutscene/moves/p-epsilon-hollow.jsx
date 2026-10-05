@@ -1,28 +1,35 @@
-// epsilon-hollow: DOMAIN EXPANSION, THE GRAVEYARD OF EFFORTS (the Akatsuki hideout's play; the owner's spec, issue 10 W3).
-// After Yuta Okkotsu's True Mutual Love (a field of countless swords under a dark sky, each one a copied technique):
-// here the field is gravestones to the horizon, each one a dead idea, a PR that never landed (lib/world/cutscene/
-// graves.js: the near stones carry their repo #n and title, the far ones are blank and fade into the mist). Over it hangs
-// EPSILON-HOLLOW itself as a black hole (memory, files and scheduler spiralling in as three strands), and a red moon.
-//   0-1.6     zoom out off the dock; the domain swells over the bloom (the camera grammar's switch)
-//   1.6-6     zoom into the seal from its flank, among the stones; "Domain Expansion: Graveyard of Efforts."
-//   6-8.6     the seal draws one gravestone out of the ground like a sword
-//   8.6-26.7  it holds it; every stone is a PR that never landed; "Effort never gets wasted."
-//   26.7-28.2 the kill: it swings, the slash splits the domain and the island shows through the cut (the explained return)
-// The sky and the ground are written fragments (graveyard.js); the dead ideas are horrors laid in stone (horrors.js),
-// six instanced silhouettes and the named plinths. Draws: sky 1, ground 1, horrors 6, plinths 1, shard 1. Prewarmed.
+// epsilon-hollow: DOMAIN EXPANSION, THE GRAVEYARD OF EFFORTS (the Akatsuki hideout's play; the owner's concept,
+// 2026-10-06): the graveyard is a PLANET. A small dead world (r 170 m) whose every metre is the grave of something
+// eldritch, petrified mid-motion, light leaking from its cracks. Its SUN is EPSILON-HOLLOW: a black hole with an eye
+// (the accretion disc the iris, the event horizon the pupil, memory, files and scheduler spiralling in).
+//   0-0.5     the pup stands on the planet among the graves; the curve of the world under it
+//   0.5-1.6   the camera law's pull, back and up 560 m: the ground falls away, the planet shrinks to a sphere
+//   1.6-2.1   the wide: the planet hangs in the eye's light, a gold-violet crescent on its limb
+//   2.1-3.0   the law's into-arc dives back down onto the pup; "Domain Expansion: Graveyard of Efforts."
+//   6-8.6     the pup draws a shard out of a sleeping god-form at its side
+//   8.6-26.7  every grave is a PR that never landed (the near plinths carry the 31); "Effort never gets wasted."
+//   26.7-28.2 the kill: it swings, the slash cuts the world and the island shows through (the explained return)
+// The camera is the law's (lib/world/cutscene/camera.js, the card's pull.rise / look / at); this file only puts the eye
+// where that wide looks. Draws: sky 1, planet 1, near horrors 4, far graves 1, plinths 1, shard 1 = 9.
+// Triangles: planet 12.5k, far 1,400 x ~60, near 56 x ~600. Prewarmed.
 
 import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
-import { Group, InstancedMesh, Mesh, Object3D, Vector3 } from "three";
+import { Group, InstancedMesh, Mesh, Object3D, Quaternion, Vector3 } from "three";
 import { live } from "../../../../lib/world/store";
+import { WATER_Y, heightAt } from "../../../../lib/world/terrain";
 import { registerWarm, takeWarm } from "../prewarm";
 import { Speaker, Stage, moveAt, signAt, smooth, useCutFrame } from "../kit";
-import { DEAD_PRS, epitaphs, groundGeometry, groundMaterial, quadGeometry, rowAttribute, skyMaterial } from "./p-epsilon-hollow/graveyard";
-import { HORRORS, horrorMaterial, plinthGeometry, shardGeometry } from "./p-epsilon-hollow/horrors";
+import { DEAD_PRS, PLANET_R, epitaphs, planetGeometry, planetMaterial, quadGeometry, rowAttribute, skyMaterial } from "./p-epsilon-hollow/graveyard";
+import { HORRORS, farHorror, horrorMaterial, plinthGeometry, shardGeometry } from "./p-epsilon-hollow/horrors";
 
-const FWD = new Vector3();
+const UP = new Vector3(0, 1, 0);
 const NAMED = DEAD_PRS.length; // the near plinths, carved
-const SLEEPERS = 110; // per silhouette: six silhouettes, 660 horrors to the horizon
+const NEAR = 14; // per near silhouette
+const FAR = 1400; // the LOD spires, the rest of the world
+const EYE_ABOVE = (12 * Math.PI) / 180; // the eye sits this far above the wide's line of sight: the planet's limb crosses
+// its iris in the wide, and from the graves its pupil just clears the horizon (~3 deg under level, the dip is ~6)
+const SLEEPER = [2.3, -1.4]; // the god-form the shard is drawn from, beside the pup (x, z off the pup)
 
 function rand(seed) {
   let s = seed >>> 0;
@@ -32,79 +39,129 @@ function rand(seed) {
   };
 }
 
-function buildGraveyard() {
+// A grave on the sphere (planet frame: centre at the origin, the pup's feet at +y R): standing on its normal, spun
+// about it, sunk a little.
+const Q2 = new Quaternion();
+function plant(o, n, spin, scale, sink) {
+  o.position.copy(n).multiplyScalar(PLANET_R - sink);
+  o.quaternion.setFromUnitVectors(UP, n).multiply(Q2.setFromAxisAngle(UP, spin));
+  o.scale.setScalar(scale);
+  o.updateMatrix();
+}
+// the unit normal `d` m along the ground from the pup's feet, toward (x, z)
+const toward = (x, z, d, out) => {
+  const h = Math.hypot(x, z) || 1;
+  const a = d / PLANET_R;
+  return out.set((x / h) * Math.sin(a), Math.cos(a), (z / h) * Math.sin(a));
+};
+
+function buildPlanet() {
   const r = rand(4180);
   const o = new Object3D();
-  const meshes = [];
-  // the sleepers: each silhouette instanced, scattered to the horizon, half buried, turned and scaled; the camera side
-  // (+z, near) stays clear so the seal reads; the near ones are smaller, the far ones titanic
+  const n = new Vector3();
+  const mats = [];
+  const root = new Group(); // the planet's centre
+  const planet = new Mesh(planetGeometry(), planetMaterial());
+  planet.frustumCulled = false;
+  mats.push(planet.material);
+  root.add(planet);
+  // the near cap: the four silhouettes the owner named, a ring of them from 5 m to the horizon and past it (the far
+  // ones taller, so they stand over the curve)
   HORRORS.forEach((make, k) => {
-    const m = new InstancedMesh(make(), horrorMaterial(), SLEEPERS);
-    for (let i = 0; i < SLEEPERS; i++) {
-      let x;
-      let z;
-      do {
-        const a = r() * Math.PI * 2;
-        const d = 14 + Math.sqrt(r()) * 140;
-        x = Math.cos(a) * d;
-        z = Math.sin(a) * d;
-      } while (z > -6 && Math.hypot(x, z) < 34);
-      const d = Math.hypot(x, z);
-      const sc = (0.9 + r() * 0.8) * (1 + d / 45);
-      o.position.set(x, -0.6 * sc * r(), z);
-      o.rotation.set((r() - 0.5) * 0.35, r() * Math.PI * 2, (r() - 0.5) * 0.35);
-      o.scale.setScalar(sc);
-      o.updateMatrix();
+    const m = new InstancedMesh(make(), horrorMaterial(), NEAR);
+    for (let i = 0; i < NEAR; i++) {
+      const sleeper = k === 2 && i === 0;
+      const d = sleeper ? Math.hypot(...SLEEPER) : 5 + Math.sqrt(r()) * 55;
+      const a = sleeper ? Math.atan2(SLEEPER[1], SLEEPER[0]) : r() * Math.PI * 2;
+      toward(Math.cos(a), Math.sin(a), d, n);
+      const sc = sleeper ? 0.55 : (0.7 + r() * 0.7) * (1 + d / 28);
+      plant(o, n, r() * Math.PI * 2, sc, 0.5 * sc * r());
       m.setMatrixAt(i, o.matrix);
     }
     m.frustumCulled = false;
     m.instanceMatrix.needsUpdate = true;
-    meshes.push(m);
-    void k;
+    mats.push(m.material);
+    root.add(m);
   });
-  // the names, small: low plinths in an arc behind the seal, each lit like a rune
+  // the rest of the world: one low spire, everywhere, titanic, so the planet's limb bristles with graves
+  const far = new InstancedMesh(farHorror(), horrorMaterial(), FAR);
+  for (let i = 0; i < FAR; i++) {
+    do n.set(r() * 2 - 1, r() * 2 - 1, r() * 2 - 1);
+    while (n.lengthSq() > 1 || n.lengthSq() < 1e-4);
+    n.normalize();
+    if (n.y > Math.cos(55 / PLANET_R)) n.y = -n.y; // the near cap is the near silhouettes'
+    const sc = 1.2 + r() * 2.6;
+    plant(o, n, r() * Math.PI * 2, sc, 0.8 * sc * r());
+    far.setMatrixAt(i, o.matrix);
+  }
+  far.frustumCulled = false;
+  far.instanceMatrix.needsUpdate = true;
+  mats.push(far.material);
+  root.add(far);
+  // the names, small: low plinths in an arc behind the pup, each lit like a rune
   const pg = plinthGeometry();
   pg.setAttribute("aRow", rowAttribute(NAMED));
   const named = new InstancedMesh(pg, horrorMaterial(epitaphs()), NAMED);
   for (let i = 0; i < NAMED; i++) {
     const a = Math.PI * (1.12 + (i / NAMED) * 0.76) + (r() - 0.5) * 0.06;
-    const d = (i % 2 ? 6.5 : 9) + r() * 1.5;
-    o.position.set(Math.cos(a) * d, 0, Math.sin(a) * d);
-    o.rotation.set(0, Math.atan2(-Math.cos(a), -Math.sin(a)), 0);
-    o.scale.setScalar(1);
-    o.updateMatrix();
+    const d = 5 + (i % 3) * 1.9 + r() * 0.4; // three staggered rows, so no two names overlap
+    toward(Math.cos(a), Math.sin(a), d, n);
+    plant(o, n, Math.atan2(-Math.cos(a), -Math.sin(a)), 1, 0);
     named.setMatrixAt(i, o.matrix);
   }
   named.frustumCulled = false;
   named.instanceMatrix.needsUpdate = true;
+  mats.push(named.material);
+  root.add(named);
   const sky = new Mesh(quadGeometry(), skyMaterial());
   sky.frustumCulled = false;
   sky.renderOrder = -0.5;
-  const ground = new Mesh(groundGeometry(), groundMaterial());
-  ground.position.y = 0.005;
   const drawn = new Mesh(shardGeometry(), horrorMaterial());
   drawn.frustumCulled = false;
-  const root = new Group();
-  root.add(ground, named, ...meshes);
-  return { root, sky, drawn, mats: [sky.material, ground.material, named.material, drawn.material, ...meshes.map((m) => m.material)] };
+  mats.push(sky.material, drawn.material);
+  return { root, sky, drawn, mats };
 }
-registerWarm("p-epsilon-hollow", buildGraveyard);
+registerWarm("p-epsilon-hollow", buildPlanet);
+
+// Where the law's wide looks (camera.js shot(): back along the follow, `rise` up, aimed at `look` off the chest), and
+// the eye EYE_ABOVE over that line: it fills the top of the wide and sits under the horizon seen from the graves.
+function eyeDirection(card, cam, seal, out) {
+  const p = card.pull;
+  const ox = cam.x - seal.x;
+  const oz = cam.z - seal.z;
+  const h = Math.hypot(ox, oz) || 1;
+  const rise = ((p.rise ?? 14) * Math.PI) / 180;
+  const L = new Vector3(p.look[0] - (ox / h) * p.far * Math.cos(rise), p.look[1] - p.far * Math.sin(rise), p.look[2] - (oz / h) * p.far * Math.cos(rise));
+  L.normalize();
+  const U = UP.clone().addScaledVector(L, -UP.dot(L));
+  if (U.lengthSq() < 1e-6) U.set(ox / h, 0, oz / h);
+  U.normalize();
+  return out.copy(L).multiplyScalar(Math.cos(EYE_ABOVE)).addScaledVector(U, Math.sin(EYE_ABOVE)).normalize();
+}
 
 export default function Move(cut) {
-  const { tl, mode } = cut;
+  const { card, tl, mode } = cut;
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
-  const g = useMemo(() => takeWarm("p-epsilon-hollow", buildGraveyard), []);
+  const g = useMemo(() => takeWarm("p-epsilon-hollow", buildPlanet), []);
+  const ground = useMemo(() => Math.max(heightAt(live.seal.x, live.seal.z), WATER_Y), []);
   useEffect(() => {
-    g.root.position.set(live.seal.x, 0, live.seal.z); // the field stands round the seal where it docked
+    const s = live.seal;
+    g.root.position.set(s.x, ground - PLANET_R, s.z); // the pup stands on top of the world where it docked
+    const eye = eyeDirection(card, camera.position, s, new Vector3());
+    for (const m of g.mats) {
+      const u = m.uniforms;
+      if (u.uHole) u.uHole.value.copy(eye);
+      if (u.uCenter) u.uCenter.value.copy(g.root.position);
+    }
     return () => {
       for (const m of g.mats) m.dispose();
     };
-  }, [g]);
+  }, [g, card, camera, ground]);
 
   useCutFrame((t, state) => {
     const still = mode !== "full";
-    const show = smooth(tl.bloom[0], tl.bloom[1], t) * (1 - smooth(tl.collapse[1] - 0.2, tl.duration - 0.4, t));
+    const show = still ? 1 : smooth(0, 0.3, t) * (1 - smooth(tl.collapse[1] - 0.2, tl.duration - 0.4, t));
     const cutOpen = still ? 0 : smooth(tl.collapse[0] + 0.15, tl.collapse[1], t);
     for (const m of g.mats) {
       const u = m.uniforms;
@@ -112,27 +169,21 @@ export default function Move(cut) {
       u.uCut.value = cutOpen;
       u.uRes.value.set(size.width, size.height);
       if (u.uTime) u.uTime.value = state.clock.elapsedTime;
-      if (!u.uRes) continue;
     }
     const S = g.sky.material.uniforms;
     S.uInvVP.value.multiplyMatrices(camera.matrixWorld, camera.projectionMatrixInverse);
     S.uCam.value.copy(camera.position);
-    // Epsilon-Hollow hangs over the lens's centre, high: it owns the top of the frame wherever the grammar puts the camera
-    camera.getWorldDirection(FWD);
-    FWD.y = 0;
-    if (FWD.lengthSq() < 1e-6) FWD.set(0, 0, -1);
-    S.uHole.value.copy(FWD.normalize()).setY(0.62).normalize();
     g.sky.visible = g.root.visible = show > 0.002;
 
-    // the drawn stone: out of the ground beside the seal, held up like a sword, then the swing
+    // the drawn shard: out of the sleeping god-form beside the pup, held up like a sword, then the swing
     const s = live.seal;
     const draw = still ? 1 : smooth(tl.move[0], tl.move[1], t);
     const swing = still ? 0 : smooth(tl.collapse[0] - 0.2, tl.collapse[0] + 0.25, t);
     const d = g.drawn;
     d.visible = show > 0.002;
-    d.position.set(s.x + 1.1, -1.9 + 2.2 * draw, s.z - 0.4);
+    const k = Math.min(1, draw * 1.6);
+    d.position.set(s.x + SLEEPER[0] * (1 - k) + 1.0 * k, ground - 1.6 + 2.0 * draw, s.z + SLEEPER[1] * (1 - k) - 0.4 * k);
     d.rotation.set(0, 0, 0.25 * draw - 2.4 * swing);
-    d.scale.setScalar(1);
 
     if (still) return;
     // the caster, upright: flippers in the hand sign that opens the domain, until it reaches for the shard
@@ -140,6 +191,7 @@ export default function Move(cut) {
     live.pose.sign = Math.max(signAt(tl, t), smooth(0.2, 0.9, t) * (1 - smooth(tl.move[0] - 0.6, tl.move[0], t))) * (1 - turn);
     live.pose.raise = Math.max(live.pose.raise, draw * (1 - swing));
     live.pose.point = Math.max(live.pose.point, swing * (1 - smooth(tl.collapse[1], tl.duration, t)));
+    live.pose.sit = Math.max(live.pose.sit, 1.4 * show); // sits up on its tail: upright on its world, small among the graves
   });
 
   return (
