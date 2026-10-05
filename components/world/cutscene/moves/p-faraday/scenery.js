@@ -32,7 +32,7 @@ const bx = (w, h, d, x, y, z, k = 0, rz = 0) => {
   if (rz) g.rotateZ(rz);
   return piece(g.translate(x, y, z), k);
 };
-const cyl = (r, h, x, y, z, seg = 12, k = 0) => piece(new CylinderGeometry(r, r, h, seg).translate(x, y, z), k);
+const cyl = (r, h, x, y, z = 0, seg = 12, k = 0) => piece(new CylinderGeometry(r, r, h, seg).translate(x, y, z), k);
 
 // the lamp posts: x, z, height above the deck. The one at KUROKO_LAMP is her perch, tall.
 export const KUROKO_LAMP = { x: -1.5, z: -2.75, h: 4.2 };
