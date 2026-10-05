@@ -378,7 +378,8 @@ export default function CameraRig() {
     const grammar = cutscene ? grammarFor(cutscene.card, cutscene.place) : null;
     let gFov = null;
     if (cutscene) {
-      const st = sceneT(arrival.id, t - arrival.start);
+      // reduced motion: the bent zoom-in on the seal (line A), never the passport two-shot
+      const st = cutsceneMode(arrival.id) === "still" ? cutscene.tl.lineA : sceneT(arrival.id, t - arrival.start);
       cutView(cutscene.card, cutscene.place, seal.x, seal.z, camera.aspect, CUT_EYE, CUT_LOOK);
       if (grammar) {
         camera.position.toArray(G_FOLLOW.eye);
