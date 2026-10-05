@@ -99,7 +99,15 @@ for (const id of ids) {
   }
   const worst = await page.evaluate((t) => window.__gaps.filter(([at]) => at > t + 1000 && !(window.__shots ?? []).some((q) => at >= q && at < q + 800)).reduce((m, [, d]) => Math.max(m, d), 0), tStart ?? 0).catch(() => 0);
   row.gap = Math.round(worst);
-  row.lt = await page.evaluate((t) => Math.round((window.__lt ?? []).filter(([at]) => at > t + 1000).reduce((a, [, d]) => a + d, 0)), tStart).catch(() => -1); // long-task ms (informational)
+  // long tasks (main-thread blocks over 50 ms) in the scene: total and worst; p99 vs median frame time of the scene
+  const lt = await page.evaluate((t) => { const a = (window.__lt ?? []).filter(([at]) => at > t + 1000).map(([, d]) => d); return [Math.round(a.reduce((x, y) => x + y, 0)), Math.round(Math.max(0, ...a))]; }, tStart).catch(() => [-1, -1]);
+  row.lt = lt[0];
+  row.ltMax = lt[1];
+  const dts = await page.evaluate((t) => window.__gaps.filter(([at]) => at > t + 1000 && !(window.__shots ?? []).some((q) => at >= q && at < q + 800)).map(([, d]) => d).sort((a, b) => a - b), tStart).catch(() => []);
+  row.p50 = dts.length ? Math.round(dts[dts.length >> 1]) : 0;
+  row.p99 = dts.length ? Math.round(dts[Math.min(dts.length - 1, Math.floor(dts.length * 0.99))]) : 0;
+  if (row.ltMax > GAP) row.why.push(`long task ${row.ltMax} ms > ${GAP}`);
+  if (row.p99 > 2.5 * row.p50 && row.p99 > 50) row.why.push(`p99 ${row.p99} ms > 2.5x median ${row.p50}`);
   if (worst > GAP) row.why.push(`frame gap ${row.gap} ms > ${GAP}`);
   if (row.warm > GAP) row.why.push(`walk gap ${row.warm} ms > ${GAP}`);
   row.errors = errors.length;
@@ -108,7 +116,7 @@ for (const id of ids) {
   if (errors.length) row.why.push(errors[0]);
   row.pass = row.why.length === 0;
   rows.push(row);
-  console.log(`${row.pass ? "PASS" : "FAIL"}  ${id.padEnd(26)} 3s:${row.t3.padEnd(10)} 8s:${row.t8.padEnd(10)} walk:${String(row.walk ?? "-").padEnd(3)}s warm:${String(row.warm ?? "-").padEnd(5)} gap:${String(row.gap ?? "-").padEnd(5)} longtask:${String(row.lt ?? "-").padEnd(5)} ${row.why.join("; ")}`);
+  console.log(`${row.pass ? "PASS" : "FAIL"}  ${id.padEnd(26)} 3s:${row.t3.padEnd(10)} 8s:${row.t8.padEnd(10)} walk:${String(row.walk ?? "-").padEnd(3)}s warm:${String(row.warm ?? "-").padEnd(5)} gap:${String(row.gap ?? "-").padEnd(5)} p50/p99:${row.p50}/${row.p99} longtask:${row.lt}/${row.ltMax} ${row.why.join("; ")}`);
   await page.close();
 }
 await browser.close();
