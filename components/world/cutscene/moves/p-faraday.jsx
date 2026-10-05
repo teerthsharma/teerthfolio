@@ -31,7 +31,7 @@ prewarm();
 
 const CORE_Y = 0.9;
 // the clock (s from the arrival); the card's beats put the credit at 17.45 and the collapse at 20.65
-const T = { jacket: [0.55, 1.1], coin: 6.6, toss: [11.15, 11.9], flick: 11.95, burn: [12.85, 14.55, 16.65] };
+const T = { jacket: [0.55, 1.1], coin: 1.6, toss: [11.15, 11.9], flick: 11.95, burn: [12.85, 14.55, 16.65] };
 const TURN_TO = 1.5; // the pup's yaw once it faces Touma down the bridge (the kit starts it at 0.6)
 const COME = [1.8, 5.2, 7.0, 2.6]; // Touma charges in: leaves at COME[0], arrives at COME[1], from x COME[2] to COME[3]
 const BACK = [14.2, 15.5]; // the burn has the sheet: the lens and the pup move to the island side so the pup stays whole

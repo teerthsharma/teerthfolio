@@ -32,11 +32,11 @@ export function skyShell() {
       void main() {
         vec3 v = normalize(vP);
         float h = v.y;
-        vec3 horizon = vec3(0.16, 0.42, 0.62);
-        vec3 mid = vec3(0.05, 0.2, 0.36);
-        vec3 zen = vec3(0.043, 0.165, 0.541);
+        vec3 horizon = vec3(0.1, 0.26, 0.42);
+        vec3 mid = vec3(0.02, 0.09, 0.2);
+        vec3 zen = vec3(0.008, 0.03, 0.17);
         vec3 c = mix(horizon, mix(mid, zen, smoothstep(0.12, 0.7, h)), smoothstep(-0.02, 0.22, h));
-        c = mix(c, vec3(1.0, 0.706, 0.227), 0.55 * smoothstep(0.1, 0.0, abs(h - 0.03)));
+        c = mix(c, vec3(1.0, 0.706, 0.227), 0.95 * smoothstep(0.1, 0.0, abs(h - 0.03)));
         if (h < 0.0) c = mix(horizon, vec3(0.05, 0.16, 0.3), smoothstep(0.0, -0.2, h));
         float az = atan(v.x, -v.z);
         c *= 0.93 + 0.14 * texture2D(uGrain, vec2(az * 3.0, h * 6.0)).r;
@@ -45,7 +45,7 @@ export function skyShell() {
         float cl = vn(vec2(az * 4.0 + h * 5.0, h * 30.0 + vn(vec2(az * 3.0, 2.0)) * 3.0));
         float body = smoothstep(0.62, 0.64, cl) * band;
         float edge = (smoothstep(0.62, 0.64, cl) - smoothstep(0.655, 0.675, cl)) * band;
-        c = mix(c, vec3(0.2, 0.46, 0.68), body * 0.55);
+        c = mix(c, vec3(0.1, 0.26, 0.45), body * 0.55);
         c = mix(c, uCream, edge * 0.4);
         // stars
         vec2 sc = vec2(az * 60.0, h * 60.0);

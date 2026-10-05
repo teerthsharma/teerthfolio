@@ -9,13 +9,13 @@
 import { BackSide, BufferGeometry, DataTexture, DoubleSide, EdgesGeometry, Float32BufferAttribute, LineSegments, LinearFilter, RGBAFormat, RepeatWrapping, ShaderMaterial, Vector3 } from "three";
 
 export const CREAM = "#f1e6c8";
-export const SHADE = "#0a2240";
-export const MID = "#12426d";
-export const LIT = "#2b72a8";
+export const SHADE = "#030b18";
+export const MID = "#0b305a";
+export const LIT = "#1f64a0";
 export const CYAN = "#8fe6ff";
 export const LILAC = "#b79bff";
 export const AMBER = "#ffa927";
-export const GRIDC = "#5f9ccf";
+export const GRIDC = "#3f78ab";
 export const NAVY = "#07182e";
 
 export const BEAM = { y: 0.75, z: -0.95, speed: 55 }; // the shot's line, and m/s along +x
@@ -167,7 +167,7 @@ export function paperMaterial({ grid = false, windows = false } = {}) {
             float on = step(0.6, h21(cell + vec2(7.0, 3.0) + floor(vK) * 5.0));
             float flick = step(0.5, h21(cell + floor(uTime * 2.0 + h21(cell) * 9.0) * 0.37));
             float inRect = step(0.22, f.x) * step(f.x, 0.78) * step(0.3, f.y) * step(f.y, 0.7);
-            if (vK > 0.5 && vK < 1.5) c = mix(c, uCyan, inRect * on * (0.55 + 0.4 * flick));
+            if (vK > 0.5 && vK < 1.5) c = mix(c, h21(cell + 3.1) > 0.78 ? vec3(1.0, 0.66, 0.2) : uCyan, inRect * on * (0.55 + 0.4 * flick)); // a few windows burn amber, the one warm colour
             if (vK > 1.5) {
               // a big screen: bars that scroll, no lettering
               float bar = step(0.5, fract(vL.y * 0.8 - uTime * 0.4 + h21(vec2(floor(u * 0.4), 1.0)) * 4.0));
