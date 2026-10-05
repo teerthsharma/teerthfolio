@@ -36,7 +36,7 @@ The old **7.5** meant “a picture exists.” This ledger does not inherit it.
 
 ## Current score (`460bafd`)
 
-**5.0 / 10.0** = 10.0 − 0.1 × 50 fails. (50 pass.)
+**4.8 / 10.0** = 10.0 − 0.1 × 52 fails. (48 pass.)
 
 Order of this review: **(1) all 24 cutscenes, (2) the island, (3) then the fountain.** The fountain is scored **0** after the island walk, not from the cutscene probe.
 
@@ -51,7 +51,7 @@ Playback: 24/24 start. 0 black-voids. 0 console errors. That is T54–T77.
 | home | P | 156,147,153 | watercolor / igloo. Holds. |
 | p-aether-lang | P | 45,18,57 | purple domain, still type-led. Not flood/core. |
 | p-caustic | P | 102,79,65 | hall / earth. Not LOW Sukuna / manhwa. |
-| p-epsilon-hollow | P | 87,96,134 | cave + orb. Not statue+plaque. |
+| p-epsilon-hollow | P | 87,96,134 | cave + orb. Not Itachi Mangekyo. Rimuru/statue belong at spawn. |
 | p-faraday | P | 95,138,163 | cyanotype chroma. Two-voice in DOM. |
 | p-monodromy | P | 173,153,118 | palace wash. Not the page-tear. |
 | p-nerve | P | 44,29,28 | dark on purpose. |
@@ -73,7 +73,7 @@ Playback: 24/24 start. 0 black-voids. 0 console errors. That is T54–T77.
 | pr-triton-kernels-22 | P | 116,101,97 | ink shrine. |
 | pr-xnnpack-10801 | P | 169,164,166 | pale palace. |
 
-Play grade: **24/24**. Picture grade: **not 24/24**. Polychrom, MujoRush, Aether, Caustic LOW, Epsilon statue, Monodromy crack still fail their 0.1s.
+Play grade: **24/24**. Picture grade: **not 24/24**. Polychrom, MujoRush, Aether, Caustic LOW, Epsilon iris, Monodromy crack still fail their 0.1s.
 
 ---
 
@@ -237,8 +237,8 @@ Moves attach through `components/world/cutscene/kit.jsx`: `<Stage />`, `<Speaker
 |---|---|---|
 | Caustic / Sukuna LOW | `moves/p-caustic/susanoo.js` | Hull + additive fresnel already. Retarget the hull to **Sukuna / shrine-shadow**, manhwa grain in the fragment. Keep one merged mesh. |
 | Aether | `moves/p-aether-lang/purple.js` + `Stage.jsx` | Flood or Hollow Purple as the 3 s subject. Not VOID type on night. |
-| Epsilon pocket | `moves/p-epsilon-hollow/slime.js` + `fx.js` | Rimuru if kept: ramp + face SDF (ultra-modern), or slime-only. Veldora = `#6b3fa0` orb shader. |
-| Epsilon island | `Seal.jsx` + monument | SEAL SEAL statue: written bronze/toon, not stock-only. Cameo = live `github.com/teerthsharma.png`. |
+| Spawn statue (mid-island) | monument at `SPAWN` `{0, 9}` + moved `moves/p-epsilon-hollow/slime.js` `fx.js` | **Rimuru lives here now.** Ultra-modern pretty, or slime-only. Veldora `#6b3fa0`. SEAL SEAL bronze/toon + live `github.com/teerthsharma.png`. Seal **spawns on the plinth.** |
+| Epsilon hideout | `moves/p-epsilon-hollow/` (not slime) | **Not a normal cutscene.** Itachi Mangekyo: iris / Tsukuyomi / Amaterasu as the fragment. Abstract. No Rimuru. No statue. |
 | MujoRush | `moves/pr-mujoco-3396/charcoal.js` | Fresco plaster, not a white banner field. Faces are terrain + one chalk shader. |
 | Polychrom | `moves/pr-polychrom-79/world.js` | Gate rings in the fragment. Magenta `rgb(155,25,89)` plate is a miss. |
 | Fountain temple | `moat-uphill.js` `streamMaterial` | Basin **inside** the cella. Radiation `#2bdc8a`. |
@@ -261,23 +261,25 @@ Shader/poly make them beautiful. Each world still needs a **locked art-style to 
 | lock | art-style | live dock |
 |---|---|---|
 | Sukuna | **Korean manhwa** (webtoon: hard value cuts, full-bleed red, no Japanese screentone-as-the-look) | `p-caustic` = Sukuna / LOW. `pr-triton-kernels-22` = Malevolent Shrine, same law. |
-| Ainz | **Manga art** (panels, speed lines, screentone, monochrome with one purple) | `p-epsilon-hollow` island / hideout / statue. |
+| Ainz | **Manga art** (panels, speed lines, screentone, monochrome with one purple) | **Not Epsilon.** Cameo only if the mod puts a panel on Nazarick. Ainz-the-show is Topograph. |
+| Itachi | **Mangekyo abstract** (the flexiest: iris fills the lens, Tsukuyomi red-moon field, Amaterasu black fire as paint, crows as flecks). Not a hall. Not a pocket city. | `p-epsilon-hollow` hideout play. **Not a normal cutscene.** |
 | Rumbling | **Early Renaissance** (fresco, egg tempera, gold ground, Giotto/Masaccio weight — not manga, not WIT) | `pr-mujoco-3396` / `#1541` / `#3450` (one play). |
 | Overlord | **American show** (adult Western TV: Castlevania / Invincible key-light, English staging, not clay, not manga) | `pr-topograph-432` Throne Room of Nazarick. |
-| Rimuru | **Ultra-modern pretty anime** (2024–26 TV: clean gradients, film bloom, face SDF). Live Rimuru is the Epsilon slime/human. It looks shit. | `p-epsilon-hollow` *pocket* only. Highway is **not** Rimuru (Gordius / Fate). |
+| Rimuru | **Ultra-modern pretty anime** (2024–26 TV: clean gradients, film bloom, face SDF). Live Rimuru looks shit. | **Moved off Epsilon.** Lives at the **mid-island spawn statue**, `SPAWN {0, 9}`, south of the igloo `{0, -8}`. Highway is **not** Rimuru (Gordius / Fate). |
 
 Caustic on `origin/main` still says Madara. **This issue remaps it.** LOW numbers stay (`look [-1.5, 3.8, -6]`, `eye [7.5, −3.4, 14]`). The titan is Sukuna, not Susanoo. Triton keeps the shrine so the franchise has a fight and a domain.
 
-Epsilon keeps Tensura **lines** in the pocket (T42 already plays). The *island* is Ainz manga + SEAL SEAL. Two styles, one dock, via the switch.
+Epsilon **does not keep Tensura.** Those lines and the slime/Veldora kit move to the spawn statue (T42 must follow). Hideout play is Itachi only.
 
 Lines that are flex/credit stay numbered as in `data/showcase.json`. Homage lines below are the demand. No copied face.
 
 | id | homage | art-style (grow into) | dialogue (land → seal → flex) | easter (HUD-off still must hide it) |
 |---|---|---|---|---|
-| `home` | Vinland / Thors | Yukimura watercolor. Paper `#e8dcc8`. No fight. | “You have no enemies.” / “I have no orcas, for I have no enemies.” / “Eleven landed contributions. Welcome home.” | Eleven beacons = eleven merges. Thors’ dagger as a jetty cleat. |
+| `home` | Vinland / Thors | Yukimura watercolor. Paper `#e8dcc8`. No fight. **No switch.** | “You have no enemies.” / “I have no orcas, for I have no enemies.” / “Eleven landed contributions. Welcome home.” | Spawn statue under the igloo (see spawn row). Eleven beacons = eleven merges. Thors’ dagger as a jetty cleat. |
+| spawn statue | **Rimuru + SEAL SEAL** (moved off Epsilon) | **Ultra-modern pretty anime** on the object. Plaque is stone, not a cutscene. | Plaque: `SEAL SEAL` / `founder of seal city`. Tensura (moved): “Kwahaha! What does that one do?” / “Oops. Wrong place.” Flex stays on Epsilon’s *credit*, not this plinth. | Seal **spawns on the plinth** at `{0, 9}`, heading π, facing the igloo at `{0, -8}`. Live GitHub pfp. Slime / Veldora `#6b3fa0` around the statue, not in a pocket. |
 | `p-aether-lang` | JJK Infinite Void | MAPPA digital void. Hue 256. Glass `#d9c6ff` @ 0.12. | “Are you the strongest because you are Gojeal Satarou?” / “Or are you Gojeal Fishtarou because you are the strongest?” / “HOLLOW PURPLE!” | Six-eye ticks in the flood. Infinity symbol only when the core is behind the pup. |
 | `p-caustic` | **Sukuna / LOW** (was Madara) | **Korean manhwa.** Full-bleed `#e5142e` on ash `#2a241f`. No Japanese tone-as-style. | “Know your place.” / “This is the power of a seal. 0.995 AUROC, with no ground truth.” | Two-finger cut as a crack in the hall glass. Shrine mouth in the LOW sky, not a lighthouse. |
-| `p-epsilon-hollow` | Pocket: Tensura. Island: **Ainz**. | Pocket: **ultra-modern pretty anime**. Island: **manga**. | Pocket: “Kwahaha! What does that one do?” / “Oops. Wrong place.” Island plaque: `SEAL SEAL` / `founder of seal city`. Flex: “Bare metal x86_64. No POSIX. No libc…” | Live GitHub pfp on the plaque. Staff’s seven gems as seven syscalls. Slime left on the pool if Rimuru stays. |
+| `p-epsilon-hollow` | **Itachi / Akatsuki hideout.** Not a normal dock play. | **Mangekyo abstract.** Iris, Tsukuyomi, Amaterasu-as-paint. | Flex: “Bare metal x86_64. No POSIX. No libc…” Itachi is the picture, not the line. | Crows / magatama as syscalls. Cloud `#b3122a` on the mouth. **No Rimuru. No statue. No Ainz.** |
 | `p-faraday` | Railgun | 2000s JC Staff + cyanotype. Prussian `#0a4a7a`. | Two-voice already in DOM. Seal: “Not assumed. Found.” / “The field coupling, found rather than assumed.” | Coin is a token with `∇×`. Gekota as a stamp on the blueprint, one frame. |
 | `p-monodromy` | Magi / Sinbad | Ohtaka palatial shonen. Gold `#d9a441` on teal. | “Relax. The loop closes.” / Ja’far panic in DOM / “Oops. Wrong dimension. Hold on.” / “5 dependencies, torch not required.” | Baal’s vessel as the vortex ring. Page-tear is the *dimension*, not a flash. |
 | `p-nerve` | Death Note | Obata tenebrism. Roof `#1a0c0e`. Spot `#f2e6d8`. | “When it ends, I’m the one who writes yours.” / L: “The bells are loud today.” / “3 of its own 4 hypotheses withdrawn. 224 tests passing.” | Ryuk’s apple as a red folio on the parapet. Shinigami eyes only in the kill. |
@@ -299,13 +301,15 @@ Lines that are flex/credit stay numbered as in `data/showcase.json`. Homage line
 | `pr-triton-kernels-22` | Malevolent Shrine | **Korean manhwa** (same Sukuna law as Caustic). Ink `#1c1824`. Blood `#e5142e`. | “Domain Expansion.” / “Malevolent Shrine. Only the scheduled blocks survive.” / “804 lines added, 17 tests passing.” | Unscheduled city blocks shear away. Shrine jaws = causal triangle. |
 | `pr-xnnpack-10801` | Kyoka Suigetsu | Pierrot Bleach 2000s. Desert `#f4e8c8`. Sky `#0a0614`. | “Since when were you under the impression the gap was not there?” / “It was there all along.” / “6.42% lower peak. Workspace 144 MiB to 112 MiB.” | Leading-gap as the throne’s missing step. Sword snaps on kill. |
 
-House: the seal is the only 3D face unless a guest passes the Genshin test **and** the dock’s art-style. Rimuru’s live human fails both. Sukuna / Ainz / Titans / Ainz-on-TV are silhouette + one prop, or ink, unless the mod proves the test.
+House: the seal is the only 3D face unless a guest passes the Genshin test **and** the dock’s art-style. Rimuru’s live human fails both — and Rimuru is no longer a dock guest; he is spawn-statue scenery. Sukuna / Itachi / Titans / Ainz-on-TV are silhouette + one prop, or ink, unless the mod proves the test. Itachi is **abstract first**: the Mangekyo is the picture. A copied Itachi face is a miss.
 
 ---
 
 ## 6. Camera view (all 24)
 
 Sitewide grammar does not nudge: **zoom out of the world → switch dimension → zoom into the seal.** Never a straight +z incoming dolly. `|into.from| < 0.2` is already forced off. Positive yaw = west. Elevation = eye height in metres. Clock: `timeline.js` `LENGTH` 8.2, impact 1.15, bloom 1.15–1.6, line A 2.3 unless the card says otherwise.
+
+**Exception — `p-epsilon-hollow`:** not a normal cutscene. Hideout is Akatsuki. The play is Itachi’s Mangekyo making abstract art. No Tensura pocket. No statue landing. No 35° Veldora into.
 
 Default two-shot `EYE [-0.1, 0.85, 7.4] LOOK [0.7, 0.6, -1.0]` is the 7.5. Never use it as the zoom-in. Live `PULL_FAR = 44` is a shrug (θ ≈ 125°). Floor: \(d \ge 420\) (θ ≤ 23°). Prefer **900** on myth docks.
 
@@ -314,7 +318,7 @@ Default two-shot `EYE [-0.1, 0.85, 7.4] LOOK [0.7, 0.6, -1.0]` is the 7.5. Never
 | `home` | small fjord breath only. **No switch.** | — | level `look [-3.0, 1.7, -3.0]`, `eye [0.9, 0.0, 11.0]` | rain | wash off; eleven beacons stay |
 | `p-aether-lang` | \(d \ge 900\), FOV 28→44. Live pull **18 m** is a miss. | void at the coin | **180°** (`from = π`), eye 0.4 m, looking *out* through the flood | Hollow Purple | `[-44, -26]`, loops-stop credit |
 | `p-caustic` | \(d \ge 900\) | WIDE is the smash, not a path | **LOW** `look [-1.5, 3.8, -6]`, `eye [7.5, −3.4, 14]` (28° off +z). Sukuna fills the sky. | Dismantle / shrine slash (was meteor `HIT2 [5, −38]` r 32 — same beat, new picture) | lighthouse / 0.995 AUROC |
-| `p-epsilon-hollow` | \(d \ge 900\) | Tensura pocket (pretty) | 35° (`from ≈ 0.611`), eye 1.2 m, Veldora in sky | Predator maw | **second switch**: statue, LOW 20° west, eye 1.6 m on the plaque. Ainz-manga hideout behind. |
+| `p-epsilon-hollow` | wide off the **mouth** only, or skip — this is not a dock pull | **Mangekyo iris** swallows the lens. Not a pocket hall. | **Inside the iris.** Eye in the tomoe. Tsukuyomi field. Not `from = 0.611`. | Amaterasu as paint / crow scatter | Hideout mouth. **No statue.** Statue is at spawn. |
 | `p-faraday` | \(d \ge 420\) | cyanotype | **90°**, eye 0.6 m, coin in the near foreground | coin flick / rail burn | island under the burn |
 | `p-monodromy` | \(d \ge 420\) | palace | **20° west**, eye 0.5 m, **up** the vortex | page-tear dimension | remade `[0, 48]` |
 | `p-nerve` | \(d \ge 420\) | roof | **15° east**, eye 0.4 m, bells above | three hypotheses buried | 224 tests |
@@ -388,7 +392,7 @@ W1 now: 10 P / 5 F → **1.0 / 1.5**
 
 W2 now: 4 P / 11 F → **0.4 / 1.5**
 
-### W3 Epsilon hideout + SEAL SEAL (T31–T45)
+### W3 Hideout (Itachi) + spawn statue (Rimuru / SEAL SEAL) (T31–T45)
 
 Live `LAB_AT` is `S(18,30) = [27, 45]`, not `[18, 30]` and not the FLOOR `[48, 68]`.
 
@@ -398,19 +402,19 @@ Live `LAB_AT` is `S(18,30) = [27, 45]`, not `[18, 30]` and not the FLOOR `[48, 6
 | T32 | F | No 14 m hill at `[48, 58]`. | terrain | Heightfield peak, r 11, rock `#3a3228`. |
 | T33 | F | No Akatsuki mouth at `[44, 66]`. | poly+shader | Carved gate + instanced lanterns. |
 | T34 | F | Interior is not hall `#1c1824` / cloud `#b3122a`. | shader | AT volume, not a white plaza. |
-| T35 | F | Statue silhouette ≠ live pup (`A-body.js`). | poly | Same head-ball + flippers. |
-| T36 | F | Height / plinth below FLOOR (≥ 3.4 m total). | poly | 2.6–3.0 m + 0.85 m plinth. |
-| T37 | F | Plaque is a sign, not a stone 1.2×0.7 facing +z. | poly | Dressed granite `#9e928d`. |
+| T35 | F | No spawn statue. Seal still stands on snow at `{0, 9}`. | poly | Same pup as `A-body.js` on a plinth at `SPAWN`. Seal **spawns on it.** |
+| T36 | F | Height / plinth below FLOOR (≥ 3.4 m total). | poly | 2.6–3.0 m + 0.85 m plinth. Spawn y = plinth top. |
+| T37 | F | Plaque is not at spawn, facing the igloo (+z is south — plaque faces +z so the follow camera reads it). | poly | Stone 1.2×0.7 at the statue’s feet, `SPAWN`. |
 | T38 | F | Cameo is not live `github.com/teerthsharma.png`. | shader | Fetch + CORS. Fallback bronze pup. |
-| T39 | F | Lettering not two exact cut lines. | poly | `SEAL SEAL` / `founder of seal city`. |
-| T40 | F | Clip-art plaza (benches, stanchion, toy globe as subject). | poly | Delete. Sphere wreck scale ≤ 0.45 if kept. |
-| T41 | F | No second switch onto the statue. | cam | After Predator, LOW 20° west, eye 1.6 m on the plaque. |
-| T42 | P | — | — | Tensura line plays: “Kwahaha! What does that one do?” (Chrome 3–8 s). |
-| T43 | P | — | — | Card `into.from = 0.611` (35°). Not azimuth 0. |
-| T44 | F | Pull `far = 22`. Opposite of out-of-world. | cam | Epsilon pull `d ≥ 900`. |
-| T45 | F | HUD-off still does not name SEAL SEAL from silhouette. | poly+cam | HUD-off 3 s gate. |
+| T39 | F | Lettering not two exact cut lines on the spawn plaque. | poly | `SEAL SEAL` / `founder of seal city`. |
+| T40 | F | Rimuru kit still in the Epsilon pocket. | poly+shader | Move `slime.js` / `fx.js` / Veldora to the spawn statue. Epsilon keeps none of it. |
+| T41 | F | Play is still a normal Tensura pocket. Statue is not at spawn. | cam+poly | Itachi Mangekyo abstract. Statue + Rimuru at `SPAWN {0, 9}`. |
+| T42 | F | Tensura line still plays on Epsilon. Must move to the spawn statue. | 2D | “Kwahaha! What does that one do?” at spawn, not in `p-epsilon-hollow`. |
+| T43 | F | Card `into.from = 0.611` is the old Veldora into. Forbidden now. | cam | No 35° Tensura into. Iris / Tsukuyomi lens only. |
+| T44 | F | Pull `far = 22` on a dock play that should not be a dock play. | cam | Hideout mouth or skip. Not a 22 m cave shrug. |
+| T45 | F | SEAL SEAL still imagined at Epsilon. | poly+cam | HUD-off spawn still names SEAL SEAL from the mid-island statue. Seal stands on it. |
 
-W3 now: 2 P / 13 F → **0.2 / 1.5**
+W3 now: 0 P / 15 F → **0.0 / 1.5**
 
 ### W4 Fountain — scored **0** (T46–T53)
 
@@ -470,7 +474,7 @@ W4 now: 0 P / 8 F → **0.0 / 0.8**
 | T81 | F | MujoRush 3 s is a brown field + banner, not three faces filling the sky. | cam+poly | Wall Maria + three faces. Pup a speck. |
 | T82 | P | Highway 8 s now has chroma (134,81,104), black 0.03. Race survived. | — | — |
 | T83 | P | Topograph card title is Nazarick, not NVIDIA MOAT. | — | — |
-| T84 | F | Epsilon 3 s is cave/orb (87,96,134), not the statue+plaque (HUD-off). | cam | Separate HUD-off still on SEAL SEAL. |
+| T84 | F | Epsilon 3 s is cave/orb (87,96,134), not Itachi’s Mangekyo. Statue is not the 3 s. | shader+cam | 3 s: iris / Tsukuyomi field. HUD-off *spawn* still is SEAL SEAL. |
 | T85 | F | Monodromy 3 s is palace wash, not the page-tear crack. | shader | 8 s crack reads as a torn page. |
 
 W5 now: 26 P / 6 F → **2.6 / 3.2**
@@ -510,18 +514,18 @@ Island now: 4 P / 3 F → **0.4 / 0.7**
 |---|---:|---:|---:|
 | W1 kit | 10 | 5 | 1.0 / 1.5 |
 | W2 beauty | 4 | 11 | 0.4 / 1.5 |
-| W3 epsilon | 2 | 13 | 0.2 / 1.5 |
+| W3 epsilon | 0 | 15 | 0.0 / 1.5 |
 | W4 fountain | 0 | 8 | 0.0 / 0.8 |
 | W5 docks | 26 | 6 | 2.6 / 3.2 |
 | W6 punches | 4 | 4 | 0.4 / 0.8 |
 | Island | 4 | 3 | 0.4 / 0.7 |
-| **Total** | **50** | **50** | **5.0 / 10.0** |
+| **Total** | **48** | **52** | **4.8 / 10.0** |
 
-Recount: 10+4+2+0+26+4+4 = 50 P. 5+11+13+8+6+4+3 = 50 F. 50+50=100.
+Recount: 10+4+0+0+26+4+4 = 48 P. 5+11+15+8+6+4+3 = 52 F. 48+52=100.
 
-**Score = 10.0 − 5.0 = 5.0 / 10.0.** Fountain band is 0. 24/24 working is T54–T77 only (2.4 of 10).
+**Score = 10.0 − 5.2 = 4.8 / 10.0.** Fountain band is 0. Epsilon play is not Itachi. Rimuru/statue still on the wrong place. 24/24 working is T54–T77 only (2.4 of 10).
 
-To **8.5**: need 35 of the 50 fails flipped (15 fails left). Cheapest 35 are T08–T12 (cam pull), T50 T78–T81 T84–T85 (pictures), T19–T23 (shader law), T31–T41 (hideout+statue), T46–T49 T52–T53 (plateau-temple). W6 last.
+To **8.5**: need 37 of the 52 fails flipped (15 fails left). Cheapest: T08–T12 (cam pull), T31–T45 (hideout Itachi + spawn statue/Rimuru), T46–T53 (plateau-temple), T19–T23 T50 T78–T81 T84–T85 (shaders/pictures). W6 last.
 
 ---
 
@@ -571,7 +575,7 @@ If the mod fills *k* rows, **Score = 10 × (pass) / (100 + k)**. A 10.0 on the a
 |---|---|---|
 | **W1** | Director kit | Zoom out of the world. Switch. Zoom into the seal. Nolan geography. Math for every lens. |
 | **W2** | Beauty / cost floor | Bruno island, Active Theory pocket, Lusion statue, Genshin hybrid figure. |
-| **W3** | Epsilon hideout + SEAL SEAL | Island-corner carve. Akatsuki mouth. Statue FLOOR. Plaque. Second switch. |
+| **W3** | Epsilon hideout + spawn statue | Hideout = Akatsuki + Itachi Mangekyo (not a normal cutscene). Statue + Rimuru + SEAL SEAL = mid-island spawn, under the igloo. |
 | **W4** | Fountain temple | Plateau under mountain law. Temple on the deck. Fountain inside. Polychrom remade in the cella. |
 | **W5** | 24 dock dossiers | Hex, degree, death, 3 s / 8 s still. Every approved card. |
 | **W6** | Band 1000 punches | 2D two-voice. Does not replace W5’s 3D picture. |
@@ -610,7 +614,7 @@ Island radius `ISLAND_RADIUS = 84` (`places.js`). Follow sits ~35.5 m, FOV 28°.
 - Switch happens at the **wide**, on impact / bloom (~1.15–1.6 s). The pocket replaces the island while the island is small. That is the smash cut.
 - Then zoom **into the seal** on an arc. `into.from` is radians off +z, **never 0**. `|from| < 0.2` is already forced off in `grammarFor`. Keep that. Unique degree is only this zoom-in.
 - Kill may open a third angle. Still not azimuth 0.
-- Home: zoom out of the dying pocket **or** shatter. Land on the real dock. Epsilon’s home is the **statue**, not the old globe.
+- Home: zoom out of the dying pocket **or** shatter. Land on the real dock. Epsilon’s home is the **Akatsuki mouth**, not a statue and not the old globe. The statue is spawn.
 
 **Nolan rules (teaching):**
 
@@ -653,13 +657,51 @@ Stock `MeshStandardMaterial` on a lathe human is why the Rimuru body makes a per
 - Guest figure is allowed only if it passes the **Genshin test**: silhouette reads at 32 px; face is SDF or ink (no copied likeness); ramp shadow (painted hue, not `albedo * 0.2`); outline; one material family. Fail any line → 2D card / silhouette. No third option of “just add tris.”
 - Seal / statue: same pup as `Seal.jsx` / `A-body.js`. Written shader (ramp + rim + metal). Not a lathe snowman. Not stock `MeshStandard` as the only light.
 
-**Tensura:** the only 3D body in the pocket is the seal (Rimuru’s slime form). Veldora is the `#6b3fa0` shader orb. Great Sage is voice or 2D. A 3D human Rimuru that fails the Genshin test is below floor.
+**Tensura / Rimuru:** not an Epsilon pocket. The slime kit, Veldora `#6b3fa0`, and the Kwahaha / Oops lines **move to the spawn statue**. A 3D human Rimuru that fails the Genshin test is still below floor. Home (`home`) never switches dimension.
 
 ---
 
-## W3 — Epsilon hideout + SEAL SEAL (FLOOR)
+## W3 — Two places: hideout (Itachi) and spawn statue (Rimuru + SEAL SEAL)
 
-Move `p-epsilon-hollow` off `[18, 30]` to the **southeast rim**.
+Do not keep Rimuru and the statue on Epsilon. They were there. They move.
+
+### Spawn statue — middle of the island, under the igloo
+
+`SPAWN = { x: 0, z: 9, heading: π }` (`places.js`). Igloo `home` district `{ x: 0, z: -8, r: 9 }`. The statue stands at spawn. The seal **spawns on the plinth**, facing the igloo (−z).
+
+| piece | number |
+|---|---|
+| Statue origin | `{0, 9}` |
+| Igloo door | `{0, −8}` |
+| Seal spawn | on the plinth top (y ≈ 0.85), heading π |
+| Rimuru kit | moved `slime.js` + `fx.js` + Veldora, **around the statue**, not a pocket switch |
+
+**Statue FLOOR** (if any line fails, it is still pathetic):
+
+| part | must |
+|---|---|
+| Silhouette | Live pup. Head is a ball. Flippers read. |
+| Height | 2.6–3.0 m bronze/toon on a 0.85 m plinth. Total ≥ 3.4 m. |
+| Shader | Written metal/toon. Bronze `#6e5344`, rim `#c4a574`, eyes `#06b6d4`. Not stock-only `MeshStandard`. |
+| Plinth | Granite `#9e928d` / `#6a625c`. This **is** the spawn pad. |
+| Plaque | Stone 1.2 × 0.7 m at the feet, readable from the follow camera (south of spawn). |
+| Cameo | Live `https://github.com/teerthsharma.png`. CORS. Down → bronze pup face. Never a file in the repo. |
+| Letters | Exact, two lines: |
+
+```
+SEAL SEAL
+founder of seal city
+```
+
+HUD-off spawn still: a visitor names SEAL SEAL / seal city. The igloo sits behind it. Name-in-snow must not own the axis.
+
+Rimuru art-style here is **ultra-modern pretty**. Live human looks shit — slime or 2D until the Genshin test passes. Lines that move: “Kwahaha! What does that one do?” / “Oops. Wrong place.”
+
+`home` cutscene stays Vinland. **No switch.** Rimuru is object-world at spawn, not a `home` pocket.
+
+### Epsilon hideout — Akatsuki, southeast rim
+
+Move `p-epsilon-hollow` off `[18, 30]` / live `[27, 45]` to the **southeast rim**.
 
 | piece | number |
 |---|---|
@@ -670,41 +712,21 @@ Move `p-epsilon-hollow` off `[18, 30]` to the **southeast rim**.
 | Sphere wreck (if kept) | `[51, 65]`, scale ≤ 0.45 of today’s globe |
 | Radiation | 9 m |
 
-Hill rock `#3a3228`, ice-edge `#9e928d`. Semi-terrain = heightfield in `terrain.js`. Semi-artificial = dressed gate, jambs, lanterns (instanced), interior hall.
+Hill rock `#3a3228`, ice-edge `#9e928d`. Semi-terrain = heightfield. Semi-artificial = dressed gate, jambs, lanterns (instanced), interior hall.
 
-Interior: Akatsuki. Stone `#1c1824`. Cloud `#b3122a` on `#1c1824`. Ember `#e0559b`. No white void plaza. No park bench. No stanchion. No toy Atomium as the skyline.
+Interior: Akatsuki. Stone `#1c1824`. Cloud `#b3122a` on `#1c1824`. Ember `#e0559b`. No white void plaza. No park bench. No stanchion. No toy Atomium. **No statue. No Rimuru. No slime pool.**
 
-**Statue FLOOR** (if any line fails, it is still pathetic):
-
-| part | must |
-|---|---|
-| Silhouette | Live pup. Head is a ball. Flippers read. |
-| Height | 2.6–3.0 m bronze/toon on a 0.85 m plinth. Total ≥ 3.4 m. |
-| Shader | Written metal/toon. Bronze `#6e5344`, rim `#c4a574`, eyes `#06b6d4`. metalness 0.55–0.7, roughness 0.32–0.4 if metal. Not stock-only `MeshStandard`. |
-| Plinth | Granite `#9e928d` / `#6a625c`. |
-| Plaque | Stone 1.2 × 0.7 m, facing +z. Not a sign on sticks. |
-| Cameo | Live `https://github.com/teerthsharma.png`. CORS. Down → bronze pup face. Never a cartoon seal icon. Never a file in the repo. |
-| Letters | Exact, two lines, fill `#1c1824` or `#06b6d4`: |
-
-```
-SEAL SEAL
-founder of seal city
-```
-
-HUD-off 3 s: a visitor names SEAL SEAL / seal city from silhouette. The sphere is not what they name.
-
-**Epsilon cutscene (new second switch):**
+**Epsilon cutscene — not a normal cutscene.** Of course Itachi. The flexiest Mangekyo, making abstract art.
 
 | t | lens |
 |---|---|
-| 0–1.6 s | Pull to \(d \ge 900\). Island is a coin. FOV 28→44. |
-| 1.15–1.8 s | Switch. Tensura pocket. Cave pool `#1a1440`. Stage `#1fb8ff`. |
-| 1.8 s → line A | Into: 35° off +z (`from ≈ 0.61`), eye 1.2 m, onto the seal. Veldora orb in the sky. |
-| Kill | Predator. Maw `#0a0614`. |
-| **Second switch** | Lens already on the statue, LOW, 20° west, eye 1.6 m, look at the plaque. |
-| Home | Terrace + hill + mouth. Flex: “Bare metal x86_64. No POSIX. No libc…” |
+| Open | Mouth, or skip the dock pull. This is not 8.2 s of cave-and-orb. |
+| Switch | Mangekyo iris fills the lens. Tomoe rotate. Not a Tensura hall. |
+| Into | Eye **inside** the iris. Tsukuyomi field: red moon, abstract paint. |
+| Kill | Amaterasu as black fire-paint, or crow scatter. |
+| Home | Hideout mouth. Flex: “Bare metal x86_64. No POSIX. No libc…” |
 
-Lines stay: “Kwahaha! What does that one do?” / “Oops. Wrong place.” / the bare-metal flex.
+No second switch onto a statue. No `from = 0.611`. No Veldora. No Predator-as-the-picture.
 
 Do not eat Caustic `[54, 38]` or Monodromy `[0, 48]`. Do not add a second Rushmore.
 
@@ -748,9 +770,9 @@ Gojeal. Hue 256. Void `#140b26`. VOID `#c77dff`. Blue `#2f7dff`. Red `#ff2b3a`. 
 
 See §5–6. Korean manhwa. LOW `look [-1.5, 3.8, -6]`, `eye [7.5, −3.4, 14]`. WIDE is the switch. 3 s is LOW under Sukuna, not the lighthouse. Live card still says Madara — that homage is superseded here.
 
-### `p-epsilon-hollow` — Ainz island + Tensura pocket (supersede)
+### `p-epsilon-hollow` — Itachi / Akatsuki (not a normal cutscene)
 
-See W3 and §5–6. Island = Ainz manga + SEAL SEAL. Pocket = Rimuru ultra-modern (live slime; it looks shit). Stage `#1fb8ff`. Pool `#1a1440`. Veldora `#6b3fa0`. Maw `#0a0614`. No 3D human unless Genshin-test **and** pretty.
+See W3 and §5–6. Hideout only. **Mangekyo abstract.** No Rimuru (moved to spawn statue). No SEAL SEAL (moved to spawn). No Ainz. Stage is the iris, not `#1fb8ff` cave. Home is the mouth. Flex stays.
 
 ### `p-faraday` — Railgun (won)
 
@@ -850,31 +872,32 @@ House: the seal is the only 3D face unless a guest passes the Genshin test. Ever
 
 ## How much gap is left
 
-This is the closer of the issue. The ledger above is **5.0 / 10.0** on `460bafd`: 50 pass, 50 fail, each fail −0.1.
+This is the closer of the issue. The ledger above is **4.8 / 10.0** on `460bafd`: 48 pass, 52 fail, each fail −0.1.
 
 | target | open authored fails | what that means on this SHA |
 |---|---:|---|
-| **now** | 50 | Fountain band 0. Pull still 44 m. Pockets are MeshStandard museums. Hideout/statue not FLOOR. Five art-styles unlocked only as words. |
-| **8.5** | ≤ 15 | Flip **35** fails. |
-| **9.0** | ≤ 10 | Flip 40. |
+| **now** | 52 | Fountain band 0. Pull still 44 m. Epsilon is still a cave/orb. Rimuru/statue still on the wrong place. |
+| **8.5** | ≤ 15 | Flip **37** fails. |
+| **9.0** | ≤ 10 | Flip 42. |
 | **10.0** | 0 authored **and** every M-row the mod filled | Author cannot mark M01–M20. |
 
 **24/24 playing is 2.4 of 10** (T54–T77). It is already in the bag. It does not move the score.
 
-**Cheapest 35 toward 8.5**
+**Cheapest 37 toward 8.5**
 
-1. T08–T12 — pull \(d \ge 420\), prefer 900, FOV 28→40–48, switch on a coin (W1 / §6).
+1. T08–T12 — pull \(d \ge 420\), prefer 900, FOV 28→40–48, switch on a coin (W1 / §6). Epsilon is the exception (Itachi, not a dock pull).
 2. T46–T53 — delete the 21 m spire; plateau → temple → basin inside (W4). That whole band is 0 today.
-3. T31–T41 — hideout at `[48, 68]`, SEAL SEAL plaque, live pfp, second switch (W3).
-4. T19–T23, T50, T78–T81, T84–T85 — naming shaders + pictures (Aether flood, Caustic LOW Sukuna, Polychrom gates, Mujo faces, Monodromy tear). Hook `Stage.jsx` / `susanoo.js` / `streamMaterial`. Do not write a new engine.
+3. T31–T45 — hideout at `[48, 68]` + Itachi Mangekyo play. Statue + Rimuru + SEAL SEAL at `SPAWN {0, 9}`, seal on the plinth, under the igloo.
+4. T19–T23, T50, T78–T81, T84–T85 — naming shaders + pictures (Aether flood, Caustic LOW Sukuna, Polychrom gates, Mujo faces, Epsilon iris, Monodromy tear). Hook `Stage.jsx` / `susanoo.js` / `streamMaterial`. Do not write a new engine.
 5. Leave W6 punches and T100 (67/100 stills) for last.
 
 **Author locked (do not reopen)**
 
-- Grammar: zoom out → switch → zoom into the seal. No +z dolly.
+- Grammar: zoom out → switch → zoom into the seal. No +z dolly. **Epsilon is not a normal cutscene** — Itachi Mangekyo abstract.
 - Fountain: 0 until plateau-temple-fountain-inside. Not foothills on a needle.
 - Caustic = Sukuna / LOW / Korean manhwa. Triton = shrine / same manhwa law.
-- Epsilon island = Ainz manga + SEAL SEAL. Epsilon pocket = Rimuru ultra-modern (live slime; it looks shit).
+- Rimuru + SEAL SEAL statue = mid-island spawn `{0, 9}`, under the igloo. Seal spawns on the plinth. Moved off Epsilon.
+- Epsilon hideout = Akatsuki. Play = flexiest Itachi Mangekyo, abstract. No Rimuru. No statue. No Ainz.
 - MujoRush = early Renaissance, one mountain, `plays: "pr-mujoco-3396"`.
 - Topograph = Overlord as an **American show**. HUD is Nazarick.
 - Shader law + the instance hooks in §4. All other GLSL is the mod’s.
@@ -885,12 +908,12 @@ This is the closer of the issue. The ledger above is **5.0 / 10.0** on `460bafd`
 - M01–M20: empty. Each filled row adds 0.1 to the denominator and starts F.
 - Ramp tables, noise LUTs, exact GLSL after the first naming pass, mobile rungs beyond drop-bloom, any dock not in the §4 instance table.
 - Beats on the same homage if they sit.
-- Whether Rimuru’s pocket keeps a 3D body (must pass Genshin + pretty) or goes slime-only / 2D.
+- Whether Rimuru at the spawn statue keeps a 3D body (must pass Genshin + pretty) or goes slime-only / 2D. Itachi’s exact GLSL after the iris names the still.
 
 **Chrome gate (still the probe)**
 
-`channel: "chrome"`, 1280×800. Non-home 0–1.4 s: island shrinking, end of pull θ ≤ 23°. `home` 3 s: watercolor, no fight. `p-caustic` 3 s: LOW Sukuna. `p-aether-lang` 3 s: flood or core. `pr-mujoco-3396` 3 s: three faces. `pr-highway-3244` 8 s: race visible. `pr-polychrom-79` 3 s: gates in the temple. `pr-topograph-432`: title Nazarick. `p-epsilon-hollow` HUD-off: statue + plaque. `p-monodromy` 8 s: page-tear. Every other 3 s: already in the pocket, bent into the seal.
+`channel: "chrome"`, 1280×800. Non-home 0–1.4 s: island shrinking, end of pull θ ≤ 23° (Epsilon may skip). `home` 3 s: watercolor, no fight, statue under the igloo. `p-caustic` 3 s: LOW Sukuna. `p-aether-lang` 3 s: flood or core. `pr-mujoco-3396` 3 s: three faces. `pr-highway-3244` 8 s: race visible. `pr-polychrom-79` 3 s: gates in the temple. `pr-topograph-432`: title Nazarick. `p-epsilon-hollow` 3 s: Mangekyo / Tsukuyomi, not cave-orb. Spawn HUD-off: SEAL SEAL on the plinth. `p-monodromy` 8 s: page-tear. Every other 3 s: already in the pocket, bent into the seal.
 
 Does not reskin Instrument Sans, cream cards, or the minimap. Does not rewrite `data/showcase.json`. Graphic stills without arrivals remain the 67 / 100 object-world work (T100). Reduced motion keeps a bent `into`, not the passport two-shot (T15).
 
-The gap is **5.0 points**, not a vibe. Write the plan after this spec is approved. Do not implement from this file until then.
+The gap is **5.2 points**, not a vibe. Write the plan after this spec is approved. Do not implement from this file until then.
