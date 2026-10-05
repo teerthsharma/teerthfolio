@@ -22,6 +22,7 @@ import { dust, human, veldora, vortex } from "./spawn-seal/figures";
 import { battlefield, caveWorld } from "./spawn-seal/world";
 
 const SEAL_AT = [3.1, 2.4, -1.5]; // Veldora's seal, beside the pup
+const RIMURU_AT = [-1.8, 0, -2.4]; // the Demon Lord rises from the vortex here, beside and behind the pup, so both are in frame
 const MAW_AT = [0, 3.6, -9];
 const bump = (x, c, w) => Math.max(0, 1 - Math.abs(x - c) / w);
 const V = new Vector3();
@@ -169,7 +170,8 @@ export default function Move(cut) {
     };
   }, [mode]);
 
-  // the pup is engulfed (its body is replaced by Rimuru's): hidden from 9.35 to 15.3, restored whatever happens
+  // the pup stays on screen through the whole scene: Rimuru rises BESIDE it (RIMURU_AT) and the void eats the world
+  // round it, never the pup
   const hid = useRef(null);
   const showPup = () => {
     if (hid.current) hid.current.visible = true;
@@ -201,12 +203,7 @@ export default function Move(cut) {
       cam.lookAt(LOOK.set(st.x, 1.9, st.z));
       cam.updateMatrixWorld();
     }
-    const pup = state.scene.getObjectByName("seal");
-    const out = t > 9.35 && t < 15.3;
-    if (pup && out && !hid.current) {
-      hid.current = pup;
-      pup.visible = false;
-    } else if (!out) showPup();
+    // the owner's rule: the seal is in every frame; the pup is never hidden (showPup stays as the unmount guard)
   }, 0.5);
 
   useFrame(() => {
@@ -274,10 +271,11 @@ export default function Move(cut) {
     m.vor.mesh.visible = pk > 0.01;
     m.vor.mat.uniforms.uT.value = t;
     m.vor.mat.uniforms.uK.value = pk;
+    m.vor.mesh.position.set(RIMURU_AT[0], 0, RIMURU_AT[2]);
     m.vor.mesh.scale.set(1 + 0.25 * (1 - pk), 1, 1 + 0.25 * (1 - pk));
     const mk = smooth(9.3, 10.1, t) * (1 - smooth(13.5, 13.8, t));
     m.man.root.visible = mk > 0.01;
-    m.man.root.position.set(0, 0, 0);
+    m.man.root.position.set(RIMURU_AT[0], 0, RIMURU_AT[2]);
     m.man.root.scale.set(0.5 + 0.5 * mk, Math.max(0.001, mk), 0.5 + 0.5 * mk);
     m.man.root.rotation.y = (1 - smooth(9.3, 10.2, t)) * 7;
     m.man.update(t, smooth(12.6, 13.1, t), smooth(13.05, 13.4, t));
@@ -300,7 +298,9 @@ export default function Move(cut) {
     // ---- the void maw: opens behind the pup at the punch, swells, devours, and is gone with reality
     const wk = smooth(13.6, 14.3, t) * (1 - smooth(14.5, 14.9, t));
     m.mw.mesh.visible = wk > 0.01;
-    m.mw.mesh.position.set(MAW_AT[0] + s.x, MAW_AT[1], MAW_AT[2] + s.z);
+    // behind the pup as the lens sees it, whatever the composer did with the lens: the maw never covers the pup
+    V.set(s.x - cam.position.x, 0, s.z - cam.position.z).normalize();
+    m.mw.mesh.position.set(s.x + V.x * 7, MAW_AT[1], s.z + V.z * 7);
     m.mw.mesh.quaternion.copy(cam.quaternion);
     m.mw.mesh.scale.setScalar(Math.max(0.001, 7.5 * wk));
     m.mw.mat.uniforms.uT.value = t;

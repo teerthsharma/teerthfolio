@@ -1,10 +1,13 @@
-/* global window, document, sessionStorage, innerWidth, innerHeight */
+/* global window, document, sessionStorage, innerWidth, innerHeight, Image */
 // PUP VISIBILITY: plays every APPROVED cutscene (and the island follow) in real Chrome at 1280x800 against a
 // production build, samples the pup every 0.25 s through window.__frame (FrameGuard.jsx, ?debug=frame) and saves a
-// frame every 1 s. A dock FAILS when, outside the establishing wide and the hand-home, the pup's body is
+// frame every 1 s. A dock FAILS when, outside the establishing wide (the hand-back home IS judged), the pup's body is
 //   - under 12% of the frame height (on the arc out of the wide: under the arc's own rising floor), or off
 //     screen, for any sample, or
-//   - occluded (the centre ray from the eye hits an opaque mesh, or a bubble covers the body box) for over 0.5 s.
+//   - occluded (the centre ray from the eye hits an opaque mesh, or a bubble covers the body box) for over 0.5 s, or
+//   - a foreground mesh nearer than the pup covers over 15% of the frame (FrameGuard's 24-ray grid) for over 0.5 s, or
+//   - a saved frame is over 60% one flat colour (blank sky, blank pocket), or the eye is under the pup's eye + 1.5 m
+//     on the island.
 //
 //   node scripts/pup-visibility.mjs [--url http://localhost:3450] [--only p-caustic,p-faraday] [--out dir] [--par 2]
 //
@@ -43,7 +46,7 @@ const sampler = () => {
       if (mx > b.x0 && mx < b.x1 && my > b.y0 && my < b.y1) bubble = true;
     }
     const onScreen = p.ok && p.x1 > 0.02 && p.x0 < 0.98 && p.y1 > 0.02 && p.y0 < 0.98;
-    window.__pv.push({ t: +((performance.now() - t0) / 1000).toFixed(2), id: L.arrival.id, phase: f.active ? f.phase : "island", f: p.ok ? +p.f.toFixed(3) : 0, floor: f.floor, on: onScreen, occ: f.occ, bubble, comp: f.composing, hidden: f.hidden });
+    window.__pv.push({ t: +((performance.now() - t0) / 1000).toFixed(2), id: L.arrival.id, phase: f.active ? f.phase : "island", f: p.ok ? +p.f.toFixed(3) : 0, floor: f.floor, on: onScreen, occ: f.occ, bubble, comp: f.composing, hidden: f.hidden, fg: f.fg, low: !f.inStage && f.eyeY < 2.05 });
   }, 250);
 };
 
@@ -67,12 +70,15 @@ async function run(id) {
     }
     await page.evaluate(sampler);
     const t0 = Date.now();
+    const flats = [];
     for (let s = 0; s <= Math.ceil(len) + 1; s++) {
       await page.waitForTimeout(Math.max(0, s * 1000 - (Date.now() - t0)));
-      await page.screenshot({ path: `${dir}/${String(s).padStart(2, "0")}.png` });
+      const buf = await page.screenshot({ path: `${dir}/${String(s).padStart(2, "0")}.png` });
+      const phase = await page.evaluate(() => (window.__frame?.active ? window.__frame.phase : "island"));
+      flats.push({ s, phase, share: await page.evaluate(flatShare, buf.toString("base64")) });
     }
     const pv = await page.evaluate(() => window.__pv);
-    return judge(id, as, pv, errors);
+    return judge(id, as, pv, errors, flats);
   } catch (e) {
     return { id, pass: false, note: String(e.message).split("\n")[0].slice(0, 100) };
   } finally {
@@ -80,8 +86,27 @@ async function run(id) {
   }
 }
 
-function judge(id, as, pv, errors) {
-  const scene = id === "island" ? pv : pv.filter((x) => x.id === as && x.phase !== "wide" && x.phase !== "home");
+// the share of the frame in its most common colour (4 bits a channel, 160 x 100), in the page
+async function flatShare(b64) {
+  const img = new Image();
+  img.src = `data:image/png;base64,${b64}`;
+  await img.decode();
+  const c = document.createElement("canvas");
+  c.width = 160;
+  c.height = 100;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, 0, 160, 100);
+  const d = g.getImageData(0, 0, 160, 100).data;
+  const n = new Map();
+  for (let i = 0; i < d.length; i += 4) {
+    const k = ((d[i] >> 4) << 8) | ((d[i + 1] >> 4) << 4) | (d[i + 2] >> 4);
+    n.set(k, (n.get(k) || 0) + 1);
+  }
+  return Math.max(...n.values()) / 16000;
+}
+
+function judge(id, as, pv, errors, flats) {
+  const scene = id === "island" ? pv : pv.filter((x) => x.id === as && x.phase !== "wide");
   // on the arc out of the wide the bar is the arc's own floor while that is under 12%
   // a cutaway: the move hides the pup's body outright (no visible coat mesh: spawn-seal's "wrong place" gag); counted, not judged
   const cutaway = scene.filter((x) => x.hidden);
@@ -89,16 +114,25 @@ function judge(id, as, pv, errors) {
   let run = 0;
   let worst = 0;
   for (let i = 0; i < scene.length; i++) {
-    const blocked = scene[i].occ || scene[i].bubble;
+    const blocked = scene[i].occ || scene[i].bubble || scene[i].fg > 0.15;
     run = blocked ? run + (i ? Math.min(0.25, scene[i].t - scene[i - 1].t) : 0.25) : 0;
     worst = Math.max(worst, run);
   }
   const fs = scene.map((x) => x.f).sort((a, b) => a - b);
   const pct = (q) => (fs.length ? fs[Math.min(fs.length - 1, Math.floor(q * fs.length))] : 0);
   const minF = fs[0] ?? 0;
-  const pass = id === "island" ? worst <= OCC_S && scene.every((x) => x.on) : scene.length > 8 && small.length === 0 && worst <= OCC_S;
+  const flat = flats.filter((x) => x.phase !== "wide" && x.share > 0.6).map((x) => `${x.s}s:${x.share.toFixed(2)}`);
+  const low = scene.filter((x) => x.low).length;
+  // no-pup stretches (the move hid the pup): at most 1 s
+  let hid = 0;
+  let hidMax = 0;
+  for (let i = 0; i < scene.length; i++) {
+    hid = scene[i].hidden ? hid + (i ? Math.min(0.25, scene[i].t - scene[i - 1].t) : 0.25) : 0;
+    hidMax = Math.max(hidMax, hid);
+  }
+  const pass = (id === "island" ? scene.every((x) => x.on) : scene.length > 8 && small.length === 0) && worst <= OCC_S && !flat.length && !low && hidMax <= 1;
   const occBy = [...new Set(scene.filter((x) => x.occ).map((x) => x.occ))].slice(0, 3);
-  return { id, n: scene.length, minF, p10: pct(0.1), med: pct(0.5), small: small.length, occMax: +worst.toFixed(2), composed: scene.filter((x) => x.comp).length, cutaway: cutaway.length, occBy, errors: errors.length, pass, smallAt: small.slice(0, 4).map((x) => `${x.t}s:${x.f}`) };
+  return { id, n: scene.length, minF, p10: pct(0.1), med: pct(0.5), small: small.length, occMax: +worst.toFixed(2), composed: scene.filter((x) => x.comp).length, cutaway: cutaway.length, hidMax, flat, low, fgMax: Math.max(0, ...scene.map((x) => x.fg || 0)), occBy, errors: errors.length, pass, smallAt: small.slice(0, 4).map((x) => `${x.t}s:${x.f}`) };
 }
 
 const results = [];
@@ -114,9 +148,9 @@ await browser.close();
 results.sort((a, b) => a.id.localeCompare(b.id));
 writeFileSync(`${out}/report.json`, JSON.stringify(results, null, 1));
 console.log(`\npup visibility 1280x800 (min ${MIN_F * 100}% height, occluded <= ${OCC_S} s, outside the establishing wide)`);
-console.log("dock                          samples  min f   p10    median  small  occ max s  composed  cutaway  result");
+console.log("dock                          samples  min f   p10    median  small  occ max s  composed  cutaway  flat  low eye  fg max  result");
 for (const r of results) {
-  console.log(`${r.id.padEnd(30)}${String(r.n ?? "-").padStart(6)}  ${(r.minF ?? 0).toFixed(2).padStart(5)}  ${(r.p10 ?? 0).toFixed(2).padStart(5)}  ${(r.med ?? 0).toFixed(2).padStart(6)}  ${String(r.small ?? "-").padStart(5)}  ${String(r.occMax ?? "-").padStart(9)}  ${String(r.composed ?? "-").padStart(8)}  ${String(r.cutaway ?? "-").padStart(7)}  ${r.pass ? "PASS" : "FAIL"} ${r.note ?? (r.occBy?.length ? "occ:" + r.occBy.join("|") : "")}`);
+  console.log(`${r.id.padEnd(30)}${String(r.n ?? "-").padStart(6)}  ${(r.minF ?? 0).toFixed(2).padStart(5)}  ${(r.p10 ?? 0).toFixed(2).padStart(5)}  ${(r.med ?? 0).toFixed(2).padStart(6)}  ${String(r.small ?? "-").padStart(5)}  ${String(r.occMax ?? "-").padStart(9)}  ${String(r.composed ?? "-").padStart(8)}  ${String(r.cutaway ?? "-").padStart(7)}  ${String(r.flat?.length ?? "-").padStart(4)}  ${String(r.low ?? "-").padStart(7)}  ${(r.fgMax ?? 0).toFixed(2).padStart(6)}  ${r.pass ? "PASS" : "FAIL"} ${r.note ?? (r.occBy?.length ? "occ:" + r.occBy.join("|") : "")}`);
 }
 const failed = results.filter((r) => !r.pass);
 console.log(`${results.length - failed.length}/${results.length} pass`);

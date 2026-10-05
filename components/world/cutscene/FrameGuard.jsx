@@ -20,11 +20,13 @@
 //      camera (the director keeps the viewpoint). No hero, or no solution: the
 //      one-target solve along the authored view (a Position Composer). The
 //      orientation is a no-roll aim that puts A exactly on its point;
-//   4. occlusion: one ray a frame over five body points. An opaque hit held
-//      0.25 s swings phi (and rises) to the next candidate (Haigh-Hutchinson's
-//      amortised probes; Burg, Lino & Christie 2020: move on the toric surface,
-//      never pull through). Island props still between are faded; inside a
-//      pocket nothing is (its figures keep their look: the camera moves instead);
+//   4. occlusion: one ray a frame over five body points, and a 24-ray grid for
+//      any foreground mesh over 15% of the frame. A block held 0.25 s sends the
+//      lens to the first clear candidate (swing, rise, then nearer), each tested
+//      from its own eye (Haigh-Hutchinson's probes; Burg, Lino & Christie 2020:
+//      move on the toric surface). Nothing is ever faded: the lens moves. On the
+//      island the eye stays over the pup's eye + 1.5 m, and the follow camera is
+//      guarded for blocks too. The law's arc lands exactly on the solve;
 //   5. ease to the solve with a critically damped spring (0.35 s; position and
 //      rotation offsets from the authored camera), let go once the authored
 //      shot has been good for 1 s. A jump over CUT_M is a cut: the spring resets.
@@ -45,17 +47,22 @@ import { getUi, live } from "../../../lib/world/store";
 // the safe zone frame-audit enforces
 export const SAFE = { margin: 0.04, minH: 0.16, maxH: 0.55 };
 // the composer's floors: f is the pup's share of the frame height
-export const FLOOR = { wide: 0, arc: 0.12, hero: 0.28, aim: 0.32, max: 0.5 };
+export const FLOOR = { wide: 0, arc: 0.12, hero: 0.28, aim: 0.32, max: 0.5, home: 0.12 };
+const FG_MAX = 0.15; // share of the frame a foreground mesh in front of the pup may cover
+const EYE_RISE = 2.1; // m over the pup's ground on the island: its eye (0.6 m) + 1.5 m
+// the foreground grid: NDC points sampled for meshes nearer than the pup (6 x 4)
+const GRID = Array.from({ length: 24 }, (_, i) => [-0.85 + (i % 6) * 0.34, -0.85 + Math.floor(i / 6) * (1.7 / 3)]);
 const MARGIN = 0.06; // NDC: the box keeps this far off the edge
 const DEAD = 0.1; // NDC: how far past the margin the authored shot may drift before the solve takes over
 const SMOOTH = 0.35;
 const SNAP = 0.1; // s: the spring when the authored pup is a speck (under half the floor) or the eye is inside it
 const CUT_M = 6;
-const FADE = 0.15;
 const OCC_HOLD = 0.25; // s an occlusion must last before the camera moves for it
 const GOOD_HOLD = 1.0; // s the authored shot must be good before the composer lets go
 const SWING = [0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05]; // rad of phi tried in turn
 const RISE = [0, 0.3, 0.6]; // rad of rise tried with each
+const CLOSER = [1, 0.65, 0.45]; // shares of the solved distance tried when every swing and rise is blocked
+const ARC_LAND = 0.8; // share of the law's arc at which it lands on the solve
 const VANTAGE = 0.9; // rad: the toric two-shot may swing this far round the pup from the authored eye
 
 const box = new Box3();
@@ -91,6 +98,10 @@ const TMP = { ...M_OUT };
 
 const inBeat = (list, beat) => Array.isArray(list) && list.some((b) => (typeof b === "string" ? BEAT[b] : b) === beat);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const smoothstep = (a, b, x) => {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
 
 // the pup's body box: the coat meshes (userData.core) when the variant tags them, else every visible solid mesh
 function grow(o, coreOnly) {
@@ -208,71 +219,9 @@ function single(a, dist, e, swing, rise, out) {
   return lift(a, out, rise);
 }
 
-// occluder bookkeeping: plain meshes swap to a cached faded clone; instances shrink
-const fades = []; // { mesh, orig, clone, a, seen }
-const inst = []; // { mesh, id, m (original matrix), a, seen }
-const MAT = new Matrix4();
-
 function under(o, root) {
   for (let p = o; p; p = p.parent) if (p === root || p.userData.noFade || !p.visible) return true;
   return false;
-}
-
-function fadeHit(h, frame) {
-  const o = h.object;
-  if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
-  if (o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) > 40 && !o.isInstancedMesh) return; // terrain: the camera moves instead
-  if (h.instanceId !== undefined && o.isInstancedMesh) {
-    let e = inst.find((x) => x.mesh === o && x.id === h.instanceId);
-    if (!e) {
-      e = { mesh: o, id: h.instanceId, m: new Matrix4(), a: 1, seen: frame };
-      o.getMatrixAt(h.instanceId, e.m);
-      inst.push(e);
-    }
-    e.seen = frame;
-    return;
-  }
-  let e = fades.find((x) => x.mesh === o);
-  if (!e) {
-    const orig = o.material;
-    if (Array.isArray(orig) || orig.isShaderMaterial) return; // cannot fade safely
-    const clone = orig.clone();
-    clone.transparent = true;
-    clone.depthWrite = false;
-    e = { mesh: o, orig, clone, a: 1, seen: frame };
-    fades.push(e);
-    o.material = clone;
-  }
-  e.seen = frame;
-}
-
-function stepFades(dt, frame, all) {
-  const k = 1 - Math.exp(-dt / 0.08);
-  for (let i = fades.length - 1; i >= 0; i--) {
-    const e = fades[i];
-    const want = !all && frame - e.seen < 14 ? FADE : 1;
-    e.a += (want - e.a) * k;
-    e.clone.opacity = e.a;
-    if (want === 1 && e.a > 0.98) {
-      e.mesh.material = e.orig;
-      e.clone.dispose();
-      fades.splice(i, 1);
-    }
-  }
-  for (let i = inst.length - 1; i >= 0; i--) {
-    const e = inst[i];
-    const want = !all && frame - e.seen < 14 ? 0 : 1;
-    e.a += (want - e.a) * k;
-    if (want === 1 && e.a > 0.98) e.mesh.setMatrixAt(e.id, e.m);
-    else {
-      MAT.copy(e.m);
-      const a = Math.max(0.001, e.a);
-      for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) MAT.elements[j] *= a;
-      e.mesh.setMatrixAt(e.id, MAT);
-    }
-    e.mesh.instanceMatrix.needsUpdate = true;
-    if (want === 1 && e.a > 0.98) inst.splice(i, 1);
-  }
 }
 
 function smoothDamp(cur, vel, tgt, dt, time) {
@@ -290,9 +239,14 @@ function smoothDamp(cur, vel, tgt, dt, time) {
 // one ray from the eye to world point `p`: the first opaque hit that is not the pup, or null. A merged pocket set
 // (a tower in a 200 m mesh) counts like anything else; only domes (BackSide) never do.
 export function blocker(scene, eye, p, root) {
-  D.copy(p).sub(eye);
+  // both ways: eye -> pup finds what stands between; pup -> eye finds the shell of a mesh the eye sits INSIDE
+  // (its faces point away from the eye, so the forward ray never sees them)
+  return cast(scene, eye, p, root) || cast(scene, p, eye, root);
+}
+function cast(scene, from, to, root) {
+  D.copy(to).sub(from);
   const dist = D.length();
-  ray.set(eye, D.normalize());
+  ray.set(from, D.normalize());
   ray.near = 0.2;
   ray.far = Math.max(0.3, dist - 0.35);
   hits.length = 0;
@@ -309,6 +263,29 @@ export function blocker(scene, eye, p, root) {
   return null;
 }
 
+// a foreground hit through NDC (sx, sy): an opaque mesh (not the pup, not a dome) nearer than `depth` - 0.5 m along
+// the view that stands up off the ground (a wall face, or anything 0.4 m over the pup's ground): the floor never counts
+const FN = new Vector3();
+function front(scene, cam, sx, sy, depth, ground, root) {
+  P.set(sx, sy, 0.5).unproject(cam).sub(cam.position).normalize();
+  ray.set(cam.position, P);
+  ray.near = 0.1;
+  const fwd = FN.set(0, 0, -1).applyQuaternion(cam.quaternion);
+  ray.far = Math.max(0.2, (depth - 0.5) / Math.max(0.2, P.dot(fwd)));
+  hits.length = 0;
+  ray.intersectObject(scene, true, hits);
+  for (let i = 0; i < hits.length; i++) {
+    const h = hits[i];
+    const o = h.object;
+    if (!o.isMesh || under(o, root)) continue;
+    const mat = o.material;
+    if (mat && !Array.isArray(mat) && (mat.depthWrite === false || (mat.transparent && mat.opacity < 0.6) || mat.side === BackSide)) continue;
+    const up = h.face ? FN.copy(h.face.normal).transformDirection(o.matrixWorld).y : 1;
+    if (h.point.y > ground + 0.4 || up < 0.7) return true;
+  }
+  return false;
+}
+
 // the body's ray targets as fractions of its box: centre, head, low centre, both flanks
 const PROBE = [[0, 0.1], [0, 0.35], [0, -0.2], [-0.3, 0], [0.3, 0]];
 function probe(k, cam, out) {
@@ -320,14 +297,15 @@ function probe(k, cam, out) {
 
 export default function FrameGuard() {
   const st = useRef(null);
-  st.current ??= { root: null, flipAt: -9, frame: 0, lastId: null, M: { ...M_OUT }, raw: { ...M_OUT }, occ: [0, 0, 0, 0, 0], goodSince: -1, pickedAt: -9, d: 0, on: false, swing: 0, rise: 0, phase: "" };
+  st.current ??= { root: null, flipAt: -9, frame: 0, lastId: null, M: { ...M_OUT }, raw: { ...M_OUT }, occ: [0, 0, 0, 0, 0], island: false, goodSince: -1, fg: new Array(24).fill(0), fgSince: -1, fgShare: 0, pickedAt: -9, d: 0, near: 1, u: 0, pushed: false, on: false, swing: 0, rise: 0, phase: "" };
   const debug = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const dbg = debug?.get("debug") === "frame";
   const off = dbg && debug.get("guard") === "off";
 
   // first: put the authored camera back, so the moves and the rig see their own camera
   useFrame(({ camera }) => {
-    if (CUR.lengthSq() > 0 || Math.abs(QCUR.w) < 1) {
+    if (CUR.lengthSq() > 0 || Math.abs(QCUR.w) < 1 || st.current?.pushed) {
+      if (st.current) st.current.pushed = false;
       camera.position.copy(E0);
       camera.quaternion.copy(Q0);
     }
@@ -343,7 +321,10 @@ export default function FrameGuard() {
     const opt = cut?.card.frame && typeof cut.card.frame === "object" ? cut.card.frame : null;
     const beat = getUi().beat;
     // one law: a card may exempt named beats, never the whole scene (`off: true`, p-monodromy, is overridden)
-    const guarding = active && !inBeat(opt?.off, beat);
+    // the island follow is guarded too, for blocks only (a landform or a building between the lens and the pup):
+    // its size and placement stay the follow's own
+    const follow = !active && !off && Boolean(getUi().started) && !id;
+    const guarding = (active && !inBeat(opt?.off, beat)) || follow;
     s.frame++;
     const reset = () => {
       CUR.set(0, 0, 0);
@@ -352,6 +333,7 @@ export default function FrameGuard() {
       s.on = false;
       s.swing = 0;
       s.rise = 0;
+      s.near = 1;
       s.occ.fill(0);
     };
     if (id !== s.lastId) {
@@ -373,8 +355,8 @@ export default function FrameGuard() {
     measure(camera, raw);
 
     // the beat's floor, from the law's phase on the scene clock
-    let floor = FLOOR.hero;
-    s.phase = "hero";
+    let floor = follow ? 0 : FLOOR.hero;
+    s.phase = follow ? "follow" : "hero";
     if (cut) {
       const t = sceneT(id, now - live.arrival.start);
       const g = grammarFor(cut.card, cut.place);
@@ -383,17 +365,34 @@ export default function FrameGuard() {
         floor = FLOOR.wide;
         s.phase = "wide";
       } else if (b && t < b.in1) {
+        // the arc leaves the establishing wide and lands ON the solve at ARC_LAND of its length (the snap, below):
+        // free until then, the hero's floor after
         const u = clamp((t - b.in0) / (b.in1 - b.in0), 0, 1);
-        floor = FLOOR.hero * u * u * (3 - 2 * u); // the arc leaves the establishing wide: its floor grows from 0 to the hero's
+        s.u = u;
+        floor = u < ARC_LAND ? 0 : FLOOR.hero;
         s.phase = "arc";
       }
       if (t >= cut.tl.collapse[1]) {
-        floor = FLOOR.wide; // home: the follow takes the pup back
+        floor = FLOOR.home; // the hand-back is judged too: the follow's own floor, so the composer lets go into it
         s.phase = "home";
       }
       if (inBeat(opt?.allowSmall, beat)) floor = Math.min(floor, FLOOR.arc);
     }
 
+    // on the island or in a pocket? what the pup stands on: a ray straight down from its body (live.inStage stays up
+    // through a collapse while the island is already back, so it cannot say)
+    if (have && s.frame % 6 === 0) {
+      box.getCenter(A);
+      ray.set(A, W.set(0, -1, 0));
+      ray.near = 0;
+      ray.far = 6;
+      hits.length = 0;
+      ray.intersectObject(scene, true, hits);
+      const h = hits.find((x) => x.object.isMesh && x.object.visible && !under(x.object, root));
+      let pocket = !h;
+      for (let o = h?.object; o; o = o.parent) if (o.name === "cutscene") pocket = true;
+      s.island = !pocket;
+    }
     // a cut in the authored camera (a jump over CUT_M in a frame, not the law's fast arc): the spring starts over
     if (s.phase === "hero" && LAST.distanceTo(camera.position) > CUT_M) reset();
     LAST.copy(camera.position);
@@ -403,12 +402,22 @@ export default function FrameGuard() {
       const k = s.frame % 5;
       const h = blocker(scene, camera.position, probe(k, camera, P), root);
       s.occ[k] = h ? s.occ[k] || now : 0;
-      if (h && !live.inStage) fadeHit(h, s.frame);
     }
     // occluded: the centre or the head held blocked, or three of the five
     const held = (i) => (s.occ[i] ? now - s.occ[i] : 0);
     const many = s.occ.filter(Boolean).length >= 3;
-    const blockedFor = many ? Math.max(...s.occ.map((_, i) => held(i))) : Math.max(held(0), held(1));
+    let blockedFor = many ? Math.max(...s.occ.map((_, i) => held(i))) : Math.max(held(0), held(1));
+    // the foreground: six grid rays a frame; a mesh nearer than the pup over FG_MAX of the frame is a block too
+    if (guarding && have && raw.ok) {
+      for (let j = 0; j < 6; j++) {
+        const i = (s.frame * 6 + j) % GRID.length;
+        s.fg[i] = front(scene, camera, GRID[i][0], GRID[i][1], raw.depth, box.min.y, root) ? 1 : 0;
+      }
+      const share = s.fg.reduce((a, b) => a + b, 0) / GRID.length;
+      s.fgSince = share > FG_MAX ? (s.fgSince >= 0 ? s.fgSince : now) : -1;
+      if (s.fgSince >= 0) blockedFor = Math.max(blockedFor, now - s.fgSince);
+      s.fgShare = share;
+    }
 
     // the bubbles over the pup's column: the pup lives in the room above them
     let low = -1 + MARGIN;
@@ -429,8 +438,11 @@ export default function FrameGuard() {
     const framed = raw.ok && raw.cx - raw.hw > -1 + MARGIN - DEAD && raw.cx + raw.hw < 1 - MARGIN + DEAD && raw.cy + raw.hh < 1 - MARGIN + DEAD && raw.cy - raw.hh > low - DEAD;
     const clear = blockedFor < OCC_HOLD;
     const good = !have || (sized && framed && clear);
-    if (!guarding || s.phase === "wide" || s.phase === "home") s.on = false;
-    else if (!good) {
+    if (!guarding || s.phase === "wide") s.on = false;
+    else if (s.phase === "arc") {
+      s.on = true; // the arc always lands on the solve
+      s.goodSince = -1;
+    } else if (!good) {
       s.on = true;
       s.goodSince = -1;
     } else if (s.on) {
@@ -444,7 +456,8 @@ export default function FrameGuard() {
       box.getCenter(A);
       const sy = box.max.y - box.min.y;
       const room = (1 - MARGIN - low) / 2;
-      const f = clamp(Math.min(Math.max(FLOOR.aim, floor + 0.04), Math.max(room, floor)), 0.06, FLOOR.max);
+      const want = follow ? raw.f : s.phase === "home" ? FLOOR.home + 0.06 : Math.max(FLOOR.aim, floor + 0.04);
+      const f = clamp(Math.min(want, Math.max(room, floor)), 0.06, FLOOR.max);
       if (room < floor && now - s.flipAt > 1.5) {
         live.frame.flip ^= 1; // no room over the bubbles: they take the other lower side
         s.flipAt = now;
@@ -459,20 +472,40 @@ export default function FrameGuard() {
       P.copy(B).applyMatrix4(camera.matrixWorldInverse);
       const heroRight = heroOk ? P.x >= 0 : raw.cx < 0;
       // the composition: the pup at the third away from the hero, above the bubbles; the hero at the other third
-      const ax = heroRight ? -0.3 : 0.3;
-      const ay = clamp(0.1, low + f + 0.02, 1 - MARGIN - f);
+      const ax = follow ? clamp(raw.cx, -0.5, 0.5) : heroRight ? -0.3 : 0.3;
+      const ay = follow ? clamp(raw.cy, -0.6, 0.5) : clamp(0.1, low + f + 0.02, 1 - MARGIN - f);
       // the solve at distance d for a candidate (swing, rise): the toric two-shot when it keeps the authored vantage
       // (within VANTAGE of the director's side of the pup), else the one-target composer
       const solve = (swing, rise, d) => {
-        let ok = heroOk && toric(camera, A, B, ax, ay, -ax * 1.3, 0.35, d, E0, swing, rise, SOL);
+        let ok = !follow && heroOk && toric(camera, A, B, ax, ay, -ax * 1.3, 0.35, d, E0, swing, rise, SOL);
         if (ok) {
           D.copy(SOL).sub(A).setY(0).normalize();
           W.copy(E0).sub(A).setY(0).normalize();
           ok = D.dot(W) > Math.cos(VANTAGE + Math.abs(swing));
         }
         if (!ok) single(A, d, E0, swing, rise, SOL);
+        if (s.island && SOL.y < box.min.y + EYE_RISE) {
+          // on the island the eye stays over the pup's eye + 1.5 m: lift about the pup, same distance
+          const h = Math.hypot(SOL.x - A.x, SOL.z - A.z) || 1e-3;
+          const dd = SOL.distanceTo(A);
+          const y = Math.min(dd * 0.95, box.min.y + EYE_RISE - A.y);
+          const k = Math.sqrt(Math.max(dd * dd - y * y, 0.01)) / h;
+          SOL.set(A.x + (SOL.x - A.x) * k, A.y + y, A.z + (SOL.z - A.z) * k);
+        }
         aim(SOL, A, ax, ay, camera, QS);
         return ok;
+      };
+      // the candidate's foreground share, from its own eye (24 rays; only while searching)
+      const fgShare = (sc, cam) => {
+        aim(SOL, A, ax, ay, cam, QS);
+        SCR.copy(cam);
+        SCR.position.copy(SOL);
+        SCR.quaternion.copy(QS);
+        SCR.updateMatrixWorld(true);
+        P.copy(A).applyMatrix4(SCR.matrixWorldInverse);
+        let n = 0;
+        for (const g of GRID) n += front(sc, SCR, g[0], g[1], -P.z, box.min.y, root) ? 1 : 0;
+        return n / GRID.length;
       };
       // the size, measured: the box's projection is not the formula's, so rescale the distance twice
       let d = dist;
@@ -488,24 +521,44 @@ export default function FrameGuard() {
       if (blockedFor >= OCC_HOLD && now - s.pickedAt > 1) {
         s.pickedAt = now;
         s.occ.fill(0);
-        for (let c = 0; c < SWING.length * RISE.length; c++) {
+        // every swing and rise at the solved distance, then the same nearer (CLOSER): the eye steps in past the occluder
+        const n = SWING.length * RISE.length;
+        for (let c = 0; c < n * CLOSER.length; c++) {
           const sw = SWING[c % SWING.length];
-          const ri = RISE[Math.floor(c / SWING.length)];
-          solve(sw, ri, d);
-          if (!blocker(scene, SOL, probe(0, camera, Q), root) && !blocker(scene, SOL, probe(1, camera, Q), root)) {
+          const ri = RISE[Math.floor(c / SWING.length) % RISE.length];
+          const k = CLOSER[Math.floor(c / n)];
+          solve(sw, ri, d * k);
+          if (!blocker(scene, SOL, probe(0, camera, Q), root) && !blocker(scene, SOL, probe(1, camera, Q), root) && fgShare(scene, camera, root, ay) <= FG_MAX) {
             s.swing = sw;
             s.rise = ri;
+            s.near = k;
             break;
           }
         }
       }
+      d *= s.near;
       const ok = solve(s.swing, s.rise, d);
       s.d = d;
       TGT.copy(SOL).sub(E0);
       QOFF.copy(QS).multiply(QINV.copy(Q0).invert());
       s.dbg = { f: +f.toFixed(2), floor: +floor.toFixed(2), low: +low.toFixed(2), dist: +d.toFixed(2), toric: ok, swing: s.swing, rise: s.rise, ay: +ay.toFixed(2) };
     }
-    if (s.on || CUR.lengthSq() > 1e-8 || Math.abs(QCUR.w) < 0.99999) {
+    if (s.on && have && s.phase === "arc") {
+      // THE ARC SNAP: the law's arc is bent onto the solve in log distance (the zoom's own measure), landing on it
+      // exactly at ARC_LAND; no spring has to chase the pup in from the 420 m wide
+      const w = smoothstep(0, ARC_LAND, s.u);
+      D.copy(E0).sub(A);
+      W.copy(SOL).sub(A);
+      const da = Math.max(D.length(), 1e-3);
+      const ds = Math.max(W.length(), 1e-3);
+      D.divideScalar(da).lerp(W.divideScalar(ds), w).normalize();
+      camera.position.copy(A).addScaledVector(D, Math.exp(Math.log(da) + (Math.log(ds) - Math.log(da)) * w));
+      camera.quaternion.copy(Q0).slerp(QS, w);
+      CUR.copy(camera.position).sub(E0);
+      VEL.set(0, 0, 0);
+      QCUR.copy(camera.quaternion).multiply(QINV.copy(Q0).invert());
+      camera.updateMatrixWorld(true);
+    } else if (s.on || CUR.lengthSq() > 1e-8 || Math.abs(QCUR.w) < 0.99999) {
       const time = s.on && raw.ok && (raw.f < 0.5 * floor || raw.f > 1) ? SNAP : SMOOTH;
       smoothDamp(CUR, VEL, TGT, dt, time);
       QCUR.slerp(QOFF, 1 - Math.exp((-dt * 2.5) / time));
@@ -520,12 +573,27 @@ export default function FrameGuard() {
       }
       camera.updateMatrixWorld(true);
     }
-    // an island prop still between the composed eye and the pup: fade it
-    if (guarding && have && s.on) {
-      const h = blocker(scene, camera.position, probe(s.frame % 2, camera, P), root);
-      if (h && !live.inStage) fadeHit(h, s.frame);
+    // on the island (the hand-back) the eye never drops under the pup's eye + 1.5 m, whoever wrote the camera
+    if (guarding && have && s.island && camera.position.y < box.min.y + EYE_RISE) {
+      measure(camera, TMP);
+      box.getCenter(A);
+      camera.position.y = box.min.y + EYE_RISE;
+      aim(camera.position, A, TMP.ok ? clamp(TMP.cx, -0.6, 0.6) : 0, TMP.ok ? clamp(TMP.cy, -0.2, 0.6) : 0.1, camera, camera.quaternion);
+      camera.updateMatrixWorld(true);
+      s.pushed = true;
     }
-    stepFades(dt, s.frame, !guarding);
+    // never through or inside the pup, whoever wrote the camera: the eye keeps its bounding radius + 0.4 m
+    if (guarding && have) {
+      box.getCenter(A);
+      const rmin = 0.5 * box.getSize(W).length() + 0.4;
+      D.copy(camera.position).sub(A);
+      if (D.length() < rmin) {
+        camera.position.copy(A).addScaledVector(D.lengthSq() > 1e-6 ? D.normalize() : D.set(0, 0.3, 1).normalize(), rmin);
+        camera.updateMatrixWorld(true);
+        s.pushed = true;
+      }
+    }
+    // nothing is faded (the owner: move the lens, never ghost the world)
 
     if (dbg) {
       const post = s.M;
@@ -538,13 +606,15 @@ export default function FrameGuard() {
         phase: s.phase,
         composing: s.on,
         hidden: !have,
+        fg: +s.fgShare.toFixed(2),
+        eyeY: +(camera.position.y - (have ? box.min.y : 0)).toFixed(2),
+        inStage: !s.island,
         floor,
         occ: occ ? occ.object.name || occ.object.type : null,
         raw: { ok: raw.ok, f: raw.f, x0: raw.x0, x1: raw.x1, y0: raw.y0, y1: raw.y1 },
         post: { ok: post.ok, f: post.f, x0: post.x0, x1: post.x1, y0: post.y0, y1: post.y1 },
         flip: live.frame.flip,
         allowSmall: inBeat(opt?.allowSmall, beat),
-        fading: fades.length + inst.length,
         offset: CUR.length(),
         dbg: s.dbg,
       };
