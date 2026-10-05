@@ -96,14 +96,14 @@ function scatter() {
     D.updateMatrix();
     cols.setMatrixAt(i, D.matrix);
   }
-  const merlons = new InstancedMesh(new BoxGeometry(1.5, 2, 0.6), mat(STONE, { roughness: 1, flatShading: true }), 40);
+  const merlons = new InstancedMesh(new BoxGeometry(1.5, 1.4, 0.6), mat(STONE, { roughness: 1, flatShading: true }), 40);
   let m = 0;
   for (let i = 0; i < 40; i++) {
     const a = (i / 40) * Math.PI * 2;
     if (Math.cos(a) < -0.97) continue; // the stair's gap, west
     D.rotation.set(0, -a, 0);
     D.scale.setScalar(1);
-    D.position.set(PEAK.x + Math.cos(a) * (PEAK.flat - 0.4), PEAK.top + 1, PEAK.z + Math.sin(a) * (PEAK.flat - 0.4));
+    D.position.set(PEAK.x + Math.cos(a) * (PEAK.flat - 0.4), PEAK.top + 0.7, PEAK.z + Math.sin(a) * (PEAK.flat - 0.4));
     D.updateMatrix();
     merlons.setMatrixAt(m++, D.matrix);
   }
