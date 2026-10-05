@@ -218,21 +218,22 @@ export default function Move(cut) {
     pupRef.current = p;
     ink.current = p?.root ? inkPup(p.root, m.U) : null;
     eyes.current = p?.head ? anosEyes(p.head) : null;
-    // pre-compile every program before the first frame (the rig is hidden, so show it for the call)
-    const g = rig.current;
-    if (g) {
-      const was = g.visible;
-      const sv = shrineG.current.visible;
-      g.visible = shrineG.current.visible = true;
-      try {
-        gl.compile(g, camera);
-        gl.compile(scene, camera);
-      } catch (e) {
-        void e; // a failed pre-compile only costs a hitch, never the scene
-      }
-      g.visible = was;
-      shrineG.current.visible = sv;
+    // pre-compile every program off the main thread before the rig shows (t 1.12 s): every hidden part
+    // (rig, shrine, eyes, ink twin, slashes, letters, flash, triangle) is shown for the call, so nothing
+    // links on its first draw (the iPad froze 1.9 s at the start when the sign's programs linked late)
+    const hidden = [];
+    for (const r of [rig.current, scene]) r?.traverse((o) => { if (!o.visible) (hidden.push(o), (o.visible = true)); });
+    // into the composer's target: its colour space keys the programs differently from the canvas's
+    const prev = gl.getRenderTarget();
+    gl.setRenderTarget(window.__world?.composer?.inputBuffer ?? prev);
+    try {
+      if (gl.compileAsync) gl.compileAsync(scene, camera).catch(() => {});
+      else gl.compile(scene, camera);
+    } catch (e) {
+      void e; // a failed pre-compile only costs a hitch, never the scene
     }
+    gl.setRenderTarget(prev);
+    for (const o of hidden) o.visible = false;
     return () => {
       ink.current?.dispose();
       eyes.current?.dispose();
