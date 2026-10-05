@@ -1,13 +1,14 @@
 // HORRORS LAID IN STONE (the Graveyard of Efforts, the owner's direction): every dead idea is an eldritch thing petrified
 // mid-motion and half buried, carved from one weathered basalt, light still leaking from its cracks and eye sockets as if
-// something inside were alive. Six silhouettes, each one merged geometry, instanced: a hand clawing out of the ground, a
-// skull with too many eye sockets, a tentacled god-form frozen mid-reach, a maw with rows of teeth, a faceless statue with
-// too many arms, a coiled leviathan. A per-vertex `aGlow` marks the parts that burn from inside (sockets, the maw's throat).
+// something inside were alive. Four near silhouettes, each one merged geometry, instanced over the planet's near cap: a
+// hand clawing out of the ground, a skull with too many eye sockets, a tentacled god-form frozen mid-reach, a maw with
+// rows of teeth; the rest of the world wears one ~60-tri spire (farHorror, the LOD). A per-vertex `aGlow` marks the parts that burn from inside (sockets, the maw's throat).
 // The names of the dead PRs are small, on low plinths before the nearest ones, lit like runes.
 
-import { BoxGeometry, CatmullRomCurve3, ConeGeometry, CylinderGeometry, Float32BufferAttribute, ShaderMaterial, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3 } from "three";
+import { BoxGeometry, CatmullRomCurve3, ConeGeometry, CylinderGeometry, Float32BufferAttribute, ShaderMaterial, SphereGeometry, TorusGeometry, TubeGeometry, UniformsLib, UniformsUtils, Vector3 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DEAD_PRS } from "../../../../../lib/world/cutscene/graves";
+import { CUT, PLANET_R, cutUniforms } from "./graveyard";
 
 // one part: non-indexed, uv dropped, its glow baked in
 function part(g, glow = 0) {
@@ -17,7 +18,7 @@ function part(g, glow = 0) {
   return n;
 }
 const merged = (parts) => mergeGeometries(parts);
-const tube = (pts, r, glow = 0) => part(new TubeGeometry(new CatmullRomCurve3(pts.map(([x, y, z]) => new Vector3(x, y, z))), 24, r, 7, false), glow);
+const tube = (pts, r, glow = 0) => part(new TubeGeometry(new CatmullRomCurve3(pts.map(([x, y, z]) => new Vector3(x, y, z))), 12, r, 5, false), glow);
 
 function hand() {
   const parts = [part(new BoxGeometry(1.7, 2.2, 0.7).translate(0, 1.0, 0))];
@@ -49,54 +50,36 @@ function maw() {
   }
   return merged(parts);
 }
-function manyArms() {
-  const parts = [part(new CylinderGeometry(0.55, 0.95, 4.2, 10).translate(0, 2.1, 0)), part(new SphereGeometry(0.6, 12, 10).scale(0.9, 1.2, 0.9).translate(0, 4.7, 0))];
-  for (let i = 0; i < 8; i++) {
-    const side = i % 2 ? 1 : -1;
-    const y = 2.4 + Math.floor(i / 2) * 0.5;
-    parts.push(tube([[side * 0.5, y, 0], [side * 1.4, y + 0.6, 0.3 * (i % 3)], [side * 2.0, y + 1.5 - (i % 3) * 0.6, 0.6]], 0.15));
-  }
-  parts.push(part(new SphereGeometry(0.12, 6, 5).translate(0, 4.8, 0.52), 1));
-  return merged(parts);
+// the near four the owner named (a hand clawing out, a many-eyed skull, a tentacled god-form, a maw with teeth)
+export const HORRORS = [hand, skull, godform, maw];
+// LOD: the rest of the world's graves, ~60 tris each: a crooked spire of bone and two tentacle stumps, one socket lit
+export function farHorror() {
+  return merged([
+    part(new ConeGeometry(0.9, 5.5, 5, 1).translate(0, 2.75, 0)),
+    part(new ConeGeometry(0.45, 3.4, 4, 1).rotateZ(0.5).translate(1.0, 1.4, 0.2)),
+    part(new ConeGeometry(0.4, 2.8, 4, 1).rotateZ(-0.6).translate(-0.9, 1.1, -0.3)),
+    part(new SphereGeometry(0.28, 4, 3).translate(0, 3.3, 0.55), 1),
+  ]);
 }
-function leviathan() {
-  const pts = [];
-  for (let i = 0; i <= 26; i++) {
-    const t = i / 26;
-    const a = t * Math.PI * 5;
-    const r = 2.6 - t * 1.2;
-    pts.push([Math.cos(a) * r, 0.2 + t * 2.8 + Math.sin(a * 2) * 0.2, Math.sin(a) * r]);
-  }
-  return merged([tube(pts, 0.55), part(new ConeGeometry(0.5, 1.2, 6).rotateX(-Math.PI / 2).translate(pts[26][0], pts[26][1], pts[26][2] + 0.6)), part(new SphereGeometry(0.12, 6, 5).translate(pts[26][0] + 0.25, pts[26][1] + 0.2, pts[26][2] + 0.3), 1)]);
-}
-export const HORRORS = [hand, skull, godform, maw, manyArms, leviathan];
 
 // the low plinth a dead PR's name is carved on, its face +z
 export const plinthGeometry = () => part(new BoxGeometry(1.4, 0.42, 0.42).translate(0, 0.21, 0));
 // the shard the seal draws: a long four-sided blade of the same stone
 export const shardGeometry = () => part(new ConeGeometry(0.16, 1.9, 4).translate(0, 0.95, 0));
 
-const CUT = /* glsl */ `
-  uniform float uCut;
-  uniform vec2 uCutN;
-  uniform vec2 uRes;
-  float slash(out float edge) {
-    vec2 q = (gl_FragCoord.xy / max(uRes, vec2(1.0))) * 2.0 - 1.0;
-    q.x *= uRes.x / max(uRes.y, 1.0);
-    float d = abs(dot(q, uCutN));
-    float open = uCut * 0.55;
-    edge = uCut > 0.0 ? smoothstep(0.05, 0.0, abs(d - open)) : 0.0;
-    return d < open ? 1.0 : 0.0;
-  }`;
-
 // The basalt: dark weathered stone, a painted ramp, faint ink hatching in shadow, cracks and sockets leaking light (teal,
 // gold on one horror in five), the far ones sunk into the mist. `named`: the plinth face carries its PR from the atlas.
 export function horrorMaterial(map = null) {
-  return new ShaderMaterial({
+  const m = new ShaderMaterial({
     transparent: true,
+    fog: true,
     defines: map ? { NAMED: 1 } : {},
-    uniforms: { uShow: { value: 0 }, uTime: { value: 0 }, uMap: { value: map }, uRows: { value: DEAD_PRS.length }, uCut: { value: 0 }, uCutN: { value: new Vector2(0.62, 0.78) }, uRes: { value: new Vector2(1280, 800) } },
+    uniforms: UniformsUtils.merge([
+      UniformsLib.fog,
+      { uShow: { value: 0 }, uTime: { value: 0 }, uMap: { value: null }, uRows: { value: DEAD_PRS.length }, uHole: { value: new Vector3(0, -0.17, -1) }, uCenter: { value: new Vector3() }, uR: { value: PLANET_R }, ...cutUniforms() },
+    ]),
     vertexShader: /* glsl */ `
+      #include <fog_pars_vertex>
       attribute float aGlow;
       attribute float aRow;
       varying vec3 vWorld;
@@ -121,10 +104,14 @@ export function horrorMaterial(map = null) {
         #else
           vRow = 0.0;
         #endif
-        gl_Position = projectionMatrix * viewMatrix * w;
+        vec4 mvPosition = viewMatrix * w;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
       }`,
     fragmentShader: /* glsl */ `
-      uniform float uShow, uTime, uRows;
+      #include <fog_pars_fragment>
+      uniform float uShow, uTime, uRows, uR;
+      uniform vec3 uHole, uCenter;
       uniform sampler2D uMap;
       varying vec3 vWorld;
       varying vec3 vN;
@@ -144,8 +131,14 @@ export function horrorMaterial(map = null) {
         float edge;
         if (slash(edge) > 0.5 || uShow <= 0.0) discard;
         vec3 n = normalize(vN);
-        float l = dot(n, normalize(vec3(-0.4, 0.8, 0.45)));
-        vec3 basalt = mix(vec3(0.09, 0.09, 0.1), vec3(0.42, 0.4, 0.36), smoothstep(-0.2, 0.9, l));
+        // lit only by the eye on the horizon: grazing gold-violet, so they stand as rimmed silhouettes; teal from below
+        vec3 rel = vWorld - uCenter;
+        vec3 up = rel / max(length(rel), 1e-3);
+        vec3 key = uHole + up * 0.45;
+        key = key / max(length(key), 1e-3);
+        float l = dot(n, key);
+        vec3 basalt = mix(vec3(0.05, 0.045, 0.06), vec3(0.62, 0.5, 0.42), smoothstep(0.0, 0.95, l));
+        basalt += vec3(0.02, 0.12, 0.1) * clamp(-dot(n, up), 0.0, 1.0);
         basalt *= 0.75 + 0.4 * n3(vObj * 3.0);
         float hatch = step(0.6, fract((gl_FragCoord.x + gl_FragCoord.y) / 4.0));
         if (l < -0.1) basalt *= 1.0 - 0.6 * hatch;
@@ -164,10 +157,14 @@ export function horrorMaterial(map = null) {
           }
         #endif
         float d = length(vWorld - cameraPosition);
-        col = mix(col, vec3(0.03, 0.07, 0.08), smoothstep(30.0, 130.0, d));
+        float alt = length(cameraPosition - uCenter) - uR;
+        col = mix(col, vec3(0.03, 0.09, 0.1), smoothstep(14.0, 60.0, d) * (1.0 - smoothstep(8.0, 45.0, alt)) * 0.8);
         col = mix(col, vec3(1.0, 0.85, 0.85), edge);
         gl_FragColor = vec4(col, uShow);
         #include <colorspace_fragment>
+        #include <fog_fragment>
       }`,
   });
+  m.uniforms.uMap.value = map; // after the merge: merge clones uniform values
+  return m;
 }

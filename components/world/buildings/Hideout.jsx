@@ -5,7 +5,7 @@
 //   - the dressed face round an open doorway (one merged mesh), dark jambs and lintel (one merged mesh), a cloud banner
 //   - the vault over the hall's back half (the camera side stays open), the floor with the red cloud in a fragment
 //   - THE RING: eleven seal statues in Akatsuki cloaks (black, red clouds with white rims) and forehead protectors,
-//     one per member, each a THEOREM the owner's work leans on, ranked by use; the most used stands in Pain's place
+//     one per member, each an idea EPSILON-HOLLOW's own maths runs on, ranked by use; the most central stands in Pain's place
 //     at the head of the ring (north). Stone bodies share one written statue shader; bodies, cloaks and protectors
 //     are three InstancedMeshes; the eleven plaques are one merged mesh on one canvas atlas.
 //   - red paper lanterns, outside along the walk and inside round the wall: two InstancedMeshes
@@ -30,20 +30,21 @@ const DOOR = { w: 3.1, h: 4.2 };
 const O = [48, 68]; // the place centre: everything below is drawn relative to it
 const rel = (x, z) => [x - O[0], z - O[1]];
 
-// The eleven, ranked by how much of the owner's work stands on them (data/showcase.json: the lab projects and the
-// landed PRs). [member, theorem, formula]. 1 takes Pain's place.
+// The eleven: the maths EPSILON-HOLLOW itself runs on (github.com/teerthsharma/Epsilon-Hollow at 36b1400; aether-core =
+// kernel/epsilon/epsilon/crates/aether-core/src), ranked by how central each is to the kernel and its README.
+// [member, idea, formula]. 1 takes Pain's place.
 export const THEOREMS = [
-  ["Pain", "Stability of persistence", "dB(Dgm f, Dgm g) ≤ ‖f − g‖∞"], // topological-ml-toolkit, caustic, monodromy, nerve
-  ["Konan", "Gauss linking number", "Lk = (1/4π) ∮∮ (r₁−r₂)·(dr₁×dr₂) / |r₁−r₂|³"], // tangle
-  ["Itachi", "Green's theorem", "A = ½ ∮ (x dy − y dx)"], // planimeter
-  ["Kisame", "Banach fixed point", "‖Tx − Ty‖ ≤ q‖x − y‖, q < 1"], // aether-lang: loops stop when the shape stops changing
-  ["Deidara", "Neumann series", "(I − αA)⁻¹ = Σ αᵏ Aᵏ"], // resolvent: attention and Markov paths
-  ["Sasori", "Faraday's law", "dF = 0"], // faraday
-  ["Hidan", "Nerve lemma", "N(\u{1D4B0}) ≃ ⋃ \u{1D4B0}"], // nerve
-  ["Kakuzu", "Monodromy theorem", "homotopic paths, one continuation"], // monodromy
-  ["Tobi", "Stable manifold theorem", "Wˢ is tangent to Eˢ"], // separatrix
-  ["Zetsu", "Euler–Poincaré", "χ = Σ (−1)ᵏ βₖ"], // caustic, the Betti numbers
-  ["Orochimaru", "Hopf fibration", "S³ → S², every fibre linked once"], // epsilon-hollow: the sphere
+  ["Pain", "Certified β₀", "β₀ = n − #{hₖ < t}, hₖ ∉ [s/√r, s√r]"], // aether-core/certified_betti.rs certified_beta0; ManifoldFS fs/encoder.rs
+  ["Konan", "Loop score of a loss curve", "ℓ = min(1, c(κε*)/m), c = E − V + β₀"], // aether-core/trajectory_shape.rs fold_score; ml_engine/stratum.rs
+  ["Itachi", "Spherical Voronoi cells", "cell(x) = argminᵢ d(x, cᵢ) on S²"], // aether-core/tss.rs SphericalVoronoiIndex; scheduler, fs, firewall
+  ["Kisame", "Certified attention top-k", "min_T(ŝᵢ − rᵢ) > max_¬T(ŝⱼ + rⱼ)"], // aether-core/attention.rs certified_top_k
+  ["Deidara", "Free-face collapse eviction", "evict leaf ⇔ ref = 0, no live child"], // ml_engine/foliation.rs pick_victim
+  ["Sasori", "Certified nearest centroid", "d(q, c*) ≤ d(q, ∂block), else scan"], // aether-core/tss.rs SphericalGridHashIndex::locate
+  ["Hidan", "Governor gain margin", "α + β/Δt < 1 ⇒ ρ ∈ (0, 1)"], // aether-verified/aether_agcr.rs gain_margin_stable; governor.rs adapt
+  ["Kakuzu", "Spectral contraction", "T(S) = (1−α)S + αP, Lip = 1−α"], // aether-core/scm.rs; scheduler, manifold_fs, topo_ram
+  ["Tobi", "Participation ratio", "PR = 3/(3 + 4ρ₁² + 2ρ₂²) ∈ [⅓, 1]"], // aether-core/trajectory_shape.rs participation_ratio
+  ["Zetsu", "Bytes to points on S²", "p = G·h(block) / ‖G·h(block)‖"], // fs/encoder.rs encode_data
+  ["Orochimaru", "Hyperbolic capacity", "δ_euc/δ_hyp ≥ c·ln b·D(D−1)/2"], // aether-core/hyperbolic_capacity.rs separation_ratio; topo_ram
 ];
 
 // The ring (lib/world/hideout.js STATUES): the head, Pain's place, due north.
