@@ -1,29 +1,19 @@
-// the Highway: CARS, Lightning McQueen at a desert speedway (Radiator Springs
-// light), in shape and colour only. A Pixar-bright dimension: glossy
-// saturated CG, a warm sunset, reflective paint, smooth motion (not on twos).
-// The island swells into a bubble of sunset sky and the camera is inside a
-// speedway: a stadium oval of asphalt and kerbs, five grandstands with a
-// cheering instanced crowd, chequered flags snapping, a finish gantry, tyre
-// walls and red mesas under a rose-and-gold sky. The island's highway car is
-// PROMOTED: a red stock car with yellow lightning bolts, #3244 on the doors,
-// a bumper smile and two friendly eyes in its windscreen. It says "I am
-// speed." on the grid; the pup hops onto its roof; twelve rivals drag a
-// tangle of comparison lines between every pair (66 ribbons); the car checks
-// only the slice ahead (one clean mint line, in a mint window on the road)
-// and blows past them all, drifting, its tyre smoke trailing, a Ka-chow
-// glint on the last pass. It crosses the line so fast that the chequered
-// flag wraps the lens like a page and turns, and under it the island: the car
-// rolls round the real roundabout to a stop beside where the pup stood, the
-// pup hops down and says the flex line; the card; the car drives off round
-// the ring. Secondary motion: the crowd waving and bobbing, confetti, smoke
-// trails, flags snapping, the car on its springs.
-// No post pass; every pool is allocated once and disposed on exit.
+// the Highway: Fate/Zero, Iskandar's Gordius Wheel. A sunset speedway dimension (gold, crimson, electric blue): the
+// island swells into a bubble of sky, and on the grid stands the Gordius Wheel, a bronze-and-gold chariot behind two
+// black divine bulls with gold horns and lightning on their hooves. ISKANDAR, the giant red-bearded King of
+// Conquerors, sits at its front in bronze and a crimson cloak, the reins in one fist, laughing; the seal rides on his
+// left pauldron. He raises his sword and cries AAALALALALAI!: the sky strikes the bulls and they burst off the line;
+// the wheel charges through the pack (twelve rivals dragging a tangle of comparison lines, the wheel checking only the
+// slice ahead) and flings every rival away in lightning. The chequered flag wraps the lens like a page; under it the
+// island, the wheel rolls round the real roundabout, the seal hops down for the flex line, the card.
+// The camera is the shared law's (lib/world/cutscene/camera.js): this move stages the king and seal where its into
+// arc and settle frame them, the race in the background. No post pass; every pool is allocated once, disposed on exit.
 // Card: lib/world/cutscene/cards/pr-highway-3244.js. Parts: ./pr-highway-3244/
-// (shade: the one glossy shader; car; land; fx; path).
+// (shade: the one glossy shader; car: the wheel, bulls, cloak; iskandar: the king; land; fx; path).
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Color, InstancedBufferAttribute, InstancedMesh, Object3D, PlaneGeometry, Quaternion, Vector3 } from "three";
+import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Object3D, PlaneGeometry, Quaternion, Vector3 } from "three";
 import { HIGHWAY } from "../../../../lib/world/land";
 import { ROAD_Y } from "../../../../lib/world/highwayCars";
 import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
@@ -31,7 +21,8 @@ import { live } from "../../../../lib/world/store";
 import { Stage, signAt, smooth, useCutFrame } from "../kit";
 import { nudge, usePup } from "./g2/parts";
 import { flashQuad, holdFlash, islandList, lettering } from "./p-caustic/parts";
-import { CH_R, CH_ROOF, CH_WX, CH_WZ, HOOVES, capeMesh, carGeometry, chariotGeometry, chariotWheel } from "./pr-highway-3244/car";
+import { SEAT, iskandarGeometry, iskandarMeshes, poseArm, poseHead } from "./pr-highway-3244/iskandar";
+import { CH_R, CH_WX, CH_WZ, HOOVES, capeMesh, carGeometry, chariotGeometry, chariotWheel } from "./pr-highway-3244/car";
 import { registerWarm, takeWarm } from "../prewarm";
 import { confetti, glint, pageFlag, ribbons, shadowPool, smokePool, streaks } from "./pr-highway-3244/fx";
 import { BLOCKS, cactus, crowdData, crowdMeshes, desert, flagMaterial, flagPoles, gantry, mesas, oval, rocks, skyDome, stands, tyres } from "./pr-highway-3244/land";
@@ -72,6 +63,8 @@ const D = new Object3D();
 D.rotation.order = "YXZ";
 const DW = new Object3D();
 const Q = new Quaternion();
+const TIP = new Vector3(); // the sword's tip, in the chariot's frame
+const MH = new Matrix4();
 const V = new Vector3();
 const SUNW = new Vector3();
 
@@ -156,7 +149,7 @@ function buildWorld() {
     const poleMat = solid({ fogK: 0.0042 });
         const clean = ribbons(80, "#5dffc2", { additive: true });
     const trail = ribbons(40, "#8fd8ff", { additive: true });
-    const bolts = ribbons(120, "#38a0ff", { additive: true });
+    const bolts = ribbons(200, "#38a0ff", { additive: true });
     const smoke = smokePool(PUFFS);
     const conf = confetti(240);
     const streak = streaks(120);
@@ -167,7 +160,8 @@ function buildWorld() {
     const star = glint();
     const page = pageFlag();
     const cape = capeMesh();
-    return { dome, des, ov, stand, standMat, crowd, fp, flagMat, flags, banner, gan, tyre, rock, mesaGeo, heroMat, hero, wheels, rivalGeo, rivals, cactusGeo, cacti, poleMat, clean, trail, bolts, smoke, conf, streak, shRiv, shHero, flash, boom, star, page, cape };
+    const king = iskandarMeshes(iskandarGeometry());
+    return { king, dome, des, ov, stand, standMat, crowd, fp, flagMat, flags, banner, gan, tyre, rock, mesaGeo, heroMat, hero, wheels, rivalGeo, rivals, cactusGeo, cacti, poleMat, clean, trail, bolts, smoke, conf, streak, shRiv, shHero, flash, boom, star, page, cape };
 }
 registerWarm("pr-highway-3244", buildWorld);
 
@@ -183,7 +177,6 @@ export default function Move(cut) {
   const bodyG = useRef();
   const island = useRef([]);
   const raceT = useRef(0);
-  const camV = useMemo(() => ({ a: new Vector3(), b: new Vector3(), c: new Vector3() }), []);
 
   const m = useMemo(() => takeWarm("pr-highway-3244", buildWorld), []);
 
@@ -195,6 +188,9 @@ export default function Move(cut) {
       for (const g of new Set(geos)) g.dispose();
       const mats = [m.dome.m, m.des.m, m.ov.m, m.standMat, m.flagMat, m.heroMat, m.rivals.material, m.cacti.material, m.poleMat, m.clean.material, m.trail.material, m.bolts.material, m.smoke.mesh.material, m.conf.material, m.streak.material, m.shRiv.material, m.shHero.material, m.flash.material, m.boom.material, m.star.material, m.page.material, m.tyre.material, m.rock.material, m.crowd.body.material, m.crowd.head.material, m.crowd.armR.material, m.crowd.armL.material];
       for (const x of new Set(mats)) x.dispose();
+      m.king.fill.geometry.dispose();
+      m.king.fill.material.dispose();
+      m.king.ink.material.dispose();
       m.cape.geometry.dispose();
       m.cape.material.dispose();
       m.boom.material.map?.dispose();
@@ -321,6 +317,13 @@ export default function Move(cut) {
       m.wheels.setMatrixAt(wi++, DW.matrix);
     }
     m.wheels.instanceMatrix.needsUpdate = true;
+    // THE KING: a chuckle from the moment the wheel arrives, the head thrown back on the war cry; the sword goes up and stays
+    const ku = m.king.uniforms;
+    const cryK = Math.exp(-(((t - T.cry) / 0.45) ** 2));
+    const lift = smooth(T.cry - 0.35, T.cry - 0.05, t) * (1 - smooth(T.cover[0] - 0.4, T.cover[0], t)) * (back ? 0 : 1);
+    TIP.copy(poseArm(ku.uArm.value, lift));
+    poseHead(MH, Math.max(cryK, 0.35 * smooth(2.0, 2.4, t) * (back ? 0 : 1)), 0.05 * Math.sin(tc * 17) * smooth(1.8, 2.2, t) * (1 - 0.7 * cryK));
+    ku.uHead.value.copy(MH);
     hero.visible = t > 1.5 && t < T.leave + 1.1 && out > 0.01;
 
     // THE RIVALS: a grid, then a stream; they rock on their springs and fishtail as the guest goes by
@@ -437,8 +440,33 @@ export default function Move(cut) {
       const cs = Math.cos(SM.d);
       const sn2 = Math.sin(SM.d);
       const fk = Math.floor(t * 24);
-      const boost = 0.75 + 0.25 * smooth(T.go - 0.2, T.go + 0.4, t) + 0.5 * Math.exp(-(((t - T.kachow) / 0.5) ** 2));
-      const loc = (lx, ly, lz) => [SM.lx + (lx * cs + lz * sn2) * CAR_S, ly * CAR_S + 0.02, SM.lz + (-lx * sn2 + lz * cs) * CAR_S];
+      const boost = 0.75 + 0.25 * smooth(T.go - 0.2, T.go + 0.4, t) + 0.8 * cryK + 0.5 * Math.exp(-(((t - T.kachow) / 0.5) ** 2));
+      // the chariot's frame to the track's: it heads -x (yaw PI + drift), so both axes turn over
+      const loc = (lx, ly, lz) => [SM.lx - (lx * cs + lz * sn2) * CAR_S, ly * CAR_S + 0.02, SM.lz - (-lx * sn2 + lz * cs) * CAR_S];
+      // THE WAR CRY: a fork from the raised sword into the sky, and the sky striking down on both bulls
+      const ck = t - T.cry;
+      if (ck > -0.1 && ck < 0.9) {
+        const a0 = Math.min(1, (ck + 0.1) / 0.1) * (1 - Math.max(0, ck - 0.4) / 0.5);
+        const fork = (p, top, n, w, seed) => {
+          let [px, py, pz] = p;
+          for (let k = 1; k <= n; k++) {
+            const u = k / n;
+            const qx = p[0] + (top[0] - p[0]) * u + (k < n ? (hash(fk + k, seed) - 0.5) * 1.6 : 0);
+            const qy = p[1] + (top[1] - p[1]) * u;
+            const qz = p[2] + (top[2] - p[2]) * u + (k < n ? (hash(fk + k, seed + 1) - 0.5) * 1.6 : 0);
+            bl.seg(px, py, pz, qx, qy, qz, w, a0, clx, cly, clz);
+            px = qx;
+            py = qy;
+            pz = qz;
+          }
+        };
+        const tip = loc(TIP.x, TIP.y, TIP.z);
+        fork(tip, [tip[0] - 3, tip[1] + 22, tip[2] - 2], 9, 0.32, 31);
+        for (const b of [-1, 1]) {
+          const hb = loc(1.95, 1.6, 0.62 * b);
+          fork([hb[0] + 2 * b, hb[1] + 24, hb[2] - 3], hb, 9, 0.28, 41 + b);
+        }
+      }
       const pts = [...HOOVES, [CH_WX, CH_R, CH_WZ + 0.55], [CH_WX, CH_R, -CH_WZ - 0.55], [CH_WX, CH_R, CH_WZ], [CH_WX, CH_R, -CH_WZ]];
       // lightning bursts where each rival is hit
       for (let i = 0; i < NR; i++) {
@@ -536,15 +564,17 @@ export default function Move(cut) {
       m.star.material.uniforms.uSpin.value = kc * 4;
     }
     const wide = state.size.width / state.size.height >= 1;
-    m.boom.visible = kc > 0.05 && kc < 0.95 && !back;
+    // AAALALALALAI!: the war cry, lettered over the king as the bulls burst out
+    const kb = t - T.cry;
+    m.boom.visible = kb > -0.05 && kb < 1.1 && !back;
     if (m.boom.visible) {
-      const pop = Math.min(1, (kc - 0.05) / 0.1) * (1 + 0.22 * Math.max(0, 1 - (kc - 0.05) / 0.25));
-      const w = (wide ? 4.4 : 3.1) * pop;
-      m.boom.position.set(wide ? -2.3 : -0.3, wide ? 3.3 : 3.6, 1.2);
+      const pop = Math.min(1, (kb + 0.05) / 0.1) * (1 + 0.22 * Math.max(0, 1 - (kb + 0.05) / 0.25));
+      const w = (wide ? 6.2 : 4.2) * pop;
+      m.boom.position.set(hx, hy + 6.6, hz);
       m.boom.scale.set(w, w, 1);
       m.boom.quaternion.copy(Q);
     }
-    holdFlash(m.flash, cam, Math.max(0, 1 - Math.abs(kc - 0.04) / 0.1) * 0.22);
+    holdFlash(m.flash, cam, Math.max(Math.max(0, 1 - Math.abs(kc - 0.04) / 0.1) * 0.22, Math.max(0, 1 - Math.abs(kb) / 0.12) * 0.5) * (back ? 0 : 1));
 
     // THE PAGE: the chequered flag sweeps across the lens, then turns away like a page
     const cover = smooth(T.cover[0], T.cover[1], t);
@@ -569,31 +599,6 @@ export default function Move(cut) {
     mesaG.current.visible = !back;
   });
 
-  // THE CAMERA, after the rig: a low tracking shot beside the wheels through the charge, a front three-quarter on the
-  // smash of the cars, and a hero push-in on the war cry (AAALALALALAI!)
-  useFrame((state) => {
-    const hg = heroG.current;
-    const t = raceT.current;
-    if (mode !== "full" || !live.arrival.id || !hg?.visible || t >= T.cover[0]) return;
-    const cam = state.camera;
-    hg.updateWorldMatrix(true, false);
-    const low = smooth(T.go - 0.3, T.go + 0.5, t) * (1 - smooth(T.kachow - 1.4, T.kachow - 0.8, t));
-    const front = smooth(T.kachow - 1.2, T.kachow - 0.7, t) * (1 - smooth(T.kachow + 0.9, T.kachow + 1.5, t));
-    const hero = Math.exp(-(((t - T.kachow) / 0.45) ** 2));
-    camV.c.set(0, 1.3 * CAR_S, 0);
-    hg.localToWorld(camV.c); // the pup at the reins
-    for (const [k, off] of [[low, [-0.5, 0.5, 4.2]], [front, [4.4, 1.4, 3.2]], [hero, [3.0, 1.0, 2.1]]]) {
-      if (k < 0.001) continue;
-      camV.a.set(off[0] * CAR_S, off[1] * CAR_S, off[2] * CAR_S);
-      hg.localToWorld(camV.a);
-      camV.b.copy(camV.c);
-      cam.position.lerp(camV.a, 0.85 * k);
-      cam.getWorldDirection(camV.b).multiplyScalar(10).add(cam.position);
-      camV.b.lerp(camV.c, k);
-      cam.lookAt(camV.b);
-    }
-  }, 0.5);
-
   // THE PUP: crouches, hops onto the roof, rides, hops back down where it stood
   usePup(cut, (tc, p, turn) => {
     const t = warp(tc);
@@ -602,9 +607,10 @@ export default function Move(cut) {
     const o = 1 - smooth(tl.collapse[0], tl.collapse[1], tc);
     const c = Math.cos(HERO.yaw);
     const sn = Math.sin(HERO.yaw);
-    ROOFV[0] = HERO.x + CH_ROOF[0] * c * CAR_S;
-    ROOFV[2] = HERO.z - CH_ROOF[0] * sn * CAR_S;
-    ROOFV[1] = HERO.y + (CH_ROOF[1] + 0.3) * CAR_S + HERO.bob + 0.45; // the seat raised: the whole pup stands above the rail
+    // the seat: the king's left pauldron (the chariot's frame, turned by its yaw, scaled)
+    ROOFV[0] = HERO.x + (SEAT[0] * c + SEAT[2] * sn) * CAR_S;
+    ROOFV[2] = HERO.z + (-SEAT[0] * sn + SEAT[2] * c) * CAR_S;
+    ROOFV[1] = HERO.y + SEAT[1] * CAR_S + HERO.bob;
     const kOn = smooth(T.hop[0], T.hop[1], t);
     let x = 0;
     let y = 0;
@@ -619,7 +625,8 @@ export default function Move(cut) {
     nudge(p, turn, x * o, y * o + 0.9 * Math.sin(Math.PI * (1 - o)), z * o);
     if (o < 1) p.rotation.x = p.rotation.z = 0;
     const seat = ramp(t, T.hop[1], T.hop[1] + 0.2) * o;
-    p.scale.setScalar(1 - 0.08 * seat);
+    p.scale.setScalar(1 - 0.42 * seat); // a small co-rider on a giant's shoulder
+    if (seat > 0.5) p.rotation.y = turn + HERO.yaw + Math.PI / 2; // facing forward with him
     PUP.seat = seat;
   });
 
@@ -635,6 +642,7 @@ export default function Move(cut) {
     live.pose.spin = hopOff > 0 && hopOff < 1 ? (3 * hopOff) % 1 : 0;
     live.pose.raise = smooth(T.turn[0] + 0.3, T.turn[1] + 0.3, t) * o;
     live.pose.fist = smooth(T.stop + 0.1, T.stop + 0.4, t) * o;
+    live.pose.sit = PUP.seat; // sat up on the pauldron, tail and flippers down
   });
 
   const H = m.hero;
@@ -678,6 +686,8 @@ export default function Move(cut) {
           <group ref={bodyG}>
             <mesh geometry={H.body} material={m.heroMat} frustumCulled={false} />
             <primitive object={m.cape} />
+            <primitive object={m.king.fill} />
+            <primitive object={m.king.ink} />
           </group>
           <primitive object={m.wheels} />
         </group>

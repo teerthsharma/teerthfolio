@@ -285,15 +285,13 @@ export function chariotGeometry() {
   L.push(paint(new BoxGeometry(2.1, 0.09, 0.1), BRONZE, { gloss: 1, m4: at(0.9, 0.7, 0, 0, 0, 0.1) }));
   L.push(paint(new CylinderGeometry(0.05, 0.05, 1.5, 8).rotateX(Math.PI / 2), GOLD, { gloss: 1, smooth: true, m4: at(1.78, 1.28, 0) }));
   L.push(ox(1.85, -0.62), ox(1.85, 0.62));
-  // reins
-  for (const sz of [-1, 1]) L.push(paint(new BoxGeometry(1.7, 0.02, 0.02), CRIMSON, { gloss: 0.5, m4: at(0.9, 1.1, sz * 0.2, 0, 0, 0.12) }));
   return merge(L);
 }
 
-// the pup's crimson cape: a 1.2 x 1.6 cloth plane hung from its shoulders, streaming back, a wave in the vertex shader
+// Iskandar's crimson cloak: a cloth plane hung from his shoulders (w across, h long), streaming back, a wave in the vertex shader
 // (uTime, like openxla's uWind); a gold hem at the foot
-export function capeMesh() {
-  const g = new PlaneGeometry(1.2, 1.6, 8, 12).translate(0, -0.8, 0).rotateY(Math.PI / 2).rotateZ(-0.96).translate(-0.9, 1.55, 0);
+export function capeMesh({ w = 2.2, h = 3.3, at: p = [-1.2, 2.6, 0], tilt = -1.0 } = {}) {
+  const g = new PlaneGeometry(w, h, 10, 16).translate(0, -h / 2, 0).rotateY(Math.PI / 2).rotateZ(tilt).translate(...p);
   const m = new ShaderMaterial({
     uniforms: { uTime: { value: 0 } },
     side: DoubleSide,

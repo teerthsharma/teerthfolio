@@ -12,6 +12,7 @@ export const LANES = [-1.0, -4.6, -8.2, -11.8];
 // seconds from the arrival
 export const T = {
   hop: [1.6, 2.1], // the pup jumps onto the roof the moment the car arrives, so it sits there for the first line
+  cry: 3.15, // Iskandar's war cry, AAALALALALAI!: the sword goes up, the sky strikes the bulls, they burst out
   go: 3.55, // the lights go: the guest launches
   kachow: 4.95, // it passes the last rival
   cross: 6.0, // the nose crosses the chequered line
