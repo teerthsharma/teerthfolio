@@ -25,16 +25,16 @@ const CSS = `
 .pyre-banner .pyre-repo{display:flex;align-items:center;justify-content:center;gap:10px;margin:16px 0 0}
 .pyre-banner .pyre-repo img{width:28px;height:28px;object-fit:contain}
 .pyre-banner .pyre-repo span{font-family:var(--mono);font-size:15px;color:#2b2233}
-.pyre-banner[data-ph="live"]{animation:pyre-life 2.3s linear forwards}
+.pyre-banner[data-ph="live"]{animation:pyre-life 1.2s linear forwards}
 .pyre-banner[data-ph="still"]{opacity:1;transform:none}
-@keyframes pyre-life{0%{opacity:0;transform:scale(.96)}6%{opacity:1;transform:scale(1.035);animation-timing-function:step-end}14%{opacity:1;transform:scale(1.035)}17%{opacity:1;transform:scale(1)}68%{opacity:1;transform:translateY(0) scale(1);animation-timing-function:cubic-bezier(.5,0,.8,.3)}86%{opacity:.9;transform:translateY(-6vh) scale(.62)}100%{opacity:0;transform:translateY(-13vh) scale(.28)}}
+@keyframes pyre-life{0%{opacity:0;transform:scale(.96)}8%{opacity:1;transform:scale(1.035);animation-timing-function:step-end}20%{opacity:1;transform:scale(1)}62%{opacity:1;transform:translateY(0) scale(1);animation-timing-function:cubic-bezier(.5,0,.8,.3)}84%{opacity:.9;transform:translateY(-6vh) scale(.62)}100%{opacity:0;transform:translateY(-13vh) scale(.28)}}
 .pyre-flash{position:absolute;left:50%;top:calc(16vh + 5vw);width:0;height:0;pointer-events:none}
 .pyre-flash i{position:absolute;left:-90px;top:-44px;width:120px;height:88px;border:10px solid #e8b53c;border-radius:44px;box-shadow:0 0 36px #ffd36a,inset 0 0 18px #ffd36a;opacity:0}
 .pyre-flash i+i{left:-30px;transform:rotate(0deg)}
 .pyre-flash i{animation:pyre-link 520ms ease-out forwards}
 .pyre-flash i+i{animation-delay:60ms}
 @keyframes pyre-link{0%{opacity:1;transform:scale(.5)}60%{opacity:.9}100%{opacity:0;transform:scale(2.6)}}
-.pyre-dock{position:absolute;left:0;right:0;top:1.2vh;display:flex;flex-direction:column;align-items:center;gap:2px;color:#fbfaf7;text-align:center;opacity:0}
+.pyre-dock{display:none;position:absolute;left:0;right:0;top:1.2vh;display:flex;flex-direction:column;align-items:center;gap:2px;color:#fbfaf7;text-align:center;opacity:0}
 .pyre-dock[data-live="1"]{animation:pyre-dock 420ms ease-out 1.75s forwards}
 @keyframes pyre-dock{from{opacity:0}to{opacity:1}}
 .pyre-dock strong{font-size:clamp(15px,2.6vh,28px);letter-spacing:.14em;text-transform:uppercase}
