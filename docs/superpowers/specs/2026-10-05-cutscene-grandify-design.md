@@ -1,5 +1,9 @@
 # Grandify every arrival (8.5–10)
 
+**Superseded.** The living demand is `2026-10-05-director-epic-design.md` (W1–W6). This file is history.
+
+---
+
 Live `teerthfolio.vercel.app` on `origin/main` already plays 24 approved first-arrival cutscenes. Chrome stills of those 24 on 2026-10-05 (Playwright `channel: "chrome"`, 1280×800, 3 s and 8 s, 2 workers) name 22 pictures and 2 voids. The pictures sit at about **7.5**: a locked two-shot, a bubble, HUD chrome on top. The cards already promise 8.5–10 (other dimensions, unique lenses, a death). The clock grew. The picture did not.
 
 This issue is the spec. Stills without cutscenes stay on the 67 / 100 object-world grade. There is no stills reskin, no new package, no copied face.
