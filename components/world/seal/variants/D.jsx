@@ -94,9 +94,11 @@ const LOOK_ROUND = 5.4;
 // A coat mesh with its ink hull as a child (a child of the mesh, not a sibling: the
 // docks count the pup's groups by their children). Both lock their material so a
 // pocket's twin swap never reaches the pup.
+// userData.core: the body FrameGuard measures (costumes, halos and props hung on the pup never count)
+const CORE = { core: true };
 function Toon({ geometry, coat, ink, hull }) {
   return (
-    <mesh ref={(o) => o && lockMaterial(o, coat)} geometry={geometry} material={coat} castShadow receiveShadow>
+    <mesh ref={(o) => o && lockMaterial(o, coat)} geometry={geometry} material={coat} userData={CORE} castShadow receiveShadow>
       <mesh ref={(o) => o && lockMaterial(o, ink)} geometry={geometry} material={ink} visible={hull} />
     </mesh>
   );
