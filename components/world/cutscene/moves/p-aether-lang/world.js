@@ -378,10 +378,8 @@ export function flood(n = 440) {
         vec3 col = vSeed.x < 0.7 ? vec3(0.9, 0.84, 1.0) : (vSeed.x < 0.86 ? vec3(0.55, 0.72, 1.0) : vec3(0.78, 0.46, 0.95));
         col = mix(col, vec3(1.0, 0.97, 1.0), tip * 0.8 + uLock * 0.6);
         float a = (body * (0.35 + 0.65 * dash) + tip * 1.1) * life * uFade * (1.0 + 0.5 * uLock);
-        if (!(a >= 0.0) || a > 8.0) a = 0.0;
-        gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(2.2)) * a, a);
-        if (!(dot(gl_FragColor, vec4(1.0)) >= 0.0) || dot(gl_FragColor, vec4(1.0)) > 80.0) gl_FragColor = vec4(0.0);
-        gl_FragColor.rgb = min(gl_FragColor.rgb, vec3(1.4));
+        a = min(max(a, 0.0), 8.0); // min/max drop a NaN on D3D; the (!(a >= 0.0)) test is folded away there
+        gl_FragColor = vec4(min(pow(max(col, vec3(0.0)), vec3(2.2)) * a, vec3(1.4)), a);
       }`,
   });
   const mesh = new Mesh(g, m);
