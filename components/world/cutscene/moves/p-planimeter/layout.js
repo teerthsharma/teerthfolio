@@ -9,7 +9,7 @@ export const TEACHER_AT = [3.1, FLOOR, -3.0];
 
 // the clock (s from the arrival, authored scene seconds: PACE in clock.js stretches the ends)
 export const T = {
-  banner: [0.35, 2.15, 2.35], // unfurled by, held to, rolled up by
+  banner: [0.3, 0.8, 1.2], // unfurled by, held to, rolled up by
   glint: 6.9, // the eye catches the light
   flash: [6.9, 7.25],
   board: [7.3, 8.9], // the chessboard laid over the shot, then drawn away

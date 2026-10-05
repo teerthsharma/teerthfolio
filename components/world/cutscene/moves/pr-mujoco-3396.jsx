@@ -258,7 +258,7 @@ export default function Move(cut) {
     g.visible = up;
     clear.visible = up;
     live.inStage = up;
-    s.banner.set(t >= tl.collapse[0] ? "out" : t >= T.burn[0] ? "home" : t >= T.dock ? "dock" : "slam");
+    s.banner.set(t >= 0.9 ? "out" : "slam");
     g.position.set(live.seal.x, 0, live.seal.z);
 
     // THE ISLAND: hidden while the drawing is up, brought back a slice a frame under it before it burns
