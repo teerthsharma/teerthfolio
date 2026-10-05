@@ -100,7 +100,7 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
         </button>
       )}
       {!failed && (
-        <button type="button" className="sheet-close" onClick={onClose} aria-label="Close">
+        <button type="button" className="sheet-close" onClick={onClose} aria-label="Close" title="Close">
           <IconClose />
         </button>
       )}
