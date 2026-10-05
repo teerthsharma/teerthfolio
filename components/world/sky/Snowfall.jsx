@@ -9,7 +9,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useMemo } from "react";
-import { BufferGeometry, Float32BufferAttribute, ShaderMaterial } from "three";
+import { BufferGeometry, Float32BufferAttribute, ShaderMaterial, UniformsLib, UniformsUtils } from "three";
 import { awakeMode } from "../../../lib/world/awakening";
 import { TIERS } from "../../../lib/world/quality";
 import { live, useUi } from "../../../lib/world/store";
@@ -28,6 +28,7 @@ const vertexShader = /* glsl */ `
   uniform vec3 uBox;
   uniform float uPx;
   uniform float uHide;
+  #include <fog_pars_vertex>
   void main() {
     vec3 p = seed.xyz * uBox;
     p.y -= uTime * (${FALL.toFixed(2)} + 0.55 * seed.w);
@@ -37,6 +38,8 @@ const vertexShader = /* glsl */ `
     p = lo + mod(p - lo, uBox);
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
+    vec4 mvPosition = mv;
+    #include <fog_vertex>
     gl_PointSize = clamp(${FLAKE.toFixed(2)} * uPx / -mv.z, 1.5, 9.0);
     // during a cutscene arrival a flake within 8 m of the lens would cross the shot as a giant snowflake
     if (uHide > 0.5 && length(mv.xyz) < 8.0) gl_PointSize = 0.0;
@@ -44,6 +47,7 @@ const vertexShader = /* glsl */ `
 `;
 
 const fragmentShader = /* glsl */ `
+  #include <fog_pars_fragment>
   void main() {
     vec2 c = gl_PointCoord - 0.5;
     float a = 0.35 * (1.0 - smoothstep(0.1, 0.25, dot(c, c)));
@@ -51,6 +55,7 @@ const fragmentShader = /* glsl */ `
     gl_FragColor = vec4(1.0, 1.0, 1.0, a);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
+    #include <fog_fragment>
   }
 `;
 
@@ -72,13 +77,14 @@ export default function Snowfall() {
     fragmentShader,
     transparent: true,
     depthWrite: false,
-    uniforms: {
+    fog: true, // island fog (C.sky, 80-190) reaches the flakes too
+    uniforms: UniformsUtils.merge([UniformsLib.fog, {
       uTime: { value: 0 },
       uCentre: { value: [0, 0, 0] },
       uBox: { value: [60, 24, 60] },
       uPx: { value: 1000 },
       uHide: { value: 0 },
-    },
+    }]),
   }), []);
 
   useFrame(({ camera, clock, size, viewport }) => {

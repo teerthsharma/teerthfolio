@@ -239,8 +239,38 @@ function walkHere(event) {
   live.pendingOpen = null;
 }
 
+// Snow sparkle: the one terrain mesh keeps its draw call; the stock lit shader
+// gets a hashed glint (a ~14 cm cell, lit only where the snow is bright and
+// the eye grazes the facet). Frequency is in the fragment, not in extra tris.
+// The program key is constant, so no rung or frame recompiles it.
+function snowMaterial() {
+  const m = new MeshStandardMaterial({ vertexColors: true, roughness: SURFACE.snow.roughness });
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vSnowW;")
+      .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvSnowW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vSnowW;")
+      .replace(
+        "#include <opaque_fragment>",
+        `{
+          vec3 cell = floor(vSnowW * 7.0);
+          float h = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+          vec3 v = normalize(vViewPosition);
+          float graze = pow(1.0 - abs(dot(normalize(normal), v)), 2.0);
+          float snowy = smoothstep(0.55, 0.85, dot(diffuseColor.rgb, vec3(0.333)));
+          float spark = step(0.94, h) * (0.35 + 0.65 * fract(h * 61.0 + dot(v, vec3(3.1, 5.7, 2.3)) * 4.0)) * graze * snowy;
+          outgoingLight += vec3(0.9, 0.96, 1.0) * spark * 0.5;
+        }
+        #include <opaque_fragment>`,
+      );
+  };
+  m.customProgramCacheKey = () => "snow-sparkle";
+  return m;
+}
+
 export default function Terrain() {
   const geometry = useMemo(buildTerrain, []);
-  const material = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: SURFACE.snow.roughness }), []);
+  const material = useMemo(snowMaterial, []);
   return <mesh geometry={geometry} material={material} receiveShadow onClick={walkHere} />;
 }
