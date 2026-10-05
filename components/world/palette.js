@@ -11,6 +11,7 @@
 //   sea       rgb(0,128,163) teal-blue
 // Change LIGHT or the tone mapping and every one of these numbers moves.
 
+import { litTint } from "../../lib/world/litTint";
 import { AdditiveBlending, MeshBasicMaterial, MeshStandardMaterial, NeutralToneMapping } from "three";
 
 export const C = {
@@ -28,7 +29,7 @@ export const C = {
   metal: "#aab3c0", // brushed aluminium
   lamp: "#ffc46b", // warm window and door light (albedo)
   lampGlow: "#ffb347", // its emissive
-  sky: "#cfe6f4", // background and fog
+  sky: "#a4d0ee", // background and fog: a real sky blue, so distance cools and the snow stays the lightest value
 };
 
 // The rig the colours above were solved for. Island.jsx applies the lights;
@@ -80,12 +81,12 @@ const cached = (key, make) => {
 // useMemo(() => mat(...).clone(), []) once and mutate the clone.
 export function mat(color, { flat = true, roughness = SURFACE.snow.roughness, metalness = 0, emissive = null, emissiveIntensity = 1, opacity = 1, vertexColors = false, side } = {}) {
   const key = `m|${color}|${flat}|${roughness}|${metalness}|${emissive}|${emissiveIntensity}|${opacity}|${vertexColors}|${side}`;
-  return cached(key, () => new MeshStandardMaterial({
+  return cached(key, () => litTint(new MeshStandardMaterial({
     color, flatShading: flat, roughness, metalness,
     emissive: emissive || "#000000", emissiveIntensity,
     transparent: opacity < 1, opacity, vertexColors,
     ...(side === undefined ? null : { side }),
-  }));
+  })));
 }
 
 // A lit window, doorway or lamp lens: warm by default, or pass an accent.

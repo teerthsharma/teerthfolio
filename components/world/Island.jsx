@@ -133,7 +133,7 @@ export default function Island() {
   return (
     <>
       <color attach="background" args={[C.sky]} />
-      <fog attach="fog" args={[C.sky, 80, 190]} />
+      <fog attach="fog" args={[C.sky, 55, 175]} />
       <hemisphereLight args={[LIGHT.hemiSky, LIGHT.hemiGround, LIGHT.hemiIntensity]} />
       <Sun />
       <Rim />

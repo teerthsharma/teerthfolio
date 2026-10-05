@@ -41,9 +41,10 @@ export default function LabDecor({ place, radius }) {
   const body = `#${new Color("#f4ead8").lerp(new Color(A), 0.35).getHexString()}`; // a tinted tower, not a cream clone
   const capCol = `#${new Color(A).multiplyScalar(0.6).getHexString()}`;
 
-  const { lit, glowG, chim } = useMemo(() => {
+  const { lit, glowG, metalG, chim } = useMemo(() => {
     const L = [];
     const G = [];
+    const M = [];
     const tx = side * (R - 1.2);
     const tz = -R + 0.9;
     // tower annex: base, body, accent bands, cap, pennant mast
@@ -64,7 +65,15 @@ export default function LabDecor({ place, radius }) {
         L.push(box(0.4, 0.4, 0.4, tx + Math.cos(a) * 1.05, top + 0.3, tz + Math.sin(a) * 1.05, capCol));
       }
     }
-    L.push(cyl(0.05, 2.2, tx, 0.85 + tall + 1.7, tz, C.metal, 5));
+    // trims: stone courses, corner pilasters, an overhanging cornice and a lintel course, so no wall
+    // is a plain box (a darker body for the courses, charcoal for the frame)
+    const course = `#${new Color(body).multiplyScalar(0.82).getHexString()}`;
+    for (let y = 1.3; y < tall - 0.2; y += 1.3) L.push(box(2.26, 0.07, 2.26, tx, 0.5 + y, tz, course));
+    for (const [cx_, cz_] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) L.push(box(0.22, tall, 0.22, tx + cx_ * 1.1, 0.5, tz + cz_ * 1.1, C.charcoal));
+    L.push(box(2.9, 0.2, 2.9, tx, top - 0.06, tz, capCol));
+    L.push(box(2.6, 0.12, 2.6, tx, top - 0.22, tz, C.charcoal));
+    M.push(cyl(0.05, 2.2, tx, 0.85 + tall + 1.7, tz, C.metal, 5)); // signature metal: the mast
+    M.push(paint(new SphereGeometry(0.16, 8, 6).translate(tx, 0.85 + tall + 3.95, tz), C.metal)); // and its finial
     L.push(box(0.9, 0.5, 0.05, tx + 0.45, 0.85 + tall + 3.1, tz, A));
     // windows: warm glass on the front and the open side, two floors
     for (const y of [1.4, 1.4 + tall * 0.42, 1.4 + tall * 0.8].filter((y) => y < tall - 0.6)) {
@@ -73,6 +82,12 @@ export default function LabDecor({ place, radius }) {
       G.push(box(0.1, 1, 0.7, tx - side * 1.12, y, tz, A));
       L.push(box(0.9, 0.12, 0.14, tx - 0.5, y - 0.12, tz + 1.14, C.charcoal)); // sills
       L.push(box(0.9, 0.12, 0.14, tx + 0.5, y - 0.12, tz + 1.14, C.charcoal));
+      for (const wx of [tx - 0.5, tx + 0.5]) {
+        L.push(box(0.96, 1.2, 0.06, wx, y - 0.1, tz + 1.1, C.charcoal)); // the frame behind the glass
+        L.push(box(0.07, 1.0, 0.14, wx, y, tz + 1.15, C.charcoal)); // mullion
+        L.push(box(0.96, 0.1, 0.16, wx, y + 1.02, tz + 1.13, A)); // lintel in the place colour
+      }
+      L.push(box(0.06, 1.2, 0.96, tx - side * 1.1, y - 0.1, tz, C.charcoal)); // the side window's frame
     }
     // door step and a lit door slab at the front
     L.push(box(2.8, 0.22, 1.1, 0, 0, R - 0.1, C.charcoal));
@@ -103,12 +118,14 @@ export default function LabDecor({ place, radius }) {
     return {
       lit: mergeGeometries(L.map((g) => (g.index ? g.toNonIndexed() : g))),
       glowG: mergeGeometries(G.map((g) => (g.index ? g.toNonIndexed() : g))),
+      metalG: mergeGeometries(M.map((g) => (g.index ? g.toNonIndexed() : g))),
       chim: [tx - side * 0.5, 0.5 + tall * 0.5 + 2.2, tz - 0.6],
     };
   }, [R, side, tall, A, h, body, capCol]);
 
   const smoke = useRef(null);
   const litMat = useMemo(() => mat("#ffffff", { vertexColors: true, roughness: 0.8 }), []);
+  const metalMat = useMemo(() => mat("#ffffff", { vertexColors: true, roughness: 0.3, metalness: 0.7 }), []);
   const glowMat = useMemo(() => new MeshBasicMaterial({ vertexColors: true, toneMapped: false }), []); // unlit: the glass keeps its place colour
 
   useFrame(({ clock }) => {
@@ -130,6 +147,7 @@ export default function LabDecor({ place, radius }) {
   return (
     <group>
       <mesh castShadow receiveShadow geometry={lit} material={litMat} />
+      <mesh castShadow geometry={metalG} material={metalMat} />
       <mesh geometry={glowG} material={glowMat} />
       <instancedMesh ref={smoke} args={[smokeGeo, smokeMat, PUFFS]} frustumCulled={false} instanceMatrix-usage={DynamicDrawUsage} />
     </group>

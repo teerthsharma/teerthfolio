@@ -29,10 +29,11 @@ import { SelectiveBloomEffect, ToneMappingMode } from "postprocessing";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackSide } from "three";
 import { TIERS, TOP, classify, climbCost, displayTier, dprFor, gpuName, recall, recallDisplay, remember } from "../../lib/world/quality";
-import { getUi, setUi, useUi } from "../../lib/world/store";
+import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import { cardFor } from "../../lib/world/cutscene/cards";
 import { GRADE_ISLAND, gradeFor } from "../../lib/world/cutscene/look";
 import { FilmEffect } from "./look/FilmEffect";
+import { FrameEffect, stepFrame } from "./look/Frame";
 import { RadiationPovEffect, stepRadiationPov } from "./look/RadiationPov";
 import { C, LIGHT } from "./palette";
 
@@ -149,6 +150,17 @@ function useFilm(pov) {
   return film;
 }
 
+// The framing disc and the grade ride on every rung (cheap, and a rung that dropped it would change the pass).
+function useFrameLook() {
+  const fx = useMemo(() => new FrameEffect(), []);
+  useEffect(() => () => fx.dispose(), [fx]);
+  useFrame((state, dt) => {
+    const { started, open } = getUi();
+    stepFrame(fx, state.camera, state.size.width / state.size.height, Boolean(started && !open && !live.arrival.id), dt);
+  });
+  return fx;
+}
+
 function Glow() {
   const bloom = useLampBloom();
   const pov = useRadiationPov();
@@ -184,6 +196,7 @@ function FilmOnly() {
 // whenever the DPR moves.
 function Post({ rung }) {
   const composer = useRef();
+  const frame = useFrameLook();
   const dpr = useThree((s) => s.viewport.dpr);
   useLayoutEffect(() => {
     composer.current?.setSize();
@@ -192,6 +205,7 @@ function Post({ rung }) {
   return (
     <EffectComposer ref={composer} multisampling={rung.msaa}>
       {rung.ao ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
+      <primitive object={frame} dispose={null} />
       {rung.bloom ? <Glow /> : <FilmOnly />}
       {rung.tilt ? <TiltShift offset={0} rotation={0} focusArea={0.45} feather={0.3} resolutionScale={0.5} /> : null}
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
