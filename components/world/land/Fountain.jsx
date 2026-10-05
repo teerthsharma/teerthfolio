@@ -100,9 +100,7 @@ function scatter() {
   let m = 0;
   for (let i = 0; i < 40; i++) {
     const a = (i / 40) * Math.PI * 2;
-    if (Math.abs(Math.sin(a + Math.PI / 2)) < 0.1 && Math.cos(a + Math.PI / 2) > 0) { // the stair's gap, north
-      continue;
-    }
+    if (Math.cos(a) < -0.97) continue; // the stair's gap, west
     D.rotation.set(0, -a, 0);
     D.scale.setScalar(1);
     D.position.set(PEAK.x + Math.cos(a) * (PEAK.flat - 0.4), PEAK.top + 1, PEAK.z + Math.sin(a) * (PEAK.flat - 0.4));
@@ -110,12 +108,12 @@ function scatter() {
     merlons.setMatrixAt(m++, D.matrix);
   }
   merlons.count = m;
-  const steps = new InstancedMesh(new BoxGeometry(2 * STAIR.w + 1.0, 1, 1), mat(STONE, { roughness: 0.95, flatShading: true }), STAIR.run);
+  const steps = new InstancedMesh(new BoxGeometry(1, 1, 2 * STAIR.w + 1.0), mat(STONE, { roughness: 0.95, flatShading: true }), STAIR.run);
   for (let i = 0; i < STAIR.run; i++) {
     const h = (PEAK.top * (i + 1)) / STAIR.run;
     D.rotation.set(0, 0, 0);
     D.scale.set(1, h, 1);
-    D.position.set(PEAK.x, h / 2, PEAK.z - PEAK.flat - STAIR.run + i + 0.5);
+    D.position.set(PEAK.x - PEAK.flat - STAIR.run + i + 0.5, h / 2, PEAK.z);
     D.updateMatrix();
     steps.setMatrixAt(i, D.matrix);
   }
