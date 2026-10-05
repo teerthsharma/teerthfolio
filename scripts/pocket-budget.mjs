@@ -9,10 +9,13 @@ const arg = (k, d) => (process.argv.includes(`--${k}`) ? process.argv[process.ar
 const base = arg("url", "http://localhost:3372").replace(/\/$/, "");
 const only = arg("only");
 const ids = [...APPROVED].filter((id) => !only || only.split(",").includes(id));
-const info = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => {
-  const i = window.__world.gl.info.render;
-  r({ calls: i.calls, tris: i.triangles });
-})));
+// gl.info resets on every render() and the composer renders many passes: sum one whole frame by hand
+const info = () => new Promise((r) => requestAnimationFrame(() => {
+  const g = window.__world.gl;
+  g.info.autoReset = false;
+  g.info.reset();
+  requestAnimationFrame(() => { const i = g.info.render; r({ calls: i.calls, tris: i.triangles }); g.info.autoReset = true; });
+}));
 const browser = await chromium.launch({ channel: "chrome", args: ["--ignore-gpu-blocklist"] });
 let bad = 0;
 for (const id of ids) {
