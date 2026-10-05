@@ -11,6 +11,7 @@ import { CARDS } from "../../../lib/world/cutscene/cards";
 import { POSES, cutFor, cutsceneMode } from "../../../lib/world/cutscene/timeline";
 import { live, useUi } from "../../../lib/world/store";
 import FrameGuard from "./FrameGuard";
+import Guest from "./Guest";
 import { MOVES } from "./moves";
 import PupUpright from "./PupUpright";
 import { ReturnWipe } from "./kit";
@@ -38,6 +39,7 @@ export default function Cutscene() {
     <>
       <group name="cutscene"><PupUpright id={id} />{Move && cut.tl.credit != null ? <ReturnWipe key={id} tl={cut.tl} mode={mode} color={accentFor(cut.card, cut.place)} /> : null}{Move ? <Move key={id} {...cut} mode={mode} /> : null}</group>
       <FrameGuard />
+      {Move ? <Guest key={id} {...cut} mode={mode} /> : null}
     </>
   );
 }
