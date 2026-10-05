@@ -14,7 +14,8 @@ const BRONZE = "#8a7a68";
 const GRANITE = "#9e928d";
 const GRANITE_DARK = "#6a625c";
 const INK = "#1c1824";
-export const PFP_URL = "https://github.com/teerthsharma.png";
+// github.com/teerthsharma.png 302s to avatars.githubusercontent.com without CORS headers; this host serves the same live avatar by handle with ACAO *.
+export const PFP_URL = "https://avatars.githubusercontent.com/teerthsharma";
 
 const PLINTH_H = 0.5;
 const PW = 2.0; // plaque face width, m
@@ -35,10 +36,10 @@ function plaqueTexture() {
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.fillStyle = INK;
-  g.font = "bold 150px Georgia, 'Times New Roman', serif";
-  g.fillText("SEAL SEAL", 640, 170);
-  g.font = "italic 62px Georgia, 'Times New Roman', serif";
-  g.fillText("founder of seal city", 640, 320);
+  g.font = "bold 118px Georgia, 'Times New Roman', serif";
+  g.fillText("SEAL SEAL", 690, 170);
+  g.font = "italic 52px Georgia, 'Times New Roman', serif";
+  g.fillText("founder of seal city", 690, 310);
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
   return t;
