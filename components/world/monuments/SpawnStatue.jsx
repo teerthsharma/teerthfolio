@@ -100,15 +100,15 @@ export default function SpawnStatue() {
     };
   }, []);
 
-  const { top, r0, r1 } = PLINTH;
+  const { top } = PLINTH;
   const k = 0.85; // pup scale: 3.3 m * 0.85 = 2.8 m
   return (
     <group position={[SPAWN.x, 0, SPAWN.z]}>
-      <mesh position={[0, top / 2, 0]} receiveShadow castShadow material={granite}>
-        <cylinderGeometry args={[r0, r1, top, 10]} />
+      <mesh position={[0, top / 2, PLINTH.z - SPAWN.z]} receiveShadow castShadow material={granite}>
+        <cylinderGeometry args={[PLINTH.r0, PLINTH.r1, top, 12]} />
       </mesh>
       {/* the pup, on the back half of the plinth, facing +z */}
-      <group position={[0, top, -1.7]} scale={k}>
+      <group position={[0, top, -3.0]} scale={k}>
         <mesh position={[0, 1.15, 0]} scale={[0.95, 1.25, 1.05]} castShadow material={bronze}><sphereGeometry args={[1, 24, 18]} /></mesh>
         <mesh position={[0, 0.3, -0.5]} rotation={[0.9, 0, 0]} scale={[1, 1.1, 0.35]} castShadow material={bronze}><sphereGeometry args={[0.7, 14, 10]} /></mesh>
         <mesh position={[0, 2.62, 0.1]} castShadow material={bronze}><sphereGeometry args={[0.66, 24, 18]} /></mesh>
@@ -121,8 +121,8 @@ export default function SpawnStatue() {
           <mesh key={s} position={[s * 0.95, 0.95, 0.35]} rotation={[0.3, 0, -s * 0.5]} scale={[0.28, 0.85, 0.5]} castShadow material={bronze}><sphereGeometry args={[1, 14, 10]} /></mesh>
         ))}
       </group>
-      {/* the plaque at the plinth's foot, south of spawn, leaning back to the follow camera */}
-      <group position={[0, 0.3, r1 + 0.55]} rotation={[-0.75, 0, 0]}>
+      {/* the plaque on the plinth between the pup's feet and the spawn pad, leaning back to the follow camera */}
+      <group position={[-1.55, top + 0.3, 0.25]} rotation={[-1.0, 0.25, 0]}>
         <mesh castShadow receiveShadow material={graniteDk}><boxGeometry args={[PW + 0.12, PH + 0.12, 0.12]} /></mesh>
         <mesh position={[0, 0, 0.062]} material={face}><planeGeometry args={[PW, PH]} /></mesh>
         <group position={[-0.37, 0, 0.07]}>
