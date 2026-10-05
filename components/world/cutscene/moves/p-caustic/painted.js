@@ -1,4 +1,4 @@
-// THE PAINTED WAR DIMENSION's shared look: film grain, brushwork, sepia.
+// THE MANHWA DOMAIN's shared look: film grain, brushwork, sepia.
 // Everything in the war is ashen sepia paint except the Tsukuyomi moon and
 // the Susanoo's blue fire. The pup takes the treatment too: for the war its
 // meshes wear a painted material (its own colours turned sepia, three soft
@@ -23,7 +23,7 @@ export const PAINT = /* glsl */ `
   }
   vec3 sepia(vec3 c, float keep) {
     float l = dot(c, vec3(0.299, 0.587, 0.114));
-    return mix(vec3(l * 1.08, l * 0.94, l * 0.74), c, keep);
+    return mix(vec3(l * 0.95, l * 0.88, l * 0.86), c, keep); // ash, not sepia
   }`;
 
 // sRGB for the shaders (they pick in sRGB and write pow 2.2, like the stage's)
@@ -63,9 +63,9 @@ export function paintedMaterial({ color, vertexColors = false, transparent = fal
         float d = dot(n, normalize(vec3(-0.45, 0.75, 0.5))) * 0.5 + 0.5;
         d += (brush() - 0.5) * 0.22;
         // three soft painted bands, not a smooth gradient
-        float band = 0.42 + 0.33 * smoothstep(0.38, 0.46, d) + 0.25 * smoothstep(0.66, 0.74, d);
+        float band = 0.3 + 0.7 * step(0.5, d); // manhwa: one hard cut, light and shadow
         vec3 c = sepia(uBase * vCol, uKeep) * band;
-        c += vec3(1.0, 0.86, 0.66) * pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.35; // the warm rim of the haze
+        c += vec3(0.9, 0.08, 0.18) * step(0.78, 1.0 - max(dot(n, v), 0.0)) * 0.8; // a red rim cut
         c += grain(uTime) * 0.09;
         gl_FragColor = vec4(pow(max(c, 0.0), vec3(2.2)), uOpacity);
       }`,

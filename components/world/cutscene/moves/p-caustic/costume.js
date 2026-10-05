@@ -1,5 +1,5 @@
-// THE MADARA PUP, shape and colour only, on the real 3D pup: a long wild
-// mass of dark spiky hair from the back of the crown down its back (every
+// SUKUNA'S PUP, shape and colour only, on the real 3D pup: a long wild
+// mass of pink-red spiky hair from the back of the crown down its back (every
 // spike points back or down: the head stays round, never an ear), dark-red
 // lamellar armour plates over its back and sides with cream lacing, and the
 // gunbai war fan slung across its back. Two groups: `hair` rides the head
@@ -91,7 +91,7 @@ function armourGeometry(bb) {
   return { plates: mergeGeometries(plates), lace: mergeGeometries(lace), rim: flat(rim) };
 }
 
-// THE RINNEGAN: a pale lavender-violet iris with five black ripple rings round a small pupil, laid as a thin
+// THE SLIT EYES: a red iris round a black slit pupil, laid as a thin
 // cap over each of the pup's own lenses (same size, same blink: the caps ride the lens group). Shape and colour only.
 function rinnegan(head) {
   const eyes = head.children.find((o) => o.type === "Group" && o.children.length === 2 && o.children[0].isMesh);
@@ -108,10 +108,9 @@ function rinnegan(head) {
         vec2 q = vP.xy / uR;
         float r = length(q);
         if (r > 1.0) discard;
-        vec3 c = mix(vec3(0.80, 0.72, 0.98), vec3(0.50, 0.40, 0.80), smoothstep(0.1, 0.95, r));
-        for (int k = 0; k < 5; k++) c = mix(c, vec3(0.03, 0.0, 0.06), 1.0 - smoothstep(0.012, 0.03, abs(r - (0.27 + 0.145 * float(k)))));
-        c = mix(c, vec3(0.02, 0.0, 0.04), 1.0 - smoothstep(0.1, 0.13, r));
-        c = mix(c, vec3(0.02, 0.0, 0.04), smoothstep(0.93, 0.98, r));
+        vec3 c = mix(vec3(0.95, 0.1, 0.18), vec3(0.55, 0.02, 0.08), smoothstep(0.1, 0.95, r));
+        c = mix(c, vec3(0.02, 0.0, 0.03), 1.0 - smoothstep(0.1, 0.16, abs(q.x) * 2.2 + abs(q.y) * 0.5)); // the slit pupil
+        c = mix(c, vec3(0.02, 0.0, 0.03), smoothstep(0.93, 0.98, r));
         c = mix(c, vec3(1.0), 1.0 - smoothstep(0.26, 0.32, length(q - vec2(-0.35, 0.37))));
         c = mix(c, vec3(1.0), 1.0 - smoothstep(0.1, 0.15, length(q - vec2(0.4, -0.38))));
         gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)), 1.0);
@@ -141,12 +140,12 @@ function rinnegan(head) {
   return { g, dispose: () => (g.removeFromParent(), geo.dispose(), mat.dispose()) };
 }
 
-export function madara(parts) {
+export function sukuna(parts) {
   const body = parts.rear.children.find((o) => o.isMesh);
   body.geometry.computeBoundingBox();
   const bb = new Box3().copy(body.geometry.boundingBox).applyMatrix4(body.matrix);
   const a = armourGeometry(bb);
-  const mats = { hair: paint("#33293d", 0.15), plate: paint("#b3202e", 0.9), lace: paint("#e8dcc2", 0.3), rim: paint("#17120f", 0) };
+  const mats = { hair: paint("#e5142e", 0.9), plate: paint("#1c1824", 0.2), lace: paint("#e5142e", 0.9), rim: paint("#100b0d", 0) };
   const hair = new Group();
   hair.add(new Mesh(lit(hairGeometry()), mats.hair));
   const armour = new Group();

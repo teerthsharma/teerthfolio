@@ -1,4 +1,4 @@
-// THE FOURTH SHINOBI WAR, as meshes: the sky shell (warm-grey war sky, dust
+// SUKUNA'S DOMAIN (Korean manhwa: hard value cuts, full-bleed red on ash), as meshes: the sky shell (warm-grey war sky, dust
 // haze, the moon's red sheen, the sky splitting for Tengai Shinsei, the crack
 // web), the battlefield (one faceted ground mesh: scorched, cracked earth,
 // a ridge the alliance stands on, old craters and two new ones), the
@@ -63,7 +63,7 @@ export function skyShell() {
     uniforms: {
       uCell: u(6), uTime: u(0), uBreak: u(-1), uPull: u(1), uCrack: u(0), uCrackDir: u(new Vector3(0, 0, -1)),
       uMoon: u(new Vector3()), uSplit: u(0), uSplitDir: u(new Vector3(-0.3, 0.8, -0.5)), uPulse: u(0), uAlpha: u(1), uInside: u(0),
-      uTop: u(sr("#2a241f")), uMid: u(sr("#6a5c4d")), uHaze: u(sr("#bfa98b")), uLow: u(sr("#4a3f34")), uRed: u(sr("#b3122a")), uPink: u(sr("#e0559b")),
+      uTop: u(sr("#2a241f")), uMid: u(sr("#3a1218")), uHaze: u(sr("#e5142e")), uLow: u(sr("#2a241f")), uRed: u(sr("#e5142e")), uPink: u(sr("#e5142e")),
     },
     side: DoubleSide,
     transparent: true,
@@ -105,7 +105,10 @@ export function skyShell() {
         // the moon's red stays close to it: the one colour in the sky, pulsing
         float sheen = exp(-a * 30.0) * (0.75 + 0.25 * uPulse);
         c = mix(c, uRed * 0.8, sheen * 0.55);
-        c += grain(uTime) * 0.08;
+        c += grain(uTime) * 0.04;
+        // manhwa: three hard value cuts, no soft ramp; the horizon is a full-bleed red slab
+        c = floor(c * 3.0 + 0.5) / 3.0;
+        c = mix(c, uRed, smoothstep(0.1, 0.0, abs(h - 0.02)) * 0.9);
         // TENGAI SHINSEI: the sky splits along a jagged seam above the meteors
         if (uSplit > 0.0) {
           vec3 sd = normalize(uSplitDir);
@@ -174,7 +177,7 @@ export function battlefield() {
     uniforms: {
       uCell: u(6), uTime: u(0), uBreak: u(-1), uPull: u(0), uMoon: u(new Vector3()), uPulse: u(0), uCrack: u(0), uCrackDir: u(new Vector3(0, 0, -1)),
       uC1: u(new Vector3(HIT1[0], 0, HIT1[1])), uC2: u(new Vector3(HIT2[0], 0, HIT2[1])), uK1: u(0), uK2: u(0), uHot1: u(0), uHot2: u(0),
-      uAsh: u(sr("#9c8a72")), uSoot: u(sr("#433a30")), uHaze: u(sr("#bfa98b")), uRed: u(sr("#b3122a")), uEmber: u(sr("#e8c9a0")), uDot: u(sr("#2a231c")),
+      uAsh: u(sr("#4a3f38")), uSoot: u(sr("#1f1a17")), uHaze: u(sr("#e5142e")), uRed: u(sr("#e5142e")), uEmber: u(sr("#ff5a3c")), uDot: u(sr("#100b0d")),
     },
     transparent: true,
     vertexShader: /* glsl */ `
@@ -225,11 +228,11 @@ export function battlefield() {
         // painted: strokes across the facets, the shadowed ones scumbled darker, grain over all
         float shade = (1.0 - lit) * 0.6;
         c = mix(c, uDot, shade * 0.35 * smoothstep(0.35, 0.7, brush()));
-        c *= 0.9 + 0.2 * brush();
-        c += grain(uTime) * 0.08;
+        c = floor(c * 3.0 + 0.5) / 3.0; // hard value cuts
+        c += grain(uTime) * 0.04;
         // dust haze swallows the far field into the sky's horizon
         float d = length(vOrig - cameraPosition);
-        c = mix(c, uHaze, smoothstep(30.0, 115.0, d) * 0.9);
+        c = mix(c, uHaze, smoothstep(40.0, 115.0, d) * 0.9); // the far field goes full-bleed red
         float reach = 1.0 - dot(normalize(vOrig - cameraPosition), normalize(uCrackDir));
         float web = crackLine(0.015) * (1.0 - smoothstep(uCrack * 2.2 - 0.25, uCrack * 2.2, reach));
         c = mix(c, vec3(1.0, 0.96, 0.9), web * 0.9);
@@ -269,31 +272,16 @@ export function moon() {
         vec2 p = vUv2;
         float r = length(p);
         float ang = atan(p.y, p.x);
-        vec3 red = vec3(0.72, 0.04, 0.09) * (0.85 + 0.25 * uPulse);
-        vec3 c = mix(red * 1.25, red * 0.55, smoothstep(0.2, 1.0, r)); // limb darkening
-        c += vec3(0.25, 0.02, 0.04) * (1.0 - r) * fbm(p * 5.0) ;
-        float ink = 0.0;
-        // three rings, three tomoe on each (a dot with a tail), turning slowly
-        for (int k = 0; k < 3; k++) {
-          float rr = 0.3 + 0.25 * float(k);
-          ink = max(ink, 1.0 - smoothstep(0.008, 0.02, abs(r - rr)));
-          for (int j = 0; j < 3; j++) {
-            float a0 = uSpin * (1.0 + 0.3 * float(k)) + 6.2832 * float(j) / 3.0 + float(k) * 0.6;
-            vec2 head = rr * vec2(cos(a0), sin(a0));
-            ink = max(ink, 1.0 - smoothstep(0.04 + 0.008 * float(k), 0.055 + 0.008 * float(k), length(p - head)));
-            // the tail: a short arc behind the head, thinning
-            for (int s = 1; s < 4; s++) {
-              float as = a0 - 0.09 * float(s);
-              vec2 q = (rr + 0.012 * float(s)) * vec2(cos(as), sin(as));
-              ink = max(ink, 1.0 - smoothstep(0.03 - 0.008 * float(s), 0.04 - 0.008 * float(s), length(p - q)));
-            }
-          }
-        }
-        ink = max(ink, 1.0 - smoothstep(0.07, 0.085, r)); // the pupil
-        c = mix(c, vec3(0.08, 0.0, 0.01), ink * 0.9);
+        // the shrine's mouth in the sky: a full-bleed red disc, a black grin of jaws and teeth, one eye slit above
+        vec3 c = vec3(0.9, 0.08, 0.18) * (0.9 + 0.2 * uPulse);
+        float cave = step(abs(p.x), 0.82) * step(p.y, -0.02) * step(-0.45, p.y);
+        float teeth = step(0.5, fract(p.x * 4.0 + 0.5 + uSpin * 0.2)) * step(p.y, -0.18) * step(-0.3, p.y);
+        float slit = (1.0 - smoothstep(0.012, 0.03, abs(p.y - 0.34 - 0.18 * abs(p.x)))) * step(abs(p.x), 0.4);
+        float ink = max(cave * (1.0 - 0.7 * teeth), slit);
+        c = mix(c, vec3(0.06, 0.04, 0.05), ink * 0.95);
         // painted: a dry-brushed limb and grain
-        c *= 0.88 + 0.24 * brush();
-        c += grain(uTime) * 0.06;
+        c = floor(c * 3.0 + 0.5) / 3.0;
+        c += grain(uTime) * 0.04;
         // the cracks run out from the upper left
         vec2 cv = vor(p * 3.2 + 3.0);
         float reach = length(p - vec2(-0.55, 0.6));
@@ -338,7 +326,7 @@ export function rockMaterial() {
         if (dot(n, cameraPosition - vW) < 0.0) n = -n;
         float lit = max(dot(n, normalize(uMoon - vW)), 0.0);
         float d = 0.45 + 0.35 * smoothstep(0.25, 0.4, lit + (brush() - 0.5) * 0.25) + 0.2 * max(n.y, 0.0);
-        vec3 c = sepia(vC, 0.0) * d + vec3(0.5, 0.06, 0.08) * pow(lit, 4.0) * 0.25;
+        vec3 c = sepia(vC, 0.0) * floor(d * 3.0 + 0.5) / 3.0 + vec3(0.9, 0.08, 0.18) * step(0.5, lit) * 0.35;
         c += grain(uTime) * 0.08;
         gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)), 1.0);
       }`,
@@ -392,10 +380,10 @@ export function meteorMaterial() {
         if (vTail > 0.5) {
           float along = clamp((vL.y - 0.2) / 7.0, 0.0, 1.0);
           float flick = fbm(vec2(atan(vL.x, vL.z) * 2.0, vL.y * 0.8 - uTime * 6.0));
-          vec3 c = mix(vec3(0.62, 0.5, 0.38), vec3(0.28, 0.24, 0.2), along); // a painted smoke-and-fire trail, sepia
+          vec3 c = mix(vec3(0.9, 0.08, 0.18), vec3(0.16, 0.1, 0.1), along); // the Dismantle slash trails: red to ash
           float a = (1.0 - along) * (0.35 + 0.65 * flick);
           if (a < 0.03) discard;
-          gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)), a * 0.18);
+          gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)), a * 0.45);
           return;
         }
         vec3 n = normalize(cross(dFdx(vW), dFdy(vW)));
@@ -404,10 +392,10 @@ export function meteorMaterial() {
         float lava = 1.0 - smoothstep(0.03, 0.09, abs(fbm(vL.xz * 3.0 + vL.y * 2.0) - 0.5));
         float front = smoothstep(-0.2, -0.9, normalize(vL).y); // the leading face, heated white
         vec3 c = vec3(0.16, 0.13, 0.1) * (0.5 + 0.6 * max(n.y, 0.0)) * (0.8 + 0.4 * brush());
-        c = mix(c, vec3(0.9, 0.78, 0.6), lava * 0.7);
-        c = mix(c, vec3(1.0, 0.94, 0.82), front * 0.12);
-        c += vec3(0.95, 0.8, 0.6) * pow(1.0 - abs(dot(n, v)), 2.0) * 0.6;
-        c += grain(uTime) * 0.08;
+        c = mix(c, vec3(0.9, 0.08, 0.18), step(0.5, lava) * 0.95);
+        c = mix(c, vec3(1.0, 0.9, 0.85), front * 0.12);
+        c += vec3(0.9, 0.08, 0.18) * step(0.6, 1.0 - abs(dot(n, v))) * 0.7;
+        c = floor(c * 3.0 + 0.5) / 3.0;
         gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)), 1.0);
       }`,
   });
@@ -430,7 +418,7 @@ export function threadMaterial() {
       varying vec2 vUv;
       void main() {
         float a = (1.0 - abs(vUv.x * 2.0 - 1.0)) * smoothstep(0.0, 0.3, vUv.y) * (1.0 - smoothstep(0.6, 1.0, vUv.y));
-        gl_FragColor = vec4(vec3(0.95, 0.85, 0.86) * a * 0.55, 1.0);
+        gl_FragColor = vec4(vec3(0.9, 0.08, 0.18) * a * 0.8, 1.0);
       }`,
   });
 }

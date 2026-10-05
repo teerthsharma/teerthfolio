@@ -1,7 +1,7 @@
-// THE PERFECT SUSANOO: a giant armoured spirit in shape and colour only (no
-// face): a crested helmet with a long horn, layered pauldrons, a plated
+// SUKUNA'S TITAN (was the Perfect Susanoo): a four-armed giant in shape and colour only (no
+// face): a crowned helm with short spikes, layered pauldrons, a plated
 // chest, an armoured skirt sunk into the field, a raised arm with a long
-// blade, an open hand, and two tengu wings of long plates behind. One merged
+// blade, an open hand, two more arms below, and no wings. One merged
 // low-poly mesh (aFlap weights the wings, the blade and the skirt's tails for
 // the vertex flutter), drawn twice: a dark translucent body and an additive
 // fresnel rim with a slow spirit-flame flowing up through it.
@@ -53,11 +53,8 @@ export function susanooGeometry() {
   add(new CylinderGeometry(1.05, 1.3, 0.8, 8).translate(0, 5.25, 0));
   add(new IcosahedronGeometry(1.15, 1).scale(1, 1.08, 1.05).translate(0, 6.25, 0));
   add(box(2.5, 0.35, 1.3, 0, 6.35, 0.55, 0.2, 0, 0)); // the brow ridge
-  add(limb([0, 6.4, 1.05], [0, 7.1, 2.9], 0.28, 0.04, 5)); // the long horn, out over the field
-  for (const s of [-1, 1]) {
-    add(limb([s * 0.55, 6.9, -0.2], [s * 1.5, 8.6, -1.4], 0.26, 0.03, 5)); // the crests sweep up and back
-    add(box(0.9, 1.3, 0.25, s * 1.05, 5.75, 0.55, 0, s * 0.5, 0)); // the cheek guards
-  }
+  for (let k = -2; k <= 2; k++) add(limb([k * 0.42, 7.1, 0.2], [k * 0.62, 8.5 - Math.abs(k) * 0.35, -0.3], 0.2, 0.03, 4)); // the crown of short spikes
+  for (const s of [-1, 1]) add(box(0.9, 1.3, 0.25, s * 1.05, 5.75, 0.55, 0, s * 0.5, 0)); // the cheek guards
   // the arms: the right one (the -x side) raised with the blade, the left one out, palm open
   add(limb([-3.4, 3.9, 0], [-4.7, 2.4, 1.3], 0.85, 0.7));
   add(limb([-4.7, 2.4, 1.3], [-4.0, 5.0, 2.4], 0.7, 0.55));
@@ -67,6 +64,12 @@ export function susanooGeometry() {
   add(limb([4.9, 2.0, 1.6], [5.4, 2.9, 3.9], 0.7, 0.55));
   add(new BoxGeometry(1.0, 0.25, 1.1).rotateX(-0.3).translate(5.45, 3.0, 4.3)); // the open hand
   for (let f = 0; f < 4; f++) add(box(0.16, 0.12, 0.6, 5.1 + f * 0.22, 3.2, 4.95, -0.5, 0, 0));
+  // the second pair: lower arms crossed over the waist, the hands in the shrine's seal
+  for (const sd of [-1, 1]) {
+    add(limb([sd * 3.0, 2.8, 0.4], [sd * 3.9, 1.3, 1.6], 0.7, 0.6));
+    add(limb([sd * 3.9, 1.3, 1.6], [sd * 1.0, 1.7, 3.0], 0.6, 0.5));
+    add(new IcosahedronGeometry(0.5, 0).translate(sd * 0.9, 1.7, 3.1));
+  }
   // THE SWORD: a long broad blade held up in the raised fist and rising out across the sky, with a guard and a hilt
   const fist = new Vector3(-4.0, 5.0, 2.5);
   const tip = new Vector3(-9.5, 17.5, 1.4);
@@ -80,17 +83,6 @@ export function susanooGeometry() {
   add(at(new CylinderGeometry(0.05, 0.1, len - 3, 4, 1).scale(1, 1, 0.6).translate(0, (len - 3) / 2 + 1.4, 0.2), 0), 0.02); // the fuller ridge
   add(at(new IcosahedronGeometry(0.3, 0).translate(0, -1.2, 0), 0), 0.02); // the pommel
   add(at(new CylinderGeometry(0.16, 0.18, 1.6, 6).translate(0, -0.3, 0), 0), 0.02); // the hilt in the fist
-  // the wings: two layered fans of blade-feathers behind the shoulders (a long row, a short row in front), outer ones flutter most
-  for (const s of [-1, 1]) {
-    for (let row = 0; row < 2; row++) {
-      for (let k = 0; k < 8; k++) {
-        const a = 0.08 + k * 0.2 + row * 0.1;
-        const len = (6.5 + k * 0.85) * (row ? 0.7 : 1);
-        const g = new CylinderGeometry(0.02, 0.55 - row * 0.1, len, 4, 1).scale(1, 1, 0.16).rotateY(Math.PI / 4).translate(0, len / 2, 0).rotateZ(-s * a).rotateY(s * 0.35).translate(s * 2.1, 4.0 + row * 0.2, -1.8 - k * 0.12 - row * 0.45);
-        add(g, 0.5 + k * 0.08);
-      }
-    }
-  }
   // the glowing core in the chest, with a ring of plate studs round it
   add(new IcosahedronGeometry(0.6, 1).translate(0, 3.5, 1.85), -1);
   for (let i = 0; i < 8; i++) {
@@ -138,7 +130,7 @@ export function susanooMaterials() {
       uniform float uFade;
       varying vec3 vW;
       void main() {
-        gl_FragColor = vec4(pow(vec3(0.07, 0.12, 0.34), vec3(2.2)), 0.45 * uFade);
+        gl_FragColor = vec4(pow(vec3(0.165, 0.141, 0.122), vec3(2.2)), 0.82 * uFade); // ash #2a241f
       }`,
   });
   const rim = new ShaderMaterial({
@@ -163,18 +155,15 @@ export function susanooMaterials() {
         float f = pow(clamp(1.0 - dot(n, v), 0.0, 1.0), 1.6);
         // spirit-fire licking upward through the armour
         float fire = vn(vec2(vL.x * 0.9 + vL.z * 0.4, vL.y * 0.6 - uTime * 1.6)) * vn(vec2(vL.x * 2.1, vL.y * 1.3 - uTime * 2.4));
-        // blue fire: the one cold colour in the war (with the moon's red)
-        vec3 deep = vec3(0.12, 0.3, 1.0);
-        vec3 hot = vec3(0.35, 0.75, 1.0);
-        vec3 c = mix(deep, hot, fire) * (f * 1.3 + fire * 0.55 + 0.07);
-        c += vec3(0.8, 0.92, 1.0) * pow(f, 4.0) * 0.8; // the hot edge
-        // plate seams: dark lines between armour courses and panels (not on the blade or the core)
+        // manhwa: full-bleed red, hard value cuts; the blade and the hot edge go white-red
+        vec3 red = vec3(0.9, 0.08, 0.18);
+        float cut = step(0.3, f) + step(0.6, f);
+        vec3 c = red * (0.25 + 0.4 * cut) * (0.6 + 0.8 * step(0.5, fire));
+        c += vec3(1.0, 0.85, 0.8) * step(0.8, f) * 0.6;
         float seam = max(1.0 - smoothstep(0.0, 0.05, abs(fract(vL.y * 0.9) - 0.5) * 2.0 - 0.9 + 0.05), 1.0 - smoothstep(0.0, 0.05, abs(fract(vL.x * 0.7 + vL.z * 0.3) - 0.5) * 2.0 - 0.9 + 0.05));
-        c *= 1.0 - 0.55 * seam * (1.0 - vBlade);
-        c *= (0.85 + 0.3 * brush()) * (1.0 + uFlare * 1.2);
-        c += max(grain(uTime), 0.0) * 0.05;
-        // the sword burns white-blue all along its length, the one bright thing in the war
-        c = mix(c, vec3(0.55, 0.8, 1.0) * (1.1 + 0.4 * fire) + vec3(1.0) * pow(f, 2.0) * 0.6, vBlade);
+        c *= 1.0 - 0.7 * seam * (1.0 - vBlade);
+        c *= 1.0 + uFlare * 1.2;
+        c = mix(c, vec3(1.0, 0.45, 0.4) * (1.1 + 0.4 * fire), vBlade);
         // the rise: the spirit grows out of the ground, edge first
         gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)) * uFade, 1.0);
       }`,

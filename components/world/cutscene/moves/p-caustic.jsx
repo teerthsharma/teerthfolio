@@ -26,7 +26,7 @@ import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { Motes } from "./_g1";
-import { madara } from "./p-caustic/costume";
+import { sukuna } from "./p-caustic/costume";
 import { pupPaint } from "./p-caustic/painted";
 import { doomLettering } from "./p-caustic/doom";
 import { flashQuad, flat, hash, hide, holdFlash, inst, islandList, mat, pupParts, put } from "./p-caustic/parts";
@@ -152,7 +152,7 @@ export default function Move(cut) {
     // the pup's painted twin materials for the war (taken before the costume goes on: it is painted already)
     paint.current = p?.root ? pupPaint(p.root) : null;
     if (p?.head && p.rear) {
-      costume.current = madara(p);
+      costume.current = sukuna(p);
       p.head.add(costume.current.hair);
       p.rear.add(costume.current.armour);
     }
