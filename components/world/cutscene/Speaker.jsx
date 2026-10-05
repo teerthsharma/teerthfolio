@@ -2,7 +2,8 @@
 
 // THE SPEAKER (shared): a low-poly ink silhouette, the other mouth of a
 // place's cutscene. Parametric from the card: a build (tall, broad, small),
-// a hair outline, ONE cream prop and a pose; no face, ever. Ink with a faint
+// a hair outline, ONE cream prop and a pose. A card figure with a `cast` key is a CEL FIGURE with a face
+// (cel.js, lib/world/cutscene/cast.js); one without it (Aizen) keeps this ink silhouette exactly. Ink with a faint
 // halftone where the facets turn to the light, a thin rim from an inverted
 // hull, both tinted to the place (lib/world/cutscene/look.js). It steps in
 // on twos after the bloom (squash, stretch, settle) and out on the collapse;
@@ -12,12 +13,14 @@
 import { sceneT } from "../../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { BackSide, Color, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, MeshBasicMaterial, Quaternion, ShaderMaterial, BoxGeometry, TorusGeometry, Vector3 } from "three";
+import { BackSide, Color, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, MeshBasicMaterial, Quaternion, ShaderMaterial, BoxGeometry, TorusGeometry, Vector2, Vector3 } from "three";
 import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { paletteFor } from "../../../lib/world/cutscene/look";
 import { BUILDS, figureAt, figureScale, onTwos, speakersOf } from "../../../lib/world/cutscene/timeline";
 import { live } from "../../../lib/world/store";
 import { HALFTONE } from "./Stage";
+import { CAST } from "../../../lib/world/cutscene/cast";
+import { celFigure, celMaterial, faceMaterial, hullMaterial } from "./cel";
 
 // The silhouette: ink with a rim light set as halftone dots on the facets
 // that turn away from the lens.
@@ -62,6 +65,7 @@ function outlineMaterial() {
   });
 }
 
+const SIZE = new Vector2();
 const UP = new Vector3(0, 1, 0);
 const A = new Vector3();
 const B = new Vector3();
@@ -244,8 +248,17 @@ export default function Speaker(props) {
 }
 
 export function Figure({ card, tl, mode, lean = 0.035, sp, index, follow = false }) {
-  const fig = useMemo(() => figureFor(sp), [sp]);
+  const spec = sp.cast ? CAST[sp.cast] : null;
+  const cel = useMemo(() => (spec ? celFigure(sp, spec) : null), [sp, spec]);
+  const fig = useMemo(() => (spec ? null : figureFor(sp)), [sp, spec]);
   const shared = mats();
+  const cm = useMemo(() => {
+    if (!spec) return null;
+    const o = { body: celMaterial(), hull: hullMaterial(), face: faceMaterial() };
+    for (const x of Object.values(o)) x.uniforms.uPack.value = follow ? 1 : 0; // a guest packs its depth in front of the set
+    o.hull.uniforms.uInk.value.set(spec.ink);
+    return o;
+  }, [spec, follow]);
   // a guest draws over any pocket wall or dome: its own materials, depth test off
   const m = useMemo(() => {
     if (!follow) return shared;
@@ -259,7 +272,13 @@ export function Figure({ card, tl, mode, lean = 0.035, sp, index, follow = false
     m.ink.uniforms.uInk.value.set(p.ink);
     m.ink.uniforms.uRim.value.set(p.rim);
     m.outline.uniforms.uRim.value.set(p.rim);
-  }, [card, m]);
+    if (cm) {
+      const sh = (c) => cm.body.uniforms.uShade.value.setRGB(Math.max(0.5, c[0] * 0.95), Math.max(0.5, c[1] * 0.95), Math.max(0.55, c[2] * 0.95));
+      sh(p.pool);
+      cm.body.uniforms.uBounce.value.setRGB(...p.disc);
+      cm.body.uniforms.uRim.value.set(p.rim);
+    }
+  }, [card, m, cm]);
 
   // a guest on a "land" card stands in the lens's right third, a third of the frame tall, wherever the camera ends up:
   // placed at draw time, after the rig and the frame guard have moved the camera
@@ -277,11 +296,16 @@ export function Figure({ card, tl, mode, lean = 0.035, sp, index, follow = false
             B.crossVectors(A, UP).setY(0).normalize();
             const o = 0.3 * d * half * c.aspect;
             f.position.set(c.position.x + A.x * d + B.x * o, c.position.y + A.y * d - 1.1 * sc, c.position.z + A.z * d + B.z * o);
+            if (cel) {
+              // a cel figure turns its face to the lens, three-quarter toward the pup (screen left)
+              const ph = 0.5;
+              f.rotation.y = Math.atan2(-A.x * Math.cos(ph) - B.x * Math.sin(ph), -A.z * Math.cos(ph) - B.z * Math.sin(ph));
+            }
             f.scale.set(sc * sx, sc * sy, sc * sx);
             f.updateMatrixWorld(true);
           }
         : undefined,
-    [follow],
+    [follow, cel],
   );
 
   useFrame((state) => {
@@ -307,10 +331,26 @@ export function Figure({ card, tl, mode, lean = 0.035, sp, index, follow = false
       const tt = onTwos(t);
       f.userData.k = [sx, sy];
       if (!follow) f.scale.set(scale * sx, scale * sy, scale * sx);
-      f.rotation.set(0, -0.42, mode === "full" ? 0.015 * Math.sin(tt * 2.2) + (t > tl.lineB ? lean : 0) : 0);
+      const rz = mode === "full" ? 0.015 * Math.sin(tt * 2.2) + (t > tl.lineB ? lean : 0) : 0;
+      if (cel) {
+        state.gl.getDrawingBufferSize(SIZE);
+        cm.hull.uniforms.uRes.value = [SIZE.x, SIZE.y];
+        cm.hull.uniforms.uPx.value = Math.max(2, 2.2 * state.gl.getPixelRatio());
+        if (follow) f.rotation.z = rz;
+        else f.rotation.set(0, Math.atan2(state.camera.position.x - f.position.x, state.camera.position.z - f.position.z) - 0.5, rz); // face the lens, toward the pup
+      } else f.rotation.set(0, -0.42, rz);
     }
   });
 
+  if (cel) {
+    return (
+      <group ref={root} visible={false}>
+        <mesh geometry={cel.outline} material={cm.hull} renderOrder={follow ? 900 : 0} onBeforeRender={place} frustumCulled={!follow} />
+        <mesh geometry={cel.ink} material={cm.body} renderOrder={follow ? 901 : 0} frustumCulled={!follow} />
+        <mesh geometry={cel.face} material={cm.face} renderOrder={follow ? 903 : 0} frustumCulled={!follow} />
+      </group>
+    );
+  }
   if (!fig) return null;
   return (
     <group ref={root} visible={false}>
