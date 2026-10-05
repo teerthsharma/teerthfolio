@@ -15,12 +15,12 @@ const CSS = `
 .nerve-banner::after{content:"";position:absolute;left:0;right:0;bottom:0;height:max(6px,1.1vh);background:#c4131d}
 .nerve-banner b{display:block;font-weight:800;font-size:clamp(25px,5.4vw,86px);line-height:1.04;letter-spacing:-.01em}
 .nerve-banner i{display:block;font-style:normal;font-weight:600;font-size:clamp(15px,2.2vw,32px);letter-spacing:.1em;margin-top:.5vh;color:#5a4a40}
-.nerve-banner[data-live]{animation:nerve-banner 2.5s cubic-bezier(.25,.7,.3,1) both}
+.nerve-banner[data-live]{animation:nerve-banner 1.2s cubic-bezier(.25,.7,.3,1) both}
 @keyframes nerve-banner{
   0%{clip-path:inset(0 0 100% 0);transform:translate(-50%,-6%)}
-  14%{clip-path:inset(0 0 -7% 0);transform:translate(-50%,3%)}
-  20%{clip-path:inset(0 0 0 0);transform:translate(-50%,0)}
-  86%{clip-path:inset(0 0 0 0);transform:translate(-50%,0)}
+  25%{clip-path:inset(0 0 -7% 0);transform:translate(-50%,3%)}
+  32%{clip-path:inset(0 0 0 0);transform:translate(-50%,0)}
+  80%{clip-path:inset(0 0 0 0);transform:translate(-50%,0)}
   100%{clip-path:inset(0 0 100% 0);transform:translate(-50%,-14%)}
 }
 @media (max-width:600px){.nerve-banner{width:calc(100vw - 32px)}}

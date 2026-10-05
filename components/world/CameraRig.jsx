@@ -68,10 +68,10 @@ const LOOK_TALL = 6; // m: from this look.y up the elevation rises
 // The first frame: at the spawn the view leans north so the igloo, the
 // highway and the landforms behind them are the picture, not the snow; it
 // eases back once the seal has slid off the spawn.
-// The spawn statue (plinth z 8, plaque 1.2 m wide): within 4 m of it the view comes in and down until the plaque
-// is ~22% of a 1280 frame (d ~ 7 m at fov 28), and eases back out as the seal leaves.
+// The spawn statue (plinth z 8): within 4 m of it the view pulls out to a wide of the island, and eases
+// in to the follow as the seal leaves.
 const SPAWN_LEAN = 0; // m
-const SPAWN_ZOOM = -0.8; // share the view comes in by (1 - 0.8 = 0.2 of the follow distance)
+const SPAWN_ZOOM = 0.5; // share the view goes OUT by at the plinth: the opening reads the island (the pup in the foreground), then eases to the chase cam as the seal slides off
 const STATUE = { x: 0, z: 8 };
 const SPAWN_RADIUS = 4; // m from the statue before the framing lets go
 const CUT_EYE = new Vector3();
