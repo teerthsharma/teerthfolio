@@ -14,7 +14,7 @@ const arg = (k, d) => (process.argv.includes(`--${k}`) ? process.argv[process.ar
 const base = arg("url", "http://localhost:3340").replace(/\/$/, "");
 const only = arg("only");
 const ids = [...APPROVED].filter((id) => !only || only.split(",").includes(id));
-const NEAR = 40; // m: camera farther than this from the pup = the scene plays somewhere else
+const NEAR = 60; // m: camera farther than this from the pup = the scene plays somewhere else (the #9 zoom-out wide sits at ~44-50 m)
 mkdirSync("verification/smoke", { recursive: true });
 
 const probe = () => {
@@ -42,7 +42,8 @@ const rows = [];
 for (const id of ids) {
   const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
   const errors = [];
-  page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 120)));
+  // a shader that fails to compile on ANGLE only warns (GL_INVALID_OPERATION), yet draws nothing: count it
+  page.on("console", (m) => (m.type() === "error" || /GL_INVALID_OPERATION|Error compiling/.test(m.text())) && errors.push(m.text().slice(0, 120)));
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 120)));
   const as = CARDS.find((c) => c.id === id)?.plays ?? id; // MujoRush docks share one scene
   const row = { id, started: false, t3: "-", t8: "-", ended: false, errors: 0, why: [] };
