@@ -124,13 +124,13 @@ export function buildWorld() {
   add(coin);
 
   // the figures and the colony
-  const touma = figure(toumaGeometry());
+  const touma = figure(toumaGeometry(), 0.028, { head: [0, 1.74, 0], r: 0.15, spec: { eyes: { shape: "sharp", iris: "#6a4a2a" }, brow: { tilt: 0.35, color: "#1a2a4a" }, mouth: { kind: "frown" } } });
   touma.group.position.set(TOUMA.x, 0, TOUMA.z);
   touma.group.rotation.order = "YXZ";
   touma.group.name = "fa-touma";
   touma.group.scale.setScalar(1.25);
   touma.group.rotation.y = Math.atan2(-TOUMA.x, -TOUMA.z);
-  const kuroko = figure(kurokoGeometry());
+  const kuroko = figure(kurokoGeometry(), 0.028, { head: [0, 0.93, 0.2], r: 0.13, spec: { eyes: { shape: "round", iris: "#3a7ab8" }, brow: { tilt: 0.1, color: "#3a2a1a" }, mouth: { kind: "smirk" }, blush: true } });
   kuroko.group.position.set(KUROKO.x, KUROKO.y, KUROKO.z);
   kuroko.group.name = "fa-kuroko";
   kuroko.group.scale.setScalar(1.15);

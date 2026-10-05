@@ -1,4 +1,4 @@
-// THE RIVAL: a Level-5 silhouette, shape and colour only (no face). A slim
+// THE RIVAL: a Level-5 figure with a drawn face plate (cel.js). A slim
 // ink-dark figure in a short jacket and flared skirt, long straight hair, one
 // arm out holding ONE prop: a chunky white-and-blue raygun with a glowing
 // muzzle. Two meshes: the body, and the arm with the gun (it swings up from
@@ -6,6 +6,7 @@
 
 import { BackSide, BoxGeometry, ConeGeometry, CylinderGeometry, DoubleSide, IcosahedronGeometry, Mesh, MeshBasicMaterial, Quaternion, SphereGeometry, Vector3 } from "three";
 import { INK, celMaterial, merge, part } from "./shade";
+import { faceMesh } from "../../cel";
 
 export const RIVAL_AT = [3.3, 0, -5.2];
 // toward the pup (the origin): +z of the figure points at it
@@ -66,6 +67,8 @@ export function rival(U) {
   const mat = celMaterial(U, { side: DoubleSide });
   const body = new Mesh(bodyGeometry(), mat);
   const arm = new Mesh(armGeometry(), mat);
+  const face = faceMesh({ eyes: { shape: "sharp", iris: "#3a9cff", sclera: "#f4f8ff" }, brow: { tilt: 0.32, color: "#0e1430" }, mouth: { kind: "smirk" } }, [0, 1.84, 0], 0.17, 0.9);
+  body.add(face);
   arm.position.set(...SHOULDER);
   arm.geometry.translate(-SHOULDER[0], -SHOULDER[1], -SHOULDER[2]); // pivot at the shoulder
   // the charge at the muzzle: a white ball with a blue ink hull, in the arm's frame
@@ -84,6 +87,8 @@ export function rival(U) {
     hull,
     dispose() {
       body.geometry.dispose();
+      face.geometry.dispose();
+      face.material.dispose();
       arm.geometry.dispose();
       ballG.dispose();
       mat.dispose();

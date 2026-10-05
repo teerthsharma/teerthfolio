@@ -5,6 +5,7 @@
 // JA'FAR, the general: a tall white-robed figure with long wide sleeves, a silver ponytail, who panics.
 // Parts ride the pup's own head and body groups (pupParts, p-caustic/parts.js), built from the body mesh's bounds.
 
+import { faceMesh } from "../../cel";
 import { AdditiveBlending, Box3, BoxGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, Euler, Group, LatheGeometry, Mesh, MeshBasicMaterial, MeshStandardMaterial, OctahedronGeometry, Quaternion, ShaderMaterial, SphereGeometry, TorusGeometry, Vector2, Vector3 } from "three";
 import { SKULL, skullPoint } from "../../../seal/variants/D-parts";
 import { limb } from "../p-caustic/susanoo";
@@ -401,7 +402,7 @@ export function stormColumn() {
 }
 
 // JA'FAR: a tall white-robed general. Groups for the animation: the arms (shoulder pivots), the sleeves flapping
-// off them, the head and the silver ponytail. Faces are two dots and a mouth; the panic is in the body.
+// off them, the head and the silver ponytail. The face is a drawn plate (cel.js); the panic is in the body.
 export function jafar(mat) {
   const root = new Group();
   const body = [];
@@ -419,11 +420,9 @@ export function jafar(mat) {
     part(new SphereGeometry(0.19, 12, 9), C.skin, 0),
     part(new SphereGeometry(0.205, 12, 9, 0, Math.PI * 2, 0, Math.PI * 0.46).rotateX(-0.3), "#e8edf7", 0, [0, 0.01, -0.01]), // the silver hair
     part(new TorusGeometry(0.2, 0.035, 6, 14), "#14757d", 0, [0, 0.08, 0, Math.PI / 2 - 0.25, 0, 0]), // a band
-    part(new SphereGeometry(0.03, 6, 5), "#1d1630", 0, [-0.07, 0.02, 0.17]),
-    part(new SphereGeometry(0.03, 6, 5), "#1d1630", 0, [0.07, 0.02, 0.17]),
-    part(new SphereGeometry(0.045, 7, 5), "#3a1420", 0, [0, -0.08, 0.17, 0, 0, 0, 1.3, 1.0, 0.5]),
   ];
   head.add(new Mesh(merge(headParts), mat));
+  head.add(faceMesh({ eyes: { shape: "round", iris: "#6a7cd8", sclera: "#ffffff" }, brow: { tilt: -0.3, color: "#aab4d8" }, mouth: { kind: "open" }, blush: false }, [0, 0, 0], 0.19)); // the panic: wide eyes, brows up, an open mouth
   const tail = new Group();
   tail.position.set(0, 0.1, -0.19);
   const tp = (t) => [0, -0.08 - 0.95 * t, -0.18 - 0.2 * Math.sin(t * 2.4)];

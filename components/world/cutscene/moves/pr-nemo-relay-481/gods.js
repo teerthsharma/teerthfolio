@@ -1,4 +1,4 @@
-// THE TWO WATCHERS, as ink cutouts on the ledge (shape only: no faces). Each is one merged low-poly mesh
+// THE TWO WATCHERS, as ink cutouts on the ledge, each with a drawn face plate (cel.js faceMesh). Each is one merged low-poly mesh
 // in flat ink, a bold pale outline hull round it (so it reads as a cut-out against the painted sky), and a
 // few small colour accents.
 //   BEERUS: a cat-eared god. Two tall pointed ears (his, never the pup's), a long tail curling up behind,
@@ -10,6 +10,7 @@
 import { ConeGeometry, CylinderGeometry, IcosahedronGeometry, TorusGeometry } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { flat, hullOf, limb } from "./util";
+import { faceMesh } from "../../cel";
 
 const ico = (r, x, y, z, sx = 1, sy = 1, sz = 1) => new IcosahedronGeometry(r, 1).scale(sx, sy, sz).translate(x, y, z);
 
@@ -48,7 +49,7 @@ export function beerus() {
   // accents: the gold collar rim and the sash (flat colour on the ink)
   const band = (r, y, h = 0.035) => flat(new CylinderGeometry(r, r, h, 10).translate(0, y, 0));
   const gold = mergeGeometries([flat(new CylinderGeometry(0.37, 0.37, 0.025, 10).translate(0, 1.37, 0.03)), flat(new CylinderGeometry(0.225, 0.225, 0.03, 8).translate(0, 0.84, 0)), flat(new CylinderGeometry(0.2, 0.37, 0.06, 10).translate(0, 1.48, 0.03)), band(0.25, 0.6), band(0.2, 1.1, 0.05), band(0.215, 1.28, 0.03)]);
-  return { ink, hull: hullOf(ink), parts: [[skin, "#8e63c4"], [merge(pants), "#14121e"], [merge(ears), "#c9a2e8"], [gold, "#ffd23a"]], height: 2.15 };
+  return { ink, hull: hullOf(ink), parts: [[skin, "#8e63c4"], [merge(pants), "#14121e"], [merge(ears), "#c9a2e8"], [gold, "#ffd23a"]], height: 2.15, face: faceMesh({ eyes: { shape: "sharp", iris: "#ffd21a", sclera: "#fff6c8" }, brow: { tilt: 0.38, color: "#2a1840" }, mouth: { kind: "smirk" }, marks: ["cheeks"] }, [0, 1.68, 0.05], 0.17, 0.85) };
 }
 
 export function whis() {
@@ -77,5 +78,5 @@ export function whis() {
   const rings = [new TorusGeometry(0.62, 0.028, 5, 40), new TorusGeometry(0.8, 0.02, 5, 44)];
   const beads = Array.from({ length: 6 }, (_, i) => ico(0.045, Math.cos((i / 6) * 6.283) * 0.8, Math.sin((i / 6) * 6.283) * 0.8, 0));
   const halo = mergeGeometries([...rings, ...beads].map((g) => g.translate(0, 0, 0)).map(flat)).translate(0, 2.45, -0.34);
-  return { ink, hull: hullOf(ink), halo, parts: [[merge(p), "#a9cdee"], [merge(robe), "#7a1f3a"], [merge(cuirass), "#14121e"], [merge(crest), "#f2f4ff"]], staffOrb: bead, height: 3.2 };
+  return { ink, hull: hullOf(ink), halo, parts: [[merge(p), "#a9cdee"], [merge(robe), "#7a1f3a"], [merge(cuirass), "#14121e"], [merge(crest), "#f2f4ff"]], staffOrb: bead, height: 3.2, face: faceMesh({ eyes: { shape: "hooded", iris: "#1c2a5a", sclera: "#f4faff" }, brow: { tilt: -0.05, color: "#5a78b0" }, mouth: { kind: "smile" } }, [0, 2.42, 0.04], 0.14, 0.9) };
 }
