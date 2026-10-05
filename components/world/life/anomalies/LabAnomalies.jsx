@@ -81,14 +81,14 @@ function TwinPaths({ place }) {
 }
 
 // ------------------------------------------------------------ epsilon-hollow
-// "Memory, files and scheduler, on one sphere." Three boulders float,
-// unsupported, in a perfect circular orbit around empty air -- points
-// constrained to a sphere with no sphere anyone can see.
+// "Memory, files and scheduler, on one sphere." Three boulders float in a
+// circular orbit around the seal statue at the plaza centre (the sphere
+// itself stands in the north-west corner).
 const BOULDER_GEO = new IcosahedronGeometry(0.38, 0);
 
 function OrbitingBoulders({ place }) {
   const A = place.radiation ?? place.color;
-  const AX = -6.0, AZ = -1.4;
+  const AX = 0, AZ = 0;
   // Was C.ice (near-white) at 0.4 emissive -- read as a pale smudge even
   // after raising intensity, since the lit diffuse base still dominated.
   // Base tint is now the area's own radiation colour, loud as the art
@@ -100,7 +100,7 @@ function OrbitingBoulders({ place }) {
     const a = anim.current;
     a.t += dt * 0.8 * areaPulse(place);
     const t = a.t;
-    const R = 1.1, Y = 2.1;
+    const R = 2.3, Y = 3.4;
     for (let i = 0; i < 3; i++) {
       const ref = boulderRefs.current[i];
       if (!ref) continue;

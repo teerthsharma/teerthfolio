@@ -50,6 +50,11 @@ import {
 import { clamp, smoothstep } from "../life/util";
 import { C, lamp, mat } from "../palette";
 import { buildCollapse } from "./parts/collapse-sphere";
+import SealStatue from "./parts/SealStatue";
+
+// The centre is the seal statue (the dock at +z looks at it first); the
+// sphere pavilion stands in the plaza north-west corner.
+export const SPHERE_AT = [-5.2, -4.6];
 
 // Playful accent colours for the struts and beads: no legend, no meaning,
 // just a funky palette for a globe having a good time.
@@ -436,6 +441,8 @@ export default function Collapse({ place, near }) {
 
   return (
     <group>
+      <SealStatue accent={accent} />
+      <group position={[SPHERE_AT[0], 0, SPHERE_AT[1]]}>
       {/* the foundation: a flared collar from the snow up to the platform's
           own underside, so the plaza reads as grounded from every angle */}
       <mesh position={[0, SKIRT_Y, 0]} castShadow receiveShadow material={skirtMat} geometry={skirtGeo} />
@@ -484,6 +491,7 @@ export default function Collapse({ place, near }) {
         <group ref={ringSpin}>
           <instancedMesh ref={moteMesh} args={[moteGeo, moteMat, RING.length]} />
         </group>
+      </group>
       </group>
     </group>
   );
