@@ -35,6 +35,23 @@ export function skyMaterial() {
         float st = fract(sin(dot(floor(q), vec2(127.1, 311.7))) * 43758.5453);
         float tw = step(0.965, st) * (0.5 + 0.5 * sin(uTime * 3.0 + st * 60.0));
         c += vec3(1.0, 0.9, 0.6) * tw * smoothstep(0.0, 0.3, y);
+        // the Gate of Babylon as the sky: a lattice of gold rings (#d9a441) that open one after another, a spear tip in each
+        vec2 uv = vDir.xz / (abs(vDir.y) + 0.3) * 5.5 + vec2(0.0, uTime * 0.05);
+        vec2 id = floor(uv);
+        vec2 lp = fract(uv) - 0.5;
+        float h = fract(sin(dot(id, vec2(41.7, 289.3))) * 9371.13);
+        lp += (vec2(fract(h * 7.1), fract(h * 3.7)) - 0.5) * 0.25;
+        float op = smoothstep(h * 6.0, h * 6.0 + 1.5, uTime);
+        float rr = 0.34 * op * (1.0 + 0.05 * sin(uTime * 3.0 + h * 30.0));
+        float d = length(lp);
+        float ring = smoothstep(0.045, 0.02, abs(d - rr)) * step(0.01, op);
+        float disc = smoothstep(rr, rr - 0.03, d) * op;
+        float tip = smoothstep(0.03, 0.0, abs(lp.x)) * step(0.0, lp.y) * step(lp.y, 0.34 * op * 1.3) * op;
+        vec3 gold = vec3(0.85, 0.64, 0.25);
+        c = mix(c, vec3(0.5, 0.02, 0.08), disc * 0.7);
+        c = mix(c, vec3(0.1, 0.02, 0.04), tip);
+        c = mix(c, gold * (1.0 + 0.4 * op), ring);
+        c += gold * disc * 0.12 * smoothstep(1.0, 6.0, uTime);
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
