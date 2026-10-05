@@ -1252,7 +1252,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   const hideoutGap = Math.min(Math.hypot(48 - me.x, 68 - me.z) - PLACE_BY_ID["p-epsilon-hollow"].radius, Math.hypot(HIDEOUT.hill.x - me.x, HIDEOUT.hill.z - me.z) - HIDEOUT.hill.r);
   assert.ok(hideoutGap >= 12, `the fountain is only ${hideoutGap.toFixed(1)} m from the hideout`);
   for (const q of PLACES) if (q.id !== me.id && q.id !== "p-epsilon-hollow") nearest = Math.min(nearest, Math.hypot(q.x - me.x, q.z - me.z) - q.radius);
-  for (const c of LAND_COLLIDERS) nearest = Math.min(nearest, Math.hypot(c.x - me.x, c.z - me.z) - c.radius);
+  for (const c of LAND_COLLIDERS) if (c.land !== "fountain-wall") nearest = Math.min(nearest, Math.hypot(c.x - me.x, c.z - me.z) - c.radius);
   assert.ok(nearest >= 20, `the fountain is only ${nearest.toFixed(1)} m from the nearest place or landform`);
   assert.ok(Math.hypot(me.x - PEAK.x, me.z - PEAK.z) < 0.01 && PEAK.top >= 6 && PEAK.top <= 8 && PEAK.flat >= 9, "the fountain is not on a 6-8 m plateau at least 18 m across");
   // the climb: the path starts on the plain, ends at the dock on the summit, and its slope is walkable
