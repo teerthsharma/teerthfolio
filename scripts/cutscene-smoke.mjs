@@ -39,7 +39,8 @@ const probe = () => {
   };
 };
 
-const browser = await chromium.launch({ channel: "chrome", args: ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] });
+const browser = await chromium.launch({ channel: "chrome", args: ["--ignore-gpu-blocklist", "--enable-gpu-rasterization", ...(arg("adapter") === "intel" ? ["--force_low_power_gpu"] : [])] }); // --adapter intel: the Intel UHD, not the RTX
+console.log("adapter:", await (async () => { const pg = await browser.newPage(); const r = await pg.evaluate(() => { const g = document.createElement("canvas").getContext("webgl2"); return g.getParameter(g.getExtension("WEBGL_debug_renderer_info").UNMASKED_RENDERER_WEBGL); }); await pg.close(); return r; })());
 const rows = [];
 for (const id of ids) {
   const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
