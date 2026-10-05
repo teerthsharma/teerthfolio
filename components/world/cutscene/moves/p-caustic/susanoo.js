@@ -130,7 +130,7 @@ export function susanooMaterials() {
       uniform float uFade;
       varying vec3 vW;
       void main() {
-        gl_FragColor = vec4(pow(vec3(0.165, 0.141, 0.122), vec3(2.2)), 0.82 * uFade); // ash #2a241f
+        gl_FragColor = vec4(pow(vec3(0.07, 0.12, 0.34), vec3(2.2)), 0.45 * uFade);
       }`,
   });
   const rim = new ShaderMaterial({
@@ -155,15 +155,16 @@ export function susanooMaterials() {
         float f = pow(clamp(1.0 - dot(n, v), 0.0, 1.0), 1.6);
         // spirit-fire licking upward through the armour
         float fire = vn(vec2(vL.x * 0.9 + vL.z * 0.4, vL.y * 0.6 - uTime * 1.6)) * vn(vec2(vL.x * 2.1, vL.y * 1.3 - uTime * 2.4));
-        // manhwa: full-bleed red, hard value cuts; the blade and the hot edge go white-red
-        vec3 red = vec3(0.9, 0.08, 0.18);
-        float cut = step(0.3, f) + step(0.6, f);
-        vec3 c = red * (0.25 + 0.4 * cut) * (0.6 + 0.8 * step(0.5, fire));
-        c += vec3(1.0, 0.85, 0.8) * step(0.8, f) * 0.6;
+        // blue fire: the one cold colour in the war (with the moon's red)
+        vec3 deep = vec3(0.12, 0.3, 1.0);
+        vec3 hot = vec3(0.35, 0.75, 1.0);
+        vec3 c = mix(deep, hot, fire) * (f * 1.3 + fire * 0.55 + 0.07);
+        c += vec3(0.8, 0.92, 1.0) * pow(f, 4.0) * 0.8; // the hot edge
         float seam = max(1.0 - smoothstep(0.0, 0.05, abs(fract(vL.y * 0.9) - 0.5) * 2.0 - 0.9 + 0.05), 1.0 - smoothstep(0.0, 0.05, abs(fract(vL.x * 0.7 + vL.z * 0.3) - 0.5) * 2.0 - 0.9 + 0.05));
         c *= 1.0 - 0.7 * seam * (1.0 - vBlade);
         c *= 1.0 + uFlare * 1.2;
-        c = mix(c, vec3(1.0, 0.45, 0.4) * (1.1 + 0.4 * fire), vBlade);
+        // the sword burns white-blue all along its length, the one bright thing in the war
+        c = mix(c, vec3(0.55, 0.8, 1.0) * (1.1 + 0.4 * fire) + vec3(1.0) * pow(f, 2.0) * 0.6, vBlade);
         // the rise: the spirit grows out of the ground, edge first
         gl_FragColor = vec4(pow(max(c, vec3(0.0)), vec3(2.2)) * uFade, 1.0);
       }`,
