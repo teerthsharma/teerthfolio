@@ -2,19 +2,19 @@
 
 // THE AKATSUKI HIDEOUT (place p-epsilon-hollow, issue 10 W3): the mouth carved into the hill on the south-east rim.
 // The hill is terrain (lib/world/hideout.js, one heightfield bump); this is the dressed part only:
-//   - a dressed stone face set in the hill's notch, jambs and a lintel (one merged mesh, one palette material)
+//   - a rock face set in the hill's notch; jambs, lintel and sill in dark stone (one merged mesh)
 //   - the hall behind the door: NOT geometry. One plane in the doorway runs an interior-mapping fragment (a ray
-//     into a 7 m stone room): walls #1c1824, the red cloud #b3122a with its white rim on the back wall, an ember
+//     into a 4.5 m stone room): walls #1c1824, the red cloud #b3122a with its white rim on the back wall, an ember
 //     pit #e0559b breathing on the floor. The shader names the place; no white plaza, no statue, no slime.
 //   - a cloud banner over the lintel (the same cloud SDF), and paper lanterns lining the walk from the dock:
 //     two InstancedMeshes (posts, lanterns), not a loop of meshes.
 // Every written material merges UniformsLib.fog, so the island's fog band reaches the mouth.
 // Local origin: the place centre [48, 68] on the snow; the mouth is at [44, 66], turned to face the dock.
-// Draws: face 1, hall 1, banner 1, posts 1, lanterns 1, terrace 1 = 6.
+// Draws: face 1, trim 1, hall 1, banner 1, posts 1, lanterns 1, terrace 1 = 7.
 
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
-import { BoxGeometry, Color, CylinderGeometry, DoubleSide, Object3D, PlaneGeometry, ShaderMaterial, SphereGeometry, UniformsLib, UniformsUtils } from "three";
+import { BoxGeometry, Color, CylinderGeometry, DoubleSide, Object3D, PlaneGeometry, ShaderMaterial, UniformsLib, UniformsUtils } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { HIDEOUT } from "../../../lib/world/hideout";
 import { mat } from "../palette";
@@ -22,7 +22,7 @@ import { mat } from "../palette";
 const STONE = "#1c1824";
 const CLOUD = "#b3122a";
 const EMBER = "#e0559b";
-const DOOR = { w: 3.1, h: 4.2, depth: 7 };
+const DOOR = { w: 3.1, h: 4.2, depth: 4.5 };
 
 // The cloud: three puffs and a flat belly, as a signed distance (p in cloud units, ~[-1, 1] wide).
 const CLOUD_SDF = /* glsl */ `
@@ -37,7 +37,7 @@ const CLOUD_SDF = /* glsl */ `
   // the red cloud with its white rim over the stone, k: 1 cloud, 0 stone
   vec3 cloudPaint(vec2 p, vec3 stone, vec3 red) {
     float d = cloudSd(p);
-    float aa = fwidth(d) * 1.2;
+    float aa = 0.025;
     vec3 c = mix(vec3(0.95, 0.93, 0.92), stone, smoothstep(0.0, aa, d));
     return mix(red, c, smoothstep(-0.075 - aa, -0.075, d));
   }`;
@@ -99,7 +99,7 @@ function hallMaterial() {
         col *= mix(0.55, 1.0, smoothstep(0.42, 0.47, 0.5 - seam + 0.45));
         if (t == tz) {
           // the back wall: the cloud, big, over the ember
-          col = cloudPaint((h.xy - vec2(0.0, uRoom.y * 0.62)) / 1.05, col, uCloud);
+          col = cloudPaint((h.xy - vec2(0.0, uRoom.y * 0.6)) / 1.3, col, uCloud * 1.3);
         } else if (t == tx) {
           // the side walls: a small cloud every 2.4 m
           vec2 p = vec2(mod(h.z, 2.4) - 1.2, h.y - 2.6) / 0.42;
@@ -110,8 +110,8 @@ function hallMaterial() {
           col = mix(col, uEmber * 1.6, (1.0 - smoothstep(0.0, 0.7, r)) * breathe);
         }
         // the ember's light, falling off with distance, and the dark of depth
-        float lit = 1.0 / (1.0 + 0.55 * dot(h - ember - vec3(0.0, 0.4, 0.0), h - ember - vec3(0.0, 0.4, 0.0)));
-        col += uEmber * lit * 1.4 * breathe;
+        float lit = 1.0 / (1.0 + 1.6 * dot(h - ember - vec3(0.0, 0.4, 0.0), h - ember - vec3(0.0, 0.4, 0.0)));
+        col += uEmber * lit * 0.5 * breathe;
         col *= mix(1.0, 0.45, clamp(-h.z / uRoom.z, 0.0, 1.0));
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
@@ -156,10 +156,9 @@ function bannerMaterial() {
   });
 }
 
-// The dressed stone: the face set in the notch, two jambs, the lintel, a sill step; one merged mesh.
-function faceGeometry() {
+// The dressed stone: the rock face set in the notch (one mesh), and the jambs, lintel and sill in dark #1c1824 (one merged mesh).
+function trimGeometry() {
   const parts = [
-    new BoxGeometry(8.6, 6.8, 1.4).translate(0, 3.4, -0.75), // the face, its front at z = -0.05
     new BoxGeometry(0.95, 4.6, 1.0).translate(-(DOOR.w / 2 + 0.47), 2.3, 0.0), // west jamb
     new BoxGeometry(0.95, 4.6, 1.0).translate(DOOR.w / 2 + 0.47, 2.3, 0.0), // east jamb
     new BoxGeometry(DOOR.w + 2.6, 0.75, 1.2).translate(0, DOOR.h + 0.55, 0.05), // the lintel
@@ -177,11 +176,12 @@ export default function Hideout() {
   const { mouth, yaw } = HIDEOUT;
   const at = [mouth.x - 48, 0, mouth.z - 68];
   const k = useMemo(() => ({
-    face: faceGeometry(),
+    face: new BoxGeometry(8.6, 6.8, 1.4).translate(0, 3.4, -0.75), // the face, its front at z = -0.05
+    trim: trimGeometry(),
     door: new PlaneGeometry(DOOR.w, DOOR.h).translate(0, DOOR.h / 2, 0),
     banner: new PlaneGeometry(2.4, 1.3, 12, 4),
     post: new CylinderGeometry(0.07, 0.09, 1.7, 6).translate(0, 0.85, 0),
-    lantern: new SphereGeometry(0.28, 10, 8).scale(1, 1.35, 1),
+    lantern: new CylinderGeometry(0.26, 0.26, 0.62, 10).translate(0, 0, 0),
     terrace: new CylinderGeometry(2.4, 2.6, 0.12, 20).translate(0, 0.06, 0),
     hall: hallMaterial(),
     cloth: bannerMaterial(),
@@ -211,10 +211,11 @@ export default function Hideout() {
       <mesh geometry={k.terrace} material={mat(HIDEOUT.edge, { roughness: 0.9 })} receiveShadow />
       <group position={at} rotation={[0, yaw, 0]}>
         <mesh geometry={k.face} material={mat(HIDEOUT.rock, { roughness: 0.95 })} castShadow receiveShadow />
+        <mesh geometry={k.trim} material={mat(STONE, { roughness: 0.85 })} castShadow receiveShadow />
         <mesh geometry={k.door} material={k.hall} position={[0, 0.22, 0.02]} />
         <mesh geometry={k.banner} material={k.cloth} position={[0, DOOR.h + 1.75, 0.05]} />
         <instancedMesh ref={posts} args={[k.post, mat(STONE, { roughness: 0.8 }), LANTERNS.length]} castShadow />
-        <instancedMesh ref={lamps} args={[k.lantern, mat(CLOUD, { emissive: CLOUD, emissiveIntensity: 1.6, roughness: 0.6 }), LANTERNS.length]} />
+        <instancedMesh ref={lamps} args={[k.lantern, mat(CLOUD, { emissive: CLOUD, emissiveIntensity: 2.4, roughness: 0.6 }), LANTERNS.length]} />
       </group>
     </group>
   );

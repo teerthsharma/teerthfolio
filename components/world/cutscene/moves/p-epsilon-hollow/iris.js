@@ -37,9 +37,11 @@ const COMMON = /* glsl */ `
   }
   // a crow: a flat chevron, wings beating; p in its own cell, 1 when inside
   float crow(vec2 p, float beat) {
-    p.y -= abs(p.x) * (0.55 + 0.45 * beat);
-    float body = smoothstep(0.03, 0.0, abs(p.y) - 0.045 * (1.0 - abs(p.x) / 0.36));
-    return body * step(abs(p.x), 0.36);
+    float body = smoothstep(0.075, 0.06, length(p * vec2(1.0, 2.4)));
+    vec2 w = p;
+    w.y -= abs(w.x) * (0.9 * beat - 0.2) - 0.02;
+    float wing = smoothstep(0.012, 0.0, abs(w.y) - 0.05 * (1.0 - abs(w.x) / 0.36)) * step(abs(w.x), 0.36);
+    return max(body, wing);
   }
   // a field of crows flying out from the centre (k: 0 hidden .. 1 all out)
   float crows(vec2 p, float t, float k) {
@@ -53,7 +55,7 @@ const COMMON = /* glsl */ `
       float s = 0.05 + 0.05 * hash(vec2(fi, 1.9));
       vec2 q = (p - at) / s;
       float ang = -a + 1.5708;
-      q = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * q * 0.2;
+      q = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * q * 0.45;
       c = max(c, crow(q, 0.5 + 0.5 * sin(t * 14.0 + fi * 1.7)) * step(0.02, k));
     }
     return c;
@@ -88,15 +90,16 @@ export function eyeMaterial() {
     fragmentShader: /* glsl */ `
       uniform float uOpen, uSpin, uMorph, uZoom, uHole, uAma, uCrows, uShow;
       ${COMMON}
-      // Mangekyo: three curved blades round a ring, black; 1 inside the black
+      // Mangekyo: three blades sweeping off a black ring round a red centre, thinning to hooked tips; 1 inside the black
       float mangekyo(vec2 p) {
         float r = length(p);
         float a = atan(p.y, p.x) + uSpin;
-        float k = fract((a + 2.4 * r) * 3.0 / TAU);
-        float blade = smoothstep(0.012, 0.0, abs(k - 0.5) * r * 2.2 - 0.16 * (1.0 - smoothstep(0.1, 0.5, r)));
-        blade *= smoothstep(0.52, 0.47, r);
-        float hub = smoothstep(0.15, 0.14, r);
-        return max(blade, hub);
+        float k = abs(fract((a - 5.0 * r) * 3.0 / TAU) - 0.5);
+        float w = 0.3 * (1.0 - smoothstep(0.13, 0.47, r)) + 0.012;
+        float aa = 0.012;
+        float blade = smoothstep(w + aa, w, k) * smoothstep(0.11, 0.13, r) * smoothstep(0.47, 0.44, r);
+        float ring = smoothstep(0.03, 0.022, abs(r - 0.135));
+        return max(blade, ring);
       }
       // three tomoe on the inner ring, black
       float tomoe(vec2 p) {
@@ -147,12 +150,14 @@ export function eyeMaterial() {
         // Amaterasu: black fire climbing the frame, its tongues licked by crimson and ember
         if (uAma > 0.0) {
           float y = vUv.y;
-          float f = fbm(vec2(vUv.x * 4.0 * uAspect, y * 2.5 - uTime * 1.6));
-          float front = uAma * 1.35 - 0.15 + 0.32 * (f - 0.5) + 0.12 * sin(vUv.x * 20.0 + uTime * 5.0);
-          float inside = smoothstep(front + 0.01, front - 0.01, y);
-          float rim = smoothstep(0.07, 0.0, abs(y - front));
-          vec3 fire = mix(vec3(0.015, 0.0, 0.01), uRed * 1.2, rim * 0.8);
-          fire = mix(fire, uEmber * 1.5, pow(rim, 3.0));
+          // tongues: ridged noise stretched up, licking faster at their tips
+          float f = fbm(vec2(vUv.x * 5.0 * uAspect, y * 1.4 - uTime * 2.2));
+          float tongue = 1.0 - abs(2.0 * fbm(vec2(vUv.x * 9.0 * uAspect, y * 0.8 - uTime * 3.1)) - 1.0);
+          float front = uAma * 1.4 - 0.2 + 0.28 * (f - 0.5) + 0.22 * tongue * tongue;
+          float inside = smoothstep(front + 0.006, front - 0.006, y);
+          float rim = smoothstep(0.035, 0.0, abs(y - front));
+          vec3 fire = mix(vec3(0.012, 0.0, 0.008), uRed * 1.25, rim);
+          fire = mix(fire, uEmber * 1.3, pow(rim, 6.0) * 0.6);
           col = mix(col, fire, max(inside, rim));
           alpha = max(alpha, max(inside, rim * 0.9));
         }
@@ -185,7 +190,7 @@ export function fieldMaterial() {
         vec2 m = p - vec2(0.38 * uAspect / 1.6, 0.17);
         float r = length(m);
         float face = fbm(m * 6.0 + vec2(uTime * 0.05, 0.0));
-        vec3 moon = mix(vec3(1.0, 0.18, 0.2), uRed * 0.8, face * 0.8);
+        vec3 moon = mix(vec3(0.95, 0.04, 0.07), uRed * 0.55, face * 0.9);
         sky = mix(sky, moon, smoothstep(0.235, 0.225, r));
         sky = mix(sky, vec3(0.02, 0.0, 0.01), smoothstep(0.012, 0.0, abs(r - 0.232) - 0.006));
         sky += uRed * 0.35 * exp(-max(r - 0.23, 0.0) * 9.0);
@@ -194,7 +199,7 @@ export function fieldMaterial() {
         sky = mix(sky, vec3(0.03, 0.0, 0.02), smoothstep(hz + 0.01, hz - 0.01, p.y));
         // crows drifting across the moon
         vec2 cp = vec2(fract(p.x * 0.5 + uTime * 0.04) * 2.0 - 1.0, p.y);
-        float c = crows(cp * 0.9 - vec2(0.0, 0.2), uTime, 0.55 + 0.1 * sin(uTime * 0.3)) * uCrows;
+        float c = crows(cp * 1.1 - vec2(0.0, 0.25), uTime, 0.5 + 0.1 * sin(uTime * 0.3)) * uCrows;
         sky = mix(sky, vec3(0.01, 0.0, 0.015), c);
         sky *= 0.9 + 0.18 * noise(gl_FragCoord.xy * 0.3);
         gl_FragColor = vec4(sky, uShow);

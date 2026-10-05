@@ -25,9 +25,10 @@ import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { buildConcreteWall } from "../components/world/land/parts/dam-wall.js";
 import { PEAK, WATER_Y, groundAt, heightAt } from "../lib/world/terrain.js";
 import { PEAK_PATH, PEAK_WORLD, peakBlocked } from "../lib/world/peak.js";
+import { HIDEOUT, HIDEOUT_WORLD, hideoutBlocked } from "../lib/world/hideout.js";
 
 const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
-const world = { colliders, radius: ISLAND_RADIUS, northRim: NORTH_RIM, props: [] };
+const world = { colliders, radius: ISLAND_RADIUS, northRim: NORTH_RIM, props: [], hideout: HIDEOUT_WORLD };
 const run = (seal, controls, seconds) => {
   for (let t = 0; t < seconds; t += 1 / 120) stepSeal(seal, controls, 1 / 120, world);
   return seal;
@@ -60,6 +61,26 @@ for (const p of PLACES) {
   for (const c of LAND_COLLIDERS) {
     assert.ok(Math.hypot(dock.x - c.x, dock.z - c.z) > c.radius + MOTION.sealRadius, `${p.id}'s dock is under ${c.land}'s bulk at ${c.x}, ${c.z}`);
   }
+}
+
+// The Akatsuki hideout is a building the seal goes inside: from its dock, held north then west, it walks through the
+// door and the corridor into the hall (flat, y = 0); pushed into the hill's flank it stays out.
+{
+  const { hall, mouth } = HIDEOUT;
+  assert.ok(Math.abs(heightAt(hall.x, hall.z)) <= 0.05 && Math.abs(heightAt(mouth.x, mouth.z - 3)) <= 0.05, "the hideout's hall and corridor are not cut to the plain");
+  const dock = dockPoint(PLACE_BY_ID["p-epsilon-hollow"]);
+  const s = createSeal(dock.x, dock.z);
+  const route = [[mouth.x, mouth.z + 2.5], [mouth.x, mouth.z - 3], [hall.x, hall.z]];
+  let i = 0;
+  for (let t = 0; t < 30 && i < route.length; t += 1 / 120) {
+    const [tx, tz] = route[i];
+    if (Math.hypot(tx - s.x, tz - s.z) < 0.8) i++;
+    else stepSeal(s, { input: { x: tx - s.x, z: tz - s.z } }, 1 / 120, world);
+  }
+  assert.ok(i === route.length, `a seal walking in from the hideout's dock stopped at ${s.x.toFixed(1)}, ${s.z.toFixed(1)}`);
+  const c = createSeal(HIDEOUT.hill.x + 5, HIDEOUT.hill.z + 12);
+  for (let t = 0; t < 4; t += 1 / 120) stepSeal(c, { input: { x: 0, z: -1 } }, 1 / 120, world);
+  assert.ok(!hideoutBlocked(c.x, c.z) && Math.hypot(c.x - HIDEOUT.hill.x, c.z - HIDEOUT.hill.z) > 6, `a seal walked into the hideout's hill to ${c.x.toFixed(1)}, ${c.z.toFixed(1)}`);
 }
 
 // Geology: the river rises at Triton's glacier, at the top of the island
@@ -208,6 +229,7 @@ for (const a of DISTRICTS) {
       assert.ok(!(x > -9 - HALF && x < 9 + HALF && z > 1.5 - HALF && z < 4.5 + HALF), `${at} runs over the name in the snow`);
       for (const p of PLACES) assert.ok(Math.hypot(x - p.x, z - p.z) >= p.radius + HALF, `${at} runs into ${p.id}`);
       for (const c of LAND_COLLIDERS) assert.ok(Math.hypot(x - c.x, z - c.z) >= c.radius + HALF, `${at} runs into ${c.land}'s bulk at ${c.x}, ${c.z}`);
+      assert.ok(!hideoutBlocked(x, z), `${at} runs into the Akatsuki hill`);
       assert.ok(waterGap(x, z) >= HALF + 0.3 || RIVER.bridges.some((b) => onDeck(b, x, z)), `${at} runs into the water off any bridge`);
     }
   });
@@ -244,6 +266,7 @@ for (const a of DISTRICTS) {
       if (Math.hypot(x, z) >= ISLAND_RADIUS || waterGap(x, z) < 0) continue;
       if (solid.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius)) continue;
       if (Math.hypot(x - PEAK.x, z - PEAK.z) < PEAK.edge) continue; // the Fountain Peak, held below
+      if (hideoutBlocked(x, z)) continue; // the Akatsuki hill: wall the seal is held off (lib/world/hideout.js)
       const h = heightAt(x, z);
       if (groundAt(x, z).mount > 0 && Math.hypot(x, z) > 84) continue; // a hand-sculpted mountain's skirt in the bigger rim's new ring
       assert.ok(Math.abs(h) <= 0.3, `the ground at ${x.toFixed(1)}, ${z.toFixed(1)} is ${h.toFixed(2)} m off the plain where the seal walks`);
@@ -832,7 +855,7 @@ for (const b of RIVER.bridges) {
 const rimRunner = createSeal(0, 0);
 let peakRimImpact = 0;
 for (let t = 0; t < (6 * ISLAND_RADIUS) / 84; t += 1 / 120) {
-  stepSeal(rimRunner, { input: { x: 1, z: 1 }, boost: true }, 1 / 120, world);
+  stepSeal(rimRunner, { input: { x: 1, z: 0.8 }, boost: true }, 1 / 120, world);
   peakRimImpact = Math.max(peakRimImpact, rimRunner.impact);
 }
 assert.ok(peakRimImpact > 0.2, `boosted rim run produced no impact: ${peakRimImpact}`);
@@ -1224,10 +1247,10 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   // remote: clear of every other place and landform by a wide margin (the owner: "VERY FAR from other buildings")
   let nearest = Infinity;
   // the Akatsuki hideout (issue 10 W3 pins it at [48, 68], hill [48, 58]) is the fountain's one near neighbour: 12 m, not 20
-  const hideoutGap = Math.min(Math.hypot(48 - me.x, 68 - me.z) - PLACE_BY_ID["p-epsilon-hollow"].radius, ...LAND_COLLIDERS.filter((c) => c.land === "hideout").map((c) => Math.hypot(c.x - me.x, c.z - me.z) - c.radius));
+  const hideoutGap = Math.min(Math.hypot(48 - me.x, 68 - me.z) - PLACE_BY_ID["p-epsilon-hollow"].radius, Math.hypot(HIDEOUT.hill.x - me.x, HIDEOUT.hill.z - me.z) - HIDEOUT.hill.r);
   assert.ok(hideoutGap >= 12, `the fountain is only ${hideoutGap.toFixed(1)} m from the hideout`);
   for (const q of PLACES) if (q.id !== me.id && q.id !== "p-epsilon-hollow") nearest = Math.min(nearest, Math.hypot(q.x - me.x, q.z - me.z) - q.radius);
-  for (const c of LAND_COLLIDERS) if (c.land !== "hideout") nearest = Math.min(nearest, Math.hypot(c.x - me.x, c.z - me.z) - c.radius);
+  for (const c of LAND_COLLIDERS) nearest = Math.min(nearest, Math.hypot(c.x - me.x, c.z - me.z) - c.radius);
   assert.ok(nearest >= 20, `the fountain is only ${nearest.toFixed(1)} m from the nearest place or landform`);
   assert.ok(Math.hypot(me.x - PEAK.x, me.z - PEAK.z) < 0.01 && PEAK.top >= 18 && PEAK.top <= 25, "the fountain is not on the summit of an 18-25 m peak");
   // the climb: the path starts on the plain, ends at the dock on the summit, and its slope is walkable
