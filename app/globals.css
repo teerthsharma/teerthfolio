@@ -165,6 +165,13 @@ html[data-hud="off"] .place-label {
   opacity: 0;
   pointer-events: none;
 }
+/* A cutscene is edge to edge: the nav pills, the minimap and the pins wait; only Skip and the bubbles stay. */
+.hud[data-cutscene="on"] .hud-top,
+.hud[data-cutscene="on"] .minimap,
+.hud[data-cutscene="on"] .coach {
+  opacity: 0;
+  visibility: hidden;
+}
 
 .hud-curtain {
   position: absolute;
@@ -1958,7 +1965,11 @@ h2[tabindex="-1"]:focus {
 .cut-title[data-on="true"] {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 250ms;
+  animation: cut-title-card 1.2s linear both; /* a title card is up for 1.2 s, then gets out */
+}
+@keyframes cut-title-card {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 .cut-title strong {
   font-size: clamp(18px, 3.4vh, 34px);

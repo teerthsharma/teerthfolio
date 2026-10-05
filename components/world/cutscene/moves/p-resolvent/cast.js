@@ -4,6 +4,7 @@
 // upper body, so they can kneel), Fern with her staff and Stark with his axe on the
 // broken walls. Local frames face +z, feet at the origin, metres.
 
+import { faceMesh } from "../../cel";
 import { BoxGeometry, CapsuleGeometry, CircleGeometry, ConeGeometry, Group, Mesh, MeshBasicMaterial, CylinderGeometry, DoubleSide, IcosahedronGeometry, LatheGeometry, PlaneGeometry, SphereGeometry, TorusGeometry, Vector2, Vector3 } from "three";
 import { join, limb, part, put } from "./toon";
 
@@ -19,11 +20,13 @@ export const STARK_AT = [5.6, 1.9, -14.2];
 export const HAND = [1.2, 1.95, 0.12]; // the raised hand, in her local frame
 export const MOUTH = [0, 1.7, 0.12];
 
+export const auraFace = () => faceMesh({ eyes: { shape: "sharp", iris: "#e8b81a", sclera: "#fffaf0" }, brow: { tilt: 0.3, color: "#8f80b8" }, mouth: { kind: "smirk" } }, [0, 1.7, 0.02], 0.118, 0.95);
+
 export function aura() {
   const P = [];
   const dark = "#2a1d3d";
   const plum = "#352449";
-  const skin = "#3c2c4a";
+  const skin = "#ecd4cf";
   // legs and boots
   for (const s of [-1, 1]) {
     P.push(part(limb([s * 0.1, 0.12, 0], [s * 0.11, 0.98, 0], 0.052, 0.075), "#1c1426"));
@@ -35,7 +38,7 @@ export function aura() {
   P.push(put(part(new TorusGeometry(0.175, 0.02, 5, 14), GOLD, { kind: 3 }), 0, 1.08, 0, Math.PI / 2));
   P.push(put(part(new TorusGeometry(0.1, 0.017, 5, 12), GOLD, { kind: 3 }), 0, 1.55, 0, Math.PI / 2));
   for (const s of [-1, 1]) P.push(part(new IcosahedronGeometry(0.075, 0).scale(1.3, 0.8, 1), GOLD, { kind: 3, flat: true }).translate(s * 0.2, 1.5, 0));
-  // head: a dark smooth oval, no face; pale hair over the crown and down the back; two small horns
+  // head: a pale oval (the face plate is cel.js faceMesh, mounted by the move); pale hair over the crown and down the back; two small horns
   P.push(part(new SphereGeometry(0.118, 12, 10).scale(0.92, 1.1, 1), skin).translate(0, 1.7, 0.02));
   P.push(put(part(new SphereGeometry(0.15, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.64).scale(1, 1.08, 1.04), "#d4c7ea", { sway: 0.04 }), 0, 1.71, -0.025));
   for (const s of [-1, 1]) {

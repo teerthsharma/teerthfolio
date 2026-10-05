@@ -2,7 +2,7 @@
 
 // Input -> motion -> "which building is the seal at". Owns no visuals.
 
-import { sceneT } from "../../lib/world/cutscene/clock";
+import { beatT, sceneT } from "../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { MOTION, stepSeal, nearestPlace } from "../../lib/world/motion";
 import { PEAK_WORLD } from "../../lib/world/peak";
@@ -157,12 +157,12 @@ export default function Controller() {
     if (arrival.id && (t - arrival.start >= arrivalLength(arrival.id) || ui.open || freshInput(arrival))) {
       arrival.id = null;
       live.lastArrivalEnd = t;
-      live.movedSinceArrival = false;
+      live.arrivalPos = { x: live.seal.x, z: live.seal.z };
       setUi({ cutscene: null, beat: 0 });
     }
     if (arrival.id) {
       // the cutscene's beat (timeline.js); a skip above clears it in the same frame
-      const beat = cutsceneMode(arrival.id) ? beatAt(cutFor(arrival.id)?.tl, sceneT(arrival.id, t - arrival.start)) : awakeMode(arrival.id) ? awakeBeat(sceneT(arrival.id, t - arrival.start)) : 0;
+      const beat = cutsceneMode(arrival.id) ? beatAt(cutFor(arrival.id)?.tl, beatT(arrival.id, t - arrival.start)) : awakeMode(arrival.id) ? awakeBeat(sceneT(arrival.id, t - arrival.start)) : 0;
       if (beat !== ui.beat) setUi({ beat });
     }
     const holding = arrival.id && t - arrival.start < arrivalHold(arrival.id);
@@ -202,7 +202,6 @@ export default function Controller() {
     }
 
     const seal = live.seal;
-    if (seal.speed > 1.2) live.movedSinceArrival = true;
     if (seal.bursts !== seenBursts) {
       seenBursts = seal.bursts;
       live.geyser.burstAt = t; // the geyser erupts as it throws the seal
@@ -262,7 +261,7 @@ export default function Controller() {
     if (approach && ui.started && !live.seen.has(approach) && t <= 1.5) {
       seeAll(approach);
       saveSeen();
-    } else if (approach && ui.started && (live.travelTo || !live.seen.has(approach)) && !ui.open && !arrival.id && !mustFinish(seal) && t - live.lastArrivalEnd > 4 && live.movedSinceArrival) {
+    } else if (approach && ui.started && (live.travelTo || !live.seen.has(approach)) && !ui.open && !arrival.id && !mustFinish(seal) && t - live.lastArrivalEnd > 6 && Math.hypot(seal.x - live.arrivalPos.x, seal.z - live.arrivalPos.z) >= 12) {
       if (live.travelTo) {
         for (const g of GROUP.get(approach) ?? [approach]) live.seen.delete(g);
         live.travelTo = null;

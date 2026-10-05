@@ -45,6 +45,7 @@ import Outfit, { HEAD_RADIUS } from "../Outfit";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { buildSealD, FLIPPER_REST, MOUTH, PIVOT, SKULL } from "./D-parts";
 import { CutLook, CutNails } from "./CutLook";
+import { inkHull, lockMaterial, toonPatch } from "../toon";
 
 // where the cutscene moves read the pup mouth and nose, world space (written every frame of a scene)
 live.anchors ??= { mouth: new Vector3(), nose: new Vector3() };
@@ -90,22 +91,24 @@ const HOOKS = {
 // The pup's look-round on an arrival with no stage (reduced motion), seconds.
 const LOOK_ROUND = 5.4;
 
+// A coat mesh with its ink hull as a child (a child of the mesh, not a sibling: the
+// docks count the pup's groups by their children). Both lock their material so a
+// pocket's twin swap never reaches the pup.
+function Toon({ geometry, coat, ink, hull }) {
+  return (
+    <mesh ref={(o) => o && lockMaterial(o, coat)} geometry={geometry} material={coat} castShadow receiveShadow>
+      <mesh ref={(o) => o && lockMaterial(o, ink)} geometry={geometry} material={ink} visible={hull} />
+    </mesh>
+  );
+}
+
 function materials() {
   return {
-    coat: new MeshPhysicalMaterial({
-      vertexColors: true,
-      roughness: 0.5,
-      clearcoat: 0.45,
-      clearcoatRoughness: 0.3,
-      sheen: 0.5,
-      sheenColor: new Color("#e4ecff"),
-      sheenRoughness: 0.45,
-      emissive: new Color("#000000"),
-      emissiveIntensity: 0,
-    }),
+    coat: toonPatch(new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, emissive: new Color("#000000"), emissiveIntensity: 0 })),
     eye: new MeshPhysicalMaterial({ vertexColors: true, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.04 }),
     glint: new MeshBasicMaterial({ color: "#ffffff", toneMapped: false }),
-    mouth: new MeshStandardMaterial({ vertexColors: true, roughness: 0.55 }),
+    mouth: toonPatch(new MeshStandardMaterial({ vertexColors: true, roughness: 1 })),
+    ink: inkHull(),
   };
 }
 
@@ -191,6 +194,7 @@ export default function SealD({ pose, near, drive, headRef }) {
   // JUMP_IN: only when the intro was up as the pup mounted, so ?play and
   // ?spawn= (started before the first frame) never hop.
   const started = useUi((s) => s.started);
+  const tier = useUi((s) => s.tier);
   const [hopArmed] = useState(() => !getUi().started);
   const fx = useRef({
     shut: 0, hold: 0, squish: 0, squishV: 0, moving: false,
@@ -222,6 +226,8 @@ export default function SealD({ pose, near, drive, headRef }) {
   const shared = useMemo(() => ({ phase: 0, amp: 0, fly: 0, crouch: 0, water: 0, calm: 0, sign: 0, fist: 0, raise: 0, point: 0, power: 0, soar: 0 }), []);
 
   useFrame((state, delta) => {
+    mats.ink.uniforms.uPx.value = (tier >= 2 ? 2.2 : 1.6) * state.gl.getPixelRatio();
+    state.gl.getDrawingBufferSize(mats.ink.uniforms.uRes.value);
     const d = drive;
     const f = fx.current;
     const t = d.t;
@@ -505,37 +511,39 @@ export default function SealD({ pose, near, drive, headRef }) {
   });
 
   const { coat } = mats;
+  const hullBig = true; // body and head: every tier
+  const hullAll = tier >= 2; // flippers and tail: T2 and up
   const shoulder = rel(PIVOT.shoulder, PIVOT.rear);
   const neckAt = rel(PIVOT.neck, PIVOT.rear);
   return (
     <group ref={hop}>
       <group ref={body}>
         <group ref={rear} position={PIVOT.rear}>
-          <mesh geometry={parts.body} material={coat} castShadow receiveShadow />
+          <Toon geometry={parts.body} coat={coat} ink={mats.ink} hull={hullBig} />
           <group ref={flipL} position={shoulder}>
-            <mesh geometry={parts.flipper} material={coat} castShadow receiveShadow />
+            <Toon geometry={parts.flipper} coat={coat} ink={mats.ink} hull={hullAll} />
             <CutNails />
           </group>
           <group scale={[-1, 1, 1]}>
             <group ref={flipR} position={shoulder}>
-              <mesh geometry={parts.flipper} material={coat} castShadow receiveShadow />
+              <Toon geometry={parts.flipper} coat={coat} ink={mats.ink} hull={hullAll} />
               <mesh ref={digits} geometry={digitsGeo} material={digitsMat} position={DIGITS_AT} visible={false} castShadow />
               <CutNails />
             </group>
           </group>
           <group ref={tail} position={rel(PIVOT.tail, PIVOT.rear)}>
-            <mesh geometry={parts.tail} material={coat} castShadow receiveShadow />
+            <Toon geometry={parts.tail} coat={coat} ink={mats.ink} hull={hullAll} />
           </group>
           <group ref={neck} position={neckAt}>
             <group ref={headRef} position={rel(PIVOT.head, PIVOT.neck)}>
-              <mesh geometry={parts.head} material={coat} castShadow receiveShadow />
+              <Toon geometry={parts.head} coat={coat} ink={mats.ink} hull={hullBig} />
               <group ref={eyes} position={parts.eyePivot}>
                 <mesh geometry={parts.lenses} material={mats.eye} />
                 <mesh ref={glints} geometry={parts.glints} material={mats.glint} />
               </group>
               <mesh ref={happyEyes} geometry={parts.happyEyes} material={mats.eye} visible={false} />
               <mesh ref={shutEyes} geometry={parts.shutEyes} material={mats.eye} visible={false} />
-              <mesh ref={mouth} geometry={parts.mouth} material={mats.mouth} position={MOUTH} visible={false} />
+              <mesh ref={(o) => { mouth.current = o; if (o) lockMaterial(o, mats.mouth); }} geometry={parts.mouth} material={mats.mouth} position={MOUTH} visible={false} />
               <object3D ref={nose} position={[0, -0.06, 0.6]} />
               <CutLook />
               <group ref={outfit} scale={OUTFIT_SCALE}>

@@ -24,10 +24,12 @@ uniform float uRing;     // 0..1 the shockwave's progress, or -1
 uniform vec3 uColor;
 uniform float uTime;
 uniform float uAspect;
+uniform float uFringe;  // the film stage's lens fringe, 0 at rest
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+  if (uStrength < 0.001 && uAmbient < 0.001 && uRing < 0.0 && uFringe < 0.0001) { outputColor = inputColor; return; }
   vec2 c = uv - 0.5;
   vec2 ca = c * vec2(uAspect, 1.0);
   float r = length(ca);
@@ -44,7 +46,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec2 u = uv + w;
 
   // chromatic split, strongest at the edges
-  float split = (0.014 * uStrength + 0.012 * ringAmt) * (0.3 + r);
+  float split = (0.014 * uStrength + 0.012 * ringAmt) * (0.3 + r) + uFringe * r * r;
   vec3 col;
   col.r = texture2D(inputBuffer, u + c * split).r;
   col.g = texture2D(inputBuffer, u).g;
@@ -108,6 +110,7 @@ export class RadiationPovEffect extends Effect {
         ["uColor", new Uniform(new Color("#ffffff"))],
         ["uTime", new Uniform(0)],
         ["uAspect", new Uniform(1)],
+        ["uFringe", new Uniform(0)],
       ]),
     });
     this.colorHex = null;

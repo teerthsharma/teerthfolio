@@ -13,6 +13,7 @@ import { hash, merge, paint, smooth } from "./geo";
 import { word } from "./lettering";
 import { archBay, floor, floorY, groundRing, ring, rome, skyGeometry, stands } from "./world";
 import { N } from "./story";
+import { faceMesh } from "../../cel";
 
 export const COUNTS = { flakes: 260, petals: 110, flowers: 28, bubbles: 40, dust: 70, fists: 14, sparks: 8 };
 
@@ -136,6 +137,7 @@ export function build(L, W, H) {
   m.dv.armPivot.position.set(...dv.shoulder);
   m.dv.armPivot.add(m.dv.arm);
   m.dv.g.add(m.dv.body, m.dv.hairPivot, m.dv.armPivot);
+  m.dv.g.add(faceMesh({ eyes: { shape: "sharp", iris: "#e8386a", sclera: "#f6ecd8" }, brow: { tilt: 0.45, color: "#5a2040", thick: 0.1 }, mouth: { kind: "flat" } }, dv.head, 0.145, 0.85)); // Diavolo: hard brow, hard eyes
   m.kc = new Mesh(tg(kingCrimson()), fres);
   const mi = mista();
   m.mista = { g: new Group(), body: new Mesh(tg(mi.body), fres), hat: new Mesh(tg(mi.hat), fres), brim: new Mesh(tg(mi.brim), fres) };

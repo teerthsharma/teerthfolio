@@ -1,10 +1,11 @@
 // THE DRAWN FIGURES: Touma, Kuroko, the colony pups, and the pup's school jacket. Solid deep-navy silhouettes
-// with a cream outline (an inverted hull), as drawn figures in a drawn city. Shape and pose only: no faces.
+// with a cream outline (an inverted hull), as drawn figures in a drawn city. Touma and Kuroko carry a drawn face plate (cel.js).
 // Each vertex carries aW (how far it sways in the shot's wind: hair, tails, hem) and aC (cream: an armband, a hem).
 
 import { Box3, BoxGeometry, ConeGeometry, CylinderGeometry, Float32BufferAttribute, Group, IcosahedronGeometry, Mesh, Quaternion, SphereGeometry, Vector3 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { hullOf, silMaterial } from "./blue";
+import { faceMesh } from "../../cel";
 
 const UP = new Vector3(0, 1, 0);
 const Q = new Quaternion();
@@ -99,12 +100,14 @@ export function colonyGeometry() {
 }
 
 // the figure (navy) and its outline (cream hull) meshes for one geometry
-export function figure(geo, hullW = 0.028) {
+export function figure(geo, hullW = 0.028, face = null) {
   const body = new Mesh(geo, silMaterial(false));
   const hull = new Mesh(hullOf(geo, hullW), silMaterial(true));
   for (const m of [body, hull]) m.frustumCulled = false;
   const g = new Group();
   g.add(hull, body);
+  const fm = face ? faceMesh(face.spec, face.head, face.r, 0.9) : null;
+  if (fm) g.add(fm);
   return {
     group: g,
     dispose() {
@@ -112,6 +115,7 @@ export function figure(geo, hullW = 0.028) {
       hull.geometry.dispose();
       body.material.dispose();
       hull.material.dispose();
+      if (fm) (fm.geometry.dispose(), fm.material.dispose());
     },
   };
 }

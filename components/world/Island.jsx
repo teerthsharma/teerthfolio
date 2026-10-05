@@ -10,7 +10,7 @@ import { Center, Text3D } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { TIERS } from "../../lib/world/quality";
-import { live, useUi } from "../../lib/world/store";
+import { getUi, live, useUi } from "../../lib/world/store";
 import Instances from "./Instances";
 import { buildIsland } from "./island/build";
 import { C, LIGHT, mat } from "./palette";
@@ -25,24 +25,46 @@ const SHADOW_HALF = 28;
 // screen is -z), so the pup's edge reads against its own shade. No shadow.
 const RIM = [14, 10, -8];
 
+// STATIC SHADOW MAP. The island does not move, so the map is redrawn only when
+// something that casts can have changed: the sun's snapped cell (a 2 m grid, so
+// the texels do not swim as the seal walks), the seal moving, a cutscene, or
+// the slow tick that catches penguins, props and swinging signs (every 6th
+// frame at the rungs that drew every frame; the lower rungs keep their own
+// shadowEvery). A still island therefore draws its shadow pass at 1/6 rate.
+const SNAP = 2;
+const MOVER_TICK = 6;
+
 function Sun() {
   const light = useRef();
   const { shadow: map, shadowEvery } = TIERS[useUi((s) => s.tier) ?? 0];
   const gl = useThree((s) => s.gl);
   const frame = useRef(0);
+  const cell = useRef("");
+  const last = useRef({ x: 1e9, z: 1e9 });
   useLayoutEffect(() => {
-    gl.shadowMap.autoUpdate = shadowEvery === 1;
+    gl.shadowMap.autoUpdate = false;
     gl.shadowMap.needsUpdate = true;
-  }, [gl, shadowEvery]);
+    cell.current = "";
+  }, [gl, shadowEvery, map]);
   useFrame(() => {
     const l = light.current;
     if (!l) return;
     const { x, z } = live.seal;
-    l.position.set(x + SUN[0], SUN[1], z + SUN[2]);
-    l.target.position.set(x, 0, z);
+    const cx = Math.round(x / SNAP) * SNAP;
+    const cz = Math.round(z / SNAP) * SNAP;
+    l.position.set(cx + SUN[0], SUN[1], cz + SUN[2]);
+    l.target.position.set(cx, 0, cz);
     l.target.updateMatrixWorld();
     frame.current += 1;
-    if (shadowEvery > 1 && frame.current % shadowEvery === 0) gl.shadowMap.needsUpdate = true;
+    const key = `${cx},${cz}`;
+    const moved = Math.abs(x - last.current.x) + Math.abs(z - last.current.z) > 1e-3;
+    last.current.x = x;
+    last.current.z = z;
+    const every = shadowEvery === 1 ? MOVER_TICK : shadowEvery;
+    if (key !== cell.current || getUi().cutscene || (moved && shadowEvery === 1) || frame.current % every === 0) {
+      gl.shadowMap.needsUpdate = true;
+      cell.current = key;
+    }
   });
   return (
     <directionalLight
@@ -111,7 +133,7 @@ export default function Island() {
   return (
     <>
       <color attach="background" args={[C.sky]} />
-      <fog attach="fog" args={[C.sky, 80, 190]} />
+      <fog attach="fog" args={[C.sky, 55, 175]} />
       <hemisphereLight args={[LIGHT.hemiSky, LIGHT.hemiGround, LIGHT.hemiIntensity]} />
       <Sun />
       <Rim />

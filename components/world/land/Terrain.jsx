@@ -15,7 +15,8 @@
 // anywhere on it and the seal slides there.
 
 import { useMemo } from "react";
-import { BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } from "three";
+import { litTint } from "../../../lib/world/litTint";
+import { BufferAttribute, BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } from "three";
 import { ISLAND_RADIUS } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
 import { fbm, groundAt, KEEP_TOP } from "../../../lib/world/terrain";
@@ -234,8 +235,57 @@ function buildTerrain() {
   geo.setAttribute("normal", new Float32BufferAttribute(N, 3));
   geo.setAttribute("color", new Float32BufferAttribute(COL, 3));
   geo.setIndex(index);
-  geo.computeBoundingSphere();
-  return geo;
+  return tiles(geo);
+}
+
+// TILES: one 104k-triangle mesh has one bounding sphere that is always in
+// view, so every frame shaded all ~194k vertices (and every click ray tested
+// them all). Split by triangle centroid into TILE m squares, each its own
+// geometry with its own bounding sphere (three culls them), vertices
+// re-indexed per tile (uint16 when it fits). Same vertices, same normals, same
+// colours: the picture is identical, only what is off screen stops costing.
+const TILE = 40;
+function tiles(geo) {
+  const P = geo.attributes.position.array;
+  const N = geo.attributes.normal.array;
+  const K = geo.attributes.color.array;
+  const idx = geo.index.array;
+  const by = new Map();
+  for (let t = 0; t < idx.length; t += 3) {
+    const cx = (P[idx[t] * 3] + P[idx[t + 1] * 3] + P[idx[t + 2] * 3]) / 3;
+    const cz = (P[idx[t] * 3 + 2] + P[idx[t + 1] * 3 + 2] + P[idx[t + 2] * 3 + 2]) / 3;
+    const key = Math.floor((cx - X0) / TILE) * 64 + Math.floor((cz - Z0) / TILE);
+    let list = by.get(key);
+    if (!list) by.set(key, (list = []));
+    list.push(idx[t], idx[t + 1], idx[t + 2]);
+  }
+  const out = [];
+  for (const list of by.values()) {
+    const remap = new Map();
+    const p = [];
+    const n = [];
+    const k = [];
+    const ix = list.map((v) => {
+      let j = remap.get(v);
+      if (j === undefined) {
+        j = remap.size;
+        remap.set(v, j);
+        p.push(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]);
+        n.push(N[v * 3], N[v * 3 + 1], N[v * 3 + 2]);
+        k.push(K[v * 3], K[v * 3 + 1], K[v * 3 + 2]);
+      }
+      return j;
+    });
+    const g = new BufferGeometry();
+    g.setAttribute("position", new Float32BufferAttribute(p, 3));
+    g.setAttribute("normal", new Float32BufferAttribute(n, 3));
+    g.setAttribute("color", new Float32BufferAttribute(k, 3));
+    g.setIndex(new BufferAttribute(remap.size < 65536 ? new Uint16Array(ix) : new Uint32Array(ix), 1));
+    g.computeBoundingSphere();
+    out.push(g);
+  }
+  geo.dispose();
+  return out;
 }
 
 // Click or tap on the land: the seal slides there.
@@ -273,11 +323,12 @@ function snowMaterial() {
       );
   };
   m.customProgramCacheKey = () => "snow-sparkle";
+  litTint(m, { cut: false }); // terrain keeps no cutaway: a hole in the ground shows the sea
   return m;
 }
 
 export default function Terrain() {
-  const geometry = useMemo(buildTerrain, []);
+  const geometries = useMemo(buildTerrain, []);
   const material = useMemo(snowMaterial, []);
-  return <mesh geometry={geometry} material={material} receiveShadow onClick={walkHere} />;
+  return geometries.map((geometry, i) => <mesh key={i} geometry={geometry} material={material} receiveShadow onClick={walkHere} />);
 }

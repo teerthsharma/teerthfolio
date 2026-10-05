@@ -13,14 +13,15 @@
 // where that wide looks. Draws: sky 1, planet 1, near horrors 4, far graves 1, plinths 1, shard 1 = 9.
 // Triangles: planet 12.5k, far 1,400 x ~60, near 56 x ~600. Prewarmed.
 
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
-import { Group, InstancedMesh, Mesh, Object3D, Quaternion, Vector3 } from "three";
+import { AdditiveBlending, BufferAttribute, BufferGeometry, Group, InstancedMesh, Mesh, Object3D, Points, Quaternion, ShaderMaterial, Vector3 } from "three";
+import { sceneT } from "../../../../lib/world/cutscene/clock";
 import { live } from "../../../../lib/world/store";
 import { WATER_Y, heightAt } from "../../../../lib/world/terrain";
 import { registerWarm, takeWarm } from "../prewarm";
 import { Speaker, Stage, moveAt, signAt, smooth, useCutFrame } from "../kit";
-import { DEAD_PRS, PLANET_R, epitaphs, planetGeometry, planetMaterial, quadGeometry, rowAttribute, skyMaterial } from "./p-epsilon-hollow/graveyard";
+import { DEAD_PRS, PLANET_R, planetGeometry, planetMaterial, quadGeometry, rowAttribute, skyMaterial } from "./p-epsilon-hollow/graveyard";
 import { HORRORS, farHorror, horrorMaterial, plinthGeometry, shardGeometry } from "./p-epsilon-hollow/horrors";
 
 const UP = new Vector3(0, 1, 0);
@@ -101,7 +102,7 @@ function buildPlanet() {
   // the names, small: low plinths in an arc behind the pup, each lit like a rune
   const pg = plinthGeometry();
   pg.setAttribute("aRow", rowAttribute(NAMED));
-  const named = new InstancedMesh(pg, horrorMaterial(epitaphs()), NAMED);
+  const named = new InstancedMesh(pg, horrorMaterial(), NAMED);
   for (let i = 0; i < NAMED; i++) {
     const a = Math.PI * (1.0 + (i / NAMED) * 1.0) + (r() - 0.5) * 0.04;
     const d = 5 + (i % 3) * 1.9 + r() * 0.4; // three staggered rows, so no two names overlap
@@ -120,6 +121,27 @@ function buildPlanet() {
   drawn.frustumCulled = false;
   mats.push(sky.material, drawn.material);
   return { root, sky, drawn, mats };
+}
+// The pup in the wide (560 m: under a pixel): a small white upright pill with a halo, on the rim, in screen pixels,
+// fading as the camera comes down to it.
+function beacon() {
+  const g = new BufferGeometry();
+  g.setAttribute("position", new BufferAttribute(new Float32Array(3), 3));
+  const m = new ShaderMaterial({
+    transparent: true, depthWrite: false, depthTest: false, blending: AdditiveBlending,
+    uniforms: { uA: { value: 0 }, uPx: { value: 1 } },
+    vertexShader: "uniform float uPx; void main(){ gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_PointSize = 44.0 * uPx; }",
+    fragmentShader: `uniform float uA; void main(){
+      vec2 p = (gl_PointCoord - 0.5) * 2.0; p.y = -p.y;
+      float halo = exp(-dot(p, p) * 5.0) * 0.55;
+      vec2 q = vec2(p.x, max(abs(p.y + 0.02) - 0.34, 0.0));
+      float pill = smoothstep(0.17, 0.12, length(q + vec2(0.0, 0.0)));
+      gl_FragColor = vec4(vec3(1.0, 0.98, 0.92) * (halo + pill * 1.4), 1.0) * uA; }`,
+  });
+  const pts = new Points(g, m);
+  pts.frustumCulled = false;
+  pts.renderOrder = 8;
+  return pts;
 }
 registerWarm("p-epsilon-hollow", buildPlanet);
 
@@ -144,6 +166,7 @@ export default function Move(cut) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const g = useMemo(() => takeWarm("p-epsilon-hollow", buildPlanet), []);
+  const dot = useMemo(beacon, []);
   const ground = useMemo(() => Math.max(heightAt(live.seal.x, live.seal.z), WATER_Y), []);
   useEffect(() => {
     const s = live.seal;
@@ -158,6 +181,18 @@ export default function Move(cut) {
       for (const m of g.mats) m.dispose();
     };
   }, [g, card, camera, ground]);
+
+  // the pup turns to face the lens once the dive lands, so the eye rises behind it (after Seal.jsx places it)
+  const root = useThree((s) => s.scene);
+  useFrame((state) => {
+    const seal = root.getObjectByName("seal");
+    if (!seal || !live.arrival.id || mode !== "full") return;
+    const t = sceneT(live.arrival.id, state.clock.elapsedTime - live.arrival.start);
+    const k = smooth(tl.bloom[1], tl.bloom[1] + 0.8, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
+    const want = Math.atan2(state.camera.position.x - seal.position.x, state.camera.position.z - seal.position.z);
+    const y = seal.rotation.y;
+    seal.rotation.y = y + Math.atan2(Math.sin(want - y), Math.cos(want - y)) * k;
+  }, -0.5);
 
   useCutFrame((t, state) => {
     const still = mode !== "full";
@@ -185,13 +220,18 @@ export default function Move(cut) {
     d.position.set(s.x + SLEEPER[0] * (1 - k) + 1.0 * k, ground - 1.6 + 2.0 * draw, s.z + SLEEPER[1] * (1 - k) - 0.4 * k);
     d.rotation.set(0, 0, 0.25 * draw - 2.4 * swing);
 
+    const sp = live.seal;
+    dot.position.set(sp.x, ground + 0.9, sp.z);
+    dot.material.uniforms.uA.value = show * smooth(60, 200, camera.position.distanceTo(dot.position));
+    dot.material.uniforms.uPx.value = state.gl.getPixelRatio();
+    dot.visible = dot.material.uniforms.uA.value > 0.01;
     if (still) return;
     // the caster, upright: flippers in the hand sign that opens the domain, until it reaches for the shard
     const turn = moveAt(tl, t);
     live.pose.sign = Math.max(signAt(tl, t), smooth(0.2, 0.9, t) * (1 - smooth(tl.move[0] - 0.6, tl.move[0], t))) * (1 - turn);
     live.pose.raise = Math.max(live.pose.raise, draw * (1 - swing));
     live.pose.point = Math.max(live.pose.point, swing * (1 - smooth(tl.collapse[1], tl.duration, t)));
-    live.pose.sit = Math.max(live.pose.sit, 1.4 * show); // sits up on its tail: upright on its world, small among the graves
+    live.pose.sit = 0.8 * show; // sat up, a lighter sit than the 1.4 teardrop that tipped back to the sky
   });
 
   return (
@@ -201,6 +241,7 @@ export default function Move(cut) {
       <primitive object={g.sky} />
       <primitive object={g.root} />
       <primitive object={g.drawn} />
+      <primitive object={dot} />
     </>
   );
 }

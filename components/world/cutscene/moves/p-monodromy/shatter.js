@@ -142,6 +142,12 @@ const VEIL_FRAG = /* glsl */ `
     #else
       float v = length(p) * 0.9;
       vec3 col = vec3(0.012, 0.016, 0.04) + vec3(0.02, 0.04, 0.09) * (1.0 - v);
+      // never a blank: Baal's sigil in gold leaf (two rings, an eight-point star) turning in the dark between the shatter and the island
+      float r = length(p);
+      float a = atan(p.y, p.x) + uTime * 0.5;
+      float ring = exp(-pow((r - 0.22) / 0.006, 2.0)) + exp(-pow((r - 0.34) / 0.004, 2.0)) * 0.7;
+      float star = exp(-pow(abs(sin(a * 4.0)) * r / 0.01, 2.0)) * smoothstep(0.34, 0.1, r);
+      col += vec3(1.0, 0.72, 0.22) * (ring + star * 0.6) * 0.8 + vec3(0.18, 0.1, 0.4) * exp(-r * 5.0);
       gl_FragColor = vec4(col, uAmt);
     #endif
     #include <tonemapping_fragment>

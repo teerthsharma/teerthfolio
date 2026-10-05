@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { CUE_NAMES } from "../lib/world/cutscene/cues.js";
 import { CARDS, cardFor } from "../lib/world/cutscene/cards/index.js";
-import { PACE, realAt, realLength, sceneT } from "../lib/world/cutscene/clock.js";
+import { HOLD, PACE, exitAt, realAt, realLength, sceneT } from "../lib/world/cutscene/clock.js";
 import { BUILDS, MIN_BEAT, MIN_BUBBLE, MIN_CREDIT, BREATH, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
 import { DISPLAY, TIERS, classify, dprFor, displayTier, gpuName } from "../lib/world/quality.js";
 import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH, mustFinish } from "../lib/world/loop.js";
@@ -1468,6 +1468,19 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
       assert.ok(total >= 20 && total <= 30, `${id}: ${total.toFixed(1)} s, not 20 to 30`);
       console.log(`pace ${id}: ${total.toFixed(1)} s; ` + wins.map(([l, f, t]) => (R(t) - R(f)).toFixed(2)).join("/") + (c.credit ? ` credit ${(R(T.collapse[0]) - R(T.credit)).toFixed(2)}` : ""));
     }
+    // THE RETURN LAW: the pocket holds through the credit and the wipe is the last EXIT s of the clock
+    const H = HOLD[id];
+    if (H) {
+      assert.ok(H[1] === T.collapse[0] && H[0] < H[1] && (PACED(id) ? H.length === 2 : H[2] === T.duration), `${id}: HOLD does not match its card`);
+      let v = -1;
+      for (let r = 0; r <= realLength(id, T.duration); r += 0.05) {
+        const s = sceneT(id, r);
+        assert.ok(s >= v - 1e-9, `${id}: the pocket clock goes back at ${r.toFixed(2)} s`);
+        v = s;
+        if (r < exitAt(id)) assert.ok(s < H[0], `${id}: the pocket breaks at ${r.toFixed(2)} s, before the credit ends`);
+      }
+      assert.ok(Math.abs(sceneT(id, realLength(id, T.duration)) - T.duration) < 1e-6 && exitAt(id) + 1.2 <= realLength(id, T.duration) + 1e-9, `${id}: the wipe ends on the last frame`);
+    }
     let beat = 0;
     for (let t = 0; t < T.duration; t += 0.01) {
       const k = beatAt(T, t);
@@ -1540,6 +1553,7 @@ for (const [renderer, tier] of [
   ["ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)", 2],
   ["Apple GPU", 2],
   ["ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)", 3],
+  ["ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Laptop GPU (0x00002860) Direct3D11 vs_5_0 ps_5_0, D3D11)", 3],
   ["ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)", 3],
   ["ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)", 4],
   ["ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11 vs_5_0 ps_5_0, D3D11)", 4],
