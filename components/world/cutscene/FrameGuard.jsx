@@ -30,7 +30,7 @@
 //      shot has been good for 1 s. A jump over CUT_M is a cut: the spring resets.
 // The authored camera is put back first (priority -3), so a move that lerps or
 // aims never sees the composer.
-// A card opts out per beat: card.frame = { off: true | [beats], allowSmall: [beats] }.
+// A card opts out per beat only: card.frame = { off: [beats], allowSmall: [beats] } (a whole-scene off is ignored).
 // ?debug=frame exposes window.__frame (scripts/frame-audit.mjs, scripts/pup-visibility.mjs);
 // ?debug=frame&guard=off turns the correction off (for before/after captures).
 
@@ -342,7 +342,8 @@ export default function FrameGuard() {
     const cut = active ? cutFor(id) : null;
     const opt = cut?.card.frame && typeof cut.card.frame === "object" ? cut.card.frame : null;
     const beat = getUi().beat;
-    const guarding = active && opt?.off !== true && !inBeat(opt?.off, beat);
+    // one law: a card may exempt named beats, never the whole scene (`off: true`, p-monodromy, is overridden)
+    const guarding = active && !inBeat(opt?.off, beat);
     s.frame++;
     const reset = () => {
       CUR.set(0, 0, 0);
