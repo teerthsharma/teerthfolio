@@ -13,6 +13,7 @@ import { BUILDS, MIN_BEAT, MIN_BUBBLE, MIN_CREDIT, BREATH, POSES, READ, beatAt, 
 import { DISPLAY, TIERS, classify, dprFor, displayTier, gpuName } from "../lib/world/quality.js";
 import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH, mustFinish } from "../lib/world/loop.js";
 import { AWAKE, LINE, auraAt, awakeBeat, awakeCredit, liftAt, skyAt } from "../lib/world/awakening.js";
+import { cancelTravel, gateApproach } from "../lib/world/travel.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
 import { DISTRICTS, ISLAND_RADIUS, NORTH_RIM, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, GLACIER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
@@ -1634,6 +1635,18 @@ for (const [k, g] of Object.entries(buildConcreteWall())) assert.ok(g, `dam-wall
   assert.ok(mustFinish({ ride: 0, air: 0.5 }), "a seal mid-throw is not held back from an arrival");
   for (let i = 0; i < 120 * 20 && s.ride; i++) stepSeal(s, {}, 1 / 120, world);
   assert.ok(!s.ride && s.ridePitch === 0 && !mustFinish(s), "a finished ride left the body pitched");
+}
+
+// A list trip (lib/world/travel.js): passing another dock fires nothing, the
+// target's own scene fires on arrival, a fresh input cancels the trip.
+{
+  const as = (id) => id;
+  assert.equal(gateApproach("a", "b", false, as), null, "a trip fired another dock's arrival");
+  assert.equal(gateApproach("a", null, true, as), "a", "arrival at the trip's target did not fire it, seen or not");
+  assert.equal(gateApproach(null, "b", false, as), "b", "normal play lost its proximity arrival");
+  const l = { travelTo: "a", target: { x: 1, z: 1 }, pendingOpen: "a" };
+  cancelTravel(l);
+  assert.ok(!l.travelTo && !l.target && !l.pendingOpen, "manual input did not cancel the trip");
 }
 
 console.log(`world check passed: quality ladder, cutscene cards and moves, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, toys (TNT, stack, pins, cones), throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks`);

@@ -15,6 +15,7 @@ import { awakeBeat, awakeMode } from "../../lib/world/awakening";
 import { WHIRLPOOL } from "../../lib/world/river";
 import { getUi, live, setUi } from "../../lib/world/store";
 import { CARDS, cardFor } from "../../lib/world/cutscene/cards";
+import { cancelTravel, gateApproach } from "../../lib/world/travel";
 import { warmTick } from "./cutscene/prewarm";
 
 const COLLIDERS = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
@@ -166,10 +167,7 @@ export default function Controller() {
     }
     const holding = arrival.id && t - arrival.start < arrivalHold(arrival.id);
     const input = ui.open || ui.list || holding ? null : keyInput(live.keys) || live.stick;
-    if (input) {
-      live.target = null;
-      live.pendingOpen = null;
-    }
+    if (input) cancelTravel(live);
 
     // THE AWAKENING: the pup coasts to a stop at the loop's exit and stays
     // there while the scene plays round it.
@@ -253,12 +251,22 @@ export default function Controller() {
     // place only counts as seen once its arrival has actually started, so an
     // open panel or another arrival never burns it. With no cutscene to play
     // (?hud=off, for captures) nothing fires and nothing is burnt.
-    const near0 = playsAs(nearestUnseen(seal)?.id ?? null);
+    // On a list trip (live.travelTo) only the chosen place's scene may fire,
+    // seen or not; every other approach is skipped and left unseen.
+    const tp = live.travelTo ? PLACES.find((p) => p.id === live.travelTo) : null;
+    if (live.travelTo && !tp) live.travelTo = null;
+    const inReach = tp ? Math.hypot(seal.x - tp.x, seal.z - tp.z) - tp.radius - MOTION.sealRadius < APPROACH_REACH : false;
+    const near0 = gateApproach(live.travelTo, playsAs(nearestUnseen(seal)?.id ?? null), inReach, playsAs);
     const approach = near0 && cutsceneMode(near0) ? near0 : null;
+    if (live.travelTo && inReach && !approach) live.travelTo = null; // no scene to play: the trip ends
     if (approach && ui.started && !live.seen.has(approach) && t <= 1.5) {
       seeAll(approach);
       saveSeen();
-    } else if (approach && ui.started && !live.seen.has(approach) && !ui.open && !arrival.id && !mustFinish(seal) && t - live.lastArrivalEnd > 4 && live.movedSinceArrival) {
+    } else if (approach && ui.started && (live.travelTo || !live.seen.has(approach)) && !ui.open && !arrival.id && !mustFinish(seal) && t - live.lastArrivalEnd > 4 && live.movedSinceArrival) {
+      if (live.travelTo) {
+        for (const g of GROUP.get(approach) ?? [approach]) live.seen.delete(g);
+        live.travelTo = null;
+      }
       seeAll(approach);
       saveSeen();
       arrival.id = approach;
@@ -273,7 +281,7 @@ export default function Controller() {
     // The seal's own play (the Tensura card, on the SEAL SEAL statue): it fires once a session, when the seal comes home to the plinth after a walk.
     const homeGap = Math.hypot(seal.x - SPAWN.x, seal.z - SPAWN.z);
     if (homeGap > 16) awayFromSpawn = true;
-    if (awayFromSpawn && homeGap < 4 && cutsceneMode(SPAWN_PLAY) && ui.started && !live.seen.has(SPAWN_PLAY) && !ui.open && !arrival.id && !mustFinish(seal) && t - live.lastArrivalEnd > 4) {
+    if (awayFromSpawn && homeGap < 4 && cutsceneMode(SPAWN_PLAY) && ui.started && !live.travelTo && !live.seen.has(SPAWN_PLAY) && !ui.open && !arrival.id && !mustFinish(seal) && t - live.lastArrivalEnd > 4) {
       awayFromSpawn = false;
       seeAll(SPAWN_PLAY);
       saveSeen();
@@ -291,6 +299,7 @@ export default function Controller() {
     if (live.pendingOpen && !arrival.id && near === live.pendingOpen && seal.speed < 1.2) {
       setUi({ open: near });
       live.pendingOpen = null;
+      live.travelTo = null;
     }
   }, -1.5);
   return null;

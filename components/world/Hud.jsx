@@ -41,6 +41,7 @@ function sendTo(place) {
   const dock = dockPoint(place);
   live.target = { x: dock.x, z: dock.z };
   live.pendingOpen = place.id;
+  live.travelTo = place.id;
   setUi({ list: false, open: null, started: true });
 }
 
