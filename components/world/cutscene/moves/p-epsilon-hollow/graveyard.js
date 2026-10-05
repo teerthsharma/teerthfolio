@@ -128,6 +128,13 @@ export function skyMaterial() {
         float horizon = smoothstep(0.168, 0.16, r);
         col = mix(col, vec3(0.0), horizon);
         col = mix(col, vec3(1.0, 0.95, 0.85), photon);
+        // the EYE in the maw: a violet-gold iris inside the horizon, a vertical slit of pure void, watching
+        float ir = r / 0.15;
+        float iris = smoothstep(1.0, 0.92, ir) * smoothstep(0.25, 0.35, ir);
+        vec3 irisCol = mix(vec3(0.95, 0.7, 0.25), vec3(0.45, 0.15, 0.7), smoothstep(0.3, 0.95, ir)) * (0.6 + 0.5 * fbm(vec2(th * 8.0, ir * 6.0 - uTime * 0.3)));
+        col = mix(col, irisCol, iris * horizon);
+        float slit = smoothstep(0.018, 0.012, abs(p.x) - 0.06 * (1.0 - smoothstep(0.0, 0.13, abs(p.y)))) * smoothstep(0.15, 0.13, r);
+        col = mix(col, vec3(0.0), slit);
         float nearSide = disc * step(p.y, 0.0);
         col = mix(col, gold, max(nearSide, disc * (1.0 - horizon) * step(0.0, p.y)));
         // the horizon: a cold teal line and mist where the black sea meets the void
