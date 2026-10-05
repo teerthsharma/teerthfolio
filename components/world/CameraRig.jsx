@@ -15,6 +15,7 @@ import { useEffect, useRef } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { JUMP_IN, RADIATION, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { cutFor, cutView, cutsceneMode, viewAt } from "../../lib/world/cutscene/timeline";
+import { grammarFor, shot } from "../../lib/world/cutscene/camera";
 import { awakeFov, awakeMode, awakeView } from "../../lib/world/awakening";
 import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { MOTION } from "../../lib/world/motion";
@@ -72,6 +73,10 @@ const SPAWN_ZOOM = 0.55; // share the view pulls back by
 const SPAWN_RADIUS = 3; // m the seal may drift before the lean lets go
 const CUT_EYE = new Vector3();
 const CUT_LOOK = new Vector3();
+const G_OUT = { eye: [0, 0, 0], look: [0, 0, 0], fov: 0 };
+const G_FOLLOW = { eye: [0, 0, 0], look: [0, 0, 0] };
+const G_VIEW = { eye: [0, 0, 0], look: [0, 0, 0] };
+const G_SEAL = [0, 0, 0];
 
 // The overview before Start: high over the island centre, swaying slowly.
 const OVERVIEW_CENTRE = new Vector3(0, 0, -10);
@@ -367,11 +372,31 @@ export default function CameraRig() {
     }
     // THE CUTSCENE: ease onto the two-shot of the pup and its speaker, same
     // lens, and back to the follow as the stage collapses.
+    // THE GRAMMAR (cutscene/camera.js): zoom out, switch, zoom into the seal, settle, kill, home.
+    // Every dock but the Igloo; the drawing's own view still frames the seal.
+    baseFov.current ??= camera.fov;
+    const grammar = cutscene ? grammarFor(cutscene.card, cutscene.place) : null;
+    let gFov = null;
     if (cutscene) {
-      const k = viewAt(cutscene.tl, sceneT(arrival.id, t - arrival.start));
+      const st = sceneT(arrival.id, t - arrival.start);
       cutView(cutscene.card, cutscene.place, seal.x, seal.z, camera.aspect, CUT_EYE, CUT_LOOK);
-      camera.position.lerp(CUT_EYE, k);
-      lookAt.current.lerp(CUT_LOOK, k);
+      if (grammar) {
+        camera.position.toArray(G_FOLLOW.eye);
+        lookAt.current.toArray(G_FOLLOW.look);
+        CUT_EYE.toArray(G_VIEW.eye);
+        CUT_LOOK.toArray(G_VIEW.look);
+        G_SEAL[0] = seal.x;
+        G_SEAL[1] = Math.max(heightAt(seal.x, seal.z), WATER_Y);
+        G_SEAL[2] = seal.z;
+        shot(grammar, cutscene.tl, st, G_FOLLOW, G_VIEW, G_SEAL, baseFov.current, G_OUT);
+        camera.position.fromArray(G_OUT.eye);
+        lookAt.current.fromArray(G_OUT.look);
+        gFov = G_OUT.fov;
+      } else {
+        const k = viewAt(cutscene.tl, st);
+        camera.position.lerp(CUT_EYE, k);
+        lookAt.current.lerp(CUT_LOOK, k);
+      }
     }
     // THE AWAKENING (awakening.js): the calm close-up, the low angle under
     // the circles, the take-off and the flight high over the island; it
@@ -379,8 +404,7 @@ export default function CameraRig() {
     // back to the follow (nothing here is smoothed).
     let high = 0;
     const awake = awakeMode(arrival.id) === "full";
-    baseFov.current ??= camera.fov;
-    const fov = awake ? awakeFov(sceneT(arrival.id, t - arrival.start), baseFov.current) : baseFov.current;
+    const fov = awake ? awakeFov(sceneT(arrival.id, t - arrival.start), baseFov.current) : gFov ?? baseFov.current;
     if (camera.fov !== fov) {
       camera.fov = fov;
       camera.updateProjectionMatrix();
@@ -417,7 +441,14 @@ export default function CameraRig() {
       // Set, not ratcheted: a far plane that only grew (after one pulled-back
       // zoom or arrival flatten) kept the whole island in the frustum for good.
       // 260 is Scene.jsx's camera far; applyFlatten may raise it this frame.
-      const far = Math.max(260, f.far + extra);
+      // The drawing owns its fog and far plane while its stage is up (card.fog / camFar, camera.js) and hands
+      // them back the frame it collapses: these are set from the stored island values every frame.
+      const drawing = grammar && live.inStage;
+      if (drawing) {
+        sceneFog.near = grammar.fog.near;
+        sceneFog.far = grammar.fog.far;
+      }
+      const far = drawing ? grammar.camFar : Math.max(260, f.far + extra);
       if (camera.far !== far) {
         camera.far = far;
         camera.updateProjectionMatrix();
