@@ -8,19 +8,21 @@
 //   6-8.6     the seal draws one gravestone out of the ground like a sword
 //   8.6-26.7  it holds it; every stone is a PR that never landed; "Effort never gets wasted."
 //   26.7-28.2 the kill: it swings, the slash splits the domain and the island shows through the cut (the explained return)
-// The sky, the ground and the stones are written fragments (moves/p-epsilon-hollow/graveyard.js); the stones are two
-// InstancedMeshes (blank and named). Draws: sky 1, ground 1, stones 2, the drawn stone 1. Built by the shared prewarm.
+// The sky and the ground are written fragments (graveyard.js); the dead ideas are horrors laid in stone (horrors.js),
+// six instanced silhouettes and the named plinths. Draws: sky 1, ground 1, horrors 6, plinths 1, shard 1. Prewarmed.
 
 import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
-import { Group, InstancedMesh, Mesh, Object3D } from "three";
+import { Group, InstancedMesh, Mesh, Object3D, Vector3 } from "three";
 import { live } from "../../../../lib/world/store";
 import { registerWarm, takeWarm } from "../prewarm";
 import { Speaker, Stage, moveAt, signAt, smooth, useCutFrame } from "../kit";
-import { DEAD_PRS, epitaphs, groundGeometry, groundMaterial, quadGeometry, rowAttribute, skyMaterial, stoneGeometry, stoneMaterial } from "./p-epsilon-hollow/graveyard";
+import { DEAD_PRS, epitaphs, groundGeometry, groundMaterial, quadGeometry, rowAttribute, skyMaterial } from "./p-epsilon-hollow/graveyard";
+import { HORRORS, horrorMaterial, plinthGeometry, shardGeometry } from "./p-epsilon-hollow/horrors";
 
-const FIELD = 2600; // blank stones, to the horizon
-const NAMED = DEAD_PRS.length; // the near ones, carved
+const FWD = new Vector3();
+const NAMED = DEAD_PRS.length; // the near plinths, carved
+const SLEEPERS = 110; // per silhouette: six silhouettes, 660 horrors to the horizon
 
 function rand(seed) {
   let s = seed >>> 0;
@@ -33,43 +35,58 @@ function rand(seed) {
 function buildGraveyard() {
   const r = rand(4180);
   const o = new Object3D();
-  const geo = stoneGeometry();
-  const place = (mesh, i, x, z, s) => {
-    o.position.set(x, -0.05 - r() * 0.15, z);
-    o.rotation.set((r() - 0.5) * 0.22, (r() - 0.5) * 0.7, (r() - 0.5) * 0.22); // faces +z (the camera side), leaning
-    o.scale.setScalar(s);
-    o.updateMatrix();
-    mesh.setMatrixAt(i, o.matrix);
-  };
-  const field = new InstancedMesh(geo, stoneMaterial(), FIELD);
-  for (let i = 0; i < FIELD; i++) {
-    const a = r() * Math.PI * 2;
-    const d = 9 + Math.sqrt(r()) * 150; // uniform in area out to the mist
-    place(field, i, Math.cos(a) * d, Math.sin(a) * d, 0.9 + r() * 0.7);
-  }
-  const namedGeo = geo.clone();
-  namedGeo.setAttribute("aRow", rowAttribute(NAMED));
-  const named = new InstancedMesh(namedGeo, stoneMaterial(epitaphs()), NAMED);
-  for (let i = 0; i < NAMED; i++) {
-    // two loose rings round the seal's clearing, open toward the camera (+z)
-    const a = Math.PI * (1.15 + (i / NAMED) * 1.7) + (r() - 0.5) * 0.12;
-    const d = (i % 2 ? 4.6 : 6.4) + r() * 1.6;
-    place(named, i, Math.cos(a) * d, Math.sin(a) * d, 1.05);
-  }
-  for (const m of [field, named]) {
+  const meshes = [];
+  // the sleepers: each silhouette instanced, scattered to the horizon, half buried, turned and scaled; the camera side
+  // (+z, near) stays clear so the seal reads; the near ones are smaller, the far ones titanic
+  HORRORS.forEach((make, k) => {
+    const m = new InstancedMesh(make(), horrorMaterial(), SLEEPERS);
+    for (let i = 0; i < SLEEPERS; i++) {
+      let x;
+      let z;
+      do {
+        const a = r() * Math.PI * 2;
+        const d = 14 + Math.sqrt(r()) * 140;
+        x = Math.cos(a) * d;
+        z = Math.sin(a) * d;
+      } while (z > -6 && Math.hypot(x, z) < 34);
+      const d = Math.hypot(x, z);
+      const sc = (0.9 + r() * 0.8) * (1 + d / 45);
+      o.position.set(x, -0.6 * sc * r(), z);
+      o.rotation.set((r() - 0.5) * 0.35, r() * Math.PI * 2, (r() - 0.5) * 0.35);
+      o.scale.setScalar(sc);
+      o.updateMatrix();
+      m.setMatrixAt(i, o.matrix);
+    }
     m.frustumCulled = false;
     m.instanceMatrix.needsUpdate = true;
+    meshes.push(m);
+    void k;
+  });
+  // the names, small: low plinths in an arc behind the seal, each lit like a rune
+  const pg = plinthGeometry();
+  pg.setAttribute("aRow", rowAttribute(NAMED));
+  const named = new InstancedMesh(pg, horrorMaterial(epitaphs()), NAMED);
+  for (let i = 0; i < NAMED; i++) {
+    const a = Math.PI * (1.12 + (i / NAMED) * 0.76) + (r() - 0.5) * 0.06;
+    const d = (i % 2 ? 6.5 : 9) + r() * 1.5;
+    o.position.set(Math.cos(a) * d, 0, Math.sin(a) * d);
+    o.rotation.set(0, Math.atan2(-Math.cos(a), -Math.sin(a)), 0);
+    o.scale.setScalar(1);
+    o.updateMatrix();
+    named.setMatrixAt(i, o.matrix);
   }
+  named.frustumCulled = false;
+  named.instanceMatrix.needsUpdate = true;
   const sky = new Mesh(quadGeometry(), skyMaterial());
   sky.frustumCulled = false;
   sky.renderOrder = -0.5;
   const ground = new Mesh(groundGeometry(), groundMaterial());
   ground.position.y = 0.005;
-  const drawn = new Mesh(geo, stoneMaterial());
+  const drawn = new Mesh(shardGeometry(), horrorMaterial());
   drawn.frustumCulled = false;
   const root = new Group();
-  root.add(ground, field, named);
-  return { root, sky, drawn, mats: [sky.material, ground.material, field.material, named.material, drawn.material] };
+  root.add(ground, named, ...meshes);
+  return { root, sky, drawn, mats: [sky.material, ground.material, named.material, drawn.material, ...meshes.map((m) => m.material)] };
 }
 registerWarm("p-epsilon-hollow", buildGraveyard);
 
@@ -95,10 +112,16 @@ export default function Move(cut) {
       u.uCut.value = cutOpen;
       u.uRes.value.set(size.width, size.height);
       if (u.uTime) u.uTime.value = state.clock.elapsedTime;
+      if (!u.uRes) continue;
     }
     const S = g.sky.material.uniforms;
     S.uInvVP.value.multiplyMatrices(camera.matrixWorld, camera.projectionMatrixInverse);
     S.uCam.value.copy(camera.position);
+    // Epsilon-Hollow hangs over the lens's centre, high: it owns the top of the frame wherever the grammar puts the camera
+    camera.getWorldDirection(FWD);
+    FWD.y = 0;
+    if (FWD.lengthSq() < 1e-6) FWD.set(0, 0, -1);
+    S.uHole.value.copy(FWD.normalize()).setY(0.62).normalize();
     g.sky.visible = g.root.visible = show > 0.002;
 
     // the drawn stone: out of the ground beside the seal, held up like a sword, then the swing
@@ -108,12 +131,13 @@ export default function Move(cut) {
     const d = g.drawn;
     d.visible = show > 0.002;
     d.position.set(s.x + 0.75, -1.0 + 2.2 * draw, s.z + 0.25);
-    d.rotation.set(0, 0, 0.35 * draw - 2.4 * swing);
-    d.scale.setScalar(0.9);
+    d.rotation.set(0, 0, 0.25 * draw - 2.4 * swing);
+    d.scale.setScalar(1);
 
     if (still) return;
+    // the caster, upright: flippers in the hand sign that opens the domain, until it reaches for the shard
     const turn = moveAt(tl, t);
-    live.pose.sign = signAt(tl, t) * (1 - turn);
+    live.pose.sign = Math.max(signAt(tl, t), smooth(0.2, 0.9, t) * (1 - smooth(tl.move[0] - 0.6, tl.move[0], t))) * (1 - turn);
     live.pose.raise = Math.max(live.pose.raise, draw * (1 - swing));
     live.pose.point = Math.max(live.pose.point, swing * (1 - smooth(tl.collapse[1], tl.duration, t)));
   });

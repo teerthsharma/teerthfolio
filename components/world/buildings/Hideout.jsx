@@ -133,7 +133,7 @@ const floorMaterial = () => written(/* glsl */ `
   float seam = min(abs(fract(blk.x) - 0.5), abs(fract(blk.y) - 0.5));
   vec3 stone = uStone * (1.6 + 0.3 * fract(sin(dot(floor(blk), vec2(12.9, 78.2))) * 43758.5)) * mix(0.6, 1.0, smoothstep(0.42, 0.46, 0.5 - seam + 0.45));
   col = cloudPaint(vec2(vObj.x, -vObj.y) / 2.4, stone, uCloud);`);
-const vaultMaterial = () => written(/* glsl */ `col = uStone * 1.4 * (0.75 + 0.35 * fract(sin(dot(floor(vObj * 2.0), vec3(1.7, 9.2, 3.3))) * 43758.5)) + rim(vN) * uCloud * 0.4;`, DoubleSide);
+const vaultMaterial = () => written(/* glsl */ `col = vec3(0.23, 0.2, 0.16) * ramp(vN) * (0.75 + 0.35 * fract(sin(dot(floor(vObj * 2.0), vec3(1.7, 9.2, 3.3))) * 43758.5));`, DoubleSide); // the hill's rock #3a3228, banded
 const bannerMaterial = () => written(/* glsl */ `col = cloudPaint((vUv - 0.5) * vec2(2.6, 1.4) / 0.92, uStone, uCloud);`, DoubleSide);
 
 const merged = (parts) => mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)));
