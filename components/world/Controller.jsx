@@ -277,3 +277,6 @@ export default function Controller() {
   }, -1.5);
   return null;
 }
+
+// ?debug: scripts/cutscene-smoke.mjs drives every arrival through this.
+if (typeof window !== "undefined" && /[?&]debug\b/.test(window.location.search)) window.__replay = replayArrival;
