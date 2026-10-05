@@ -8,11 +8,11 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Group, Vector3 } from "three";
+import { Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../../lib/world/places";
 import { sceneT } from "../../../../lib/world/cutscene/clock";
-import { cutsceneMode } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
+import { registerWarm, takeWarm } from "../prewarm";
 import { Stage, smooth, useCutFrame } from "../kit";
 import { flashQuad, holdFlash, islandList } from "./p-caustic/parts";
 import { hash } from "./spawn-seal/slime";
@@ -30,21 +30,35 @@ const EYE = new Vector3();
 const LOOK = new Vector3();
 const LOOK1 = new Vector3();
 
-function build() {
+function* build() {
   const mat = makeRim();
+  yield;
   const cave = caveWorld();
+  yield;
   const war = battlefield(mat);
+  yield;
   const vor = vortex();
+  yield;
   const reform = dust(mat, 14.6);
+  yield;
   const pool = ripple("#1fb8ff", "#7ff8ff", false);
+  yield;
   const portal = ripple("#8a3fff", "#ff5ad8", true);
+  yield;
   const vel = veldora(mat);
+  yield;
   const man = human(mat);
+  yield;
   const mw = maw();
+  yield;
   const hs = hollowSphere();
+  yield;
   const fist = fistMesh(mat);
+  yield;
   const notice1 = sagePanel("《Notice》 Skill: Epsilon Hollow.");
+  yield;
   const notice2 = sagePanel("《Notice》 Return to the island: route calculated.");
+  yield;
   const spark = particles(mat, [
     { n: 50, at: [0, 0.2, 0], r: 2, t0: 0.8, spread: 2.2, speed: 2.5, up: 1.6, vy: 1.4, life: 1.6, g: 3, size: 0.14, colors: ["#3fdcff", "#ffffff", "#9fe6ff", "#ff7ae0"], seed: 1 },
     { n: 60, at: SEAL_AT, r: 1.4, t0: 4.0, spread: 3.0, speed: 3, up: 1.2, vy: 1.2, life: 1.4, g: 2, size: 0.16, colors: ["#ffd23a", "#3aa6ff", "#ffffff"], seed: 2 },
@@ -53,50 +67,20 @@ function build() {
     { n: 60, at: [0, 0.3, 0], r: 4, t0: 24.4, spread: 1.0, speed: 5, up: 2.0, vy: 1.6, life: 1.2, g: 3, size: 0.16, colors: ["#3fdcff", "#ffffff", "#ff5ad8"], seed: 5 },
     { n: 90, at: [0, 0.3, -6], r: 28, t0: 9.6, spread: 4.5, speed: 1.2, up: 1.6, vy: 1.6, life: 2.6, g: -0.8, size: 0.12, colors: ["#ff9a3a", "#ffd37a", "#ff5a1a"], seed: 6 },
   ]);
+  yield;
   const flash = flashQuad("#cfe6ff");
+  yield;
   return { mat, cave, war, vor, reform, pool, portal, vel, man, mw, hs, fist, notice1, notice2, spark, flash };
 }
 
-// ---- PREWARM: near the dock the parts are built and every program compiled, drawn at scale ~0 for four frames, then taken away.
-let PRE = null;
-const takeParts = () => {
-  const p = PRE;
-  PRE = null;
-  return p?.m ?? build();
-};
-function warmUp(w) {
-  const m = build();
-  PRE = { m };
-  const root = new Group();
-  root.scale.setScalar(0.0001);
-  root.position.set(live.seal.x, -400, live.seal.z);
-  const mine = [m.cave.root, m.war.root, m.vor.mesh, m.reform.mesh, m.pool.mesh, m.portal.mesh, m.vel.root, m.man.root, m.mw.mesh, m.hs.root, m.fist.mesh, m.notice1.mesh, m.notice2.mesh, m.spark.mesh, m.flash];
-  const kept = [];
-  for (const o of mine) {
-    o.traverse((x) => kept.push([x, x.visible]));
-    root.add(o);
-  }
-  for (const [x] of kept) x.visible = true;
-  w.scene.add(root);
-  let n = 0;
-  const done = () => {
-    if (++n < 4) return requestAnimationFrame(done);
-    for (const o of mine) o.removeFromParent();
-    for (const [x, v] of kept) x.visible = v;
-    root.removeFromParent();
-  };
-  requestAnimationFrame(done);
+// ---- PREWARM: the shared prewarm (../prewarm.js) builds the parts when the seal is near the dock and compileAsyncs every program (hidden parts included).
+function* buildWarm() {
+  const m = yield* build();
+  m.roots = [m.cave.root, m.war.root, m.vor.mesh, m.reform.mesh, m.pool.mesh, m.portal.mesh, m.vel.root, m.man.root, m.mw.mesh, m.hs.root, m.fist.mesh, m.notice1.mesh, m.notice2.mesh, m.spark.mesh, m.flash];
+  return m;
 }
-if (typeof window !== "undefined" && cutsceneMode("spawn-seal") === "full") {
-  const dock = PLACE_BY_ID["spawn-seal"];
-  const poll = setInterval(() => {
-    const w = window.__world;
-    if (!w?.scene || !live.seal) return;
-    if (Math.hypot(live.seal.x - dock.x, live.seal.z - dock.z) > 48) return;
-    clearInterval(poll);
-    warmUp(w);
-  }, 400);
-}
+registerWarm("spawn-seal", buildWarm);
+const takeParts = () => takeWarm("spawn-seal", buildWarm);
 
 // a Great Sage panel floats in the upper third of the frame (screen space, in front of the camera)
 function sage(p, cam, k, t) {

@@ -12,6 +12,7 @@
 //   Atmosphere, Sea, Harbour, Look    sky and weather, water, the upstream
 //                                     harbour, and the image-wide look
 
+import { warmPending } from "./cutscene/prewarm";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Component, Suspense, useEffect, useRef, useState } from "react";
 import { PLACES, dockPoint } from "../../lib/world/places";
@@ -108,8 +109,8 @@ const SAMPLE = 24;
 function FirstFrame() {
   // useFrame runs before each draw, so a frame counted here has reached the
   // screen: the only honest moment to say "ready".
-  const run = useRef({ frames: 0, start: 0, since: 0, dts: [] });
-  useFrame((_, dt) => {
+  const run = useRef({ frames: 0, start: 0, since: 0, dts: [], boot: 0 });
+  useFrame((state, dt) => {
     const ui = getUi();
     if (ui.ready || ui.tier === null) return;
     const r = run.current;
@@ -130,6 +131,27 @@ function FirstFrame() {
         return;
       }
     }
+    // BOOT COMPILE: every program the island draws is linked behind the curtain (compileAsync, into the composer's input buffer so the
+    // program keys match the real draw), so the first interactive frames never stall on a first-sight shader. 8 s cap.
+    if (r.boot !== 2) {
+      if (!r.boot) {
+        r.boot = 1;
+        const { gl, scene, camera } = state;
+        const prev = gl.getRenderTarget();
+        const comp = window.__world?.composer;
+        if (comp?.inputBuffer) gl.setRenderTarget(comp.inputBuffer);
+        const done = () => { r.boot = 2; };
+        try { gl.compileAsync(scene, camera).then(done, done); } catch { done(); }
+        gl.setRenderTarget(prev);
+        setTimeout(done, 8000);
+      }
+      return;
+    }
+    // lazy mounts (Suspense, tier passes, shadow depth variants) keep linking programs after the first compile: hold the curtain until the count
+    // has been still for 700 ms (10 s cap), so those links land behind it
+    const n = state.gl.info.programs?.length ?? 0;
+    if (n !== r.progs) { r.progs = n; r.progAt = now; }
+    if ((now - r.progAt < 700 || warmPending()) && now - r.start < 14000) return;
     window.__world = { ...(window.__world || {}), ready: true };
     setUi({ ready: true });
   });
