@@ -1,7 +1,7 @@
 // THE SILHOUETTE, larger and more iconic: a tall figure in a dark high-collared jacket,
 // hands in pockets, a head of tall spiky white hair swept up (every spike sways on its
-// own phase in the vertex shader), a black blindfold band across the eyes, and no face.
-// On line B two glints of light flare on the band where his eyes would be. Shape, colour
+// own phase in the vertex shader), a black blindfold band across the eyes, a nose and a smirk (a face plate, cel.js),
+// and the crossed-finger hand sign raised at his chest. On line B two glints of light flare on the band where his eyes would be. Shape, colour
 // and pose only. Same proportions as the kit's tall speaker (feet at the origin, head
 // centre 1.9 m, mouth 1.78 m) so the bubbles' tails land on his mouth.
 
@@ -9,6 +9,7 @@ import { BufferAttribute, Color, ConeGeometry, CylinderGeometry, IcosahedronGeom
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { cosmicMaterial } from "./cosmic";
 import { hash } from "./world";
+import { faceGeometry, faceMaterial } from "../../cel";
 
 const UP = new Vector3(0, 1, 0);
 const A = new Vector3();
@@ -88,7 +89,9 @@ function bodyGeometry() {
   for (const s of [-1, 1]) {
     p.push(limb([s * 0.11, 0, 0.03], [s * 0.13, 1.0, 0], 0.085, 0.115));
     p.push(limb([s * 0.3, 1.58, 0], [s * 0.42, 1.22, -0.04], 0.095, 0.08));
-    p.push(limb([s * 0.42, 1.22, -0.04], [s * 0.21, 1.0, 0.08], 0.08, 0.07));
+    // the pup's side (-x) hand is raised in the hand sign; the other stays in its pocket
+    if (s < 0) p.push(limb([s * 0.42, 1.22, -0.04], [-0.3, 1.52, 0.34], 0.08, 0.07));
+    else p.push(limb([s * 0.42, 1.22, -0.04], [s * 0.21, 1.0, 0.08], 0.08, 0.07));
   }
   p.push(limb([0, 0.88, 0], [0, 1.6, 0], 0.2, 0.25, 1.3, 0.8));
   p.push(limb([0, 0.62, 0], [0, 1.0, 0], 0.27, 0.21, 1.15, 0.85)); // the long hem
@@ -103,9 +106,14 @@ export function gojo() {
   const body = bodyGeometry();
   const skin = prep(new IcosahedronGeometry(HR, 2).scale(0.94, 1.12, 1).translate(...HEAD), true);
   const neck = limb([0, 1.62, 0.01], [0, 1.82, 0.02], 0.065, 0.06);
-  const skinAll = mergeGeometries([skin, neck]);
-  skin.dispose();
-  neck.dispose();
+  // the raised hand and two crossed fingers (the hand sign)
+  const fist = prep(new IcosahedronGeometry(0.075, 1).translate(-0.3, 1.56, 0.36), true);
+  const f1 = limb([-0.34, 1.58, 0.4], [-0.24, 1.78, 0.42], 0.024, 0.02, 1, 1, 6);
+  const f2 = limb([-0.25, 1.58, 0.4], [-0.35, 1.78, 0.42], 0.024, 0.02, 1, 1, 6);
+  const skinAll = mergeGeometries([skin, neck, fist, f1, f2]);
+  for (const g of [skin, neck, fist, f1, f2]) g.dispose();
+  // the face plate: no eyes (the band is over them), a nose and a smirk
+  const face = faceGeometry({ eyes: null, brow: null, mouth: { kind: "smirk" } }, HEAD, HR);
   const hair = hairGeometry();
   const band = prep(new CylinderGeometry(HR + 0.011, HR + 0.011, 0.066, 16, 1, true).scale(0.96, 1, 1.04).translate(HEAD[0], HEAD[1] + 0.022, HEAD[2]));
   const mats = {
@@ -115,7 +123,8 @@ export function gojo() {
     band: cosmicMaterial({ color: new Color("#0b0a1c"), flat: true, keep: 0.05, rim: 1.0 }),
   };
   mats.band.side = 2; // the band is an open tube
-  return { geo: { body, skin: skinAll, hair, band }, mats };
+  mats.face = faceMaterial();
+  return { geo: { body, skin: skinAll, hair, band, face }, mats };
 }
 
 // THE GLINT: a four-point star with a long horizontal flare, in light only

@@ -306,9 +306,9 @@ export default function Move(cut) {
       const lean = smooth(tl.move[0], tl.move[1], tt) * 0.07;
       gj.position.set(at[0], at[1] + 0.03 * Math.sin(flow * 1.3), at[2]);
       gj.scale.set(sc * sx, sc * sy, sc * sx);
-      // at the stop he turns to face the lens (on twos), then the band lifts on the lock and two blue eyes show
+      // he stands three-quarter to the lens with the hand sign up, and at the stop he squares to it (on twos), then the band lifts on the lock and two blue eyes show
       const turn = smooth(T.freeze, T.freeze + 0.3, tt);
-      gj.rotation.set(0, -0.4 + Math.PI * turn, 0.015 * Math.sin(flow * 2.0) + lean);
+      gj.rotation.set(0, Math.PI + 0.3 * (1 - turn), 0.015 * Math.sin(flow * 2.0) + lean);
       const lift = smooth(T.lock, T.lock + 0.4, tt);
       bandRef.current.position.y = 0.12 * lift;
       for (const e of m.eyes) {
@@ -415,6 +415,7 @@ export default function Move(cut) {
               <mesh geometry={body.body} material={mats.body} frustumCulled={false} />
               <mesh geometry={body.skin} material={mats.skin} frustumCulled={false} />
               <mesh geometry={body.hair} material={mats.hair} frustumCulled={false} />
+              <mesh geometry={body.face} material={mats.face} frustumCulled={false} />
               <mesh ref={bandRef} geometry={body.band} material={mats.band} frustumCulled={false} />
               {m.eyes.map((x, i) => (
                 <primitive key={i} object={x} />

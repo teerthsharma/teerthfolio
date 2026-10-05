@@ -31,7 +31,7 @@ import { PLACE_BY_ID } from "../../../../lib/world/places";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { islandList, lettering, pupParts } from "./p-caustic/parts";
-import { AURA, BEAM, CHAIN, FERN_AT, FULCRUM, HAND, SCALE_K, STARK_AT, aura, fern, frierenKit, scalePieces, soldier, stark } from "./p-resolvent/cast";
+import { AURA, BEAM, CHAIN, FERN_AT, FULCRUM, HAND, SCALE_K, STARK_AT, aura, auraFace, fern, frierenKit, scalePieces, soldier, stark } from "./p-resolvent/cast";
 import { column, flame, flashQuad, leaves, shards, sprites, stones } from "./p-resolvent/fx";
 import { U, celMaterial, hash, inst, pupCel } from "./p-resolvent/toon";
 import { CASTERS, ground, groundY, shadows, shafts, skyMaterial, statics } from "./p-resolvent/world";
@@ -153,6 +153,7 @@ function buildCourt() {
     shadows: shadows(casters),
     shafts: shafts(),
     aura: aura(),
+    auraFace: auraFace(),
     fern: fern(),
     stark: stark(),
     legs,
@@ -713,7 +714,9 @@ export default function Move(cut) {
           <mesh geometry={m.shadows.g} material={m.shadows.m} renderOrder={0} frustumCulled={false} />
           <mesh geometry={m.statics} material={m.mat} frustumCulled={false} />
           <mesh geometry={m.shafts.g} material={m.shafts.m} renderOrder={4} frustumCulled={false} />
-          <mesh ref={auraG} geometry={m.aura} material={m.mat} frustumCulled={false} />
+          <mesh ref={auraG} geometry={m.aura} material={m.mat} frustumCulled={false}>
+            <primitive object={m.auraFace} />
+          </mesh>
           <mesh ref={fernG} geometry={m.fern} material={m.mat} frustumCulled={false} />
           <mesh ref={starkG} geometry={m.stark} material={m.mat} frustumCulled={false} />
           <primitive object={m.legs} />

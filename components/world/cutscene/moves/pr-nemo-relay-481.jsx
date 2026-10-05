@@ -112,7 +112,7 @@ export default function Move(cut) {
       cel.current = null;
       if (pup.current?.root) pup.current.root.rotation.z = 0;
       pup.current = null;
-      for (const g of [m.sky.g, m.wb.ink, m.wb.hull, ...m.wb.parts.map((x) => x[0]), m.wh.ink, m.wh.hull, ...m.wh.parts.map((x) => x[0]), m.wh.staffOrb, m.wh.halo, m.crack.geometry, m.flash.geometry, baked.current]) g?.dispose();
+      for (const g of [m.sky.g, m.wb.ink, m.wb.hull, ...m.wb.parts.map((x) => x[0]), m.wh.ink, m.wh.hull, ...m.wh.parts.map((x) => x[0]), m.wb.face.geometry, m.wh.face.geometry, m.wh.staffOrb, m.wh.halo, m.crack.geometry, m.flash.geometry, baked.current]) g?.dispose();
       for (const x of [m.sky.m, m.ink, m.hullG, ...m.matB, ...m.matW, m.accW, m.haloF, m.crack.material, m.flash.material, ...m.ghostM]) x.dispose();
       m.crack.material.map?.dispose();
       m.arena.dispose();
@@ -293,6 +293,7 @@ export default function Move(cut) {
               <mesh key={i} geometry={g} material={m.matW[i]} frustumCulled={false} />
             ))}
             <mesh geometry={m.wh.hull} material={m.hullG} frustumCulled={false} />
+            <primitive object={m.wh.face} />
             <group ref={staff}>
               <mesh geometry={m.wh.staffOrb} material={m.accW} frustumCulled={false} />
             </group>
@@ -305,6 +306,7 @@ export default function Move(cut) {
               <mesh key={i} geometry={g} material={m.matB[i]} frustumCulled={false} />
             ))}
             <mesh geometry={m.wb.hull} material={m.hullG} frustumCulled={false} />
+            <primitive object={m.wb.face} />
           </group>
         </group>
         <primitive object={m.crack} />
