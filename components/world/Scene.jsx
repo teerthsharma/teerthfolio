@@ -28,6 +28,7 @@ import Island from "./Island";
 import LabDecor from "./LabDecor";
 import Look from "./Look";
 import { SCULPTURES } from "./monuments";
+import SpawnStatue from "./monuments/SpawnStatue";
 import Penguins from "./Penguins";
 import PlaceLabel from "./PlaceLabel";
 import Props from "./Props";
@@ -151,6 +152,7 @@ export default function Scene() {
         <Harbour />
         <Districts />
         <Buildings />
+        <SpawnStatue />
         <Props />
         <Toys />
         <Seal />

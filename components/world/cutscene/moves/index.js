@@ -4,6 +4,7 @@
 import lab_aether_lang from "./p-aether-lang.jsx";
 import lab_resolvent from "./p-resolvent.jsx";
 import lab_epsilon_hollow from "./p-epsilon-hollow.jsx";
+import spawn_seal from "./spawn-seal.jsx";
 import lab_caustic from "./p-caustic.jsx";
 import lab_monodromy from "./p-monodromy.jsx";
 import lab_topological_ml_toolkit from "./p-topological-ml-toolkit.jsx";
@@ -30,6 +31,7 @@ export const MOVES = {
   "p-aether-lang": lab_aether_lang,
   "p-resolvent": lab_resolvent,
   "p-epsilon-hollow": lab_epsilon_hollow,
+  "spawn-seal": spawn_seal,
   "p-caustic": lab_caustic,
   "p-monodromy": lab_monodromy,
   "p-topological-ml-toolkit": lab_topological_ml_toolkit,

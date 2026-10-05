@@ -17,6 +17,7 @@
 // Local frame: origin on the snow under the middle of the body, +z the nose,
 // +y up. The belly rests at y = 0, sunk a centimetre or two, never above it.
 
+import { plinthLift } from "../../lib/world/plinth";
 import { sceneT } from "../../lib/world/cutscene/clock";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -78,7 +79,7 @@ export default function Seal() {
     // air: a whirlpool or geyser throw (motion.js). ride: on the loop ribbon
     // (lib/world/loop.js): rideY is the origin's height, ridePitch rolls the
     // body round the loop, inverted over the top.
-    root.current.position.set(s.x, s.ride ? s.rideY : (s.climb || 0) + (s.air || 0) * (s.airHeight || 3.2), s.z);
+    root.current.position.set(s.x, s.ride ? s.rideY : (s.climb || 0) + (live.inStage ? 0 : plinthLift(s.x, s.z)) + (s.air || 0) * (s.airHeight || 3.2), s.z);
     root.current.rotation.order = "YXZ";
     root.current.rotation.x = s.ride ? -s.ridePitch : 0;
     root.current.rotation.y = s.heading + drive.bodyYaw;
