@@ -36,7 +36,8 @@ function twin(m, eye) {
         #else
           float d = dot(normalize(vN), normalize(vec3(-0.45, 0.7, 0.55)));
           float t = d * 0.5 + lum * 0.95;
-          gl_FragColor = vec4(t > 0.85 ? uLit : t > 0.42 ? uMid : uShade, 1.0);
+          // front-lit by the amber key: the lights go warm cream-gold, the half-tones cobalt, the shade near-black
+          gl_FragColor = vec4(t > 0.85 ? mix(uLit, vec3(1.0, 0.8, 0.45), 0.8) : t > 0.42 ? mix(uMid, uLit, 0.5) : uShade, 1.0);
         #endif
       }`,
   });
