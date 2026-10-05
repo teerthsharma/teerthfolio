@@ -26,6 +26,7 @@ import { ORB, buildAura, buildOrbs, passAt, passPoint, passSide, silverGhost } f
 import { beerus, whis } from "./pr-nemo-relay-481/gods";
 import { buildHair } from "./pr-nemo-relay-481/hair";
 import { skyShell } from "./pr-nemo-relay-481/sky";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 // the clock (s from the arrival). The card puts line A at 2.3, B at 6.4, C at 8.8, the credit at 11.2
@@ -57,6 +58,29 @@ function dodgeAt(tt, out) {
   return out;
 }
 
+// the world, built by the shared prewarm (../prewarm.js) while the seal walks up, or here at the cut if it did not
+function buildWorld() {
+  const sky = skyShell();
+  const arena = buildArena(T);
+  const aura = buildAura();
+  const orbs = buildOrbs();
+  const hair = buildHair();
+  const wb = beerus();
+  const wh = whis();
+  const ink = new MeshBasicMaterial({ color: INK, toneMapped: false, fog: false });
+  const hullG = hullMaterial({ color: "#d6e6ff" });
+  const mb = (color) => new MeshBasicMaterial({ color, toneMapped: false, fog: false });
+  const matB = wb.parts.map(([, c]) => mb(c));
+  const matW = wh.parts.map(([, c]) => mb(c));
+  const accW = mb("#7fe3ff");
+  const haloF = new MeshBasicMaterial({ color: "#c9f8ff", toneMapped: false, fog: false });
+  const ghostM = [0, 1, 2, 3].map(() => silverGhost());
+  const crack = lettering("KRRRK!", "#e5363a", -0.1);
+  const flash = flashQuad("#dbe7ff");
+  return { sky, hair, arena, aura, orbs, wb, wh, ink, hullG, matB, matW, accW, haloF, ghostM, crack, flash };
+}
+registerWarm("pr-nemo-relay-481", buildWorld);
+
 export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
@@ -78,26 +102,7 @@ export default function Move(cut) {
   const hid = useRef(false);
   const off = useRef({ x: 0, y: 0, z: 0, lean: 0 });
 
-  const m = useMemo(() => {
-    const sky = skyShell();
-    const arena = buildArena(T);
-    const aura = buildAura();
-    const orbs = buildOrbs();
-    const hair = buildHair();
-    const wb = beerus();
-    const wh = whis();
-    const ink = new MeshBasicMaterial({ color: INK, toneMapped: false, fog: false });
-    const hullG = hullMaterial({ color: "#d6e6ff" });
-    const mb = (color) => new MeshBasicMaterial({ color, toneMapped: false, fog: false });
-    const matB = wb.parts.map(([, c]) => mb(c));
-    const matW = wh.parts.map(([, c]) => mb(c));
-    const accW = mb("#7fe3ff");
-    const haloF = new MeshBasicMaterial({ color: "#c9f8ff", toneMapped: false, fog: false });
-    const ghostM = [0, 1, 2, 3].map(() => silverGhost());
-    const crack = lettering("KRRRK!", "#e5363a", -0.1);
-    const flash = flashQuad("#dbe7ff");
-    return { sky, hair, arena, aura, orbs, wb, wh, ink, hullG, matB, matW, accW, haloF, ghostM, crack, flash };
-  }, []);
+  const m = useMemo(() => takeWarm("pr-nemo-relay-481", buildWorld), []);
 
   useEffect(() => {
     island.current = islandList(scene);
