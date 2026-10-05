@@ -17,6 +17,7 @@ import { Color, InstancedMesh, Mesh, Object3D, Vector2, Vector3 } from "three";
 import { realAt } from "../../../../lib/world/cutscene/clock";
 import { radiusAt, turnFor } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
+import { WATER_Y, heightAt } from "../../../../lib/world/terrain";
 import { place as placeBubble } from "../../ui/Bubbles";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { Motes } from "./_g1";
@@ -281,7 +282,7 @@ export default function Move(cut) {
 
     // the rig: the pup at the origin, turned so the landform stands where the figure would
     const turn = turnFor(card, place, s.x, s.z);
-    g.position.set(s.x, 0, s.z);
+    g.position.set(s.x, Math.max(heightAt(s.x, s.z), WATER_Y), s.z); // the floor is the pup's own ground, not y = 0 (the dock sits under it)
     g.rotation.y = turn;
 
     // THE WORLD swells out of the pup with the stage, then holds as the backdrop until the fold has shut

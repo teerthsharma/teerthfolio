@@ -78,14 +78,25 @@ export const INK = /* glsl */ `
   vec3 drawn(float tone, float wash, vec3 keep, float keepK) {
     vec2 q = gl_FragCoord.xy / uPx;
     float t = tooth();
-    vec3 gold = vec3(0.9, 0.66, 0.2);
-    vec3 vermilion = vec3(0.84, 0.27, 0.12);
-    vec3 base = vec3(0.6, 0.4, 0.22) * (0.9 + 0.2 * t);
-    base = mix(base, mix(gold, vermilion, smoothstep(0.3, 0.75, wash)), clamp(wash * 1.2, 0.0, 1.0));
-    base = mix(base, keep * (0.8 + 0.3 * clamp(tone, 0.0, 1.0)), keepK);
-    float lit = pow(clamp(tone, 0.0, 1.0), 1.35); // chiaroscuro: the shadows go deep
-    vec3 c = base * mix(0.1, 1.18, lit);
-    c = mix(c, vec3(0.05, 0.03, 0.02), (1.0 - smoothstep(0.0, 0.3, tone)) * 0.45);
+    // THE PALETTE of an oil altarpiece, driven by value: a lapis-black shadow, oxblood, vermilion in the half-tones,
+    // gold leaf in the lights, a cream crown (value leads, the hue follows)
+    float lit = clamp((tone - 0.28) / 0.62, 0.0, 1.0); // stretch the usual 0.3..0.9 into the whole value range
+    lit = pow(lit, 1.15);
+    vec3 ink = vec3(0.02, 0.025, 0.1);
+    vec3 lapis = vec3(0.07, 0.15, 0.55);
+    vec3 oxblood = vec3(0.4, 0.07, 0.1);
+    vec3 vermilion = vec3(0.88, 0.25, 0.1);
+    vec3 gold = vec3(1.0, 0.8, 0.3);
+    vec3 cream = vec3(1.0, 0.95, 0.8);
+    vec3 c = mix(ink, lapis, smoothstep(0.02, 0.22, lit));
+    c = mix(c, oxblood, smoothstep(0.2, 0.42, lit));
+    c = mix(c, vermilion, smoothstep(0.4, 0.62, lit));
+    c = mix(c, gold, smoothstep(0.6, 0.85, lit));
+    c = mix(c, cream, smoothstep(0.88, 1.0, lit) * 0.8);
+    c *= 0.92 + 0.16 * t;
+    // a wash of gold leaf or vermilion over the whole drawing, a keep colour (lapis sea, coral cubes) over that
+    c = mix(c, c * vec3(1.12, 0.96, 0.7), clamp(wash, 0.0, 1.0) * 0.3);
+    c = mix(c, keep * (0.45 + 0.75 * lit), keepK);
     float brush = strokes(q, 0.6, 13.0, 0.55) * 0.11 + (iNoise(q * 0.3) - 0.5) * 0.12;
     float weave = (sin(q.x * 1.9) * sin(q.y * 1.9)) * 0.03;
     c *= 1.0 + brush + weave;
@@ -93,7 +104,7 @@ export const INK = /* glsl */ `
     // god-light: warm, brightest at the top of the frame, falling in broad slanted shafts
     float up = clamp(gl_FragCoord.y / uRes.y, 0.0, 1.0);
     float shaft = smoothstep(0.6, 1.0, sin(q.x * 0.011 + q.y * 0.0045 + 1.3)) * up;
-    c *= 0.78 + 0.42 * up;
+    c *= 0.7 + 0.5 * up;
     c += gold * shaft * 0.1 * lit;
     return c;
   }
@@ -238,6 +249,8 @@ export function charcoal({ tone = 0.7, wash = 0.42, keep = "#ffffff", keepK = 0,
         tone = mix(tone, 0.62, far * 0.55);
         float wash = uWash + 0.4 * pow(max(dot(-v, uSun), 0.0), 5.0) + far * 0.3;
         vec3 c = drawn(tone, wash, mix(uKeep, vC, vK), max(uKeepK, vK * 0.85));
+        // gold leaf on every edge the low sun grazes
+        c = mix(c, vec3(1.0, 0.8, 0.32), clamp(rim * uRim * 2.6, 0.0, 0.8));
         // contours: thick and broken, where facets turn and round the silhouette
         float brk = step(0.32, iNoise(gl_FragCoord.xy / uPx * 0.07));
         float crease = smoothstep(0.08, 0.3, length(fwidth(n)));

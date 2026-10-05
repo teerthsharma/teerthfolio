@@ -107,12 +107,14 @@ export function makeBanner({ logo, repos }) {
         run(el.animate([{ transform: "translateX(-50%) scale(1.7)", opacity: 0 }, { transform: "translateX(-50%) scale(0.96)", opacity: 1, offset: 0.25 }, { transform: "translateX(-50%) scale(0.96)", offset: 0.55 }, { transform: "translate(calc(-50% + 7px), 3px) scale(1)", offset: 0.68 }, { transform: "translate(calc(-50% - 6px), -2px) scale(1)", offset: 0.8 }, { transform: "translateX(-50%) scale(1)" }], { duration: 520, easing: "steps(6, end)", fill: "forwards" }));
         puffs.forEach((p, i) => run(p.animate([{ opacity: 0, transform: "translate(0, 0) scale(0.4)" }, { opacity: 0.9, transform: `translate(${(i - 4) * 4}px, 2px) scale(1)`, offset: 0.2 }, { opacity: 0, transform: `translate(${(i - 4) * 14}px, 10px) scale(2.2)` }], { duration: 900, delay: 140, easing: "ease-out", fill: "forwards" })));
       } else if (next === "dock") {
-        run(el.animate([{ transform: "translateX(-50%) scale(1)", top: "16vh" }, { transform: "translateX(-50%) scale(0.36)", top: "9.6vh" }], { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" }));
+        // docks under the bar, then gets out of the picture (the plate returns with the home line)
+        run(el.animate([{ transform: "translateX(-50%) scale(1)", top: "16vh", opacity: 1 }, { transform: "translateX(-50%) scale(0.36)", top: "9.6vh", opacity: 1, offset: 0.4 }, { transform: "translateX(-50%) scale(0.36)", top: "9.6vh", opacity: 0 }], { duration: 1050, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" }));
       } else if (next === "still") {
         Object.assign(el.style, { transform: "translateX(-50%) scale(0.5)", top: "9.6vh" });
       } else if (next === "home") {
         home.style.maxHeight = "4em";
         home.style.marginTop = "14px";
+        run(el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, fill: "forwards" }));
         run(home.animate([{ opacity: 0, transform: "translateY(-8px)" }, { opacity: 1, transform: "none" }], { duration: 500, easing: "ease-out", fill: "forwards" }));
       } else if (next === "out") {
         run(el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }));

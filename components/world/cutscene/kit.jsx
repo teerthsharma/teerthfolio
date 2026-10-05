@@ -19,7 +19,7 @@
 // (ui/Bubbles.jsx), so a move is 3D only. Keep it cheap by construction: a
 // few meshes, instanced particles, halftone in the material, no post pass.
 
-import { sceneT } from "../../../lib/world/cutscene/clock";
+import { HOLD, exitAt, sceneT } from "../../../lib/world/cutscene/clock";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo } from "react";
 import { flashQuad, holdFlash } from "./moves/p-caustic/parts";
@@ -61,14 +61,17 @@ export function DefaultMove(cut) {
   );
 }
 
-// THE RETURN WIPE: the anime world gives way to the dock in the place's colour, not a hard cut. A fullscreen
-// quad rises to opaque over 0.6 s ending at the credit beat, then clears over 0.4 s so the card reads over the island.
+// THE RETURN WIPE: the one exit (clock.js, the return law). The pocket holds through the credit; then the scene plays
+// out in EXIT s, and a tinted flash in the place's colour covers the break, at most 0.15 s and 70 % opaque.
+const FLASH = { at: 0.1, width: 0.15, peak: 0.7 }; // s into the exit, s, opacity
 export function ReturnWipe({ tl, color, mode }) {
   const camera = useThree((s) => s.camera);
   const quad = useMemo(() => flashQuad(color), [color]);
-  useCutFrame((t) => {
-    if (mode !== "full" || tl.credit == null) return;
-    holdFlash(quad, camera, smooth(tl.credit - 0.6, tl.credit, t) * (1 - smooth(tl.credit, tl.credit + 0.4, t)));
-  });
+  useFrame((state) => {
+    const a = live.arrival;
+    if (mode !== "full" || tl.credit == null || !a.id || !HOLD[a.id]) return;
+    const x = state.clock.elapsedTime - a.start - exitAt(a.id) - FLASH.at; // s from the flash's start
+    holdFlash(quad, camera, FLASH.peak * Math.max(0, 1 - Math.abs(x / FLASH.width * 2 - 1)));
+  }, -1.2);
   return <primitive object={quad} />;
 }

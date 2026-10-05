@@ -24,12 +24,16 @@
 
 import { Environment, Lightformer, PerformanceMonitor } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, N8AO, ToneMapping } from "@react-three/postprocessing";
+import { EffectComposer, N8AO, TiltShift, ToneMapping } from "@react-three/postprocessing";
 import { SelectiveBloomEffect, ToneMappingMode } from "postprocessing";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackSide } from "three";
 import { TIERS, TOP, classify, climbCost, displayTier, dprFor, gpuName, recall, recallDisplay, remember } from "../../lib/world/quality";
-import { getUi, setUi, useUi } from "../../lib/world/store";
+import { getUi, live, setUi, useUi } from "../../lib/world/store";
+import { cardFor } from "../../lib/world/cutscene/cards";
+import { GRADE_ISLAND, gradeFor } from "../../lib/world/cutscene/look";
+import { FilmEffect } from "./look/FilmEffect";
+import { FrameEffect, stepFrame } from "./look/Frame";
 import { RadiationPovEffect, stepRadiationPov } from "./look/RadiationPov";
 import { C, LIGHT } from "./palette";
 
@@ -67,15 +71,17 @@ function Sky() {
 // selecting one would hide the lamp inside it.
 const glows = (m) => m.emissive !== undefined && m.depthWrite !== false && m.emissiveIntensity * Math.max(m.emissive.r, m.emissive.g, m.emissive.b) > 0.15;
 
+// HDR-only: only what the lamps push past 1.0 in linear light blooms.
+const BLOOM = { threshold: 1.0, smoothing: 0.2, intensity: 0.5 };
 function useLampBloom() {
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const bloom = useMemo(() => new SelectiveBloomEffect(scene, camera, {
     mipmapBlur: true,
-    intensity: 0.9,
+    intensity: BLOOM.intensity,
     radius: 0.7,
-    luminanceThreshold: 0.35,
-    luminanceSmoothing: 0.25,
+    luminanceThreshold: BLOOM.threshold,
+    luminanceSmoothing: BLOOM.smoothing,
   }), [scene, camera]);
   useEffect(() => () => bloom.dispose(), [bloom]);
 
@@ -114,15 +120,64 @@ function useRadiationPov() {
   return pov;
 }
 
+// The film stage: one grade over the island and every pocket. It eases toward
+// the playing card's grade (the pull) and back to the island's (the collapse).
+// The fringe goes to the radiation effect, which already resamples per channel.
+const lerp3 = (to, from, k) => to.forEach((_, i) => (to[i] += (from[i] - to[i]) * k));
+function useFilm(pov) {
+  const film = useMemo(() => new FilmEffect(), []);
+  useEffect(() => {
+    window.__world = { ...(window.__world || {}), film };
+    return () => film.dispose();
+  }, [film]);
+  const cur = useMemo(() => ({ lift: [0, 0, 0], gamma: [1, 1, 1], gain: [1, 1, 1], vignette: 0, grain: 0, fringe: 0 }), []);
+  useFrame((state, dt) => {
+    const id = getUi().cutscene;
+    const g = id ? gradeFor(cardFor(id)) : GRADE_ISLAND;
+    const k = 1 - Math.exp(-dt * 6);
+    for (const key of ["lift", "gamma", "gain"]) lerp3(cur[key], g[key], k);
+    for (const key of ["vignette", "grain", "fringe"]) cur[key] += (g[key] - cur[key]) * k;
+    const u = film.uniforms;
+    u.get("uLift").value.fromArray(cur.lift);
+    u.get("uGamma").value.fromArray(cur.gamma);
+    u.get("uGain").value.fromArray(cur.gain);
+    u.get("uVig").value = cur.vignette;
+    u.get("uGrain").value = cur.grain;
+    u.get("uTime").value = state.clock.elapsedTime;
+    u.get("uAspect").value = state.size.width / state.size.height;
+    if (pov) pov.uniforms.get("uFringe").value = cur.fringe;
+  });
+  return film;
+}
+
+// The framing disc and the grade ride on every rung (cheap, and a rung that dropped it would change the pass).
+function useFrameLook() {
+  const fx = useMemo(() => new FrameEffect(), []);
+  useEffect(() => () => fx.dispose(), [fx]);
+  useFrame((state, dt) => {
+    const { started, open } = getUi();
+    stepFrame(fx, state.camera, state.size.width / state.size.height, Boolean(started && !open && !live.arrival.id), dt);
+  });
+  return fx;
+}
+
 function Glow() {
   const bloom = useLampBloom();
   const pov = useRadiationPov();
+  const film = useFilm(pov);
   return (
     <>
       <primitive object={bloom} dispose={null} />
       <primitive object={pov} dispose={null} />
+      <primitive object={film} dispose={null} />
     </>
   );
+}
+
+// The rungs without bloom (T0, T1) still get the film's vignette and grade.
+function FilmOnly() {
+  const film = useFilm(null);
+  return <primitive object={film} dispose={null} />;
 }
 
 // Every rung keeps the composer, with the tone map at least. Dropping it
@@ -141,6 +196,7 @@ function Glow() {
 // whenever the DPR moves.
 function Post({ rung }) {
   const composer = useRef();
+  const frame = useFrameLook();
   const dpr = useThree((s) => s.viewport.dpr);
   useLayoutEffect(() => {
     composer.current?.setSize();
@@ -149,7 +205,9 @@ function Post({ rung }) {
   return (
     <EffectComposer ref={composer} multisampling={rung.msaa}>
       {rung.ao ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
-      {rung.bloom ? <Glow /> : null}
+      <primitive object={frame} dispose={null} />
+      {rung.bloom ? <Glow /> : <FilmOnly />}
+      {rung.tilt ? <TiltShift offset={0} rotation={0} focusArea={0.45} feather={0.3} resolutionScale={0.5} /> : null}
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
     </EffectComposer>
   );
