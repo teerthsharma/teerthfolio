@@ -11,10 +11,10 @@
 // clock (the Controller clears it with the arrival, so a skip removes all of
 // this in one frame). With reduced motion both bubbles stand still.
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Vector3 } from "three";
 import { paletteFor } from "../../../lib/world/cutscene/look";
-import { BEAT, anchorFor, cutFor, cutsceneMode } from "../../../lib/world/cutscene/timeline";
+import { BEAT, anchorFor, cutFor, cutsceneMode, pickJoke } from "../../../lib/world/cutscene/timeline";
 import { live, useUi } from "../../../lib/world/store";
 
 const V = new Vector3();
@@ -137,6 +137,9 @@ export default function Bubbles() {
   const wrap = useRef(null);
   const ring = useRef(null);
   const still = mode === "still";
+  // one joke per arrival: the memo re-runs when the dock id clears and returns, not per render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const joke = useMemo(() => (cut ? pickJoke(cut.card, still) : null), [id, mode]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -198,7 +201,7 @@ export default function Bubbles() {
   const showCredit = Boolean(card.credit) && (still ? beat > 0 && beat < BEAT.out : beat === BEAT.credit);
   const impact = !still && (beat === BEAT.impact || beat === BEAT.collapse);
   const sfx = card.stage?.sfx;
-  const line = (slot, l, fallback) => <Bubble slot={slot} style={card.bubbleStyle} who={l.who} kind={l.kind ?? fallback} line={l.text} bold={card.bold} sub={slot === "b" ? card.sub : null} />;
+  const line = (slot, l, fallback) => <Bubble slot={slot} style={card.bubbleStyle} who={l.who} kind={l.kind ?? fallback} line={slot === (card.jokeSlot ?? "a") && joke ? joke : l.text} bold={card.bold} sub={slot === "b" ? card.sub : null} />;
   return (
     <div className="comic" ref={wrap} data-beat={beat} style={{ "--accent": ink.accent, "--deep": ink.deep, "--paper-dots": ink.paperDots }} aria-live="polite">
       {impact ? (
