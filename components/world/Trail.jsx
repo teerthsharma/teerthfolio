@@ -195,6 +195,7 @@ export default function Trail() {
     // through this same loop on an earlier frame — skip the 7,168-float
     // rewrite and its GPU upload until the next row is written.
     if (t - bufs.lastWriteT > STALE_AGE) return;
+    const glow = live.travelTo ? 1.7 : 1; // a list trip: the groove glows brighter
 
     const { colors, rowTime, head } = bufs;
     for (let s = 0; s < ROWS; s++) {
@@ -204,7 +205,7 @@ export default function Trail() {
       const ringFade = Math.min(1, ringDist / RIDGE_FADE_ROWS);
       const a = ageFade * ringFade;
       for (let j = 0; j < WIDTH_VERTS; j++) {
-        colors[(s * WIDTH_VERTS + j) * 4 + 3] = BASE[j].alpha * a;
+        colors[(s * WIDTH_VERTS + j) * 4 + 3] = Math.min(1, BASE[j].alpha * a * glow);
       }
     }
     bufs.geometry.attributes.color.needsUpdate = true;

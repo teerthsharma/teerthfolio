@@ -237,6 +237,7 @@ function walkHere(event) {
   if (event.delta > 8) return;
   live.target = { x: event.point.x, z: event.point.z };
   live.pendingOpen = null;
+  live.travelTo = null;
 }
 
 // Snow sparkle: the one terrain mesh keeps its draw call; the stock lit shader
