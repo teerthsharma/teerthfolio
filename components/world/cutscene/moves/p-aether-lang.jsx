@@ -108,7 +108,7 @@ function floodGlow() {
       depthTest: false,
       depthWrite: false,
       blending: AdditiveBlending,
-      vertexShader: "varying vec2 vP; void main() { vP = position.xy * 2.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      vertexShader: "varying vec2 vP; void main() { vP = position.xy * 2.0; gl_Position = vec4(vP, 0.0, 1.0); }", // clip space: it lies on the lens whatever the camera does
       fragmentShader: `uniform float uK; varying vec2 vP;
         void main() {
           vec2 q = vec2(vP.x * 0.8, vP.y + 0.15);
@@ -384,7 +384,7 @@ export default function Move(cut) {
     // a soft tinted pulse as the last of the void goes into the core (never a white-out)
     // the core and its flood fill the lens from the bloom through line A, then give way to the move
     const glowK = 0.85 * smooth(T.fade[0], T.fade[1], t) * (1 - smooth(5.6, 6.6, t));
-    holdFlash(m.glow, cam, glowK);
+    m.glow.visible = glowK > 0.002;
     m.glow.material.uniforms.uK.value = glowK;
     holdFlash(m.flash, cam, Math.max(Math.max(0, 1 - Math.abs(t - T.close[1]) / 0.14) * 0.8, 0.9 * smooth(T.tunnel[1] - 0.2, T.rv, t) * (1 - smooth(T.clear[0], T.clear[1], t))));
   });
