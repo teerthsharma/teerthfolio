@@ -12,8 +12,8 @@
 //   Atmosphere, Sea, Harbour, Look    sky and weather, water, the upstream
 //                                     harbour, and the image-wide look
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Component, Suspense, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Component, Suspense, useEffect, useRef, useState } from "react";
 import { PLACES, dockPoint } from "../../lib/world/places";
 import { getUi, live, setUi } from "../../lib/world/store";
 import { BUILDINGS } from "./buildings";
@@ -40,6 +40,7 @@ import LoopCounter from "./LoopCounter";
 import Cutscene from "./cutscene/Cutscene";
 import Seal from "./Seal";
 import Sound from "./Sound";
+import StaticMerge from "./StaticMerge";
 import Trail from "./Trail";
 
 // One broken building must not take the island down with it.
@@ -135,15 +136,63 @@ function FirstFrame() {
   return null;
 }
 
+// A still island does not need 60 frames a second. After IDLE_MS with no input
+// and no cutscene the loop drops to demand mode and ticks at 30 Hz (the HUD,
+// water and penguins stay alive); any key, pointer or touch puts it back.
+const IDLE_MS = 30000;
+function FrameGovernor() {
+  const setFrameloop = useThree((s) => s.setFrameloop);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    let last = performance.now();
+    let idle = false;
+    const wake = () => {
+      last = performance.now();
+      if (idle) {
+        idle = false;
+        setFrameloop("always");
+      }
+    };
+    const evs = ["keydown", "pointerdown", "pointermove", "wheel", "touchstart"];
+    evs.forEach((e) => window.addEventListener(e, wake, { passive: true }));
+    const tick = setInterval(() => {
+      const busy = getUi().cutscene || live.keys.size || live.stick || live.target || !getUi().ready;
+      if (busy) return wake();
+      if (!idle && performance.now() - last > IDLE_MS) {
+        idle = true;
+        setFrameloop("demand");
+      }
+      if (idle) invalidate();
+    }, 33);
+    return () => {
+      evs.forEach((e) => window.removeEventListener(e, wake));
+      clearInterval(tick);
+    };
+  }, [setFrameloop, invalidate]);
+  return null;
+}
+
+// The context can be taken away (iPad/Safari memory pressure, a tab switch).
+// three keeps the renderer and re-uploads lazily on restore; the world only
+// has to keep the page alive and rebuild the composer's targets (Look.jsx
+// remounts on the key), instead of giving up for good.
 export default function Scene() {
+  const [epoch, setEpoch] = useState(0);
   return (
     <Canvas
       shadows
       dpr={1}
       camera={{ fov: 28, near: 0.5, far: 320, position: [0, 20, 30] }}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
+      gl={{ antialias: false, stencil: false, alpha: false, powerPreference: "high-performance" }}
       onCreated={({ gl }) => {
-        gl.domElement.addEventListener("webglcontextlost", () => setUi({ failed: true }));
+        gl.domElement.addEventListener("webglcontextlost", (e) => {
+          e.preventDefault();
+          window.__world = { ...(window.__world || {}), lost: true };
+        });
+        gl.domElement.addEventListener("webglcontextrestored", () => {
+          window.__world = { ...(window.__world || {}), lost: false };
+          setEpoch((n) => n + 1);
+        });
       }}
     >
       <Suspense fallback={null}>
@@ -169,8 +218,10 @@ export default function Scene() {
       </Suspense>
       <CameraRig />
       <Controller />
+      <StaticMerge />
       <Sound />
-      <Look />
+      <Look key={epoch} />
+      <FrameGovernor />
     </Canvas>
   );
 }

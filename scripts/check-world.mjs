@@ -1553,6 +1553,7 @@ for (const [renderer, tier] of [
   ["ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)", 2],
   ["Apple GPU", 2],
   ["ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)", 3],
+  ["ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Laptop GPU (0x00002860) Direct3D11 vs_5_0 ps_5_0, D3D11)", 3],
   ["ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)", 3],
   ["ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Unspecified Version)", 4],
   ["ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11 vs_5_0 ps_5_0, D3D11)", 4],
