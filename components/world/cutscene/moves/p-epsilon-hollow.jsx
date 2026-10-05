@@ -192,6 +192,15 @@ export default function Move(cut) {
       cam.lookAt(LOOK);
       cam.updateMatrixWorld();
     }
+    // the return: the lens finds the statue and its plaque from the dock side
+    const rb = smooth(26.9, 27.7, t);
+    if (rb > 0.001) {
+      const st = PLACE_BY_ID["p-epsilon-hollow"];
+      EYE.set(st.x + 0.9, 1.9, st.z + 6.2);
+      cam.position.lerp(EYE, rb);
+      cam.lookAt(LOOK.set(st.x, 1.9, st.z));
+      cam.updateMatrixWorld();
+    }
     const pup = state.scene.getObjectByName("seal");
     const out = t > 9.35 && t < 15.3;
     if (pup && out && !hid.current) {
