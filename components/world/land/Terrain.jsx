@@ -15,6 +15,7 @@
 // anywhere on it and the seal slides there.
 
 import { useMemo } from "react";
+import { litTint } from "../../../lib/world/litTint";
 import { BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } from "three";
 import { ISLAND_RADIUS } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
@@ -273,6 +274,7 @@ function snowMaterial() {
       );
   };
   m.customProgramCacheKey = () => "snow-sparkle";
+  litTint(m, { cut: false }); // terrain keeps no cutaway: a hole in the ground shows the sea
   return m;
 }
 

@@ -29,7 +29,8 @@ import { SelectiveBloomEffect, ToneMappingMode } from "postprocessing";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackSide } from "three";
 import { TIERS, TOP, classify, climbCost, displayTier, dprFor, gpuName, recall, recallDisplay, remember } from "../../lib/world/quality";
-import { getUi, setUi, useUi } from "../../lib/world/store";
+import { getUi, live, setUi, useUi } from "../../lib/world/store";
+import { FrameEffect, stepFrame } from "./look/Frame";
 import { RadiationPovEffect, stepRadiationPov } from "./look/RadiationPov";
 import { C, LIGHT } from "./palette";
 
@@ -114,6 +115,17 @@ function useRadiationPov() {
   return pov;
 }
 
+// The framing disc and the grade ride on every rung (cheap, and a rung that dropped it would change the pass).
+function useFrameLook() {
+  const fx = useMemo(() => new FrameEffect(), []);
+  useEffect(() => () => fx.dispose(), [fx]);
+  useFrame((state, dt) => {
+    const { started, open } = getUi();
+    stepFrame(fx, state.camera, state.size.width / state.size.height, Boolean(started && !open && !live.arrival.id), dt);
+  });
+  return fx;
+}
+
 function Glow() {
   const bloom = useLampBloom();
   const pov = useRadiationPov();
@@ -141,6 +153,7 @@ function Glow() {
 // whenever the DPR moves.
 function Post({ rung }) {
   const composer = useRef();
+  const frame = useFrameLook();
   const dpr = useThree((s) => s.viewport.dpr);
   useLayoutEffect(() => {
     composer.current?.setSize();
@@ -150,6 +163,7 @@ function Post({ rung }) {
     <EffectComposer ref={composer} multisampling={rung.msaa}>
       {rung.ao ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
       {rung.bloom ? <Glow /> : null}
+      <primitive object={frame} dispose={null} />
       <ToneMapping mode={ToneMappingMode.NEUTRAL} />
     </EffectComposer>
   );

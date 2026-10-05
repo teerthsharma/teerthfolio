@@ -21,16 +21,23 @@ import { WATER_Y, heightAt } from "../../lib/world/terrain";
 import { MOTION } from "../../lib/world/motion";
 import { PLACES, PLACE_BY_ID } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
+import { TINT } from "../../lib/world/litTint";
 
 // Direction from the seal to the camera: 42 degrees of elevation, so the
 // districts ahead show, 35.5 m away. Fixed: the azimuth never rotates.
-// Cinematic: a lower pitch and a longer lens (Scene.jsx fov 28) so the 1.7x
-// lab buildings tower over the pup; the distance grows with the narrower lens
-// so the pup stays about the same size on screen.
-const ELEVATION = (34 * Math.PI) / 180;
-const FOLLOW_DISTANCE = 34;
+// Chase: low and close (Nolan's ledger, row 9): 27 degrees and 21 m, so the pup
+// is ~70 px tall on a 1280x800 frame (800 / (2 * 21 * tan 14) = 76 px per metre),
+// and the view looks LOOK_AHEAD m past it, which seats the pup in the lower third.
+// Walls between the lens and the pup dissolve (litTint.js cutaway) and the eye is
+// never inside a building (collision below).
+const ELEVATION = (27 * Math.PI) / 180;
+const FOLLOW_DISTANCE = 21;
+const LOOK_AHEAD = 3; // m north of the pup
 const OFFSET = new Vector3(0, Math.sin(ELEVATION), Math.cos(ELEVATION)).multiplyScalar(FOLLOW_DISTANCE);
-const LAB_CLEAR = 14; // m
+const BLOCK_H = 12; // m: a lab or the igloo is lower than this (tower 9.5 + cap + pennant)
+const BLOCK_MARGIN = 1.8; // m: the eye keeps this far off a building
+const LIFT_MAX = (46 * Math.PI) / 180; // the most a building between the lens and the pup raises the view
+const BLOCK_MIN = 0.3; // never closer to the pup than this share of the chase distance
 const LEAD_TIME = 0.7; // seconds of velocity the view leads by
 const LEAD_Z = 0.5; // moving down the screen only: its bottom edge is just 12.4 m from the seal
 const LEAD_MAX = 7; // m
@@ -41,7 +48,7 @@ const SPEED_ZOOM_DAMP = 1.5;
 const USER_ZOOM_DAMP = 8;
 const OPEN_ZOOM = 0.62; // the building fills the free half beside the panel
 const NEAR_ZOOM = 0.93;
-const NEAR_PULL = 0.35;
+const NEAR_PULL = 0.1;
 const PANEL_RETRY_FRAMES = 30;
 const PANEL_LEFT_FRACTION = 0.4;
 const PANEL_TOP_FRACTION = 0.2;
@@ -62,7 +69,7 @@ const BOOM_EARSHOT = 30; // m: the shake fades out over this distance
 // DOCKED: while the seal is at a place the follow aims at the landform
 // (place.look, lib/world/places.js), not the snow in front of the dock.
 const LOOK_DAMP = 2.5; // 1/s
-const DOCK_LEAN = 0.5; // share of the way the focus moves onto the landform; more than this pushes the seal off the bottom edge
+const DOCK_LEAN = 0.12; // share of the way the focus moves onto the landform; more than this pushes the seal off the bottom edge
 const LOOK_ELEVATION = (32 * Math.PI) / 180; // tall landforms need the higher view or they crop
 const LOOK_TALL = 6; // m: from this look.y up the elevation rises
 // The first frame: at the spawn the view leans north so the igloo, the
@@ -80,6 +87,7 @@ const G_OUT = { eye: [0, 0, 0], look: [0, 0, 0], fov: 0 };
 const G_FOLLOW = { eye: [0, 0, 0], look: [0, 0, 0] };
 const G_VIEW = { eye: [0, 0, 0], look: [0, 0, 0] };
 const G_SEAL = [0, 0, 0];
+const BLOCKERS = PLACES.filter((p) => p.section === "lab" || p.section === "home");
 
 // The overview before Start: high over the island centre, swaying slowly.
 const OVERVIEW_CENTRE = new Vector3(0, 0, -10);
@@ -137,6 +145,9 @@ export default function CameraRig() {
   const spawnK = useRef(1);
   const lookRef = useRef(null); // the last docked place's look target, kept while it eases out
   const trauma = useRef(0);
+  const cutR = useRef(4.2); // m: the cutaway cone, wide while a building blocks the pup
+  const lift = useRef(ELEVATION); // chase elevation: rises to see over a building between the lens and the pup
+  const clearS = useRef(1); // share of the chase distance the eye keeps so it stays out of buildings
   const orbit = useRef(new Vector3());
   const radKicked = useRef(-100);
   const prevImpact = useRef(live.seal.impact);
@@ -337,10 +348,27 @@ export default function CameraRig() {
     }
 
     const dockTall = dock && dock.y >= LOOK_TALL ? lk : 0;
-    const elevation = ELEVATION + ((dock?.elev ? (dock.elev * Math.PI) / 180 : LOOK_ELEVATION) - ELEVATION) * dockTall;
+    // A lab or the igloo between the lens and the pup (the view looks due north): rise until the sight
+    // line clears its roof, up to LIFT_MAX; the cutaway (litTint.js) dissolves what is left.
+    let liftTo = ELEVATION;
+    if (ui.started && !arrival.id) {
+      for (const p of BLOCKERS) {
+        const ox = focus.current.x - p.x;
+        const oz = focus.current.z - p.z;
+        const c = ox * ox + oz * oz - p.radius * p.radius;
+        const disc = 4 * oz * oz - 4 * c;
+        if (c <= 0 || disc <= 0) continue; // the pup is at the door, or the line misses it
+        const tIn = (-2 * oz - Math.sqrt(disc)) / 2; // m north-to-south from the pup to the building's near wall
+        if (tIn > 0 && tIn < FOLLOW_DISTANCE * Math.cos(ELEVATION)) liftTo = Math.max(liftTo, Math.min(LIFT_MAX, Math.atan2(BLOCK_H - 1, tIn)));
+      }
+    }
+    cutR.current += ((liftTo > ELEVATION + 0.02 ? 12 : 4.2) - cutR.current) * damp(3, dt);
+    TINT.uCutR.value = cutR.current;
+    lift.current += (liftTo - lift.current) * damp(liftTo > lift.current ? 3 : 1.5, dt);
+    const elevation = lift.current + ((dock?.elev ? (dock.elev * Math.PI) / 180 : LOOK_ELEVATION) - lift.current) * dockTall;
     orbit.current.set(0, Math.sin(elevation), Math.cos(elevation)).multiplyScalar(FOLLOW_DISTANCE);
     followPos.current.copy(orbit.current).multiplyScalar(dNow).add(focus.current).add(shake.current);
-    followLook.current.set(focus.current.x, focus.current.y + 0.6 + ((dock ? dock.y : 0.6) - 0.6) * lk, focus.current.z).add(shake.current);
+    followLook.current.set(focus.current.x, focus.current.y + 0.6 + ((dock ? dock.y : 0.6) - 0.6) * lk, focus.current.z - LOOK_AHEAD * (1 - lk)).add(shake.current);
 
     if (!ui.started) {
       // The overview: the whole island and the sea round it.
@@ -420,11 +448,40 @@ export default function CameraRig() {
       camera.position.addScaledVector(shake.current, 2 * k);
       high = Math.max(0, camera.position.y);
     }
-    // Never inside a building: over a lab's footprint the eye climbs above its
-    // tallest tower (LabDecor, 9.5 m + cap and pennant).
-    for (const p of PLACES) {
-      if (!arrival.id && p.section === "lab" && camera.position.y < LAB_CLEAR && Math.hypot(camera.position.x - p.x, camera.position.z - p.z) < p.radius + 2) camera.position.y = LAB_CLEAR;
+    // Never inside a building: walk the eye back along the line to the pup until it is clear of every
+    // lab and the igloo (footprint radius + margin, below BLOCK_H). It closes in at once and eases back out.
+    if (!arrival.id && ui.started && since >= JUMP_IN.duration) {
+      const fx = focus.current.x;
+      const fz = focus.current.z;
+      const dx = camera.position.x - fx;
+      const dz = camera.position.z - fz;
+      let s_ = 1;
+      for (const p of BLOCKERS) {
+        const R = p.radius + BLOCK_MARGIN;
+        const ox = fx - p.x;
+        const oz = fz - p.z;
+        if (ox * ox + oz * oz < R * R || camera.position.y > BLOCK_H) continue; // the pup is at the door, or the eye is over the roof
+        const a = dx * dx + dz * dz;
+        const b = 2 * (ox * dx + oz * dz);
+        const c = ox * ox + oz * oz - R * R;
+        const disc = b * b - 4 * a * c;
+        if (a < 1e-6 || disc < 0) continue;
+        const e = (-b - Math.sqrt(disc)) / (2 * a); // where the line enters the footprint
+        const x = (-b + Math.sqrt(disc)) / (2 * a); // and where it leaves
+        if (e < 1 && x > 1) s_ = Math.min(s_, Math.max(BLOCK_MIN, e)); // the eye is inside: stop at the wall
+      }
+      clearS.current = s_ < clearS.current ? s_ : clearS.current + (s_ - clearS.current) * damp(2.5, dt);
+      if (clearS.current < 0.999) {
+        camera.position.x = fx + dx * clearS.current;
+        camera.position.z = fz + dz * clearS.current;
+        camera.position.y = focus.current.y + (camera.position.y - focus.current.y) * clearS.current;
+      }
+    } else {
+      clearS.current = 1;
     }
+    // The cutaway (litTint.js) follows the pup in the chase only.
+    TINT.uPup.value.set(seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y) + (seal.climb || 0), seal.z);
+    TINT.uCut.value = !arrival.id && ui.started && !ui.open && since >= JUMP_IN.duration ? 1 : 0;
     camera.lookAt(lookAt.current);
 
     // Fog is tuned for the follow distance; push it back by however much
