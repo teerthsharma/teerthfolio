@@ -154,8 +154,8 @@ export default function Move(cut) {
     const k = smooth(T.ret, T.ret + 0.5, t) * (1 - smooth(tl.collapse[0], tl.collapse[1], t));
     if (k <= 0.001) return;
     const at = card.landAt;
-    EYE_R2.set(at.x, at.y + 7, at.z + 14);
-    LOOK_R2.set(at.x, at.y + 1, at.z);
+    EYE_R2.set(at.x + 1.2, at.y + 1.8, at.z + 5.2); // inside the doorway, the basin ahead, plateau light behind
+    LOOK_R2.set(at.x, at.y + 1.3, at.z - 1);
     const cm = state.camera;
     cm.getWorldDirection(V).multiplyScalar(cm.position.distanceTo(LOOK_R2)).add(cm.position);
     V.lerp(LOOK_R2, k);
