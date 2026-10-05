@@ -3,9 +3,9 @@
 // eldritch, petrified mid-motion, light leaking from its cracks. Its SUN is EPSILON-HOLLOW: a black hole with an eye
 // (the accretion disc the iris, the event horizon the pupil, memory, files and scheduler spiralling in).
 //   0-0.5     the pup stands on the planet among the graves; the curve of the world under it
-//   0.5-1.6   the camera law's pull, back and up 560 m: the ground falls away, the planet shrinks to a sphere
-//   1.6-2.1   the wide: the planet hangs in the eye's light, a gold-violet crescent on its limb
-//   2.1-3.0   the law's into-arc dives back down onto the pup; "Domain Expansion: Graveyard of Efforts."
+//   0.5-1.4   the camera law's pull, back and up 560 m: the ground falls away, the planet shrinks to a sphere
+//   1.4-1.9   the wide: the planet hangs in the eye's light, a gold-violet crescent on its limb
+//   1.9-2.7   the law's into-arc dives back down onto the pup; "Domain Expansion: Graveyard of Efforts."
 //   6-8.6     the pup draws a shard out of a sleeping god-form at its side
 //   8.6-26.7  every grave is a PR that never landed (the near plinths carry the 31); "Effort never gets wasted."
 //   26.7-28.2 the kill: it swings, the slash cuts the world and the island shows through (the explained return)
@@ -103,10 +103,10 @@ function buildPlanet() {
   pg.setAttribute("aRow", rowAttribute(NAMED));
   const named = new InstancedMesh(pg, horrorMaterial(epitaphs()), NAMED);
   for (let i = 0; i < NAMED; i++) {
-    const a = Math.PI * (1.12 + (i / NAMED) * 0.76) + (r() - 0.5) * 0.06;
+    const a = Math.PI * (1.0 + (i / NAMED) * 1.0) + (r() - 0.5) * 0.04;
     const d = 5 + (i % 3) * 1.9 + r() * 0.4; // three staggered rows, so no two names overlap
     toward(Math.cos(a), Math.sin(a), d, n);
-    plant(o, n, Math.atan2(-Math.cos(a), -Math.sin(a)), 1, 0);
+    plant(o, n, Math.atan2(-Math.cos(a), -Math.sin(a)), 0.8, 0);
     named.setMatrixAt(i, o.matrix);
   }
   named.frustumCulled = false;

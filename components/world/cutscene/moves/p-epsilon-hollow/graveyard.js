@@ -96,7 +96,8 @@ export function skyMaterial() {
         float neb2 = fbm(sp * 2.9 - 4.0);
         col += vec3(0.14, 0.05, 0.22) * smoothstep(0.45, 0.85, neb);
         col += vec3(0.02, 0.15, 0.12) * smoothstep(0.55, 0.9, neb2);
-        float star = step(0.994, hash(floor(dir.xy * 140.0 + dir.z * 70.0))) * smoothstep(0.9, 1.6, r);
+        vec2 sc2 = vec2(dir.x + 0.37 * dir.z, dir.y + 0.61 * dir.z) * 420.0;
+        float star = step(0.9975, hash(floor(sc2))) * smoothstep(0.35, 0.0, length(fract(sc2) - 0.5)) * smoothstep(0.9, 1.6, r);
         col += vec3(0.8, 0.85, 0.95) * star;
         // the lids: an almond of lensed light round the iris, the sclera; outside it the void is drained darker
         float ax = p.x / 1.75;
@@ -216,8 +217,9 @@ export function planetMaterial() {
         col = mix(col, uBone * 0.45, smoothstep(0.5, 0.72, f3(n * 4.0 + 9.0)) * 0.85);
         col = mix(col, uBone * 0.5, smoothstep(0.55, 0.8, f3(q * 0.9)) * 0.7 * smoothstep(120.0, 10.0, alt)); // bone grit underfoot
         // the cracks, two scales; eldritch light leaks out of them, breathing out of step
-        float c1 = cracks(n * 16.0);
-        float c2 = cracks(q * 0.45);
+        // warped first, so the seams wander like fractures instead of tiling
+        float c1 = cracks(n * 16.0 + (f3(n * 30.0) - 0.5) * 1.2);
+        float c2 = cracks(q * 0.45 + (f3(q * 0.9) - 0.5) * 1.4);
         float breathe = 0.65 + 0.35 * sin(uTime * 1.1 + big * 12.0);
         // not every seam leaks: the light comes and goes along them, so they read as wounds, not tiles
         float leak = smoothstep(0.5, 0.72, f3(n * 22.0 + 4.0));
