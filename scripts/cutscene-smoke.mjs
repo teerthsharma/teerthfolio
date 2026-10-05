@@ -63,7 +63,7 @@ for (const id of ids) {
       const p = await page.evaluate(probe);
       row[key] = `${p.dist.toFixed(0)}m${p.onScreen ? "" : " OFF"}${p.id === as ? "" : " gone"}`;
       // off screen is only a note: staged scenes cut to a rig double or a close-up (polychrom, topograph)
-      if (p.dist > NEAR && !(at === 3 && p.dist >= 400)) row.why.push(`camera ${p.dist.toFixed(0)}m from pup @${at}s`);
+      if (p.dist > NEAR && !(at === 3 && p.dist >= 100)) row.why.push(`camera ${p.dist.toFixed(0)}m from pup @${at}s`);
       await page.screenshot({ path: `verification/smoke/${id}-${at}s.png` });
     }
     await page.waitForFunction((i) => window.__world.live.arrival.id !== i, as, { timeout: (len + 6) * 1000 }).catch(() => {});

@@ -2574,3 +2574,8 @@ html[data-cutscene="still"] .awake-card {
 .display-pop .display-pick {
   margin: 0;
 }
+
+/* a line fades in after the hand-off gap (timeline.js GAP) */
+.comic .bubble { animation: bubble-in 0.18s ease-out; }
+@keyframes bubble-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .comic .bubble { animation: none; } }
