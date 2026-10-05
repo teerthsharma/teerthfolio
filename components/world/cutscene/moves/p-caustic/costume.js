@@ -145,7 +145,7 @@ export function sukuna(parts) {
   body.geometry.computeBoundingBox();
   const bb = new Box3().copy(body.geometry.boundingBox).applyMatrix4(body.matrix);
   const a = armourGeometry(bb);
-  const mats = { hair: paint("#e5142e", 0.9), plate: paint("#1c1824", 0.2), lace: paint("#e5142e", 0.9), rim: paint("#100b0d", 0) };
+  const mats = { hair: paint("#2a241f", 0.2), plate: paint("#1c1824", 0.2), lace: paint("#e5142e", 0.9), rim: paint("#100b0d", 0) };
   const hair = new Group();
   hair.add(new Mesh(lit(hairGeometry()), mats.hair));
   const armour = new Group();

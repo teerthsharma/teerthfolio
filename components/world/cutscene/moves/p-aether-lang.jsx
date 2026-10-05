@@ -20,7 +20,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { AdditiveBlending, Mesh, MeshBasicMaterial, NormalBlending, SphereGeometry, Vector3 } from "three";
+import { AdditiveBlending, Mesh, MeshBasicMaterial, NormalBlending, PlaneGeometry, ShaderMaterial, SphereGeometry, Vector3 } from "three";
 import { PLACE_BY_ID } from "../../../../lib/world/places";
 import { figureAt, figureScale, radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
@@ -93,10 +93,38 @@ function buildVoid() {
     e.position.set(sd * 0.055, 1.925, 0.16);
     return e;
   });
-  return { hp, eyes, nebula, stars, gal, core: coreSprite(), fl: flood(), ring: closingRing(), kr: krackle(), floor: glassFloor(), gj: gojo(), glint, glints, still: lettering("STILL", "#9b6bff", -0.1), flash: flashQuad("#cdbdff") };
+  return { hp, eyes, nebula, stars, gal, core: coreSprite(), fl: flood(), ring: closingRing(), kr: krackle(), floor: glassFloor(), gj: gojo(), glint, glints, still: lettering("STILL", "#9b6bff", -0.1), flash: flashQuad("#cdbdff"), glow: floodGlow() };
 }
 
 // THE APPROACH: the shared prewarm (../prewarm.js) builds the void while the seal walks up to the dock; the arrival takes it.
+// THE FLOOD GLOW: the white-violet core and its flood as one additive radial laid on the lens, so the 3 s still is the
+// core and the flood (not type on a dark field). A shader on a quad, one draw; the pup reads through it.
+function floodGlow() {
+  const m = new Mesh(
+    new PlaneGeometry(1, 1),
+    new ShaderMaterial({
+      uniforms: { uK: { value: 0 } },
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      vertexShader: "varying vec2 vP; void main() { vP = position.xy * 2.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      fragmentShader: `uniform float uK; varying vec2 vP;
+        void main() {
+          vec2 q = vec2(vP.x * 0.8, vP.y + 0.15);
+          float r = length(q);
+          float a = atan(q.y, q.x);
+          float rays = 0.65 + 0.35 * sin(a * 9.0 + r * 6.0);
+          vec3 c = mix(vec3(0.48, 0.17, 0.75), vec3(0.95, 0.88, 1.0), exp(-r * 2.2)) * (exp(-r * 1.1) * rays + 0.35 * exp(-r * 0.4));
+          gl_FragColor = vec4(c * uK, 1.0);
+        }`,
+    }),
+  );
+  m.renderOrder = 39;
+  m.frustumCulled = false;
+  m.visible = false;
+  return m;
+}
 registerWarm("p-aether-lang", buildVoid);
 
 export default function Move(cut) {
@@ -160,8 +188,8 @@ export default function Move(cut) {
       paint.current = null;
       pup.current = null;
       // everything the scene built goes with it
-      for (const g of [m.nebula.g, m.stars.g, m.core.g, m.fl.g, m.ring.g, m.kr.g, m.floor.g, m.glint.g, m.still.geometry, ...m.eyes.map((x) => x.geometry), ...hpObjs(m.hp).map((x) => x.geometry), m.flash.geometry, ...m.gal.map((x) => x.g), ...Object.values(m.gj.geo)]) g.dispose();
-      for (const x of [m.nebula.m, m.stars.m, m.core.m, m.fl.m, m.ring.m, m.kr.m, m.glint.m, m.still.material, ...m.eyes.map((x) => x.material), ...hpObjs(m.hp).map((x) => x.material), m.flash.material, m.floor.floor.material, ...m.glints.map((x) => x.material), ...m.gal.map((x) => x.m), ...Object.values(m.gj.mats)]) x.dispose();
+      for (const g of [m.nebula.g, m.stars.g, m.core.g, m.fl.g, m.ring.g, m.kr.g, m.floor.g, m.glint.g, m.still.geometry, ...m.eyes.map((x) => x.geometry), ...hpObjs(m.hp).map((x) => x.geometry), m.flash.geometry, m.glow.geometry, ...m.gal.map((x) => x.g), ...Object.values(m.gj.geo)]) g.dispose();
+      for (const x of [m.nebula.m, m.stars.m, m.core.m, m.fl.m, m.ring.m, m.kr.m, m.glint.m, m.still.material, ...m.eyes.map((x) => x.material), ...hpObjs(m.hp).map((x) => x.material), m.flash.material, m.glow.material, m.floor.floor.material, ...m.glints.map((x) => x.material), ...m.gal.map((x) => x.m), ...Object.values(m.gj.mats)]) x.dispose();
       m.still.material.map?.dispose();
       m.floor.floor.getRenderTarget().dispose();
       m.kr.mesh.dispose();
@@ -354,6 +382,10 @@ export default function Move(cut) {
     }
 
     // a soft tinted pulse as the last of the void goes into the core (never a white-out)
+    // the core and its flood fill the lens from the bloom through line A, then give way to the move
+    const glowK = 0.85 * smooth(T.fade[0], T.fade[1], t) * (1 - smooth(5.6, 6.6, t));
+    holdFlash(m.glow, cam, glowK);
+    m.glow.material.uniforms.uK.value = glowK;
     holdFlash(m.flash, cam, Math.max(Math.max(0, 1 - Math.abs(t - T.close[1]) / 0.14) * 0.8, 0.9 * smooth(T.tunnel[1] - 0.2, T.rv, t) * (1 - smooth(T.clear[0], T.clear[1], t))));
   });
 
@@ -364,6 +396,7 @@ export default function Move(cut) {
       <Stage {...cut} bare skip={() => true} />
       {mode === "still" ? <Speaker {...cut} /> : null}
       <primitive object={m.flash} />
+      <primitive object={m.glow} />
       <primitive object={m.hp.tunnel} />
       <group ref={rig} visible={false}>
         <group ref={voidRig}>
