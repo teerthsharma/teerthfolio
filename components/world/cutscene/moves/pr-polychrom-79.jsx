@@ -16,6 +16,7 @@ import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
 import { Motes } from "./_g1";
 import { flashQuad, hash, holdFlash, inst, islandList, lettering, mat, pupParts, put } from "./p-caustic/parts";
 import { SIL_KINDS, armourGeometry, eaParts, gateMaterial, glowMaterial, goldMaterial, hairGeometry, keyGeometry, portalMaterial, runeMaterial, silhouetteGeometries, skyMaterial, windGeometry, windMaterial } from "./pr-polychrom-79/world";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 // the clock (real s from the arrival; the card puts line A at 2.3, B at 8.3, the flex line at 14.0, the credit at 23.0)
@@ -30,6 +31,60 @@ const V = new Vector3();
 const RX = new Vector3();
 const UY = new Vector3();
 const FZ = new Vector3();
+
+// the world, built by the shared prewarm (../prewarm.js) while the seal walks up, or here at the cut if it did not
+function buildWorld() {
+  const gold = goldMaterial();
+  const sky = { g: new SphereGeometry(1, 32, 16), m: skyMaterial() };
+  const portalM = portalMaterial();
+  const plane = new PlaneGeometry(1, 1);
+  const portals = inst(plane, portalM, NP);
+  // the dome of portals behind the pup: three arcs, each opens a beat after the last
+  const lay = [];
+  for (let i = 0; i < NP; i++) {
+    const layer = i < 10 ? 0 : i < 24 ? 1 : 2;
+    const n = layer === 0 ? 10 : layer === 1 ? 14 : 18;
+    const k = i - (layer === 0 ? 0 : layer === 1 ? 10 : 24);
+    const a = -0.25 * Math.PI + ((k + 0.5 + 0.3 * (hash(i, 1) - 0.5)) / n) * 1.5 * Math.PI;
+    const r = [2.2, 3.6, 5.0][layer] + 0.4 * (hash(i, 2) - 0.5);
+    lay.push({ x: Math.cos(a) * r * 1.3, y: Math.max(0.8, 2.4 + Math.sin(a) * r * 0.9), z: -5.5 - layer * 0.7 - hash(i, 3), a: a + (hash(i, 4) - 0.5) * 0.35, size: 0.8 + 0.4 * hash(i, 5) + layer * 0.1, kind: i % SIL_KINDS, len: 1.1 + 0.5 * hash(i, 6) });
+  }
+  const silG = silhouetteGeometries();
+  const silM = new MeshBasicMaterial({ color: "#1c0618", side: DoubleSide, toneMapped: false, fog: false });
+  const rimM = new MeshBasicMaterial({ color: "#f2c94c", side: DoubleSide, toneMapped: false, fog: false });
+  const sil = silG.map((g) => inst(g, silM, NP / SIL_KINDS));
+  const silRim = silG.map((g) => inst(g, rimM, NP / SIL_KINDS));
+  const cnt = new Array(SIL_KINDS).fill(0);
+  for (const p of lay) p.slot = cnt[p.kind]++;
+  const ea = eaParts();
+  // shards of space
+  const shards = inst(new TetrahedronGeometry(1, 0), mat({ color: "#ffffff", side: DoubleSide }), NS);
+  const pal = ["#ffd54a", "#ff2a3a", "#fff2c0", "#ffb020", "#d3122e"];
+  const sh = [];
+  for (let i = 0; i < NS; i++) {
+    shards.setColorAt(i, COL.set(pal[i % pal.length]));
+    sh.push({ u: (hash(i, 11) - 0.5) * 2.3, v: (hash(i, 12) - 0.5) * 2.3, d: 6 + 5 * hash(i, 13), s: 0.35 + 0.8 * hash(i, 14), r: hash(i, 15) * 6, w: 2 + 5 * hash(i, 16), fall: 0.3 + hash(i, 17) });
+  }
+  return {
+    gold, sky, portalM, plane, portals, lay, silG, silM, rimM, sil, silRim, runeM: runeMaterial(), ea, shards, sh,
+    hairG: hairGeometry(),
+    armG: armourGeometry(),
+    keyGm: keyGeometry(),
+    gateM: gateMaterial(),
+    gateG: new PlaneGeometry(18, 18),
+    eaDark: mat({ color: "#0b0508" }),
+    eaRed: mat({ color: "#ff1f33" }),
+    eaGlow: mat({ color: "#ff2a3a", transparent: true, opacity: 0.45, depthWrite: false, side: DoubleSide }),
+    windM: windMaterial(),
+    windG: windGeometry(),
+    glowM: glowMaterial("#ffc34a"),
+    glowM2: glowMaterial("#ff2a3a"),
+    quad: new PlaneGeometry(1, 1),
+    flash: flashQuad("#ffd77a"),
+    word: lettering("Enuma Elish!", "#d3122e", -0.05),
+  };
+}
+registerWarm("pr-polychrom-79", buildWorld);
 
 export default function Move(cut) {
   const { card, place, tl, mode } = cut;
@@ -49,57 +104,7 @@ export default function Move(cut) {
   const glows = useRef({});
   const pupRef = useRef(null);
 
-  const m = useMemo(() => {
-    const gold = goldMaterial();
-    const sky = { g: new SphereGeometry(1, 32, 16), m: skyMaterial() };
-    const portalM = portalMaterial();
-    const plane = new PlaneGeometry(1, 1);
-    const portals = inst(plane, portalM, NP);
-    // the dome of portals behind the pup: three arcs, each opens a beat after the last
-    const lay = [];
-    for (let i = 0; i < NP; i++) {
-      const layer = i < 10 ? 0 : i < 24 ? 1 : 2;
-      const n = layer === 0 ? 10 : layer === 1 ? 14 : 18;
-      const k = i - (layer === 0 ? 0 : layer === 1 ? 10 : 24);
-      const a = -0.25 * Math.PI + ((k + 0.5 + 0.3 * (hash(i, 1) - 0.5)) / n) * 1.5 * Math.PI;
-      const r = [2.2, 3.6, 5.0][layer] + 0.4 * (hash(i, 2) - 0.5);
-      lay.push({ x: Math.cos(a) * r * 1.3, y: Math.max(0.8, 2.4 + Math.sin(a) * r * 0.9), z: -5.5 - layer * 0.7 - hash(i, 3), a: a + (hash(i, 4) - 0.5) * 0.35, size: 0.8 + 0.4 * hash(i, 5) + layer * 0.1, kind: i % SIL_KINDS, len: 1.1 + 0.5 * hash(i, 6) });
-    }
-    const silG = silhouetteGeometries();
-    const silM = new MeshBasicMaterial({ color: "#1c0618", side: DoubleSide, toneMapped: false, fog: false });
-    const rimM = new MeshBasicMaterial({ color: "#f2c94c", side: DoubleSide, toneMapped: false, fog: false });
-    const sil = silG.map((g) => inst(g, silM, NP / SIL_KINDS));
-    const silRim = silG.map((g) => inst(g, rimM, NP / SIL_KINDS));
-    const cnt = new Array(SIL_KINDS).fill(0);
-    for (const p of lay) p.slot = cnt[p.kind]++;
-    const ea = eaParts();
-    // shards of space
-    const shards = inst(new TetrahedronGeometry(1, 0), mat({ color: "#ffffff", side: DoubleSide }), NS);
-    const pal = ["#ffd54a", "#ff2a3a", "#fff2c0", "#ffb020", "#d3122e"];
-    const sh = [];
-    for (let i = 0; i < NS; i++) {
-      shards.setColorAt(i, COL.set(pal[i % pal.length]));
-      sh.push({ u: (hash(i, 11) - 0.5) * 2.3, v: (hash(i, 12) - 0.5) * 2.3, d: 6 + 5 * hash(i, 13), s: 0.35 + 0.8 * hash(i, 14), r: hash(i, 15) * 6, w: 2 + 5 * hash(i, 16), fall: 0.3 + hash(i, 17) });
-    }
-    return {
-      gold, sky, portalM, plane, portals, lay, silG, silM, rimM, sil, silRim, runeM: runeMaterial(), ea, shards, sh,
-      hairG: hairGeometry(),
-      armG: armourGeometry(),
-      keyGm: keyGeometry(),
-      gateM: gateMaterial(),
-      gateG: new PlaneGeometry(18, 18),
-      eaDark: mat({ color: "#0b0508" }),
-      eaRed: mat({ color: "#ff1f33" }),
-      eaGlow: mat({ color: "#ff2a3a", transparent: true, opacity: 0.45, depthWrite: false, side: DoubleSide }),
-      windM: windMaterial(),
-      windG: windGeometry(),
-      glowM: glowMaterial("#ffc34a"),
-      glowM2: glowMaterial("#ff2a3a"),
-      quad: new PlaneGeometry(1, 1),
-      flash: flashQuad("#ffd77a"),
-      word: lettering("Enuma Elish!", "#d3122e", -0.05),
-    };
-  }, []);
+  const m = useMemo(() => takeWarm("pr-polychrom-79", buildWorld), []);
 
   useEffect(() => {
     // the gate, portal and wind shaders compile now, not on the beat that first shows them (the 370 ms freeze)

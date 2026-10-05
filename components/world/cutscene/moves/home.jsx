@@ -34,6 +34,7 @@ import { H, WATER_Y, floeGeometry, floeMaterial, landGeometry, landMaterial, sky
 import { gullBodyGeometry, gullWingGeometry, inkMaterial, orcaGeometry, penguinGeometry, pupWash, rainGeometry, rainMaterial, ringGeometry, ringMaterial, thorsGeometry } from "./home/beings";
 import { U, wash } from "./home/paper";
 import { flashQuad, hash, hide, holdFlash, inst, islandList, put } from "./p-caustic/parts";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 // the clock (s from the arrival, paced to read: ~30 s). Line A (Thors) 2.3, orca 5-12.6, line B 12.8, the flex 18.8, the credit 25.0, the collapse 29.4
@@ -87,6 +88,90 @@ function orcaAt(t, o) {
   return o;
 }
 
+const rainU = { value: 0 }; // the rain's strength, shared with the prewarmed world's material
+// the world, built by the shared prewarm (../prewarm.js) while the seal walks up, or here at the cut if it did not
+function buildWorld() {
+  const L = landGeometry();
+  const shell = skyShell();
+  const landM = landMaterial();
+  const waterM = waterMaterial();
+  const vin = { g: vinlandGeometry(), m: vinlandMaterial() };
+  const floeG = floeGeometry();
+  const floeM = floeMaterial();
+  const floes = inst(floeG, floeM, NFLOE);
+  const floe = Array.from({ length: NFLOE }, (_, i) => {
+    let x;
+    let z;
+    let tries = 0;
+    do {
+      x = lerp(-3.5, 12.5, hash(i + tries * 31, 1));
+      z = lerp(-75, 9, hash(i + tries * 31, 2) ** 1.3);
+      tries++;
+    } while (tries < 8 && (Math.hypot(x - OC.cx, z - OC.cz) < 4.6 || (x < 2.8 && Math.abs(z) < 2.6)));
+    return { x, z, s: (0.45 + 1.7 * hash(i, 3) ** 1.5) * (1 + -z * 0.012), ph: hash(i, 4) * 6.3, rot: hash(i, 5) * 6.3 };
+  });
+  const houses = { g: houseGeometry(), m: wash({ paper: 0.5, edge: 0.34, rim: 0.4 }) };
+  const iglooG = iglooGeometry();
+  const iglooM = wash({ paper: 0.85, edge: 0.3, rim: 0.45 });
+  const scopeG = scopeGeometry();
+  const jetty = { g: jettyGeometry(), m: wash({ paper: 0.3, edge: 0.3, rim: 0.4, flat: true }) };
+  const ship = { g: shipGeometry(), m: wash({ paper: 0.35, edge: 0.34, rim: 0.4 }) };
+  const shieldG = shieldGeometry();
+  const shieldM = wash({
+    vertexColors: false,
+    paper: 0.4,
+    edge: 0.34,
+    rim: 0.4,
+    albedo: "vec2 q = vUv - 0.5; float r = length(q) * 2.0; vec3 c = vc; c = mix(c, vec3(0.93, 0.88, 0.78), step(r, 0.2)); c = mix(c, c * 0.72, smoothstep(0.8, 0.96, r)); return c;",
+  });
+  const spots = shieldSpots();
+  const shields = inst(shieldG, shieldM, spots.length);
+  spots.forEach(([x, y, z], i) => {
+    put(shields, i, x, y, z, 1);
+    shields.setColorAt(i, new Color(SHIELD_COLS[i % 4]).convertLinearToSRGB());
+  });
+  const beacons = beaconSpots();
+  const cairns = { g: cairnGeometry(beacons), m: wash({ paper: 0.4, edge: 0.3, rim: 0.4, flat: true }) };
+  const flames = inst(new PlaneGeometry(1, 3.2).translate(0, 1.4, 0), flameMaterial(), beacons.length);
+  for (let i = 0; i < beacons.length; i++) hide(flames, i);
+  const smokeM = wash({ vertexColors: false, transparent: true, depthWrite: false, paper: 0.8, edge: 0, rim: 0.2, albedo: "return vec3(0.84, 0.82, 0.86);", alpha: "vC.r * 0.6 * pow(max(dot(N, V), 0.0), 1.1)" });
+  const smokeG = new IcosahedronGeometry(1, 1);
+  const smoke = inst(smokeG, smokeM, NSMOKE);
+  const steam = inst(smokeG, smokeM, NSTEAM);
+  for (let i = 0; i < NSMOKE; i++) smoke.setColorAt(i, C.setRGB(0, 0, 0).clone());
+  for (let i = 0; i < NSTEAM; i++) steam.setColorAt(i, C.setRGB(0, 0, 0).clone());
+  const orcaM = wash({ paper: 0.8, edge: 0.3, rim: 0.8 });
+  const orca = new Mesh(orcaGeometry(), orcaM);
+  const calf = new Mesh(orca.geometry, orcaM);
+  // the V-wake: two long soft arms trailing from the apex
+  const arm = (s) => new PlaneGeometry(0.34, 3.0, 1, 1).translate(0, -1.5, 0).rotateX(Math.PI / 2).rotateY(s * 0.42);
+  const wakeM = wash({ vertexColors: false, transparent: true, depthWrite: false, paper: 1, edge: 0, rim: 0, albedo: "return vec3(0.95, 0.96, 0.96);", alpha: "0.8 * vUv.y * smoothstep(0.0, 0.2, 1.0 - vUv.y)" });
+  const wake = new Mesh(arm(1), wakeM);
+  const wakeL = new Mesh(arm(-1), wakeM);
+  wake.renderOrder = wakeL.renderOrder = 3;
+  const rings = inst(ringGeometry(), ringMaterial(), NRING);
+  rings.renderOrder = 4;
+  for (let i = 0; i < NRING; i++) {
+    rings.setColorAt(i, C.setRGB(0, 0, 0).clone());
+    hide(rings, i);
+  }
+  const th = thorsGeometry();
+  const thorsBody = new Mesh(th.body, inkMaterial(false));
+  const thorsCloak = new Mesh(th.cloak, inkMaterial(true));
+  const peng = inst(penguinGeometry(), wash({ paper: 0.5, edge: 0.3, rim: 0.4 }), 2);
+  const gullBody = new Mesh(gullBodyGeometry(), wash({ paper: 0.9, edge: 0.3, rim: 0.4 }));
+  const wingG = gullWingGeometry();
+  const rain = inst(rainGeometry(), rainMaterial(rainU), NRAIN);
+  rain.renderOrder = 5;
+  for (let i = 0; i < NRAIN; i++) put(rain, i, lerp(-16, 12, hash(i, 1)), 26, lerp(-14, 9, hash(i, 2)), 1);
+  rain.instanceMatrix.needsUpdate = true;
+  for (let i = 0; i < NFLOE; i++) hide(floes, i);
+  smoke.renderOrder = steam.renderOrder = flames.renderOrder = 3;
+  const flash = flashQuad("#f6eddc");
+  return { L, shell, landM, waterM, vin, floes, floe, floeG, floeM, houses, iglooG, iglooM, scopeG, jetty, ship, shields, shieldG, shieldM, beacons, cairns, flames, smoke, steam, smokeM, smokeG, orca, wake, wakeL, wakeM, rings, calf, thorsBody, thorsCloak, peng, gullBody, wingG, rain, flash };
+}
+registerWarm("home", buildWorld);
+
 export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
@@ -107,91 +192,11 @@ export default function Move(cut) {
   const gullG = useRef();
   const wingL = useRef();
   const wingR = useRef();
-  const rainU = useMemo(() => ({ value: 0 }), []);
   const bannerRef = useRef(null);
   const pupW = useRef(null);
   const island = useRef([]);
 
-  const m = useMemo(() => {
-    const L = landGeometry();
-    const shell = skyShell();
-    const landM = landMaterial();
-    const waterM = waterMaterial();
-    const vin = { g: vinlandGeometry(), m: vinlandMaterial() };
-    const floeG = floeGeometry();
-    const floeM = floeMaterial();
-    const floes = inst(floeG, floeM, NFLOE);
-    const floe = Array.from({ length: NFLOE }, (_, i) => {
-      let x;
-      let z;
-      let tries = 0;
-      do {
-        x = lerp(-3.5, 12.5, hash(i + tries * 31, 1));
-        z = lerp(-75, 9, hash(i + tries * 31, 2) ** 1.3);
-        tries++;
-      } while (tries < 8 && (Math.hypot(x - OC.cx, z - OC.cz) < 4.6 || (x < 2.8 && Math.abs(z) < 2.6)));
-      return { x, z, s: (0.45 + 1.7 * hash(i, 3) ** 1.5) * (1 + -z * 0.012), ph: hash(i, 4) * 6.3, rot: hash(i, 5) * 6.3 };
-    });
-    const houses = { g: houseGeometry(), m: wash({ paper: 0.5, edge: 0.34, rim: 0.4 }) };
-    const iglooG = iglooGeometry();
-    const iglooM = wash({ paper: 0.85, edge: 0.3, rim: 0.45 });
-    const scopeG = scopeGeometry();
-    const jetty = { g: jettyGeometry(), m: wash({ paper: 0.3, edge: 0.3, rim: 0.4, flat: true }) };
-    const ship = { g: shipGeometry(), m: wash({ paper: 0.35, edge: 0.34, rim: 0.4 }) };
-    const shieldG = shieldGeometry();
-    const shieldM = wash({
-      vertexColors: false,
-      paper: 0.4,
-      edge: 0.34,
-      rim: 0.4,
-      albedo: "vec2 q = vUv - 0.5; float r = length(q) * 2.0; vec3 c = vc; c = mix(c, vec3(0.93, 0.88, 0.78), step(r, 0.2)); c = mix(c, c * 0.72, smoothstep(0.8, 0.96, r)); return c;",
-    });
-    const spots = shieldSpots();
-    const shields = inst(shieldG, shieldM, spots.length);
-    spots.forEach(([x, y, z], i) => {
-      put(shields, i, x, y, z, 1);
-      shields.setColorAt(i, new Color(SHIELD_COLS[i % 4]).convertLinearToSRGB());
-    });
-    const beacons = beaconSpots();
-    const cairns = { g: cairnGeometry(beacons), m: wash({ paper: 0.4, edge: 0.3, rim: 0.4, flat: true }) };
-    const flames = inst(new PlaneGeometry(1, 3.2).translate(0, 1.4, 0), flameMaterial(), beacons.length);
-    for (let i = 0; i < beacons.length; i++) hide(flames, i);
-    const smokeM = wash({ vertexColors: false, transparent: true, depthWrite: false, paper: 0.8, edge: 0, rim: 0.2, albedo: "return vec3(0.84, 0.82, 0.86);", alpha: "vC.r * 0.6 * pow(max(dot(N, V), 0.0), 1.1)" });
-    const smokeG = new IcosahedronGeometry(1, 1);
-    const smoke = inst(smokeG, smokeM, NSMOKE);
-    const steam = inst(smokeG, smokeM, NSTEAM);
-    for (let i = 0; i < NSMOKE; i++) smoke.setColorAt(i, C.setRGB(0, 0, 0).clone());
-    for (let i = 0; i < NSTEAM; i++) steam.setColorAt(i, C.setRGB(0, 0, 0).clone());
-    const orcaM = wash({ paper: 0.8, edge: 0.3, rim: 0.8 });
-    const orca = new Mesh(orcaGeometry(), orcaM);
-    const calf = new Mesh(orca.geometry, orcaM);
-    // the V-wake: two long soft arms trailing from the apex
-    const arm = (s) => new PlaneGeometry(0.34, 3.0, 1, 1).translate(0, -1.5, 0).rotateX(Math.PI / 2).rotateY(s * 0.42);
-    const wakeM = wash({ vertexColors: false, transparent: true, depthWrite: false, paper: 1, edge: 0, rim: 0, albedo: "return vec3(0.95, 0.96, 0.96);", alpha: "0.8 * vUv.y * smoothstep(0.0, 0.2, 1.0 - vUv.y)" });
-    const wake = new Mesh(arm(1), wakeM);
-    const wakeL = new Mesh(arm(-1), wakeM);
-    wake.renderOrder = wakeL.renderOrder = 3;
-    const rings = inst(ringGeometry(), ringMaterial(), NRING);
-    rings.renderOrder = 4;
-    for (let i = 0; i < NRING; i++) {
-      rings.setColorAt(i, C.setRGB(0, 0, 0).clone());
-      hide(rings, i);
-    }
-    const th = thorsGeometry();
-    const thorsBody = new Mesh(th.body, inkMaterial(false));
-    const thorsCloak = new Mesh(th.cloak, inkMaterial(true));
-    const peng = inst(penguinGeometry(), wash({ paper: 0.5, edge: 0.3, rim: 0.4 }), 2);
-    const gullBody = new Mesh(gullBodyGeometry(), wash({ paper: 0.9, edge: 0.3, rim: 0.4 }));
-    const wingG = gullWingGeometry();
-    const rain = inst(rainGeometry(), rainMaterial(rainU), NRAIN);
-    rain.renderOrder = 5;
-    for (let i = 0; i < NRAIN; i++) put(rain, i, lerp(-16, 12, hash(i, 1)), 26, lerp(-14, 9, hash(i, 2)), 1);
-    rain.instanceMatrix.needsUpdate = true;
-    for (let i = 0; i < NFLOE; i++) hide(floes, i);
-    smoke.renderOrder = steam.renderOrder = flames.renderOrder = 3;
-    const flash = flashQuad("#f6eddc");
-    return { L, shell, landM, waterM, vin, floes, floe, floeG, floeM, houses, iglooG, iglooM, scopeG, jetty, ship, shields, shieldG, shieldM, beacons, cairns, flames, smoke, steam, smokeM, smokeG, orca, wake, wakeL, wakeM, rings, calf, thorsBody, thorsCloak, peng, gullBody, wingG, rain, flash };
-  }, [rainU]);
+  const m = useMemo(() => takeWarm("home", buildWorld), []);
 
   // the island list is taken before the stage hides it; the pup's wash twins and the banner mount with the scene
   useEffect(() => {

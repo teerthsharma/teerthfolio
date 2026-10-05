@@ -150,7 +150,7 @@ export default function Controller() {
     // seal takes no input and no click target, so it stops for the scene.
     const arrival = live.arrival;
     // the shared prewarm (cutscene/prewarm.js): build and compile the docks the seal is walking up to
-    if (t - lastWarm > 0.4) {
+    if (t - lastWarm > 0.1) {
       lastWarm = t;
       warmTick(state.gl, state.camera, window.__world?.composer);
     }

@@ -37,6 +37,7 @@ import { BREAK, pupFresco } from "./p-separatrix/fresco";
 import { ease, hash, layout, lerp } from "./p-separatrix/geo";
 import { N, T, beaconAt, gateAt, makeParcels, parcelAt, schedule } from "./p-separatrix/story";
 import { floorY, poolLevel } from "./p-separatrix/world";
+import { registerWarm, takeWarm } from "../prewarm";
 
 const CORE_Y = 0.9;
 const HUD_D = 5; // m: the lens's plane the gold lettering is laid on
@@ -72,6 +73,14 @@ const XS = [-0.93, -0.66, -0.4, -0.14, 0.14, 0.4, 0.66, 0.93];
 const ARC = [[-0.62, 0.3, 0.3], [-0.22, 0.46, 0.1], [0.2, 0.46, -0.1], [0.6, 0.3, -0.3]];
 const pop = (a) => (a < 0 ? 0 : Math.min(1, a / 0.1) * (1 + 0.25 * Math.max(0, 1 - a / 0.22)));
 
+// the world, built by the shared prewarm (../prewarm.js) while the seal walks up, or here at the cut if it did not
+function buildWorld() {
+  const L = layout(innerWidth / innerHeight);
+  return { L, m: build(L, innerWidth, innerHeight), parcels: schedule(makeParcels(L)) };
+}
+const ID = "p-separatrix";
+registerWarm(ID, buildWorld);
+
 export default function Move(cut) {
   const { tl, mode } = cut;
   const scene = useThree((s) => s.scene);
@@ -81,9 +90,7 @@ export default function Move(cut) {
   const paint = useRef(null);
   const island = useRef([]);
   const shake = useRef(new Vector3());
-  const L = useMemo(() => layout(innerWidth / innerHeight), []);
-  const m = useMemo(() => build(L, innerWidth, innerHeight), [L]);
-  const parcels = useMemo(() => schedule(makeParcels(L)), [L]);
+  const { L, m, parcels } = useMemo(() => takeWarm(ID, buildWorld), []);
   const P = useMemo(() => {
     const at = (x, z) => floorY(L, x - L.Cx, z - L.Cz);
     const gx = L.Cx - 3.0 - 3.4 * L.lay;
