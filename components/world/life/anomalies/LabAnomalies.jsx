@@ -81,42 +81,32 @@ function TwinPaths({ place }) {
 }
 
 // ------------------------------------------------------------ epsilon-hollow
-// "Memory, files and scheduler, on one sphere." Three boulders float in a
-// circular orbit around the seal statue at the plaza centre (the sphere
-// itself stands in the north-west corner).
-const BOULDER_GEO = new IcosahedronGeometry(0.38, 0);
+// The Akatsuki hideout (issue 10 W3): three crows circle the hill behind the
+// mouth, low and black, wings beating out of step. One InstancedMesh.
+const CROW_GEO = new ConeGeometry(0.22, 0.9, 3).rotateX(Math.PI / 2).scale(2.6, 0.35, 1); // a flat arrowhead: wings and beak
+const CROW_N = 3;
 
-function OrbitingBoulders({ place }) {
-  const A = place.radiation ?? place.color;
-  const AX = 0, AZ = 0;
-  // Was C.ice (near-white) at 0.4 emissive -- read as a pale smudge even
-  // after raising intensity, since the lit diffuse base still dominated.
-  // Base tint is now the area's own radiation colour, loud as the art
-  // direction asks, with emissive on top for the glow.
-  const matBoulder = mat(A, { emissive: A, emissiveIntensity: 1.2 });
-  const boulderRefs = useRef([null, null, null]);
-  const anim = useRef({ t: 0 });
+function CirclingCrows({ place }) {
+  const hill = [0, -10]; // lib/world/hideout.js: the hill [48, 58] from the place [48, 68]
+  const matCrow = mat("#120e16", { roughness: 0.6 });
+  const ref = useRef(null);
+  const anim = useRef({ t: 0, o: new Object3D() });
   useFrame((state, dt) => {
     const a = anim.current;
-    a.t += dt * 0.8 * areaPulse(place);
-    const t = a.t;
-    const R = 2.3, Y = 3.4;
-    for (let i = 0; i < 3; i++) {
-      const ref = boulderRefs.current[i];
-      if (!ref) continue;
-      const ang = t + i * ((Math.PI * 2) / 3);
-      ref.position.set(AX + R * Math.cos(ang), Y + Math.sin(t * 1.3 + i) * 0.15, AZ + R * Math.sin(ang));
-      ref.rotation.x = t * 0.6 + i;
-      ref.rotation.y = t * 0.4 + i;
+    a.t += dt * 0.5 * areaPulse(place);
+    const m = ref.current;
+    if (!m) return;
+    for (let i = 0; i < CROW_N; i++) {
+      const ang = a.t + i * 2.1;
+      const R = 6.5 + i * 1.4;
+      a.o.position.set(hill[0] + R * Math.cos(ang), 16.5 + i * 1.1 + Math.sin(a.t * 1.7 + i) * 0.4, hill[1] + R * Math.sin(ang));
+      a.o.rotation.set(0, -ang, Math.sin(a.t * 9 + i * 1.3) * 0.5);
+      a.o.updateMatrix();
+      m.setMatrixAt(i, a.o.matrix);
     }
+    m.instanceMatrix.needsUpdate = true;
   });
-  return (
-    <>
-      <mesh ref={(el) => (boulderRefs.current[0] = el)} geometry={BOULDER_GEO} material={matBoulder} castShadow />
-      <mesh ref={(el) => (boulderRefs.current[1] = el)} geometry={BOULDER_GEO} material={matBoulder} castShadow />
-      <mesh ref={(el) => (boulderRefs.current[2] = el)} geometry={BOULDER_GEO} material={matBoulder} castShadow />
-    </>
-  );
+  return <instancedMesh ref={ref} args={[CROW_GEO, matCrow, CROW_N]} />;
 }
 
 // ------------------------------------------------------------- aether-lang
@@ -538,7 +528,7 @@ function SelfTyingRope({ place }) {
 
 const LAB_TRICKS = {
   "p-resolvent": TwinPaths,
-  "p-epsilon-hollow": OrbitingBoulders,
+  "p-epsilon-hollow": CirclingCrows,
   "p-aether-lang": FrozenTop,
   "p-caustic": ClosedRainbow,
   "p-monodromy": BackwardIcicles,

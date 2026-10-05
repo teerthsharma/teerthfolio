@@ -76,7 +76,7 @@ function Buildings() {
     return (
       <group key={place.id} position={[place.x, 0, place.z]} onClick={goTo(place)}>
         <Contain name={place.id}>
-          {Building && place.section === "lab" ? (
+          {Building && place.section === "lab" && !BUILDINGS[place.id] ? (
             <>
               <group scale={LAB_SCALE}>
                 <Building place={place} />
