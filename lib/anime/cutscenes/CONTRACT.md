@@ -1,3 +1,5 @@
+> READ FIRST: lib/anime/cutscenes/RULEBOOK.md (keep looking for new shaders; reuse first; log needs).
+
 # Cutscene contract
 
 A cutscene is DATA plus three LAYERS, composed by one build file, played by one framework. Change a file and nothing else breaks.
