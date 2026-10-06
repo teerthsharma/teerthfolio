@@ -6,14 +6,14 @@ import { AnimeEngine } from "../../lib/anime/engine.js";
 import { DEMOS, DEMO_STYLE } from "../../lib/anime/demos.js";
 import { STYLES, styleById } from "../../lib/anime/styles.js";
 
-const LINKS = [["rimuru", "Rimuru"], ["loop", "The loop"], ["ainz", "Ainz"], ["styles", "All styles"]];
+const LINKS = [["seal", "Seal"], ["rimuru", "Rimuru"], ["ainz", "Ainz"], ["styles", "All styles"]];
 
 export default function AnimeLab() {
   const ref = useRef(null);
-  const [ui, setUi] = useState({ demo: "rimuru", style: "modern-anime", caption: "", fps: "", adapter: "", tier: "" });
+  const [ui, setUi] = useState({ demo: "seal", style: "modern-anime", caption: "", fps: "", adapter: "", tier: "" });
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    const demo = DEMOS[q.get("demo")] || q.get("demo") === "styles" ? q.get("demo") : "rimuru";
+    const demo = DEMOS[q.get("demo")] || q.get("demo") === "styles" ? q.get("demo") : "seal";
     const grid = demo === "styles";
     const style = q.get("style") ?? DEMO_STYLE[grid ? "board" : demo];
     const canvas = ref.current;
