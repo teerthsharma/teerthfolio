@@ -6,6 +6,10 @@ import { AnimeEngine } from "../../lib/anime/engine.js";
 import { DEMOS, DEMO_STYLE } from "../../lib/anime/demos.js";
 import { STYLES, styleById } from "../../lib/anime/styles.js";
 
+// the style grid: the ONE seal shot in the base look and every anime recipe, tiles at the frame's aspect
+const PANELS = STYLES.filter((s) => s.id === "modern-anime" || s.anime);
+const gridDims = (n, aspect) => { let best = [1, n], bs = 0; for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), w = Math.min(1 / c, aspect / r); if (w > bs) { bs = w; best = [c, r]; } } return best; };
+
 const LINKS = [["seal", "Seal"], ["rimuru", "Rimuru"], ["ainz", "Ainz"], ["styles", "All styles"]];
 
 export default function AnimeLab() {
@@ -15,10 +19,10 @@ export default function AnimeLab() {
     const q = new URLSearchParams(window.location.search);
     const demo = DEMOS[q.get("demo")] || q.get("demo") === "styles" ? q.get("demo") : "seal";
     const grid = demo === "styles";
-    const style = q.get("style") ?? DEMO_STYLE[grid ? "board" : demo];
+    const style = q.get("style") ?? DEMO_STYLE[grid ? "seal" : demo];
     const canvas = ref.current;
     const engine = new AnimeEngine(canvas, { style, tier: q.get("tier") !== null ? Number(q.get("tier")) : undefined });
-    const d = DEMOS[grid ? "board" : demo](engine);
+    const d = DEMOS[grid ? "seal" : demo](engine);
     if (q.get("bias")) for (const f of Object.values(d.figures ?? {})) f.userData.bias?.(q.get("bias"));
     // mask: the T6 harness view. R = the thresholded field h + bias (pre-smoothstep), G = band, B = character
     if (q.has("mask")) { const m = styleById(style); engine.setStyle({ ...m, fill: { ...m.fill, tone: 9, flat: 0 }, lines: { ...m.lines, on: 0, set: 0 }, post: { ...m.post, bloom: 0, diffuse: 0, shafts: 0, gain: [1, 1, 1], gamma: [1, 1, 1], sat: 1, split: [0, 0, 0], poster: 0, palette: [], paperAmt: 0, bleed: 0, misreg: 0, grain: 0, vig: 0, mono: 0 } }); }
@@ -27,7 +31,7 @@ export default function AnimeLab() {
     const size = () => engine.resize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio || 1, 2));
     size();
     window.addEventListener("resize", size);
-    const cols = 4, rows = 2;
+    const [cols, rows] = gridDims(PANELS.length, window.innerWidth / window.innerHeight * (820 / 1180));
     const draw = (dt) => {
       if (!grid) {
         d.camera.aspect = window.innerWidth / window.innerHeight;
@@ -42,7 +46,7 @@ export default function AnimeLab() {
       engine.shared.uRes.value.set(tw, th);
       d.camera.aspect = tw / th;
       d.camera.updateProjectionMatrix();
-      STYLES.slice(0, cols * rows).forEach((s, i) => {
+      PANELS.forEach((s, i) => {
         engine.setStyle(s);
         d.update(t % d.duration, dt);
         const x = (i % cols) * tw, y = (rows - 1 - Math.floor(i / cols)) * th;
@@ -71,7 +75,7 @@ export default function AnimeLab() {
     };
     const iv = setInterval(() => {
       const s = sorted();
-      setUi({ demo, style: engine.style.id, caption: grid ? "" : d.caption(t % d.duration), fps: s.length ? `${s[Math.floor(s.length / 2)].toFixed(1)} ms` : "", adapter: engine.adapter, tier: `T${engine.tier}` });
+      setUi({ demo, style: engine.style.id, caption: grid ? "" : d.caption(t % d.duration), fps: s.length ? `${s[Math.floor(s.length / 2)].toFixed(1)} ms` : "", adapter: engine.adapter, tier: `T${engine.tier}`, grid: [cols, rows] });
     }, 250);
     return () => { cancelAnimationFrame(raf); clearInterval(iv); window.removeEventListener("resize", size); engine.composer.dispose(); engine.renderer.dispose(); };
   }, []);
@@ -92,9 +96,9 @@ export default function AnimeLab() {
         <span style={{ ...chip(false), opacity: 0.75 }} data-perf>{ui.tier} · {ui.fps}</span>
       </nav>
       {grid ? (
-        <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridTemplateRows: "repeat(2, 1fr)", pointerEvents: "none" }}>
-          {STYLES.slice(0, 8).map((s) => (
-            <a key={s.id} href={`?demo=rimuru&style=${s.id}`} style={{ alignSelf: "end", justifySelf: "center", marginBottom: 10, pointerEvents: "auto", ...caption, fontSize: 15 }}>{s.name}</a>
+        <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: `repeat(${ui.grid?.[0] ?? 2}, 1fr)`, gridTemplateRows: `repeat(${ui.grid?.[1] ?? 2}, 1fr)`, pointerEvents: "none" }}>
+          {PANELS.map((s) => (
+            <a key={s.id} href={`?demo=seal&style=${s.id}`} style={{ alignSelf: "end", justifySelf: "center", marginBottom: 10, pointerEvents: "auto", ...caption, fontSize: 15 }}>{s.name}</a>
           ))}
         </div>
       ) : (
