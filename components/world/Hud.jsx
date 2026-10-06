@@ -207,7 +207,7 @@ function TopBar({ list, sound, failed }) {
           type="button"
           className="hud-sound"
           aria-pressed={sound}
-          aria-label="Sound"
+          aria-label={sound ? "Mute audio" : "Unmute audio"}
           onClick={toggleSound}
         >
           {sound ? <IconSoundOn /> : <IconSoundOff />}
