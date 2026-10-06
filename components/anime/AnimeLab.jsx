@@ -1,56 +1,59 @@
 "use client";
-// The anime engine lab: /lab/anime?demo=rimuru|loop|ainz|styles&style=<id>
-// Extra query: t=<seconds> (start time), paused, tier=0..4 (pin), bias=raw|ao|random|t1, mask (shadow-mask view).
+// The anime engine lab: worlds only, no characters.
+//   /lab/anime?demo=world&style=<id>   one world, full frame
+//   /lab/anime (any other demo)        the named grid of every world
+// Extra query: t=<seconds>, paused, tier=0..4 (pin), fixed (no governor).
 import { useEffect, useRef, useState } from "react";
 import { AnimeEngine } from "../../lib/anime/engine.js";
-import { DEMOS, DEMO_STYLE } from "../../lib/anime/demos.js";
-import { STYLES, styleById } from "../../lib/anime/styles.js";
+import { Composer } from "../../lib/anime/post.js";
+import { WORLDS, worldById } from "../../lib/anime/worlds.js";
+import { styleById } from "../../lib/anime/styles.js";
 
-// the style grid: the ONE seal shot in the base look and every anime recipe, tiles at the frame's aspect
-const PANELS = STYLES.filter((s) => s.id === "modern-anime" || s.anime);
+// a world is named after its anime only once verified beside its reference
+const label = (w) => `${w.anime}${w.verified ? "" : " · WIP"}`;
 const gridDims = (n, aspect) => { let best = [1, n], bs = 0; for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), w = Math.min(1 / c, aspect / r); if (w > bs) { bs = w; best = [c, r]; } } return best; };
-
-const LINKS = [["seal", "Seal"], ["rimuru", "Rimuru"], ["ainz", "Ainz"], ["styles", "All styles"]];
 
 export default function AnimeLab() {
   const ref = useRef(null);
-  const [ui, setUi] = useState({ demo: "seal", style: "modern-anime", caption: "", fps: "", adapter: "", tier: "" });
+  const [ui, setUi] = useState({ single: null, fps: "", tier: "", grid: [1, 1] });
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    const demo = DEMOS[q.get("demo")] || q.get("demo") === "styles" ? q.get("demo") : "seal";
-    const grid = demo === "styles";
-    const style = q.get("style") ?? DEMO_STYLE[grid ? "seal" : demo];
+    const single = q.get("demo") === "world" ? worldById(q.get("style")) : null;
+    const list = single ? [single] : WORLDS;
     const canvas = ref.current;
-    const engine = new AnimeEngine(canvas, { style, tier: q.get("tier") !== null ? Number(q.get("tier")) : undefined });
-    const d = DEMOS[grid ? "seal" : demo](engine);
-    if (q.get("bias")) for (const f of Object.values(d.figures ?? {})) f.userData.bias?.(q.get("bias"));
-    // mask: the T6 harness view. R = the thresholded field h + bias (pre-smoothstep), G = band, B = character
-    if (q.has("mask")) { const m = styleById(style); engine.setStyle({ ...m, fill: { ...m.fill, tone: 9, flat: 0 }, lines: { ...m.lines, on: 0, set: 0 }, post: { ...m.post, bloom: 0, diffuse: 0, shafts: 0, gain: [1, 1, 1], gamma: [1, 1, 1], sat: 1, split: [0, 0, 0], poster: 0, palette: [], paperAmt: 0, bleed: 0, misreg: 0, grain: 0, vig: 0, mono: 0 } }); }
+    const engine = new AnimeEngine(canvas, { style: list[0].id, tier: q.get("tier") !== null ? Number(q.get("tier")) : undefined });
+    // one composer per panel, so each world keeps its own plate
+    const panels = list.map((w, i) => {
+      if (i > 0) engine.composer = new Composer(engine.renderer, { tier: engine.tier, samples: engine.tier >= 3 ? 4 : 0 });
+      const c = engine.composer;
+      c.plates = true;
+      engine.setStyle(w.id);
+      // each panel is isolated: a world that throws is skipped and labelled, the rest still draw
+      try { return { w, c, d: w.build(engine) }; } catch (e) { console.error(`world ${w.id}:`, e); return { w, c, d: null, err: String(e) }; }
+    });
     let t = Number(q.get("t") ?? 0), paused = q.has("paused"), last = performance.now(), raf = 0;
     const times = [];
     const size = () => engine.resize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio || 1, 2));
     size();
     window.addEventListener("resize", size);
-    const [cols, rows] = gridDims(PANELS.length, window.innerWidth / window.innerHeight * (820 / 1180));
+    const [cols, rows] = single ? [1, 1] : gridDims(list.length, (window.innerWidth / window.innerHeight) * (820 / 1180));
     const draw = (dt) => {
-      if (!grid) {
-        d.camera.aspect = window.innerWidth / window.innerHeight;
+      const W = canvas.width, H = canvas.height, tw = Math.floor(W / cols), th = Math.floor(H / rows);
+      panels.forEach((P, i) => {
+        const { w, c, d } = P;
+        if (!d) return;
+        try {
+        engine.composer = c;
+        c.setSize(tw, th);
+        engine.shared.uRes.value.set(tw, th);
+        engine.setStyle(w.id);
+        d.apply();
+        d.camera.aspect = tw / th;
         d.camera.updateProjectionMatrix();
-        d.update(t % d.duration, dt);
-        engine.frame(d.scene, d.camera, t % d.duration, dt);
-        return;
-      }
-      const W = canvas.width, H = canvas.height;
-      const tw = Math.floor(W / cols), th = Math.floor(H / rows);
-      engine.composer.setSize(tw, th);
-      engine.shared.uRes.value.set(tw, th);
-      d.camera.aspect = tw / th;
-      d.camera.updateProjectionMatrix();
-      PANELS.forEach((s, i) => {
-        engine.setStyle(s);
-        d.update(t % d.duration, dt);
+        d.update(t, dt);
         const x = (i % cols) * tw, y = (rows - 1 - Math.floor(i / cols)) * th;
-        engine.frame(d.scene, d.camera, t % d.duration, dt, [x, y, tw, th]);
+        engine.frame(d.scene, d.camera, t, dt, single ? null : [x, y, tw, th]);
+        } catch (e) { console.error(`world ${w.id}:`, e); P.d = null; P.err = String(e); }
       });
     };
     const loop = (now) => {
@@ -66,47 +69,30 @@ export default function AnimeLab() {
     raf = requestAnimationFrame(loop);
     const sorted = () => [...times].sort((a, b) => a - b);
     window.__anime = {
-      engine, demo: d,
+      engine, panels,
       seek(s) { t = s; draw(0); },
       pause() { paused = true; }, play() { paused = false; },
-      bias(mode) { for (const f of Object.values(d.figures ?? {})) f.userData.bias?.(mode); draw(0); },
-      stats() { const s = sorted(); return { adapter: engine.adapter, tier: engine.tier, dpr: engine.dpr, buffer: [engine.composer.w, engine.composer.h], p50: s[Math.floor(s.length * 0.5)], p95: s[Math.floor(s.length * 0.95)], n: s.length, governor: engine.governor.log, bakeMs: d.bakeMs }; },
+      stats() { const s = sorted(); return { adapter: engine.adapter, tier: engine.tier, dpr: engine.dpr, buffer: [engine.composer.w, engine.composer.h], p50: s[Math.floor(s.length * 0.5)], p95: s[Math.floor(s.length * 0.95)], n: s.length, governor: engine.governor.log }; },
       reset() { times.length = 0; },
     };
-    const iv = setInterval(() => {
-      const s = sorted();
-      setUi({ demo, style: engine.style.id, caption: grid ? "" : d.caption(t % d.duration), fps: s.length ? `${s[Math.floor(s.length / 2)].toFixed(1)} ms` : "", adapter: engine.adapter, tier: `T${engine.tier}`, grid: [cols, rows] });
-    }, 250);
-    return () => { cancelAnimationFrame(raf); clearInterval(iv); window.removeEventListener("resize", size); engine.composer.dispose(); engine.renderer.dispose(); };
+    const iv = setInterval(() => { const s = sorted(); setUi({ errs: Object.fromEntries(panels.filter((p) => p.err).map((p) => [p.w.id, p.err])), single, fps: s.length ? `${s[Math.floor(s.length / 2)].toFixed(1)} ms` : "", tier: `T${engine.tier}`, grid: [cols, rows] }); }, 250);
+    return () => { cancelAnimationFrame(raf); clearInterval(iv); window.removeEventListener("resize", size); for (const p of panels) p.c.dispose(); engine.renderer.dispose(); };
   }, []);
-  const st = styleById(ui.style);
-  const grid = ui.demo === "styles";
+  const panels = ui.single ? [ui.single] : WORLDS;
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", overflow: "hidden", fontFamily: "var(--font, system-ui)" }}>
       <canvas ref={ref} style={{ width: "100%", height: "100%", display: "block" }} />
       <nav style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-        {LINKS.map(([id, label]) => (
-          <a key={id} href={`?demo=${id}`} style={chip(ui.demo === id)}>{label}</a>
-        ))}
-        {!grid && (
-          <select aria-label="Style" value={ui.style} onChange={(e) => { window.location.search = `?demo=${ui.demo}&style=${e.target.value}`; }} style={{ ...chip(false), border: "none" }}>
-            {STYLES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        )}
+        <a href="?demo=worlds" style={chip(!ui.single)}>All worlds</a>
+        {WORLDS.map((w) => <a key={w.id} href={`?demo=world&style=${w.id}`} style={chip(ui.single?.id === w.id)}>{label(w)}</a>)}
         <span style={{ ...chip(false), opacity: 0.75 }} data-perf>{ui.tier} · {ui.fps}</span>
       </nav>
-      {grid ? (
-        <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: `repeat(${ui.grid?.[0] ?? 2}, 1fr)`, gridTemplateRows: `repeat(${ui.grid?.[1] ?? 2}, 1fr)`, pointerEvents: "none" }}>
-          {PANELS.map((s) => (
-            <a key={s.id} href={`?demo=seal&style=${s.id}`} style={{ alignSelf: "end", justifySelf: "center", marginBottom: 10, pointerEvents: "auto", ...caption, fontSize: 15 }}>{s.name}</a>
-          ))}
-        </div>
-      ) : (
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: "7%", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, pointerEvents: "none" }}>
-          {ui.caption && <div style={{ ...caption, fontSize: 22 }}>{ui.caption}</div>}
-          <div style={{ ...caption, fontSize: 14, opacity: 0.9 }}>Style: {st.name}</div>
+      {!ui.single && (
+        <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: `repeat(${ui.grid[0]}, 1fr)`, gridTemplateRows: `repeat(${ui.grid[1]}, 1fr)`, pointerEvents: "none" }}>
+          {panels.map((w) => <a key={w.id} href={`?demo=world&style=${w.id}`} style={{ alignSelf: "end", justifySelf: "center", marginBottom: 10, pointerEvents: "auto", ...caption, fontSize: 15 }}>{label(w)}{ui.errs?.[w.id] ? " · failed: " + ui.errs[w.id].slice(0, 80) : ""}</a>)}
         </div>
       )}
+      {ui.single && <div style={{ position: "absolute", left: 0, right: 0, bottom: "5%", display: "flex", justifyContent: "center", pointerEvents: "none" }}><div style={{ ...caption, fontSize: 14 }}>{label(ui.single)} · {styleById(ui.single.id).name}</div></div>}
     </div>
   );
 }
