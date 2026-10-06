@@ -3,6 +3,7 @@
 //   /lab/anime?demo=world&style=<id>   one world, full frame
 //   /lab/anime (any other demo)        the named grid of every world
 //   /lab/anime?tool=<name>|all         one detachable shader tool alone (lib/anime/tools), or all of them
+//   /lab/anime?cut=<dock>&t=<s>        one cutscene (lib/anime/cutscenes), in its own error boundary
 // Extra query: t=<seconds>, paused, tier=0..4 (pin), fixed (no governor).
 import { useEffect, useRef, useState } from "react";
 import { AnimeEngine } from "../../lib/anime/engine.js";
@@ -10,6 +11,7 @@ import { Composer } from "../../lib/anime/post.js";
 import { WORLDS, worldById } from "../../lib/anime/worlds.js";
 import { styleById } from "../../lib/anime/styles.js";
 import ToolLab from "./ToolLab.jsx";
+import CutLab from "./CutLab.jsx";
 
 // a world is named after its anime only once verified beside its reference
 const label = (w) => `${w.anime}${w.verified ? "" : " · WIP"}`;
@@ -17,10 +19,11 @@ const label = (w) => `${w.anime}${w.verified ? "" : " · WIP"}`;
 const gridDims = (n, aspect) => { let best = [n, 1], bs = -1e9; for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), w = Math.min(1 / c, aspect / r) - (r * c - n); if (w > bs) { bs = w; best = [c, r]; } } return best; };
 
 export default function AnimeLab() {
-  const [tool, setTool] = useState(undefined);
-  useEffect(() => setTool(new URLSearchParams(window.location.search).get("tool")), []);
-  if (tool === undefined) return null;
-  return tool ? <ToolLab name={tool} /> : <WorldLab />;
+  const [q, setQ] = useState(undefined);
+  useEffect(() => { const p = new URLSearchParams(window.location.search); setQ({ tool: p.get("tool"), cut: p.get("cut") }); }, []);
+  if (q === undefined) return null;
+  if (q.cut) return <CutLab id={q.cut} />;
+  return q.tool ? <ToolLab name={q.tool} /> : <WorldLab />;
 }
 
 function WorldLab() {
