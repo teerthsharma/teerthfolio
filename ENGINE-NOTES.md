@@ -1,6 +1,6 @@
 # Anime engine notes (engine/anime)
 
-The engine is a WebGL2 cutscene renderer for teerthfolio, kept separate from the roaming island. Lab route: `/lab/anime?demo=seal|rimuru|ainz|styles&style=<id>`. It is served by `next dev -p 3801` from this worktree. Production builds 404 the route (`VERCEL_ENV === "production"`).
+The engine is a WebGL2 cutscene renderer for teerthfolio, kept separate from the roaming island. Lab route: `/lab/anime?demo=world&style=<id>` (one world; add `&move=1` for the camera-move proof) and `/lab/anime?demo=worlds` (the named grid; any other `demo` value lands there too). It is served by `next dev -p 3801` from this worktree. Production builds 404 the route (`VERCEL_ENV === "production"`).
 
 ## Platform decision: WebGL2, not WebGPURenderer/TSL
 
@@ -103,3 +103,61 @@ Use `engine.setStyle("ukiyo-e")`, or the `?style=` query. Every mesh made throug
 5. **Swap contract** with the site pup at the pocket boundary: copy the world position, yaw and pose phase, and hide/show on the same frame.
 
 The references in `../engine-ref/` are never committed.
+
+## Worlds (2026-10-06): environments only, one per anime
+
+The owner's direction: the seal keeps ONE constant style (the locked kawaii design) and is not
+restyled; the style work is about WORLDS. No route builds the seal now (`demos.js` is deleted;
+`pup.js` stays as a library for the cutscenes). A grid panel is labelled with its anime only once
+it is verified beside its reference (`verified` in `worlds.js`); until then it says WIP.
+
+### The hybrid rule
+
+Far background = painted plates; mid and near ground = real 3D in the painted style; anything that
+moves in depth or that the camera passes = 3D. Cutscenes are 3D, so every world must hold a 20 to
+40 degree arc (`&move=1`: start, middle and end captured in `engine-shots/artist/move-<id>.png`).
+
+| World | Plate (baked once) | 3D (painted materials) |
+|---|---|---|
+| `jjk` Malevolent Shrine | storm dome: puff-union cumulonimbus lit by a 2D light march from the horizon glow and two lightning pockets, painted lightning (`bakedDome`, 3230x2090 half float, direction-mapped so arcs stay correct) | shrine body, maw, 4 rows of rounded glossy teeth plus side teeth, lacquer pillars, emissive eave beams, two hip roofs with upturned eaves, a crown of crescent horns, rubble mound with skulls and bones, two dead trees, teal masonry walls with grit, light slits glowing through grime, the whole world mirrored under a teal grunge water glaze |
+| `frieren` | the whole frame is a procedural painting (`paintings/frieren.js`) finished by the generalized Kuwahara; no 3D yet | none yet: owed (near stones and grass the camera can arc around) |
+| `your-name` | procedural cumulus sky with comet, flare and glitter (dome, not yet baked) | ground, hill, grass, tree blobs, box city, pole and wires: still flat CG, owed a rebuild on the paint and grit kit |
+
+### Kit pieces (the future framework's parts)
+
+- `paint.js`: `KIT` (noise, ridged, warp, Voronoi, stroke fields, ramps, blob SDFs), `painting()` (a
+  fullscreen painted layer), `KIT_STORM` (storm density, light march, `bolt2` lightning),
+  `KIT_PUFFS` and `puffBanks()` (cloud masses as sphere unions with normals: cumulus and
+  cumulonimbus), `bakedDome()` (bake any sky painting once over the shot's azimuth/elevation window).
+- `kit3d.js`: `boulder`, `horn` (with a crescent curl), `hipRoof`, `bareTree`, `teeth` (lathe
+  teeth), `flipX` (mirror with correct winding), `merge` (normalises attributes; throws naming the
+  part instead of returning null).
+- `material.js` modes, per prop: `uStone` grit (1 masonry, 2 rubble: triplanar blocks, Voronoi
+  cracks, grime streaks, two-scale mottling; emission is modulated by the grit), `uGloss` (hard
+  specular sheet plus a grazing sheen), shared `uFog` (height mist, mirror-symmetric), `uRimDir`.
+- `post.js` plate pass: Kuwahara (4-quadrant and 8-sector generalized), gradient map, clover heads,
+  filaments, haze; the composite layers plate and characters by depth.
+
+### How this maps onto the stage-2 framework
+
+- **Style = data:** `lib/anime/styles/<id>.js` already holds each world recipe as pure data (lines,
+  fill, post, plate filters, timing). Still owed: the environment kit choice in the recipe (today the
+  world builder in `worlds.js` names its kit pieces in code), and an index that needs no import line
+  per style.
+- **Environment kit:** the pieces above, parameterised by palette. Each world builder is a short
+  composition of kit calls; stage 2 turns those compositions into data (a list of kit calls with
+  parameters) so a cutscene designer edits a file, not code.
+- **Plates pipeline:** shot (camera), then layers (layer 0 world, layer 1 animated), then the bake
+  (dome bake once; plate filters once per style and camera), then parallax (the dome is at infinity
+  and the mid ground is 3D, so moves hold). Still owed: depth-separated far plates (painted cards)
+  for parallax between distant layers.
+- **Shot format:** each world has one authored camera pose and an optional move (`pose(t)` in the
+  builder). Stage 2 lifts that into the camera-law shot description.
+- **Contracts:** `engine-shots/artist/sbs.py` writes a side-by-side and luma, saturation and hue
+  statistics against the reference; it should become a per-style test with thresholds.
+
+### Measured (RTX 4060 laptop, ANGLE D3D11, 1180x820, DPR 1, tier 3)
+
+rAF interval p50 6.0 to 6.1 ms, p95 6.3 to 6.5 ms for `jjk` static, `jjk` with the move, `frieren`
+and the three-panel grid. This is the display-paced interval, a ceiling, not GPU time. The dome bake
+and the generalized Kuwahara are one-off costs at build or style change. Intel UHD: not measured.

@@ -11,7 +11,8 @@ import { styleById } from "../../lib/anime/styles.js";
 
 // a world is named after its anime only once verified beside its reference
 const label = (w) => `${w.anime}${w.verified ? "" : " · WIP"}`;
-const gridDims = (n, aspect) => { let best = [1, n], bs = 0; for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), w = Math.min(1 / c, aspect / r); if (w > bs) { bs = w; best = [c, r]; } } return best; };
+// fewest empty cells first, then the largest tile
+const gridDims = (n, aspect) => { let best = [n, 1], bs = -1e9; for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), w = Math.min(1 / c, aspect / r) - (r * c - n); if (w > bs) { bs = w; best = [c, r]; } } return best; };
 
 export default function AnimeLab() {
   const ref = useRef(null);
@@ -29,7 +30,7 @@ export default function AnimeLab() {
       c.plates = true;
       engine.setStyle(w.id);
       // each panel is isolated: a world that throws is skipped and labelled, the rest still draw
-      try { return { w, c, d: w.build(engine) }; } catch (e) { console.error(`world ${w.id}:`, e); return { w, c, d: null, err: String(e) }; }
+      try { return { w, c, d: w.build(engine, { move: q.has("move") }) }; } catch (e) { console.error(`world ${w.id}:`, e); return { w, c, d: null, err: String(e) }; }
     });
     let t = Number(q.get("t") ?? 0), paused = q.has("paused"), last = performance.now(), raf = 0;
     const times = [];
