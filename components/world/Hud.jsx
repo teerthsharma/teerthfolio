@@ -207,7 +207,8 @@ function TopBar({ list, sound, failed }) {
           type="button"
           className="hud-sound"
           aria-pressed={sound}
-          aria-label="Sound"
+          aria-label={sound ? "Mute audio" : "Enable audio"}
+          title={sound ? "Mute audio" : "Enable audio"}
           onClick={toggleSound}
         >
           {sound ? <IconSoundOn /> : <IconSoundOff />}
@@ -329,9 +330,11 @@ function Links({ items }) {
             href={l.url}
             target={external ? "_blank" : undefined}
             rel={external ? "noreferrer" : undefined}
+            title={external ? `${l.label} (opens in a new tab)` : undefined}
           >
             {l.label}
             {external && <IconArrow />}
+            {external && <span className="sr-only"> (opens in a new tab)</span>}
           </a>
         );
       })}
