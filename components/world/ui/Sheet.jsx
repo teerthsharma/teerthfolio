@@ -20,7 +20,7 @@ export function useFocusOnOpen(on, ref) {
   }, [on, ref]);
 }
 
-export default function Sheet({ on, side, titleId, titleRef, accent, failed, onClose, children }) {
+export default function Sheet({ id, on, side, titleId, titleRef, accent, failed, onClose, children }) {
   const [full, setFull] = useState(false);
   const sheetRef = useRef(null);
   const y0 = useRef(null);
@@ -72,6 +72,7 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
 
   return (
     <section
+      id={id}
       ref={sheetRef}
       role="dialog"
       aria-modal="false"

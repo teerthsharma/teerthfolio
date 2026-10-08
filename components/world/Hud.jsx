@@ -186,7 +186,14 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a
+          className="hud-mark chip"
+          href={PROFILE.site}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${PROFILE.name}, ${PROFILE.title} (opens in a new tab)`}
+          title={`${PROFILE.name} - ${PROFILE.title}`}
+        >
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -195,7 +202,12 @@ function TopBar({ list, sound, failed }) {
         </a>
       </div>
       <nav className="hud-nav">
-        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
+        <button
+          type="button"
+          aria-expanded={list || failed}
+          aria-controls="list-sheet"
+          onClick={() => setUi({ list: true, open: null })}
+        >
           Projects
         </button>
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
@@ -447,6 +459,7 @@ function Panel({ open, titleRef }) {
   const Variant = place?.section === "upstream" ? UpstreamPanel : place?.section === "lab" ? LabPanel : HomePanel;
   return (
     <Sheet
+      id="panel-sheet"
       on={Boolean(open)}
       side="right"
       titleId="panel-title"
@@ -503,6 +516,7 @@ function FallbackCard({ place }) {
 function List({ list, failed, titleRef }) {
   return (
     <Sheet
+      id="list-sheet"
       on={list || failed}
       side="left"
       titleId="list-title"
