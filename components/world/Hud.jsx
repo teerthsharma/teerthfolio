@@ -186,7 +186,7 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a className="hud-mark chip" href={PROFILE.site} aria-label={`${PROFILE.name} - ${PROFILE.title}`}>
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -194,14 +194,20 @@ function TopBar({ list, sound, failed }) {
           </span>
         </a>
       </div>
-      <nav className="hud-nav">
+      <nav className="hud-nav" aria-label="Main navigation">
         <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
           Projects
         </button>
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
           About
         </button>
-        <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <a
+          href={`mailto:${PROFILE.email}`}
+          aria-label={`Send email to ${PROFILE.email}`}
+          title={`Send email to ${PROFILE.email}`}
+        >
+          Contact
+        </a>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"
@@ -329,7 +335,7 @@ function Links({ items }) {
             className={i === 0 ? "btn btn-primary" : "btn btn-ghost"}
             href={l.url}
             target={external ? "_blank" : undefined}
-            rel={external ? "noreferrer" : undefined}
+            rel={external ? "noopener noreferrer" : undefined}
             title={external ? `${l.label} (opens in a new tab)` : undefined}
           >
             {l.label}
