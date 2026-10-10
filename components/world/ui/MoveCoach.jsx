@@ -53,7 +53,7 @@ export default function MoveCoach() {
 
   const visible = started && ready && !learned && !open && !list && !cutscene;
   return (
-    <div className="coach" data-visible={visible} data-mode={mode} aria-live="polite">
+    <div className="coach" data-visible={visible} data-mode={mode} aria-live="polite" aria-hidden={!visible}>
       {mode === "touch" && (
         <>
           <div className="coach-swipe" aria-hidden="true">

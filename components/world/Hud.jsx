@@ -186,7 +186,7 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a className="hud-mark chip" href={PROFILE.site} aria-label={`${PROFILE.name}'s website`}>
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -194,7 +194,7 @@ function TopBar({ list, sound, failed }) {
           </span>
         </a>
       </div>
-      <nav className="hud-nav">
+      <nav className="hud-nav" aria-label="Main navigation">
         <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
           Projects
         </button>
@@ -285,6 +285,7 @@ function NearPrompt({ near, open, list, failed }) {
         data-state={visible ? "open" : "closed"}
         inert={!visible}
         style={place ? { "--accent": place.color } : undefined}
+        aria-label={place ? `Open ${place.name} details` : undefined}
         onClick={() => place && setUi({ open: place.id })}
       >
         {place && (
@@ -452,6 +453,7 @@ function Panel({ open, titleRef }) {
       titleId="panel-title"
       titleRef={titleRef}
       accent={place?.color}
+      closeLabel={place ? `Close ${place.name} details` : "Close project details"}
       onClose={() => setUi({ open: null })}
     >
       {place && <Variant place={place} titleRef={titleRef} />}
@@ -508,6 +510,7 @@ function List({ list, failed, titleRef }) {
       titleId="list-title"
       titleRef={titleRef}
       failed={failed}
+      closeLabel="Close projects list"
       onClose={() => setUi({ list: false })}
     >
       {failed ? (
