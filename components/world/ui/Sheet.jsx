@@ -89,7 +89,7 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
           type="button"
           className="sheet-handle"
           aria-expanded={full}
-          aria-label="Sheet size"
+          aria-label={full ? "Collapse sheet" : "Expand sheet"}
           onClick={onHandleClick}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

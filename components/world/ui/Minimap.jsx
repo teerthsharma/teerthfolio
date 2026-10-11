@@ -62,13 +62,14 @@ export default function Minimap({ onSelect }) {
         type="button"
         className="minimap-toggle"
         aria-expanded={open}
+        aria-controls="minimap-panel"
         aria-label={open ? "Hide map" : "Show map"}
         title={open ? "Hide map" : "Show map"}
         onClick={() => setOpen((o) => !o)}
       >
         <IconMap />
       </button>
-      <div className="minimap-panel">
+      <div id="minimap-panel" className="minimap-panel">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE} aria-hidden="true">
           <rect width={SIZE} height={SIZE} className="minimap-sea" />
           <circle cx={CENTER} cy={CENTER} r={RIM} className="minimap-island" />
@@ -111,14 +112,18 @@ export default function Minimap({ onSelect }) {
                 data-tinted={Boolean(tint)}
                 style={{ "--accent": place.color, ...(tint ? { "--ring": tint } : null) }}
                 onClick={() => onSelect(place)}
-              />
+              >
+                <title>{place.name}</title>
+              </circle>
             );
           })}
           {(() => {
             const home = PLACE_BY_ID.home;
             const [x, y] = project(home.x, home.z);
             return (
-              <circle cx={x} cy={y} r={6} tabIndex={-1} className="minimap-home" onClick={() => onSelect(home)} />
+              <circle cx={x} cy={y} r={6} tabIndex={-1} className="minimap-home" onClick={() => onSelect(home)}>
+                <title>{home.name}</title>
+              </circle>
             );
           })()}
           <g ref={sealRef} className="minimap-seal">

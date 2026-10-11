@@ -195,7 +195,11 @@ function TopBar({ list, sound, failed }) {
         </a>
       </div>
       <nav className="hud-nav">
-        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
+        <button
+          type="button"
+          aria-expanded={list || failed}
+          onClick={() => setUi({ list: failed ? true : !list, open: null })}
+        >
           Projects
         </button>
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
