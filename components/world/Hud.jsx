@@ -213,6 +213,9 @@ function TopBar({ list, sound, failed }) {
         >
           {sound ? <IconSoundOn /> : <IconSoundOff />}
         </button>
+        <span className="sr-only" aria-live="polite">
+          {sound ? "Audio enabled" : "Audio muted"}
+        </span>
       </nav>
     </header>
   );
