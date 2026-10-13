@@ -186,7 +186,12 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a
+          className="hud-mark chip"
+          href={PROFILE.site}
+          aria-label={`${PROFILE.name} - ${PROFILE.title}`}
+          title={`Visit ${PROFILE.site}`}
+        >
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -201,7 +206,9 @@ function TopBar({ list, sound, failed }) {
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
           About
         </button>
-        <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <a href={`mailto:${PROFILE.email}`} title={`Send email to ${PROFILE.email}`}>
+          Contact
+        </a>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"
@@ -284,6 +291,7 @@ function NearPrompt({ near, open, list, failed }) {
         className="hud-near card"
         data-state={visible ? "open" : "closed"}
         inert={!visible}
+        aria-label={place ? `Open ${place.name}` : undefined}
         style={place ? { "--accent": place.color } : undefined}
         onClick={() => place && setUi({ open: place.id })}
       >
