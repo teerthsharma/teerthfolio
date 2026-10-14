@@ -186,7 +186,7 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a className="hud-mark chip" href={PROFILE.site} aria-label={`${PROFILE.name} — ${PROFILE.title}`}>
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
