@@ -173,7 +173,7 @@ function DistrictBanner({ district: current, open, list }) {
   );
 }
 
-function TopBar({ list, sound, failed }) {
+function TopBar({ list, sound, failed, open }) {
   function toggleSound() {
     const next = !sound;
     setUi({ sound: next });
@@ -198,7 +198,7 @@ function TopBar({ list, sound, failed }) {
         <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
           Projects
         </button>
-        <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
+        <button type="button" aria-expanded={open === "home"} onClick={() => sendTo(PLACE_BY_ID.home)}>
           About
         </button>
         <a href={`mailto:${PROFILE.email}`}>Contact</a>
@@ -329,7 +329,7 @@ function Links({ items }) {
             className={i === 0 ? "btn btn-primary" : "btn btn-ghost"}
             href={l.url}
             target={external ? "_blank" : undefined}
-            rel={external ? "noreferrer" : undefined}
+            rel={external ? "noopener noreferrer" : undefined}
             title={external ? `${l.label} (opens in a new tab)` : undefined}
           >
             {l.label}
@@ -614,7 +614,7 @@ export default function Hud() {
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
       <CutsceneTitle id={cutscene} />
-      <TopBar list={list} sound={sound} failed={failed} />
+      <TopBar list={list} sound={sound} failed={failed} open={open} />
       <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />
       {!failed && <MoveCoach />}

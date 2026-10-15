@@ -353,7 +353,8 @@ a {
   background: var(--ground2);
 }
 
-.hud-nav button[aria-expanded="true"] {
+.hud-nav button[aria-expanded="true"],
+.hud-nav button[aria-pressed="true"] {
   background: var(--ground2);
 }
 
