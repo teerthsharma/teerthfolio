@@ -173,7 +173,7 @@ function DistrictBanner({ district: current, open, list }) {
   );
 }
 
-function TopBar({ list, sound, failed }) {
+function TopBar({ list, open, sound, failed }) {
   function toggleSound() {
     const next = !sound;
     setUi({ sound: next });
@@ -186,7 +186,12 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a
+          className="hud-mark chip"
+          href={PROFILE.site}
+          aria-label={`${PROFILE.name} website`}
+          title={`Visit ${PROFILE.name}'s website`}
+        >
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -198,10 +203,16 @@ function TopBar({ list, sound, failed }) {
         <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
           Projects
         </button>
-        <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
+        <button type="button" aria-expanded={open === "home"} onClick={() => sendTo(PLACE_BY_ID.home)}>
           About
         </button>
-        <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <a
+          href={`mailto:${PROFILE.email}`}
+          title={`Send email to ${PROFILE.email}`}
+          aria-label={`Contact ${PROFILE.name} via email`}
+        >
+          Contact
+        </a>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"
@@ -461,9 +472,15 @@ function Panel({ open, titleRef }) {
 
 function ListRow({ place }) {
   const upstream = place.section === "upstream";
+  const name = upstream ? place.title : place.name;
   return (
     <li>
-      <button type="button" style={{ "--accent": place.color }} onClick={() => sendTo(place)}>
+      <button
+        type="button"
+        style={{ "--accent": place.color }}
+        title={`Slide seal to ${name}`}
+        onClick={() => sendTo(place)}
+      >
         {upstream && place.logo ? (
           <img className="list-logo" src={place.logo} alt="" width="20" height="20" />
         ) : (
@@ -483,8 +500,15 @@ function ListRow({ place }) {
 function FallbackCard({ place }) {
   const upstream = place.section === "upstream";
   const hero = upstream ? null : place.proof[0];
+  const name = upstream ? place.title : place.name;
   return (
-    <button type="button" className="fallback-card" style={{ "--accent": place.color }} onClick={() => sendTo(place)}>
+    <button
+      type="button"
+      className="fallback-card"
+      style={{ "--accent": place.color }}
+      title={`View details for ${name}`}
+      onClick={() => sendTo(place)}
+    >
       {upstream && place.logo && <img className="fallback-card-logo" src={place.logo} alt="" width="24" height="24" />}
       <span className="fallback-card-kind">{upstream ? `${place.repo} #${place.pr}` : place.kind}</span>
       <span className="fallback-card-name">{upstream ? place.title : place.name}</span>
@@ -614,7 +638,7 @@ export default function Hud() {
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
       <CutsceneTitle id={cutscene} />
-      <TopBar list={list} sound={sound} failed={failed} />
+      <TopBar list={list} open={open} sound={sound} failed={failed} />
       <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />
       {!failed && <MoveCoach />}
