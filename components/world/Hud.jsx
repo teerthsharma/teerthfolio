@@ -173,7 +173,7 @@ function DistrictBanner({ district: current, open, list }) {
   );
 }
 
-function TopBar({ list, sound, failed }) {
+function TopBar({ list, open, sound, failed }) {
   function toggleSound() {
     const next = !sound;
     setUi({ sound: next });
@@ -195,13 +195,25 @@ function TopBar({ list, sound, failed }) {
         </a>
       </div>
       <nav className="hud-nav">
-        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
+        <button
+          type="button"
+          aria-expanded={list || failed}
+          aria-controls="list-sheet"
+          onClick={() => setUi({ list: true, open: null })}
+        >
           Projects
         </button>
-        <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
+        <button
+          type="button"
+          aria-expanded={open === "home"}
+          aria-controls="panel-sheet"
+          onClick={() => sendTo(PLACE_BY_ID.home)}
+        >
           About
         </button>
-        <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <a href={`mailto:${PROFILE.email}`} title={`Email ${PROFILE.email}`}>
+          Contact
+        </a>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"
@@ -447,6 +459,7 @@ function Panel({ open, titleRef }) {
   const Variant = place?.section === "upstream" ? UpstreamPanel : place?.section === "lab" ? LabPanel : HomePanel;
   return (
     <Sheet
+      id="panel-sheet"
       on={Boolean(open)}
       side="right"
       titleId="panel-title"
@@ -503,6 +516,7 @@ function FallbackCard({ place }) {
 function List({ list, failed, titleRef }) {
   return (
     <Sheet
+      id="list-sheet"
       on={list || failed}
       side="left"
       titleId="list-title"
@@ -614,7 +628,7 @@ export default function Hud() {
       <Curtain ready={ready} />
       <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
       <CutsceneTitle id={cutscene} />
-      <TopBar list={list} sound={sound} failed={failed} />
+      <TopBar list={list} open={open} sound={sound} failed={failed} />
       <DistrictBanner district={district} open={open} list={list} />
       <Intro started={started} ready={ready} failed={failed} />
       {!failed && <MoveCoach />}
