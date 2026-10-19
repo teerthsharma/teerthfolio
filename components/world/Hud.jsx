@@ -194,7 +194,7 @@ function TopBar({ list, sound, failed }) {
           </span>
         </a>
       </div>
-      <nav className="hud-nav">
+      <nav className="hud-nav" aria-label="Main navigation">
         <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
           Projects
         </button>
@@ -282,6 +282,7 @@ function NearPrompt({ near, open, list, failed }) {
       <button
         type="button"
         className="hud-near card"
+        aria-label={place ? `Open ${place.name}` : undefined}
         data-state={visible ? "open" : "closed"}
         inert={!visible}
         style={place ? { "--accent": place.color } : undefined}
