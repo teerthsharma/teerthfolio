@@ -47,4 +47,12 @@ export default [
       },
     },
   },
+  {
+    files: ["proxy.js", "lib/tech/**/*.js", "app/tech/**/*.js", "test/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
 ];
