@@ -186,7 +186,12 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a
+          className="hud-mark chip"
+          href={PROFILE.site}
+          aria-label={`${PROFILE.name} — ${PROFILE.title} (opens website)`}
+          title={`${PROFILE.name} — ${PROFILE.title}`}
+        >
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -195,13 +200,24 @@ function TopBar({ list, sound, failed }) {
         </a>
       </div>
       <nav className="hud-nav">
-        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
+        <button
+          type="button"
+          aria-expanded={list || failed}
+          aria-controls="list-title"
+          onClick={() => setUi({ list: true, open: null })}
+        >
           Projects
         </button>
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
           About
         </button>
-        <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <a
+          href={`mailto:${PROFILE.email}`}
+          aria-label={`Contact ${PROFILE.name} via email`}
+          title={`Send email to ${PROFILE.email}`}
+        >
+          Contact
+        </a>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"
@@ -282,6 +298,7 @@ function NearPrompt({ near, open, list, failed }) {
       <button
         type="button"
         className="hud-near card"
+        aria-label={place ? `Open details for ${place.name}` : "Open building details"}
         data-state={visible ? "open" : "closed"}
         inert={!visible}
         style={place ? { "--accent": place.color } : undefined}
@@ -461,16 +478,23 @@ function Panel({ open, titleRef }) {
 
 function ListRow({ place }) {
   const upstream = place.section === "upstream";
+  const name = upstream ? place.title : place.name;
   return (
     <li>
-      <button type="button" style={{ "--accent": place.color }} onClick={() => sendTo(place)}>
+      <button
+        type="button"
+        style={{ "--accent": place.color }}
+        aria-label={`Go to ${name}`}
+        title={`Go to ${name}`}
+        onClick={() => sendTo(place)}
+      >
         {upstream && place.logo ? (
           <img className="list-logo" src={place.logo} alt="" width="20" height="20" />
         ) : (
           <span className="list-dot" aria-hidden="true" />
         )}
         <span className="list-row-text">
-          <span className="list-row-name">{upstream ? place.title : place.name}</span>
+          <span className="list-row-name">{name}</span>
           <span className="list-row-kind">{upstream ? `${place.repo} #${place.pr}` : place.kind}</span>
           {upstream && <span className="list-row-headline">{place.headline}</span>}
         </span>
