@@ -186,7 +186,14 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a
+          className="hud-mark chip"
+          href={PROFILE.site}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${PROFILE.name} - ${PROFILE.title} (opens website in new tab)`}
+          title={`${PROFILE.name} — ${PROFILE.title} (opens in a new tab)`}
+        >
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -194,14 +201,19 @@ function TopBar({ list, sound, failed }) {
           </span>
         </a>
       </div>
-      <nav className="hud-nav">
-        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
+      <nav className="hud-nav" aria-label="Main navigation">
+        <button
+          type="button"
+          aria-expanded={list || failed}
+          title="Browse all projects"
+          onClick={() => setUi({ list: true, open: null })}
+        >
           Projects
         </button>
-        <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
+        <button type="button" title="Go to About area" onClick={() => sendTo(PLACE_BY_ID.home)}>
           About
         </button>
-        <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <a href={`mailto:${PROFILE.email}`} title={`Send email to ${PROFILE.email}`}>Contact</a>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"

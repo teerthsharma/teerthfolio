@@ -100,6 +100,7 @@ export default function Minimap({ onSelect }) {
           {PLACES.filter((p) => p.id !== "home").map((place) => {
             const [x, y] = project(place.x, place.z);
             const tint = place.district?.radiation ?? place.district?.color;
+            const titleText = place.section === "upstream" ? `${place.repo} #${place.pr}: ${place.title}` : place.name;
             return (
               <circle
                 key={place.id}
@@ -111,17 +112,22 @@ export default function Minimap({ onSelect }) {
                 data-tinted={Boolean(tint)}
                 style={{ "--accent": place.color, ...(tint ? { "--ring": tint } : null) }}
                 onClick={() => onSelect(place)}
-              />
+              >
+                <title>{titleText}</title>
+              </circle>
             );
           })}
           {(() => {
             const home = PLACE_BY_ID.home;
             const [x, y] = project(home.x, home.z);
             return (
-              <circle cx={x} cy={y} r={6} tabIndex={-1} className="minimap-home" onClick={() => onSelect(home)} />
+              <circle cx={x} cy={y} r={6} tabIndex={-1} className="minimap-home" onClick={() => onSelect(home)}>
+                <title>About — {home.name}</title>
+              </circle>
             );
           })()}
           <g ref={sealRef} className="minimap-seal">
+            <title>Your location</title>
             <circle r={5} className="minimap-seal-ring" />
             <path d="M0 9L-3 3L3 3Z" className="minimap-seal-heading" />
             <circle r={3.5} className="minimap-seal-dot" />
