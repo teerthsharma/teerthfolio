@@ -195,19 +195,19 @@ function TopBar({ list, sound, failed }) {
         </a>
       </div>
       <nav className="hud-nav">
-        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
+        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: !list, open: null })}>
           Projects
         </button>
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
           About
         </button>
-        <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <a href={`mailto:${PROFILE.email}`} title={`Email ${PROFILE.email}`}>Contact</a>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"
           className="hud-sound"
           aria-pressed={sound}
-          aria-label={sound ? "Mute audio" : "Enable audio"}
+          aria-label="Audio"
           title={sound ? "Mute audio" : "Enable audio"}
           onClick={toggleSound}
         >
@@ -452,6 +452,7 @@ function Panel({ open, titleRef }) {
       titleId="panel-title"
       titleRef={titleRef}
       accent={place?.color}
+      closeLabel="Close project details"
       onClose={() => setUi({ open: null })}
     >
       {place && <Variant place={place} titleRef={titleRef} />}
@@ -508,6 +509,7 @@ function List({ list, failed, titleRef }) {
       titleId="list-title"
       titleRef={titleRef}
       failed={failed}
+      closeLabel="Close projects list"
       onClose={() => setUi({ list: false })}
     >
       {failed ? (
