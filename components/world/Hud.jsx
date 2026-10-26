@@ -195,7 +195,12 @@ function TopBar({ list, sound, failed }) {
         </a>
       </div>
       <nav className="hud-nav">
-        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
+        <button
+          type="button"
+          aria-expanded={list || failed}
+          aria-controls="list-title"
+          onClick={() => setUi({ list: true, open: null })}
+        >
           Projects
         </button>
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
@@ -329,7 +334,7 @@ function Links({ items }) {
             className={i === 0 ? "btn btn-primary" : "btn btn-ghost"}
             href={l.url}
             target={external ? "_blank" : undefined}
-            rel={external ? "noreferrer" : undefined}
+            rel={external ? "noopener noreferrer" : undefined}
             title={external ? `${l.label} (opens in a new tab)` : undefined}
           >
             {l.label}
