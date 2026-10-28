@@ -452,6 +452,7 @@ function Panel({ open, titleRef }) {
       titleId="panel-title"
       titleRef={titleRef}
       accent={place?.color}
+      closeLabel="Close project details"
       onClose={() => setUi({ open: null })}
     >
       {place && <Variant place={place} titleRef={titleRef} />}
@@ -508,6 +509,7 @@ function List({ list, failed, titleRef }) {
       titleId="list-title"
       titleRef={titleRef}
       failed={failed}
+      closeLabel="Close project list"
       onClose={() => setUi({ list: false })}
     >
       {failed ? (
