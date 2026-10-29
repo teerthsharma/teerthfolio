@@ -186,7 +186,14 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a
+          className="hud-mark chip"
+          href={PROFILE.site}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${PROFILE.name} — ${PROFILE.title} (opens in a new tab)`}
+          title={`${PROFILE.name} — ${PROFILE.title} (opens in a new tab)`}
+        >
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -194,8 +201,13 @@ function TopBar({ list, sound, failed }) {
           </span>
         </a>
       </div>
-      <nav className="hud-nav">
-        <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
+      <nav className="hud-nav" aria-label="Main navigation">
+        <button
+          type="button"
+          aria-expanded={list || failed}
+          aria-controls="list-sheet"
+          onClick={() => setUi({ list: true, open: null })}
+        >
           Projects
         </button>
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
@@ -207,7 +219,7 @@ function TopBar({ list, sound, failed }) {
           type="button"
           className="hud-sound"
           aria-pressed={sound}
-          aria-label={sound ? "Mute audio" : "Enable audio"}
+          aria-label="Sound"
           title={sound ? "Mute audio" : "Enable audio"}
           onClick={toggleSound}
         >
@@ -286,6 +298,8 @@ function NearPrompt({ near, open, list, failed }) {
         inert={!visible}
         style={place ? { "--accent": place.color } : undefined}
         onClick={() => place && setUi({ open: place.id })}
+        aria-haspopup="dialog"
+        aria-expanded={open === place?.id}
       >
         {place && (
           <>
@@ -503,6 +517,7 @@ function FallbackCard({ place }) {
 function List({ list, failed, titleRef }) {
   return (
     <Sheet
+      id="list-sheet"
       on={list || failed}
       side="left"
       titleId="list-title"
