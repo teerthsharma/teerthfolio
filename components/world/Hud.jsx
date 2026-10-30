@@ -186,7 +186,14 @@ function TopBar({ list, sound, failed }) {
   return (
     <header className="hud-top">
       <div className="hud-top-left">
-        <a className="hud-mark chip" href={PROFILE.site} aria-label={PROFILE.name}>
+        <a
+          className="hud-mark chip"
+          href={PROFILE.site}
+          target="_blank"
+          rel="noreferrer"
+          title={`${PROFILE.name} landing site (opens in a new tab)`}
+          aria-label={`${PROFILE.name} landing site (opens in a new tab)`}
+        >
           <span className="hud-mark-mono" aria-hidden="true">TS</span>
           <span className="hud-mark-full" aria-hidden="true">
             <strong>{PROFILE.name}</strong>
@@ -194,14 +201,14 @@ function TopBar({ list, sound, failed }) {
           </span>
         </a>
       </div>
-      <nav className="hud-nav">
+      <nav className="hud-nav" aria-label="Main navigation">
         <button type="button" aria-expanded={list || failed} onClick={() => setUi({ list: true, open: null })}>
           Projects
         </button>
         <button type="button" onClick={() => sendTo(PLACE_BY_ID.home)}>
           About
         </button>
-        <a href={`mailto:${PROFILE.email}`}>Contact</a>
+        <a href={`mailto:${PROFILE.email}`} title={`Email ${PROFILE.email}`}>Contact</a>
         <span className="hud-nav-divider" aria-hidden="true" />
         <button
           type="button"
