@@ -1790,7 +1790,9 @@ h2[tabindex="-1"]:focus {
 }
 
 .hud-mark:focus-visible,
-.hud-near:focus-visible {
+.hud-near:focus-visible,
+.sheet-close:focus-visible,
+.sheet-handle:focus-visible {
   box-shadow: 0 0 0 6px #fff, var(--e3w);
 }
 
