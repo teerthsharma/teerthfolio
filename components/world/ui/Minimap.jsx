@@ -111,14 +111,18 @@ export default function Minimap({ onSelect }) {
                 data-tinted={Boolean(tint)}
                 style={{ "--accent": place.color, ...(tint ? { "--ring": tint } : null) }}
                 onClick={() => onSelect(place)}
-              />
+              >
+                <title>{place.name}</title>
+              </circle>
             );
           })}
           {(() => {
             const home = PLACE_BY_ID.home;
             const [x, y] = project(home.x, home.z);
             return (
-              <circle cx={x} cy={y} r={6} tabIndex={-1} className="minimap-home" onClick={() => onSelect(home)} />
+              <circle cx={x} cy={y} r={6} tabIndex={-1} className="minimap-home" onClick={() => onSelect(home)}>
+                <title>{home.name}</title>
+              </circle>
             );
           })()}
           <g ref={sealRef} className="minimap-seal">
