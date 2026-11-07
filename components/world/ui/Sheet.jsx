@@ -70,6 +70,31 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
     if (!full && e.target !== titleRef.current && !e.target.closest(".sheet-handle, .sheet-close")) setFull(true);
   }
 
+  function onKeyDown(e) {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+    if (e.key === "Tab" && on && !failed && sheetRef.current) {
+      const focusables = Array.from(
+        sheetRef.current.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === sheetRef.current || document.activeElement === titleRef.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
   return (
     <section
       ref={sheetRef}
@@ -83,6 +108,7 @@ export default function Sheet({ on, side, titleId, titleRef, accent, failed, onC
       inert={!on}
       style={accent ? { "--accent": accent } : undefined}
       onFocusCapture={onFocusCapture}
+      onKeyDown={onKeyDown}
     >
       {!failed && (
         <button
