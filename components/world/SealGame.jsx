@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import { PLACE_BY_ID, dockPoint } from "../../lib/world/places";
+import { watchWorld } from "../../lib/world/analytics";
 import Hud from "./Hud";
 
 const Scene = dynamic(() => import("./Scene"), { ssr: false });
@@ -156,7 +157,7 @@ function useTouchStick(ref) {
   }, [ref]);
 }
 
-export default function SealGame() {
+export default function SealGame({ spawn } = {}) {
   const stage = useRef(null);
   const failed = useUi((s) => s.failed);
   useKeyboard();
@@ -172,14 +173,16 @@ export default function SealGame() {
     // point at one project.
     const params = new URLSearchParams(window.location.search);
     if (params.get("hud") === "off") document.documentElement.dataset.hud = "off";
-    const place = PLACE_BY_ID[params.get("spawn")];
+    const place = PLACE_BY_ID[spawn ?? params.get("spawn")];
     if (params.get("hud") === "off") document.documentElement.dataset.hud = "off";
     if (place) {
       const dock = dockPoint(place);
       Object.assign(live.seal, { x: dock.x, z: dock.z, vx: 0, vz: 0, heading: Math.PI });
     }
     if (params.has("play") || place) setUi({ started: true });
-  }, []);
+  }, [spawn]);
+
+  useEffect(() => watchWorld(), []);
 
   return (
     <div className="game">

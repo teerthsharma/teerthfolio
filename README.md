@@ -3,7 +3,7 @@
   <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=black" />
   <img src="https://img.shields.io/badge/three.js-0.178-049ef4?style=flat-square&logo=three.js&logoColor=white" />
   <img src="https://img.shields.io/badge/world%20check-30%20rules-2f7dff?style=flat-square" />
-  <img src="https://img.shields.io/badge/live-teerthfolio.vercel.app-e94bff?style=flat-square&logo=vercel" />
+  <img src="https://img.shields.io/badge/live-www.evilseal.si-e94bff?style=flat-square&logo=vercel" />
 </p>
 
 <h1 align="center">🦭 Seal's Topology Land</h1>
@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://teerthfolio.vercel.app"><b>Play it live</b></a>&nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://www.evilseal.si"><b>Play it live</b></a>&nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="https://teerthsharma.github.io">Landing site (the words and numbers come from here)</a>
 </p>
 

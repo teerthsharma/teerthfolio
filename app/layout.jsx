@@ -1,5 +1,9 @@
 import { Instrument_Sans, JetBrains_Mono, Shantell_Sans } from "next/font/google";
 import "./globals.css";
+import { PROFILE, SITE_URL } from "../lib/world/places";
+
+// Not imported from lib/world/analytics: that pulls the client-only store into the server layout.
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 // Variable fonts, so no weight list is needed. Weights used: sans
 // 400/500/600/700, mono 500/800.
@@ -11,17 +15,22 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", displ
 const comic = Shantell_Sans({ subsets: ["latin"], variable: "--font-comic", display: "swap", axes: ["BNCE", "INFM"], preload: false });
 
 export const metadata = {
-  title: "Teerth Sharma — Seal's Topology Land",
+  title: { default: "Teerth Sharma — Seal's Topology Land", template: "%s — Teerth Sharma" },
   description:
     "Slide a seal around an ice island where every stop is one of Teerth Sharma's projects: eleven contributions landed upstream, a bare-metal Rust OS, a runtime whose loops stop when their shape does, and maths proved in Lean.",
-  metadataBase: new URL("https://teerthfolio.vercel.app"),
+  metadataBase: new URL(SITE_URL),
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Teerth Sharma — Seal's Topology Land",
     description: "A seal, an island, and every project Teerth built, each one a place to slide up to.",
+    url: "/",
     type: "website",
     siteName: "Teerth Sharma",
   },
   twitter: { card: "summary_large_image" },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION },
+  authors: [{ name: PROFILE.name, url: SITE_URL }],
 };
 
 export const viewport = {
@@ -32,6 +41,16 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} ${comic.variable}`}>
+      {GA_ID && (
+        <head>
+          <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(GA_ID)});`,
+            }}
+          />
+        </head>
+      )}
       <body>{children}</body>
     </html>
   );

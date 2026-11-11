@@ -152,6 +152,7 @@ export default function Controller() {
       warmTick(state.gl, state.camera, window.__world?.composer);
     }
     if (arrival.id && (t - arrival.start >= arrivalLength(arrival.id) || ui.open || freshInput(arrival))) {
+      arrival.ended = t - arrival.start >= arrivalLength(arrival.id) ? "complete" : ui.open ? "panel" : "skip";
       arrival.id = null;
       live.lastArrivalEnd = t;
       live.movedSinceArrival = false;

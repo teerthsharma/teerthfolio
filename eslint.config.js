@@ -40,7 +40,7 @@ export default [
     },
   },
   {
-    files: ["app/api/**/*.js", "lib/**/*.js"],
+    files: ["app/api/**/*.js", "app/layout.jsx", "lib/**/*.js"],
     languageOptions: {
       globals: {
         ...globals.node,
