@@ -1,4 +1,5 @@
 import { Instrument_Sans, JetBrains_Mono, Shantell_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { PROFILE, SITE_URL } from "../lib/world/places";
 
@@ -17,7 +18,7 @@ const comic = Shantell_Sans({ subsets: ["latin"], variable: "--font-comic", disp
 export const metadata = {
   title: { default: "Teerth Sharma — Seal's Topology Land", template: "%s — Teerth Sharma" },
   description:
-    "Slide a seal around an ice island where every stop is one of Teerth Sharma's projects: eleven contributions landed upstream, a bare-metal Rust OS, a runtime whose loops stop when their shape does, and maths proved in Lean.",
+    "Slide a seal around an ice island where every stop is one of Teerth Sharma's projects: fourteen contributions landed upstream, a bare-metal Rust OS, a runtime whose loops stop when their shape does, and maths proved in Lean.",
   metadataBase: new URL(SITE_URL),
   alternates: { canonical: "/" },
   openGraph: {
@@ -51,7 +52,14 @@ export default function RootLayout({ children }) {
           />
         </head>
       )}
-      <body>{children}</body>
+      <body>
+        {children}
+        <Script
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "2a4259bb84734fe6ad6ecff564c4a27a"}'
+          strategy="afterInteractive"
+        />
+      </body>
     </html>
   );
 }
