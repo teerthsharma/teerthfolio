@@ -1,5 +1,6 @@
 const nextConfig = {
   devIndicators: false,
+  outputFileTracingIncludes: { "/tech/[[...path]]": ["./private/tech/**/*"] },
   images: {
     remotePatterns: [
       {

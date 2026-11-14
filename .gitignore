@@ -21,3 +21,6 @@ public/uploads/*
 # scratch files agents leave in the repo root
 /_*.mjs
 /shot-output.txt
+
+# Gated /tech pages never enter this public repo; they reach Vercel only via `vercel deploy` (the CLI uploads gitignored files).
+/private/
