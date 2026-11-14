@@ -1,4 +1,5 @@
 import { Instrument_Sans, JetBrains_Mono, Shantell_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 // Variable fonts, so no weight list is needed. Weights used: sans
@@ -13,7 +14,7 @@ const comic = Shantell_Sans({ subsets: ["latin"], variable: "--font-comic", disp
 export const metadata = {
   title: "Teerth Sharma — Seal's Topology Land",
   description:
-    "Slide a seal around an ice island where every stop is one of Teerth Sharma's projects: eleven contributions landed upstream, a bare-metal Rust OS, a runtime whose loops stop when their shape does, and maths proved in Lean.",
+    "Slide a seal around an ice island where every stop is one of Teerth Sharma's projects: fourteen contributions landed upstream, a bare-metal Rust OS, a runtime whose loops stop when their shape does, and maths proved in Lean.",
   metadataBase: new URL("https://teerthfolio.vercel.app"),
   openGraph: {
     title: "Teerth Sharma — Seal's Topology Land",
@@ -32,7 +33,14 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} ${comic.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Script
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "2a4259bb84734fe6ad6ecff564c4a27a"}'
+          strategy="afterInteractive"
+        />
+      </body>
     </html>
   );
 }
