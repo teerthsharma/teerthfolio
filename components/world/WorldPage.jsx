@@ -5,11 +5,18 @@ const PROJECTS = PLACES.filter((p) => p.id !== "home");
 
 const PERSON = {
   "@type": "Person",
-  "@id": `${SITE_URL}/#person`,
+  // One identity across teerth.dev, teerth.blog and evilseal.si.
+  "@id": "https://teerth.dev/#person",
   name: PROFILE.name,
-  url: SITE_URL,
+  url: "https://teerth.dev",
   email: `mailto:${PROFILE.email}`,
-  sameAs: [PROFILE.github, PROFILE.site],
+  sameAs: [
+    SITE_URL,
+    "https://teerth.blog",
+    PROFILE.github,
+    "https://www.linkedin.com/in/teerth-sharma-seal/",
+    "https://orcid.org/0009-0005-0882-9168",
+  ],
 };
 
 export function placeTitle(place) {
