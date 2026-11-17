@@ -1,4 +1,5 @@
-import { PLACES, SITE_URL } from "../lib/world/places";
+import { SITE_URL } from "../lib/site";
+import { PLACES } from "../lib/world/places";
 
 export default function sitemap() {
   return [

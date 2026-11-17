@@ -1,13 +1,43 @@
 import { notFound } from "next/navigation";
-import WorldPage, { placeTitle } from "../../../components/world/WorldPage";
+import SealGame from "../../../components/world/SealGame";
+import { SITE_URL } from "../../../lib/site";
 import { PLACES, PROFILE } from "../../../lib/world/places";
 
 const PROJECTS = PLACES.filter((p) => p.id !== "home");
+
+// Upstream titles are the data title plus the brand. These five would pass 60 characters, so they use shorter forms.
+const SHORT_TITLE = {
+  "pr-xnnpack-10801": "Reusing leading gap in the memory planner",
+  "pr-tensorflow-124410": "Missing back-prop in transitive reduction",
+  "pr-openxla-46539": "Deterministic GPU reduction-grouping codegen",
+  "pr-topograph-432": "Gating cluster wide RBAC to applicable rules",
+  "pr-pyrefly-4180": "Pinning 208-module recheck propagation panic",
+};
+
+const PERSON = {
+  "@type": "Person",
+  "@id": `${SITE_URL}/#person`,
+  name: PROFILE.name,
+  url: SITE_URL,
+  email: `mailto:${PROFILE.email}`,
+  sameAs: [SITE_URL, PROFILE.github],
+};
 
 export const dynamicParams = false;
 
 export function generateStaticParams() {
   return PROJECTS.map((p) => ({ id: p.id }));
+}
+
+function placeTitle(place) {
+  if (place.section === "upstream") return `${SHORT_TITLE[place.id] ?? place.title} — ${PROFILE.name}`;
+  return `${place.name}: ${place.kind}`.replace(/\.$/, "");
+}
+
+// Upstream descriptions open with the repo and PR, and clip at a word inside 160 characters.
+function placeDescription(place) {
+  const text = `${place.section === "upstream" ? `${place.kind}: ` : ""}${place.hook} ${place.body}`;
+  return text.length <= 160 ? text : `${text.slice(0, 159).replace(/\s+\S*$/, "")}…`;
 }
 
 export async function generateMetadata({ params }) {
@@ -16,7 +46,7 @@ export async function generateMetadata({ params }) {
   if (!place) return {};
   return {
     title: placeTitle(place),
-    description: `${place.hook} ${place.body}`,
+    description: placeDescription(place),
     alternates: { canonical: `/projects/${place.id}` },
     openGraph: {
       title: placeTitle(place),
@@ -29,9 +59,99 @@ export async function generateMetadata({ params }) {
   };
 }
 
+function Article({ place }) {
+  return (
+    <article>
+      <p>{place.hook}</p>
+      <ul>
+        {place.proof.map((p, i) => (
+          <li key={i}>{p.value} {p.label}</li>
+        ))}
+      </ul>
+      <p>{place.body}</p>
+      <ul>
+        {place.links.map((l) => (
+          <li key={l.url}><a href={l.url}>{l.label}</a></li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
 export default async function ProjectPage({ params }) {
   const { id } = await params;
   const place = PROJECTS.find((p) => p.id === id);
   if (!place) notFound();
-  return <WorldPage place={place} />;
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    name: placeTitle(place),
+    description: place.hook,
+    url: `${SITE_URL}/projects/${place.id}`,
+    codeRepository: place.links[0]?.url,
+    programmingLanguage: place.language,
+    author: PERSON,
+  };
+  return (
+    <main>
+      <SealGame spawn={place.id} />
+      <noscript>
+        <style>{`
+          html, body {
+            height: auto;
+            overflow: visible;
+            background: #fbfaf7;
+          }
+          .game { display: none; }
+          section.sr-only {
+            position: static;
+            width: auto;
+            height: auto;
+            overflow: visible;
+            clip-path: none;
+            white-space: normal;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 48px 16px;
+            color: #1c1b19;
+            font-family: var(--font-sans), sans-serif;
+          }
+          section.sr-only a { color: #163d9a; }
+          section.sr-only h1, section.sr-only h2 { line-height: 1.15; letter-spacing: -0.02em; }
+          section.sr-only article { border-bottom: 1px solid #e5e2da; padding: 24px 0; }
+          section.sr-only article:last-of-type { border-bottom: 0; }
+        `}</style>
+        <div
+          style={{
+            background: "#fbfaf7",
+            color: "#5f5b53",
+            borderBottom: "1px solid #e5e2da",
+            padding: "12px 16px",
+            textAlign: "center",
+            fontFamily: "var(--font-sans), sans-serif",
+            fontSize: 14,
+          }}
+        >
+          The island needs JavaScript. Here is the same work as plain text, or visit{" "}
+          <a href={PROFILE.site} style={{ color: "#163d9a" }}>
+            {PROFILE.site.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+          </a>
+          .
+        </div>
+      </noscript>
+      <section id="crawler-copy" className="sr-only" aria-label={`${PROFILE.name}'s projects`}>
+        <h1>{placeTitle(place)}</h1>
+        <Article place={place} />
+        <nav aria-label="More projects">
+          <a href="/">{PROFILE.name}: all projects</a>
+          <ul>
+            {PROJECTS.filter((p) => p.id !== place.id).map((p) => (
+              <li key={p.id}><a href={`/projects/${p.id}`}>{placeTitle(p)}</a></li>
+            ))}
+          </ul>
+        </nav>
+      </section>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />
+    </main>
+  );
 }

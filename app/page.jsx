@@ -62,6 +62,7 @@ export default function Home() {
         {PLACES.map((place) => (
           <article key={place.id}>
             <h2>{place.name}</h2>
+            {place.section === "upstream" && <p>{place.verb} {place.repo} #{place.pr}: {place.title}</p>}
             <p>{place.hook}</p>
             <ul>
               {place.proof.map((p, i) => (
@@ -69,6 +70,12 @@ export default function Home() {
               ))}
             </ul>
             <p>{place.body}</p>
+            {place.checks && (
+              <>
+                <h3>How it was checked</h3>
+                <ul>{place.checks.map((c) => <li key={c}>{c}</li>)}</ul>
+              </>
+            )}
             <ul>
               {place.links.map((l) => (
                 <li key={l.url}><a href={l.url}>{l.label}</a></li>

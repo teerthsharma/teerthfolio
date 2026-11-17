@@ -1,6 +1,7 @@
 import { Instrument_Sans, JetBrains_Mono, Shantell_Sans } from "next/font/google";
 import Script from "next/script";
 import Clarity from "../components/Clarity";
+import { SITE_URL } from "../lib/site";
 import { PLACES } from "../lib/world/places";
 import "./globals.css";
 
@@ -18,7 +19,7 @@ const UPSTREAM_COUNT = PLACES.filter((p) => p.section === "upstream").length;
 export const metadata = {
   title: "Teerth Sharma — Seal's Topology Land",
   description: `A seal on an ice island where every stop is a Teerth Sharma project: ${UPSTREAM_COUNT} contributions landed upstream, a bare-metal Rust OS, maths proved in Lean.`,
-  metadataBase: new URL("https://teerthfolio.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   openGraph: {
     title: "Teerth Sharma — Seal's Topology Land",
     description: "A seal, an island, and every project Teerth built, each one a place to slide up to.",
