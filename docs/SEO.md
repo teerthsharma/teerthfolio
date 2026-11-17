@@ -1,6 +1,6 @@
 # SEO and analytics
 
-The island is a full-screen WebGL canvas, so search engines read the server-rendered copy in `app/page.jsx` and `app/projects/[id]/page.jsx`, the page metadata, `app/sitemap.js` and the JSON-LD on each project page. The canonical origin is `SITE_URL` in `lib/site.js`.
+The island is a full-screen WebGL canvas, so search engines read the server-rendered copy in `app/page.jsx` and `app/projects/[id]/page.jsx`, the page metadata, `app/sitemap.js` and the JSON-LD on the home page and each project page (`lib/jsonld.js`). The canonical origin is `SITE_URL` in `lib/site.js`. `public/llms.txt` lists every project page for AI assistants, and `public/humans.txt` names the site's tools.
 
 ## Owner steps
 

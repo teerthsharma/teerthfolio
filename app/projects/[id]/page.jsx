@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import SealGame from "../../../components/world/SealGame";
 import { SITE_URL } from "../../../lib/site";
+import { PERSON, jsonLd } from "../../../lib/jsonld";
 import { PLACES, PROFILE } from "../../../lib/world/places";
 
 const PROJECTS = PLACES.filter((p) => p.id !== "home");
@@ -14,30 +15,29 @@ const SHORT_TITLE = {
   "pr-pyrefly-4180": "Pinning 208-module recheck propagation panic",
 };
 
-const PERSON = {
-  "@type": "Person",
-  "@id": `${SITE_URL}/#person`,
-  name: PROFILE.name,
-  url: SITE_URL,
-  email: `mailto:${PROFILE.email}`,
-  sameAs: [SITE_URL, PROFILE.github],
-};
-
 export const dynamicParams = false;
 
 export function generateStaticParams() {
   return PROJECTS.map((p) => ({ id: p.id }));
 }
 
-function placeTitle(place) {
-  if (place.section === "upstream") return `${SHORT_TITLE[place.id] ?? place.title} — ${PROFILE.name}`;
-  return `${place.name}: ${place.kind}`.replace(/\.$/, "");
+// Clips at a word so the result, ellipsis included, is at most `max` characters.
+function clip(text, max) {
+  return text.length <= max ? text : `${text.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
 }
 
-// Upstream descriptions open with the repo and PR, and clip at a word inside 160 characters.
+// Lab titles under 30 characters get the brand, as upstream titles do; longer than 60 they clip.
+function placeTitle(place) {
+  if (place.section === "upstream") return `${SHORT_TITLE[place.id] ?? place.title} — ${PROFILE.name}`;
+  const title = `${place.name}: ${place.kind}`.replace(/\.$/, "");
+  return clip(title.length < 30 ? `${title} — ${PROFILE.name}` : title, 60);
+}
+
+// Upstream descriptions open with the repo and PR. Lab descriptions under 120 characters gain the lab name.
 function placeDescription(place) {
-  const text = `${place.section === "upstream" ? `${place.kind}: ` : ""}${place.hook} ${place.body}`;
-  return text.length <= 160 ? text : `${text.slice(0, 159).replace(/\s+\S*$/, "")}…`;
+  const body = `${place.hook} ${place.body}`;
+  if (place.section === "upstream") return clip(`${place.kind}: ${body}`, 160);
+  return clip(body.length < 120 ? `${place.name} ${place.section}: ${body}` : body, 160);
 }
 
 export async function generateMetadata({ params }) {
@@ -151,7 +151,7 @@ export default async function ProjectPage({ params }) {
           </ul>
         </nav>
       </section>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(data) }} />
     </main>
   );
 }

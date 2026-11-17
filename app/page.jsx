@@ -1,5 +1,8 @@
 import SealGame from "../components/world/SealGame";
+import { PERSON, WEBSITE, jsonLd } from "../lib/jsonld";
 import { PLACES, PROFILE } from "../lib/world/places";
+
+export const metadata = { alternates: { canonical: "/" } };
 
 export default function Home() {
   return (
@@ -53,6 +56,10 @@ export default function Home() {
           .
         </div>
       </noscript>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd({ "@context": "https://schema.org", "@graph": [WEBSITE, PERSON] }) }}
+      />
       {/* The same content as the island, as plain text for search engines and
           for visitors without JavaScript. SealGame marks it inert once the
           game runs, so its 30-odd links stop being invisible Tab stops. */}
