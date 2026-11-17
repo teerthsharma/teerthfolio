@@ -45,6 +45,10 @@ Merged into the open-source projects named here. Each page gives the result and 
   Pull request: https://github.com/facebook/pyrefly/pull/4180
 - [11/11 pairs agree](https://www.evilseal.si/projects/pr-polychrom-79): open2c/polychrom #79. 11/11 test pairs agree with the fix, 1/11 on master. pytest 65/65, up from 64/64. Mismatched frees: 16 to 0.
   Pull request: https://github.com/open2c/polychrom/pull/79
+- [0 diffs in 60,000](https://www.evilseal.si/projects/pr-anyps5-12609): boykopovar/AnyPS5 #12609. Reviewers measured 0 differences from a brute-force oracle on 60,000 random series, and 10^6 frames in 2.1 s. 79 tests passing.
+  Pull request: https://github.com/boykopovar/AnyPS5/pull/12609
+- [0 of 35,000 off](https://www.evilseal.si/projects/pr-tensorflow-128930): tensorflow/tensorflow #128930. Master matched 8 of 18 named cases and mismatched 1,459 / 5,000 tie-rich and 8,833 / 30,000 wild inputs; after: all match. -24% at 4000x90.
+  Pull request: https://github.com/tensorflow/tensorflow/pull/128930
 
 ## Lab projects
 

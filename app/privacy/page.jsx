@@ -2,6 +2,13 @@ export const metadata = {
   title: "Privacy: how this site is measured",
   description: "Measured with Cloudflare Web Analytics and Microsoft Clarity. No cookies of its own; Clarity stays off when Do Not Track or Global Privacy Control is on.",
   alternates: { canonical: "/privacy" },
+  openGraph: {
+    title: "Teerth Sharma — Seal's Topology Land",
+    description: "Measured with Cloudflare Web Analytics and Microsoft Clarity. No cookies of its own; Clarity stays off when Do Not Track or Global Privacy Control is on.",
+    type: "website",
+    siteName: "Teerth Sharma",
+    url: "/privacy",
+  },
 };
 
 // globals.css locks html/body scroll for the island, so this page scrolls itself.

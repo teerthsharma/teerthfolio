@@ -2,7 +2,15 @@ import SealGame from "../components/world/SealGame";
 import { PERSON, WEBSITE, jsonLd } from "../lib/jsonld";
 import { PLACES, PROFILE } from "../lib/world/places";
 
-export const metadata = { alternates: { canonical: "/" } };
+// Next resolves the root URL without its trailing slash, so canonical and og:url both point at the sitemap's home entry.
+const OPEN_GRAPH = {
+  title: "Teerth Sharma — Seal's Topology Land",
+  description: "A seal, an island, and every project Teerth built, each one a place to slide up to.",
+  type: "website",
+  siteName: "Teerth Sharma",
+};
+
+export const metadata = { alternates: { canonical: "/" }, openGraph: { ...OPEN_GRAPH, url: "/" } };
 
 export default function Home() {
   return (
@@ -70,7 +78,7 @@ export default function Home() {
         <p><a href="/privacy">Privacy</a></p>
         {PLACES.map((place) => (
           <article key={place.id}>
-            <h2>{place.name}</h2>
+            <h2>{place.id === "home" ? place.name : <a href={`/projects/${place.id}`}>{place.name}</a>}</h2>
             {place.section === "upstream" && <p>{place.verb} {place.repo} #{place.pr}: {place.title}</p>}
             <p>{place.hook}</p>
             <ul>

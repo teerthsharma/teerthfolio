@@ -4,20 +4,35 @@
 // every 0.1 s; a move registers its builder at module scope (registerWarm) and
 // takes the held world at mount (takeWarm). `build` returns the world, or an
 // iterator that yields between steps and returns the world (one step per tick).
+//
+// The queue is earliest-deadline-first (deadline.js: seconds for the seal to reach a dock's ring). Candidates are a dock's R3F world,
+// a lazy move chunk (registerLoader) and an engine job (registerEngineProvider). A dock the engine owns builds no R3F world.
+import { engineActive } from "../../../lib/anime/live.js";
 import { PLACES, PLACE_BY_ID, SPAWN_PLAY } from "../../../lib/world/places";
-import { live } from "../../../lib/world/store";
 import { cutsceneMode } from "../../../lib/world/cutscene/timeline";
+import { CRITICAL_S, DROP_S, HORIZON_S, SPAWN_CRITICAL_S, deadlineS } from "../../../lib/world/cutscene/deadline";
+import { getUi, live } from "../../../lib/world/store";
 import { stageWarmObjects } from "./Stage";
 
 const DOCKS = [...PLACES, PLACE_BY_ID[SPAWN_PLAY]]; // the spawn statue's play is not in PLACES
 const WARM = new Map(); // id -> { build, gen, held, state: "idle"|"built"|"compiled"|"used" }
 if (typeof window !== "undefined") window.__warm = WARM; // capture probes read each dock's warm state
-const BUILD_REACH = 110; // m: start early, the nearest dock first; a walk across the island is 8-30 s
-const DROP_REACH = 170;
+const LOADERS = new Map(); // id -> { load, state: "idle"|"loading"|"loaded"|"failed" }
+const ENGINE = []; // { p, started: Set, done: Set } per engine provider
+const PENDING_MS = 8000; // the curtain never waits for the queue past this, from navigation start
+const TRAVEL_M = 12; // a dock this close to live.target is the one the seal travels to: it goes first
 let stageDone = false;
 
 export function registerWarm(id, build) {
   WARM.set(id, { id, build, gen: null, held: null, state: "idle" });
+}
+
+export function registerLoader(id, load) {
+  LOADERS.set(id, { load, state: "idle" });
+}
+
+export function registerEngineProvider(p) {
+  ENGINE.push({ p, started: new Set(), done: new Set() });
 }
 
 function finish(e) {
@@ -101,60 +116,97 @@ function compileStep(e, gl, camera, composer, extra) {
 // at most one build step or compile per call
 export function warmTick(gl, camera, composer) {
   const t0 = performance.now();
-  const e = warmStep(gl, camera, composer);
+  const c = warmStep(gl, camera, composer);
   const d = performance.now() - t0;
-  if (e && d > 30) (window.__warmLog ??= []).push([e.id, e.state, e.queue?.length ?? -1, Math.round(d)]); // slow ticks, for the capture probes
+  if (c && d > 30) (window.__warmLog ??= []).push([c.id, c.entry?.state ?? c.kind, c.entry?.queue?.length ?? -1, Math.round(d)]); // slow ticks, for the capture probes
+}
+
+const criticalS = (id) => (id === SPAWN_PLAY ? SPAWN_CRITICAL_S : CRITICAL_S);
+const travelling = (x, z) => Boolean(live.target) && Math.hypot(live.target.x - x, live.target.z - z) < TRAVEL_M;
+// before ready only the critical horizon is worked (the curtain waits on it); after ready the horizon; the dock travelled to always
+const inWindow = (id, s, x, z, ready) => travelling(x, z) || (ready ? s <= HORIZON_S : s <= criticalS(id));
+
+// one world step; false when the world has nothing to do this tick (a compile still in flight)
+function worldStep(e, gl, camera, composer) {
+  if (e.state === "idle") {
+    if (!e.gen && !e.held) {
+      const r = e.build();
+      if (r && typeof r.next === "function") e.gen = r;
+      else e.held = r;
+    }
+    if (e.gen) {
+      const r = e.gen.next();
+      if (r.done) { e.held = r.value; e.gen = null; }
+    }
+    if (e.held) e.state = "built";
+    return true;
+  }
+  if (e.state === "built" && !e.compiling) {
+    let extra = null;
+    if (!stageDone && !e.queue) { stageDone = true; extra = stageWarmObjects(); }
+    compileStep(e, gl, camera, composer, extra);
+    return true;
+  }
+  return false;
+}
+
+function startLoad(l) {
+  l.state = "loading";
+  Promise.resolve().then(l.load).then(() => { l.state = "loaded"; }, () => { l.state = "failed"; });
+}
+
+// an engine job that answers "idle" yields to the next candidate; "busy", "done" or "failed" used this tick
+function engineStep(q, id, ctx) {
+  q.started.add(id);
+  const r = q.p.step(id, ctx);
+  if (r === "done" || r === "failed") q.done.add(id);
+  return r === "busy" || r === "done" || r === "failed";
 }
 
 function warmStep(gl, camera, composer) {
-  if (!gl || !camera || live.arrival.id) return;
-  const { x, z } = live.seal;
-  let near = null;
-  let nearD = BUILD_REACH;
+  if (!gl || !camera || live.arrival.id) return null;
+  const ui = getUi();
+  const seal = live.seal;
+  const cands = [];
   for (const p of DOCKS) {
+    const s = deadlineS(seal, p);
     const e = WARM.get(p.id);
-    if (!e) continue;
-    let d = Math.hypot(x - p.x, z - p.z);
-    if (e.state !== "used" && d > DROP_REACH && (e.held || e.gen)) dispose(e);
-    if (e.state === "used" || live.seen.has(p.id) || !cutsceneMode(p.id)) continue;
-    // the dock the seal is travelling to goes first
-    const tg = live.target;
-    if (tg && Math.hypot(tg.x - p.x, tg.z - p.z) < 12) d -= 1000;
-    if ((e.state === "idle" || e.state === "built") && d < nearD) {
-      near = e;
-      nearD = d;
+    if (e && e.state !== "used" && s > DROP_S && (e.held || e.gen)) dispose(e);
+    if (!e || e.state === "used" || live.seen.has(p.id) || !cutsceneMode(p.id) || engineActive(p.id, ui.engineFail)) continue;
+    if ((e.state !== "idle" && e.state !== "built") || !inWindow(p.id, s, p.x, p.z, ui.ready)) continue;
+    cands.push({ id: p.id, key: travelling(p.x, p.z) ? -1000 : s, entry: e, kind: "world", run: () => worldStep(e, gl, camera, composer) });
+  }
+  for (const [id, l] of LOADERS) {
+    const dock = PLACE_BY_ID[id];
+    if (!dock || l.state !== "idle" || engineActive(id, ui.engineFail)) continue;
+    const s = deadlineS(seal, dock);
+    if (!inWindow(id, s, dock.x, dock.z, ui.ready)) continue;
+    cands.push({ id, key: travelling(dock.x, dock.z) ? -1000 : s, entry: null, kind: "load", run: () => { startLoad(l); return true; } });
+  }
+  for (const q of ENGINE) {
+    for (const j of q.p.jobs()) {
+      const s = deadlineS(seal, j);
+      if (q.started.has(j.id) && s > DROP_S) { q.p.drop?.(j.id); q.started.delete(j.id); q.done.delete(j.id); continue; }
+      if (q.done.has(j.id) || !engineActive(j.id, ui.engineFail)) continue;
+      const due = inWindow(j.id, s, j.x, j.z, ui.ready) || (!ui.ready && q.p.critical?.(j.id) === true);
+      if (!due) continue;
+      cands.push({ id: j.id, key: travelling(j.x, j.z) ? -1000 : s, entry: null, kind: "engine", run: () => engineStep(q, j.id, { gl, camera, composer }) });
     }
   }
-  if (!near) return null;
-  if (near.state === "idle") {
-    if (!near.gen && !near.held) {
-      const r = near.build();
-      if (r && typeof r.next === "function") near.gen = r;
-      else near.held = r;
-    }
-    if (near.gen) {
-      const r = near.gen.next();
-      if (r.done) { near.held = r.value; near.gen = null; }
-    }
-    if (near.held) near.state = "built";
-    return near;
-  }
-  if (near.state === "built" && !near.compiling) {
-    let extra = null;
-    if (!stageDone && !near.queue) { stageDone = true; extra = stageWarmObjects(); }
-    compileStep(near, gl, camera, composer, extra);
-  }
-  return near;
+  cands.sort((a, b) => a.key - b.key);
+  return cands.find((c) => c.run()) ?? null;
 }
 
-// true while a dock the seal is already within reach of still has world to build or programs to link: the boot curtain waits for it,
-// so the docks beside the spawn warm behind the curtain, not under the first frames
+// true while a dock the seal is within the critical horizon still has world to build or programs to link: the boot curtain waits for it,
+// so the docks beside the spawn warm behind the curtain. Engine jobs never hold it, and it gives up after PENDING_MS.
 export function warmPending() {
-  const { x, z } = live.seal;
-  for (const p of DOCKS) {
+  if (performance.now() >= PENDING_MS) return false;
+  const ui = getUi();
+  const seal = live.seal;
+  return DOCKS.some((p) => {
     const e = WARM.get(p.id);
-    if (!e || e.state === "used" || e.state === "compiled" || live.seen.has(p.id) || !cutsceneMode(p.id)) continue;
-    if (Math.hypot(x - p.x, z - p.z) < BUILD_REACH) return true;
-  }
-  return false;
+    if (!e || e.state === "used" || e.state === "compiled" || live.seen.has(p.id) || !cutsceneMode(p.id)) return false;
+    if (engineActive(p.id, ui.engineFail)) return false;
+    return deadlineS(seal, p) <= criticalS(p.id);
+  });
 }

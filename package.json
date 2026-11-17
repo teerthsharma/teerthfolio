@@ -10,7 +10,8 @@
     "lint": "eslint components/world lib/world app",
     "check": "node scripts/check-world.mjs",
     "shot": "node scripts/shot.mjs",
-    "frame-audit": "node scripts/frame-audit.mjs"
+    "frame-audit": "node scripts/frame-audit.mjs",
+    "load": "node scripts/cut-load.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.5.1",

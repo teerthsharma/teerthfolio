@@ -400,8 +400,16 @@ export default function FrameGuard() {
     if (s.phase === "hero" && LAST.distanceTo(camera.position) > CUT_M) reset();
     LAST.copy(camera.position);
 
+    // under an opaque engine canvas the island is hidden: no island ray runs, and every hold restarts with the flag
+    const cover = live.engineCover === true;
+    if (cover) {
+      s.occ.fill(0);
+      s.fg.fill(0);
+      s.fgSince = -1;
+      s.fgShare = 0;
+    }
     // occlusion of the authored (or held) shot: one probe a frame, each with its own hold clock
-    if (guarding && have) {
+    if (guarding && have && !cover) {
       const k = s.frame % 5;
       const h = blocker(scene, camera.position, probe(k, camera, P), root);
       s.occ[k] = h ? s.occ[k] || now : 0;
@@ -411,7 +419,7 @@ export default function FrameGuard() {
     const many = s.occ.filter(Boolean).length >= 3;
     let blockedFor = many ? Math.max(...s.occ.map((_, i) => held(i))) : Math.max(held(0), held(1));
     // the foreground: six grid rays a frame; a mesh nearer than the pup over FG_MAX of the frame is a block too
-    if (guarding && have && raw.ok) {
+    if (guarding && have && raw.ok && !cover) {
       for (let j = 0; j < 6; j++) {
         const i = (s.frame * 6 + j) % GRID.length;
         s.fg[i] = front(scene, camera, GRID[i][0], GRID[i][1], raw.depth, box.min.y, root) ? 1 : 0;

@@ -43,7 +43,7 @@ export default function RootLayout({ children }) {
         <Script
           src="https://static.cloudflareinsights.com/beacon.min.js"
           data-cf-beacon='{"token": "2a4259bb84734fe6ad6ecff564c4a27a"}'
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
       </body>
     </html>
