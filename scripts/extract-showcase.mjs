@@ -1,7 +1,7 @@
 // Copies the island's words from teerthsharma.github.io, verbatim.
 //
 // The landing site is the source of truth for every claim on the island: its
-// eleven upstream cards (index.html) and eleven project cards (work.html),
+// upstream cards (index.html) and project cards (work.html),
 // each with its figure's title and description. This script parses those two
 // files and writes data/showcase.json, so nothing on the island is
 // paraphrased by hand or by an agent. Re-run it whenever the landing site

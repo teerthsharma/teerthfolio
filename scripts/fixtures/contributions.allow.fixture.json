@@ -1,0 +1,78 @@
+{
+  "source": "fixture: states copied from GitHub on the pinned date; private entry is a placeholder",
+  "entries": [
+    {
+      "repo": "google-deepmind/mujoco",
+      "pr": 3396,
+      "title": "Quadratic scratch in island discovery",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "google/XNNPACK",
+      "pr": 10801,
+      "title": "Reusing the leading gap in the memory planner",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "triton-lang/kernels",
+      "pr": 22,
+      "title": "A topology-derived sparse attention kernel",
+      "visibility": "public",
+      "state": "OPEN",
+      "hold": null
+    },
+    {
+      "repo": "example/landed-import",
+      "pr": 7,
+      "title": "Landed by a Google import, PR closed",
+      "visibility": "public",
+      "state": "CLOSED",
+      "landedCommit": "3d5df1da699b",
+      "hold": null
+    },
+    {
+      "repo": "example/closed-candidate",
+      "pr": 1,
+      "title": "Closed without merge",
+      "visibility": "public",
+      "state": "CLOSED",
+      "hold": null
+    },
+    {
+      "repo": "openxla/xla",
+      "pr": 46539,
+      "title": "Deterministic GPU codegen in reduction grouping",
+      "visibility": "public",
+      "state": "CLOSED",
+      "hold": "owner to confirm; GitHub shows CLOSED, not merged"
+    },
+    {
+      "repo": "facebook/pyrefly",
+      "pr": 4180,
+      "title": "Pinning a 208-module recheck propagation panic",
+      "visibility": "public",
+      "state": "CLOSED",
+      "hold": "owner to confirm; GitHub shows CLOSED, not merged"
+    },
+    {
+      "repo": "teerthsharma/Yuddh-Niti",
+      "pr": 5,
+      "title": "Private repo change",
+      "visibility": "private",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "example/held-open",
+      "pr": 2,
+      "title": "Open but held for owner review",
+      "visibility": "public",
+      "state": "OPEN",
+      "hold": "awaiting owner review"
+    }
+  ]
+}

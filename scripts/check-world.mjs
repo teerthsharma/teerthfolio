@@ -1,21 +1,22 @@
 // The rules the island has to keep, checked against the real motion code.
 // Run: npm run check
 
-import { FUTURE_Z, FOUNTAIN_TRAVEL, GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, SIGNPOSTS, onHighway } from "../lib/world/land.js";
+import { FUTURE_Z, FOUNTAIN_TRAVEL, GEYSER, HIGHWAY, LAND_COLLIDERS, PATHS, RIG, SIGNPOSTS, onHighway } from "../lib/world/land.js";
 import assert from "node:assert/strict";
 import { CatmullRomCurve3, Color, SRGBColorSpace, Vector3 } from "three";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import showcase from "../data/showcase.json" with { type: "json" };
 import { LOOK_BY_ID } from "../lib/world/looks.js";
 import { CUE_NAMES } from "../lib/world/cutscene/cues.js";
 import { CARDS, cardFor } from "../lib/world/cutscene/cards/index.js";
 import { HOLD, PACE, exitAt, realAt, realLength, sceneT } from "../lib/world/cutscene/clock.js";
-import { BUILDS, MIN_BEAT, MIN_BUBBLE, MIN_CREDIT, BREATH, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
+import { APPROVED, BUILDS, MIN_BEAT, MIN_BUBBLE, MIN_CREDIT, BREATH, POSES, READ, beatAt, radiusAt, signAt, timelineFor } from "../lib/world/cutscene/timeline.js";
 import { DISPLAY, TIERS, classify, dprFor, displayTier, gpuName } from "../lib/world/quality.js";
 import { AWAKENING, CLEAN, ENTRY, LOOP, RIDE_LENGTH, mustFinish } from "../lib/world/loop.js";
 import { AWAKE, LINE, auraAt, awakeBeat, awakeCredit, liftAt, skyAt } from "../lib/world/awakening.js";
 import { cancelTravel, gateApproach } from "../lib/world/travel.js";
 import { MOTION, createSeal, nearestPlace, stepSeal } from "../lib/world/motion.js";
-import { DISTRICTS, ISLAND_RADIUS, NORTH_RIM, PLACES, PLACE_BY_ID, SPAWN, districtAt, dockPoint } from "../lib/world/places.js";
+import { DISTRICTS, ISLAND_RADIUS, NORTH_RIM, PLACES, PLACE_BY_ID, SPAWN, UPSTREAM_COUNT, UPSTREAM_LEAD, districtAt, dockPoint } from "../lib/world/places.js";
 import { DAM, MOAT, RESERVOIR, RIVER, GLACIER, WATERS, WHIRLPOOL, riverAt, waterGap } from "../lib/world/river.js";
 import { tickSnack } from "../components/world/life/snack.js";
 import { TOYS, blastAt, makeBowling, makeCone, makeStack, makeTnt, tickToys } from "../lib/world/toys.js";
@@ -24,7 +25,7 @@ import { forbidden, samplePoints } from "../components/world/life/spawn.js";
 import { CAR_BAYS, CAR_R, ROAD_Y, createCar, onDrawnAsphalt, stepCar, stepCars } from "../lib/world/highwayCars.js";
 import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { buildConcreteWall } from "../components/world/land/parts/dam-wall.js";
-import { PEAK, WATER_Y, groundAt, heightAt } from "../lib/world/terrain.js";
+import { PEAK, SEA_Y, WATER_Y, groundAt, heightAt, meadowAt } from "../lib/world/terrain.js";
 import { PEAK_PATH, PEAK_WORLD, peakBlocked, peakFloor } from "../lib/world/peak.js";
 import { HIDEOUT, HIDEOUT_WORLD, hideoutBlocked } from "../lib/world/hideout.js";
 
@@ -1415,7 +1416,8 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   const moves = readFileSync(new URL("../components/world/cutscene/moves/index.js", import.meta.url), "utf8");
   for (const id of ids) {
     assert.ok(existsSync(new URL(`../lib/world/cutscene/cards/${id}.js`, import.meta.url)), `${id} has no card file`);
-    assert.ok(existsSync(new URL(`../components/world/cutscene/moves/${id}.jsx`, import.meta.url)) && moves.includes(`"${id}": `), `${id} has no move`);
+    // only an approved scene plays, so only an approved dock needs its move; the rest show the place, its label and panel
+    if (APPROVED.has(id)) assert.ok(existsSync(new URL(`../components/world/cutscene/moves/${id}.jsx`, import.meta.url)) && moves.includes(`"${id}": `), `${id} has no move`);
   }
   // the villains' sound: Sukuna and Aizen declare sorted cues in scene s, every name a real voice, inside the scene
   for (const c of CARDS) {
@@ -1663,4 +1665,40 @@ for (const [k, g] of Object.entries(buildConcreteWall())) assert.ok(g, `dam-wall
   assert.ok(!l.travelTo && !l.target && !l.pendingOpen, "manual input did not cancel the trip");
 }
 
-console.log(`world check passed: quality ladder, cutscene cards and moves, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, toys (TNT, stack, pins, cones), throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks`);
+// The two newest landings (the owner: "anyps5 is a grassy area with just a monument of fish ... tensorflow new one is
+// oil rig"): each stands where it should, the monument's name is written once, neither plays a scene yet.
+{
+  const NAME = "The Covenant of Community";
+  const meadow = PLACE_BY_ID["pr-anyps5-12609"];
+  const rig = PLACE_BY_ID["pr-tensorflow-128930"];
+  assert.ok(meadow && rig, "the AnyPS5 meadow or the TensorFlow rig is not a place");
+  assert.ok(meadow.district.name === NAME && meadow.label === NAME, `the monument is not named ${NAME} on its area and its tag`);
+  const named = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(new URL(dir, import.meta.url), { withFileTypes: true })) {
+      if (e.isDirectory()) walk(`${dir}${e.name}/`);
+      else if (/\.(m?js|jsx|json)$/.test(e.name) && readFileSync(new URL(`${dir}${e.name}`, import.meta.url), "utf8").includes(NAME)) named.push(`${dir}${e.name}`);
+    }
+  };
+  for (const dir of ["../lib/", "../components/", "../app/", "../data/"]) walk(dir);
+  assert.deepEqual(named, ["../lib/world/places.js"], `${NAME} is written outside its district: ${named}`);
+  // the meadow: grass through its area, snow past it, and nothing on it but the monument
+  assert.ok(meadowAt(meadow.x, meadow.z) === 1 && meadowAt(meadow.x + meadow.district.radius + 2.5, meadow.z) === 0, "the meadow's grass does not fill its area");
+  for (const p of PLACES) if (p !== meadow) assert.ok(Math.hypot(p.x - meadow.x, p.z - meadow.z) > meadow.district.radius + p.radius, `${p.id} stands in the meadow`);
+  for (const c of LAND_COLLIDERS) assert.ok(Math.hypot(c.x - meadow.x, c.z - meadow.z) > meadow.district.radius + c.radius, `the ${c.land} reaches into the meadow`);
+  // the rig: offshore behind its wellhead, every leg in the sea over its floor, the docked view aimed at it
+  assert.ok(RIG.z < rig.z - 10 && Math.hypot(RIG.x, RIG.z) > ISLAND_RADIUS + 6, "the rig is not offshore behind its wellhead");
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const [x, z] = [RIG.x + sx * RIG.half, RIG.z + sz * RIG.half];
+    assert.ok(Math.hypot(x, z) > ISLAND_RADIUS + 4 && heightAt(x, z) < SEA_Y - 2, `the rig's leg at ${x}, ${z} is not in the sea (floor ${heightAt(x, z).toFixed(1)} m)`);
+  }
+  assert.ok(Math.hypot(rig.look.x - RIG.x, rig.look.z - RIG.z) < 8, "the docked view at the wellhead does not look at the rig");
+  for (const p of [meadow, rig]) assert.ok(cardFor(p.id) && !APPROVED.has(p.id), `${p.id} needs a card and no approved scene yet`);
+  // the landing count comes from the data and reads the same in every copy, the README's table included
+  const n = showcase.upstream.length;
+  assert.ok(UPSTREAM_LEAD.startsWith(`${UPSTREAM_COUNT} landed`) && showcase.intro.upstreamLead.startsWith(`${UPSTREAM_COUNT} landed`) && cardFor("home").c.text.startsWith(`${UPSTREAM_COUNT} landed`), `the landing count does not read ${UPSTREAM_COUNT} (${n}) everywhere`);
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  for (const u of showcase.upstream) assert.ok(readme.includes(`[${u.repo} #${u.pr}]`), `the README's table has no row for ${u.repo} #${u.pr}`);
+}
+
+console.log(`world check passed: quality ladder, cutscene cards and moves, bridges, ${PLACES.length} places, dry docks, river source to sea, dam holds, moat fed from the reservoir, districts, radiation everywhere, river between MujoRush and the Google range, trails and bridges, motion, walls, rim, docks, props, toys (TNT, stack, pins, cones), throttle, glide, skid, reaction, bump, arrival, drift, yaw cap, river ride, river exit, island river ride, the whirlpool, the geyser, the highway, MujoRush is solid, mutation looks, the Covenant's meadow and the rig at sea, ${UPSTREAM_COUNT.toLowerCase()} landings in every copy`);
