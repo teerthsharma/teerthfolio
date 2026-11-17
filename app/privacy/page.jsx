@@ -1,11 +1,15 @@
-export const metadata = { title: "Privacy — Teerth Sharma" };
+export const metadata = {
+  title: "Privacy: how this site is measured",
+  description: "Measured with Cloudflare Web Analytics and Microsoft Clarity. No cookies of its own; Clarity stays off when Do Not Track or Global Privacy Control is on.",
+  alternates: { canonical: "/privacy" },
+};
 
 // globals.css locks html/body scroll for the island, so this page scrolls itself.
 export default function Privacy() {
   return (
     <main style={{ height: "100%", overflowY: "auto", padding: "48px 16px", fontFamily: "var(--font-sans), sans-serif", lineHeight: 1.6 }}>
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
-        <h1>privacy</h1>
+        <h1>Privacy</h1>
         <p>
           bro don&apos;t worry. you swam all the way down to the footer of an ice island where one baby seal lives, and you are the
           second most interesting thing on it.
