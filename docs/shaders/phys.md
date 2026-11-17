@@ -1,0 +1,67 @@
+# phys
+
+61 tools. Pull one: await loadPack("phys"), then glslFor(["<name>"]) from lib/anime/tools/index.js.
+
+| name | what it draws | use | suits | inputs | rated | compiles | how to pull it |
+|---|---|---|---|---|---|---|---|
+| animeChip | A cel-shaded surface with one hard-edged pale flake of highlight on the lit side. | surface | any | N, L, V: normal, light, view; albedo: base colour under the cel body; chip edge  | real | yes | glslFor(["animeChip"]) |
+| animeHairCel | A dark hair mass with one broken, strand-striped highlight chip across it. | surface | any | N, T, L, V: normal, hair tangent, light, view; p: screen point that sets the str | real | yes | glslFor(["animeHairCel"]) |
+| blackbody | A dark body with a glowing core whose colour runs from red to white-hot as the temperature changes. | surface | any | kelvin: colour temperature of the glow; N, L, p: normal, light and the point tha | real | yes | glslFor(["blackbody"]) |
+| blinnPhong | A matte body with a soft, cel-cut sheen on the lit side. | surface | any | shin: shininess exponent (higher gives a tighter sheen); albedo: base colour; N, | real | yes | glslFor(["blinnPhong"]) |
+| carPaint | Glossy coloured paint with a faint sparkle of metal flakes under a clearcoat sheen. | surface | any | base: paint colour; p and N: set the flake pattern; L, V: light and view. | real | yes | glslFor(["carPaint"]) |
+| cheapSnell | A surface that reads as thick water or glass, bending the background behind it. | surface | p-caustic | p: screen point that is offset by the refracted ray; eta fixed at 1/1.5; N, L, V | real | yes | glslFor(["cheapSnell"]) |
+| clothCel | Fabric with banded fold shading and cooler shadow tones, lit in three plates. | surface | any | dye: fabric colour; N, L, V; sheen weight fixed in code. | real | yes | glslFor(["clothCel"]) |
+| clothSheen | Cloth with a soft pale glow at grazing angles, like brushed fabric. | surface | any | dye: fabric colour; rough: sheen spread (higher gives a wider glow); N, L, V. | real | yes | glslFor(["clothSheen"]) |
+| cookTorrance | A glossy surface with a tight warm highlight over a lit-side body. | surface | any | a: roughness; albedo: base colour; F0 fixed at 0.05. Near-duplicate of ggxSpec w | alias | yes | glslFor(["cookTorrance"]) |
+| corneaFresnel | An eye surface with a whitish sheen at grazing angles and a small glint. | surface | any | iris: base eye colour; N, L, V; IOR fixed at 1.376. | real | yes | glslFor(["corneaFresnel"]) |
+| dualHighlight | Hair with two offset highlight stripes, a bright primary and a warmer secondary. | surface | any | N, T: normal and hair tangent (tilted per lobe); albedo: hair colour; L, V: ligh | real | yes | glslFor(["dualHighlight"]) |
+| emberFade | A glowing ember that cools from orange to dark red as it moves away from its centre. | surface | any | p: radial distance sets temperature and fade; N, L: shading of the coal body. | real | yes | glslFor(["emberFade"]) |
+| emitCore | A soft orange radial glow with a faint ring around a small central core. | card | any | p: point relative to the centre (0.72, 0.5); core falloff fixed at 22; ring band | thin | yes | glslFor(["emitCore"]) |
+| facingRatio | A rim glow that brightens where the surface turns away from the viewer. | surface | any | k: rim tightness (power on 1 minus n·v); albedo: body colour; N, L, V. | real | yes | glslFor(["facingRatio"]) |
+| fireCel | A banded flame of red to yellow plates that rises and flickers over time. | card | pr-pyrefly-4180 | t: time that drives the flicker; p: height sets the flame band; N, L: light on t | real | yes | glslFor(["fireCel"]) |
+| fresnelConductor | A tinted metal surface with a bright conductor reflection over a cel body. | surface | any | f0: metal reflectance colour; roughness fixed at 0.16; N, L, V. | real | yes | glslFor(["fresnelConductor"]) |
+| fresnelDielectric | A glassy matte body with a soft white edge sheen. | surface | any | eta: index of refraction (1.5 in the demo); albedo: body colour; N, L, V. | real | yes | glslFor(["fresnelDielectric"]) |
+| fresnelRimCel | An object with a hard-edged bright rim band along its silhouette. | surface | any | rim band: 0.62 to 0.92 on 1 minus n·v; albedo: body colour; N, L, V. | real | yes | glslFor(["fresnelRimCel"]) |
+| fresnelSchlick | A matte body with a two-tone rim that brightens toward the silhouette. | surface | any | albedo: body colour; F0 fixed at 0.04. Only a Schlick curve mixed between two pa | thin | yes | glslFor(["fresnelSchlick"]) |
+| frostRim | An icy body with a grainy frost sheen on the grazing edges. | surface | any | p and N.xy: set the frost grain; ice body colour fixed in code; N, L, V. | real | yes | glslFor(["frostRim"]) |
+| ggxCel | A metal-like surface with three hard specular plates on a cel body. | surface | any | albedo: base colour; roughness fixed at 0.18; N, L, V. | real | yes | glslFor(["ggxCel"]) |
+| ggxSpec | A satin-glossy body with a soft GGX highlight over a matte base. | surface | any | rough: roughness (clamped at 0.04); albedo: base colour; N, L, V. | real | yes | glslFor(["ggxSpec"]) |
+| glassRefract | A glass-like pane that shows the background bent slightly at its edges. | surface | any | p and N.xy: bend offset; IOR fixed at 1.5. One background sample with a bend and | thin | yes | glslFor(["glassRefract"]) |
+| goldConductor | A hard-edged gold metal shape with a bright gold sheen. | surface | pr-polychrom-79 | N, L, V only; gold F0 and roughness 0.14 are hardcoded. Same shape as fresnelCon | alias | yes | glslFor(["goldConductor"]) |
+| hairShift | Hair with one bright sheen band that moves along each strand. | surface | any | shift: tangent tilt toward the normal; albedo: hair colour; N, T, L, V. | real | yes | glslFor(["hairShift"]) |
+| hairTransmission | Hair lit from behind so it glows through the strands, with a front sheen. | surface | any | albedo: hair colour; N, L: back-light drives the transmitted glow; T, V: strand  | real | yes | glslFor(["hairTransmission"]) |
+| halfLambert | A soft diffuse body that carries light past the shadow edge. | surface | any | albedo: body colour; N, L. A base diffuse layer with one wrap curve and a crush, | thin | yes | glslFor(["halfLambert"]) |
+| heatHaze | A shimmering warp of the background with a hot orange-white glow at one spot. | screen | pr-pyrefly-4180 | t: animates the warp; p: glow centre at (0.72, 0.42); N, L: unused in the glow. | real | yes | glslFor(["heatHaze"]) |
+| iceCel | An ice-blue body with three hard plates and a small white glint. | surface | any | N, L, V; palette and specular tightness (64) fixed in code. | real | yes | glslFor(["iceCel"]) |
+| iceSss | Translucent blue ice with light scattered through it and a cool edge. | surface | any | N, L, V; wrap and blue scatter weights fixed in code. | real | yes | glslFor(["iceSss"]) |
+| irisCaustic | An iris with a bright caustic ring that lights the edge of the pupil. | surface | any | p: centre (0.72, 0.5) and radius bands; N, L, V: light bent through the cornea. | real | yes | glslFor(["irisCaustic"]) |
+| kajiyaKay | A thin hair-like specular streak running along the strand direction. | surface | any | T: strand direction; albedo: hair colour; exponent fixed at 28; N, L, V. | real | yes | glslFor(["kajiyaKay"]) |
+| lambert | A plain three-step matte diffuse body. | surface | any | albedo: body colour; N, L. A base diffuse layer with a crush, little of its own. | thin | yes | glslFor(["lambert"]) |
+| limbusDark | An eye with a dark ring around a dyed iris on a white sclera. | surface | any | p: eye centre and ring radii (0.165 to 0.195); N, L, V. | real | yes | glslFor(["limbusDark"]) |
+| metalCel | A metal plate with a dark body and a hard pale sheet highlight. | surface | any | f0: metal colour; N, L, V. | real | yes | glslFor(["metalCel"]) |
+| metalFlake | Metal with sparkling flakes scattered across a conductor body. | surface | any | f0: metal colour; p and N: flake pattern; N, L, V. | real | yes | glslFor(["metalFlake"]) |
+| minnaert | A velvety darkening toward the edges with a soft lit side. | surface | any | k: darkening exponent; albedo: body colour; N, L, V. | real | yes | glslFor(["minnaert"]) |
+| orenNayar | A rough matte surface whose edges fall off softly instead of a flat Lambert. | surface | any | sigma: surface roughness; albedo: base colour; N, L, V. | real | yes | glslFor(["orenNayar"]) |
+| orenNayarCel | A rough matte surface quantised into four flat tone plates. | surface | any | albedo: base colour; roughness fixed at 0.4; N, L, V. | real | yes | glslFor(["orenNayarCel"]) |
+| orenNayarCloth | Cloth with a cool blue-tinted fill on the shadow side and a dye-coloured lit side. | surface | any | dye: fabric colour; roughness fixed at 0.72; N, L, V. Same formula as orenNayar  | alias | yes | glslFor(["orenNayarCloth"]) |
+| physKit | Nothing on its own; a viewer sees the lit surfaces of the shaders that call it. | helper | any | uEmit scales glow only; the rest are shared functions (phFill, phLine, phCel, ph | real | yes | glslFor(["physKit"]) |
+| puddleFresnel | A dark wet puddle that mirrors a cool sky at grazing angles and settles into flat tone bands. | surface | any | N normal (flattened 72% toward up); L light direction; V view direction; bed bas | real | yes | glslFor(["puddleFresnel"]) |
+| rainSheen | A rain-soaked surface with vertical streaks of shine and small bright drops that slide downward. | surface | any | N normal; L light; V view; p screen or uv position for streak and drop noise; al | real | yes | glslFor(["rainSheen"]) |
+| silkAniso | Silk cloth with a long stretched highlight running along the fabric direction over a coloured body. | surface | any | N normal; T tangent setting the highlight stretch direction; L light; V view; dy | real | yes | glslFor(["silkAniso"]) |
+| skinBacklit | Ear and nose flesh lit from behind, glowing a warm red where the light passes through the edge. | surface | any | N normal; L light; albedo skin colour (transmit tint and gamma fixed in source) | real | yes | glslFor(["skinBacklit"]) |
+| skinCel | A face in a three-tone cel ramp where the cheeks stay bright and the shadow side turns cool. | surface | any | N normal; L light; ramp colours fixed in source, no albedo input | thin | yes | glslFor(["skinCel"]) |
+| skinEarlobe | A thin earlobe glowing warm red where the light comes through from behind. | surface | any | N normal; L light; V view (sets apparent thickness); albedo skin colour; transmi | real | yes | glslFor(["skinEarlobe"]) |
+| skinScatter | Skin with a soft red edge in the shadow band and three flat tone bands. | surface | any | N normal; L light; albedo skin colour | real | yes | glslFor(["skinScatter"]) |
+| skinWrap | Skin with a wide wrap light and a red scatter band at the terminator, in flat bands. | surface | any | N normal; L light; albedo skin colour | alias | yes | glslFor(["skinWrap"]) |
+| slimeScatter | A glossy green slime body with light glowing through it at the rim and a small wet highlight. | surface | spawn-seal | N normal; L light; V view | real | yes | glslFor(["slimeScatter"]) |
+| snowScatter | A snow-white surface with blue shadows and flat cel bands. | surface | any | N normal; L light; V view | real | yes | glslFor(["snowScatter"]) |
+| thinFilmCel | A surface with rainbow bands in flat quantized colour plates, like anime iridescence. | surface | any | N normal; L light; V view (drives band position through n dot v) | real | yes | glslFor(["thinFilmCel"]) |
+| thinFilmOil | An oily wet body with a slow drifting rainbow sheen. | surface | any | N normal; L light; V view; p coordinates for film thickness noise | real | yes | glslFor(["thinFilmOil"]) |
+| thinFilmSoap | A soap-bubble sheen with rippling rainbow colours over a pale body. | surface | any | N normal; L light; V view; thick film thickness that sets the colour phase | real | yes | glslFor(["thinFilmSoap"]) |
+| velvet | A dark velvet surface that glows at grazing angles and falls to near-black facing the light. | surface | any | N normal; L light; V view; dye deep fabric colour | real | yes | glslFor(["velvet"]) |
+| waterCel | Deep blue water in three flat plates with one bright horizon chip. | surface | any | N normal; L light; V view | real | yes | glslFor(["waterCel"]) |
+| waterFresnel | Still water: a dark body that turns to a pale sky reflection at grazing angles. | surface | any | N normal; L light; V view; IOR fixed at 1.33 | thin | yes | glslFor(["waterFresnel"]) |
+| wetCel | A wet surface in three flat darker tones with one small sheen highlight. | surface | any | N normal; L light; V view; albedo base colour | real | yes | glslFor(["wetCel"]) |
+| wetDarken | A wet surface gone darker and glossier, with sheen returning at the grazing edge. | surface | any | N normal; L light; V view; albedo base colour; wet 0 dry to 1 soaked | real | yes | glslFor(["wetDarken"]) |
+| wetLine | A bright tear-film highlight running along the lower lid curve of an eye. | card | any | N normal; L light; V view; p position on the eye disc (lid arc and meniscus shap | real | yes | glslFor(["wetLine"]) |
+| wrappedDiffuse | A surface lit with wrapped diffuse light, so the dark side keeps some light, then cut into three flat cel bands. | surface | any | N: normal; L: light direction; albedo: base colour; w: wrap amount (0.45 in the  | real | yes | glslFor(["wrappedDiffuse"]) |
