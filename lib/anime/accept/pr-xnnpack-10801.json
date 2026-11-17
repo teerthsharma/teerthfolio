@@ -1,0 +1,33 @@
+{
+  "dock": "pr-xnnpack-10801",
+  "issue": 31,
+  "clock": { "fps": 12, "duration": 12.0 },
+  "stills": [
+    { "t": 0.5, "role": "other", "tests": [] },
+    { "t": 2.0, "role": "other", "tests": [] },
+    { "t": 4.0, "role": "other", "tests": [
+      { "id": "31.1", "stage": "L", "kind": "lumaShare", "yBelow": 0.1, "min": 0.6, "src": "#31 L438" },
+      { "id": "31.1", "stage": "L", "kind": "custom", "text": "the brightest region is one wedge (stair + throne)", "src": "#31 L438" }
+    ] },
+    { "t": 7.0, "role": "money", "tests": [
+      { "id": "31.2", "stage": "L", "kind": "custom", "text": "the stair shows 12 steps in the picture and 11 in the reflection", "src": "#31 L439" },
+      { "id": "31.7", "stage": "L", "kind": "custom", "text": "a 32 x 32 downsample of the seal cut-out reads as a round pale seal on a white seat at the top of a white wedge, black around (two reviewers agree)", "src": "#31 L444" }
+    ] },
+    { "t": 8.458, "role": "kill", "tests": [
+      { "id": "31.3", "stage": "L", "kind": "regionCount", "what": "shard borders", "min": 30, "src": "#31 L440" },
+      { "id": "31.3", "stage": "L", "kind": "custom", "text": "the island shows through the shards", "src": "#31 L440" },
+      { "id": "31.3", "stage": "C", "kind": "custom", "text": "no frame is pure white: mean luma at most 0.6", "src": "#31 L440" }
+    ] }
+  ],
+  "every": [
+    { "id": "31.4", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#31 L441" },
+    { "id": "31.4", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#31 L441" },
+    { "id": "31.5", "stage": "L", "kind": "custom", "text": "frames 0 to 143: zero island geometry, zero world labels, zero markers (render-list probe and DOM query)", "src": "#31 L442" },
+    { "id": "31.10", "stage": "P", "kind": "custom", "text": "frame time at or below 4 ms GPU at 1280 x 800 on an integrated GPU (target)", "src": "#31 L432" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "31.8", "text": "same-seal test: money still next to the shipped pup and next to one other dock's still; 3 of 3 viewers say it is the same seal", "src": "#31 L445" },
+    { "id": "31.9", "text": "fan test: money still (7.0 s) named by 3 of 3 unprompted; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3", "src": "#31 L455" }
+  ]
+}

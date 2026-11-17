@@ -1,0 +1,33 @@
+{
+  "dock": "p-nerve",
+  "issue": 21,
+  "clock": { "fps": 12, "duration": 12.0 },
+  "stills": [
+    { "t": 0.5, "role": "other", "tests": [] },
+    { "t": 2.0, "role": "other", "tests": [] },
+    { "t": 4.0, "role": "other", "tests": [
+      { "id": "21.1", "stage": "L", "kind": "lumaShare", "yBelow": 0.15, "min": 0.70, "src": "#21 L445" },
+      { "id": "21.1", "stage": "L", "kind": "custom", "text": "the brightest connected region is the spot pool (one region, not several)", "src": "#21 L445" }
+    ] },
+    { "t": 7.0, "role": "money", "tests": [
+      { "id": "21.2", "stage": "L", "kind": "custom", "text": "a dark tall silhouette with two pale round eyes stands behind the seal; its height is at least 1.8 times the seal's height", "src": "#21 L446" }
+    ] },
+    { "t": 8.458, "role": "kill", "tests": [
+      { "id": "21.3", "stage": "L", "kind": "regionCover", "what": "red folio card", "of": "width", "min": 0.36, "max": 0.40, "src": "#21 L447" },
+      { "id": "21.3", "stage": "C", "kind": "custom", "text": "the red card is the only region with S above 0.5, hue 350 to 360 deg", "src": "#21 L447" },
+      { "id": "21.3", "stage": "C", "kind": "custom", "text": "the seal's eye ring is red", "src": "#21 L447" }
+    ] }
+  ],
+  "every": [
+    { "id": "21.4", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#21 L448" },
+    { "id": "21.4", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#21 L448" },
+    { "id": "21.5", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 world labels, 0 markers in every frame 0 to 143 (render-list probe and DOM query)", "src": "#21 L449" },
+    { "id": "21.6", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls at most 8 during the money beat and the kill", "src": "#21 L450" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "21.7", "text": "32 x 32 downsample of the seal cut-out at the money still shows the long dark body, two round pale-ringed eyes and the red card (two reviewers agree)", "src": "#21 L451" },
+    { "id": "21.8", "text": "the money still beside the shipped pup and beside one other dock's still: 3 of 3 viewers say it is the same seal", "src": "#21 L452" },
+    { "id": "21.fan", "text": "fan test: money still (7.0 s) named unprompted by 3 of 3; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3", "src": "#21 L462" }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "dock": "pr-tensorflow-124410",
+  "issue": 28,
+  "clock": { "fps": 12, "duration": 12.0 },
+  "stills": [
+    { "t": 0.5, "role": "other", "tests": [] },
+    { "t": 2.0, "role": "other", "tests": [] },
+    { "t": 4.0, "role": "other", "tests": [] },
+    { "t": 7.0, "role": "money", "tests": [
+      { "id": "28.1", "stage": "L", "kind": "custom", "text": "a gold Stand silhouette (hue 38 to 48 deg) behind the seal at least 1.6x its height", "src": "#28 L431" },
+      { "id": "28.1.2", "stage": "L", "kind": "regionCount", "what": "fist smear", "min": 30, "src": "#28 L431" },
+      { "id": "28.7", "stage": "L", "kind": "custom", "text": "32 x 32 downsample of the seal cut-out reads as the compact dark-and-light seal, the gold card behind and the inverted field", "src": "#28 L437" }
+    ] },
+    { "t": 8.458, "role": "kill", "tests": [
+      { "id": "28.2", "stage": "C", "kind": "custom", "text": "at least 90% of the frame inverted; mean luma within 0.1 of 0.035 + 0.92 (1 - Y_7.9)", "src": "#28 L432" },
+      { "id": "28.2.2", "stage": "C", "kind": "custom", "text": "the seal's catchlight is the one pixel group not inverted", "src": "#28 L432" }
+    ] },
+    { "t": 8.5, "role": "other", "tests": [] },
+    { "t": 9.5, "role": "other", "tests": [
+      { "id": "28.3", "stage": "P", "kind": "frozen", "what": "water, far seal and speed lines", "tA": 8.5, "tB": 9.5, "src": "#28 L433" },
+      { "id": "28.3.2", "stage": "L", "kind": "custom", "text": "the seal has moved while the world is frozen", "src": "#28 L433" }
+    ] }
+  ],
+  "every": [
+    { "id": "28.4", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#28 L434" },
+    { "id": "28.4.2", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#28 L434" },
+    { "id": "28.5", "stage": "L", "kind": "custom", "text": "every frame 0 to 143 has 0 island geometry, 0 world labels, 0 markers", "src": "#28 L435" },
+    { "id": "28.6", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls at most 8 during the money beat and the kill; env tris at most 12k", "src": "#28 L436" },
+    { "id": "28.9", "stage": "P", "kind": "custom", "text": "at most 4 ms GPU at 1280 x 800 on an integrated GPU", "src": "#28 L425" },
+    { "id": "28.9.2", "stage": "P", "kind": "custom", "text": "0 MeshStandard; shader named timeStop", "src": "#28 L425" },
+    { "id": "28.10", "stage": "P", "kind": "custom", "text": "144 frames at 12 fps; kill at 24 fps for 12 drawings", "src": "#28 L34" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "28.7.2", "text": "two reviewers agree on the 32 px test", "src": "#28 L437" },
+    { "id": "28.8", "text": "3 of 3 viewers say it is the same seal next to the shipped pup", "src": "#28 L438" },
+    { "id": "28.11", "text": "money still (7.0 s) named by 3 of 3 unprompted (\"JoJo\" / \"DIO\" / \"Za Warudo\")", "src": "#28 L448" },
+    { "id": "28.11.2", "text": "at least 3 of 5 stills named by at least 2 of 3 viewers", "src": "#28 L448" },
+    { "id": "28.11.3", "text": "same seal 3 of 3", "src": "#28 L448" },
+    { "id": "28.11.4", "text": "per still: named show, named scene, same seal, first words verbatim", "src": "#28 L447" }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "dock": "the-loop",
+  "issue": 39,
+  "clock": { "fps": 12, "duration": 25 },
+  "stills": [
+    { "t": 1.0, "role": "other", "tests": [] },
+    { "t": 2.08, "role": "money", "tests": [
+      { "id": "39.3", "stage": "C", "kind": "custom", "text": "emblem on the seal lens, red share >= 90%", "src": "#39 L635" }
+    ] },
+    { "t": 4.0, "role": "other", "tests": [
+      { "id": "39.1", "stage": "C", "kind": "custom", "text": "hue of S > 0.5, V > 0.55 pixels in 300 to 360 deg; violet share < 30%; no #1ec8f0 family", "src": "#39 L633" },
+      { "id": "39.2", "stage": "P", "kind": "custom", "text": "polar FFT of circle 0 peaks at 6, circles 1 to 3 at 12; no odd peak > 2x mean", "src": "#39 L634" }
+    ] },
+    { "t": 6.28, "role": "other", "tests": [] },
+    { "t": 10.5, "role": "other", "tests": [
+      { "id": "39.1", "stage": "C", "kind": "custom", "text": "hue of S > 0.5, V > 0.55 pixels in 300 to 360 deg; violet share < 30%; no #1ec8f0 family", "src": "#39 L633" }
+    ] },
+    { "t": 14.0, "role": "money", "tests": [
+      { "id": "39.3", "stage": "C", "kind": "custom", "text": "emblem on the seal lens, red share >= 90%", "src": "#39 L635" }
+    ] },
+    { "t": 20.0, "role": "other", "tests": [] }
+  ],
+  "every": [
+    { "id": "39.4", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#39 L636" },
+    { "id": "39.4", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#39 L636" },
+    { "id": "39.5", "stage": "L", "kind": "custom", "text": "f26 to f261: 0 island geometry, labels, markers", "src": "#39 L637" },
+    { "id": "39.6", "stage": "P", "kind": "custom", "text": "B1, B4: 4 drawn frames each at 24 fps; CSS and 3D impact on the same frame", "src": "#39 L638" },
+    { "id": "39.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8 in B2 and B6; env tris <= 12k", "src": "#39 L639" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "39.8", "text": "Animal test at 14.0 s: two reviewers agree, next to refs 68 to 71, that the seal is drawn like SILVER LINK.'s owls and carries no hair, costume or prop.", "src": "#39 L640" },
+    { "id": "39.9", "text": "The line is from the decision 1 table, episode cited.", "src": "#39 L641" },
+    { "id": "39.x", "text": "Fan test pass: 3 of 3 name \"Misfit\", \"Maou Gakuin\" or \"Anos\" on 2.08 or 14.0 s; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3.", "src": "#39 L651" },
+    { "id": "39.x", "text": "Fan test fail flag: anyone says \"Jujutsu Kaisen\" or \"Gojo\".", "src": "#39 L652" }
+  ]
+}

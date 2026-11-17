@@ -1,0 +1,60 @@
+{
+  "dock": "p-faraday",
+  "issue": 19,
+  "clock": { "fps": 12, "duration": 12.0 },
+  "stills": [
+    {
+      "t": 0.5,
+      "role": "other",
+      "tests": [
+        { "id": "19.3", "stage": "C", "kind": "hueMedian", "where": { "sMin": 0.1 }, "centre": 216.0, "within": 25, "src": "#19 L435" }
+      ]
+    },
+    {
+      "t": 2.0,
+      "role": "other",
+      "tests": [
+        { "id": "19.3", "stage": "C", "kind": "hueMedian", "where": { "sMin": 0.1 }, "centre": 216.0, "within": 25, "src": "#19 L435" }
+      ]
+    },
+    {
+      "t": 4.0,
+      "role": "money",
+      "tests": [
+        { "id": "19.1", "stage": "L", "kind": "regionBox", "what": "coin disc", "x": [0, 0.36], "y": [0.25, 0.7], "minWidthH": 0.06, "src": "#19 L433" },
+        { "id": "19.3", "stage": "C", "kind": "hueMedian", "where": { "sMin": 0.1 }, "centre": 216.0, "within": 25, "src": "#19 L435" },
+        { "id": "19.6", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8 during the money beat; env tris <= 12k", "src": "#19 L438" }
+      ]
+    },
+    {
+      "t": 6.0,
+      "role": "other",
+      "tests": [
+        { "id": "19.3", "stage": "C", "kind": "hueMedian", "where": { "sMin": 0.1 }, "centre": 216.0, "within": 25, "src": "#19 L435" }
+      ]
+    },
+    {
+      "t": 8.458,
+      "role": "kill",
+      "tests": [
+        { "id": "19.2a", "stage": "L", "kind": "custom", "text": "one straight beam crosses >= 70% of image width", "src": "#19 L434" },
+        { "id": "19.2b", "stage": "L", "kind": "regionCount", "what": "straight beam", "exact": 1, "src": "#19 L434" },
+        { "id": "19.2c", "stage": "C", "kind": "custom", "text": "core luma 0.92 (capped)", "src": "#19 L434" },
+        { "id": "19.6", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8 during the kill; env tris <= 12k", "src": "#19 L438" }
+      ]
+    }
+  ],
+  "every": [
+    { "id": "19.4a", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#19 L436" },
+    { "id": "19.4b", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#19 L436" },
+    { "id": "19.5", "stage": "L", "kind": "custom", "text": "every frame 0 to 143: 0 island geometry, 0 world labels, 0 markers (render-list probe and DOM query)", "src": "#19 L437" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "19.7", "text": "32 px test: seal cut-out at the money still shows round head, two big dark eyes, pale belly under blue-grey back, and the coin disc (two reviewers agree)", "src": "#19 L439" },
+    { "id": "19.8", "text": "Same-seal test: money still beside the shipped pup and beside one other dock's still; 3 of 3 viewers say same seal", "src": "#19 L440" },
+    { "id": "19.F1", "text": "Fan test: money still (4.0 s) named by 3 of 3 unprompted (\"Railgun\", \"Misaka\" or \"Index\")", "src": "#19 L450" },
+    { "id": "19.F2", "text": "Fan test: at least 3 of 5 stills named by at least 2 of 3 viewers", "src": "#19 L450" },
+    { "id": "19.F3", "text": "Fan test: same seal 3 of 3", "src": "#19 L450" }
+  ]
+}

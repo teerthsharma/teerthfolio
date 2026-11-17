@@ -1,0 +1,148 @@
+{
+  "dock": "p-separatrix",
+  "issue": 22,
+  "clock": { "fps": 12, "duration": 12.0 },
+  "stills": [
+    {
+      "t": 0.5,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 2.0,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 4.0,
+      "role": "other",
+      "tests": [
+        {
+          "id": "22.1",
+          "stage": "C",
+          "kind": "custom",
+          "text": ">= 50% of WORLD pixels within dE 12 of plaster #f4e8c8",
+          "src": "#22 L439"
+        },
+        {
+          "id": "22.1b",
+          "stage": "P",
+          "kind": "custom",
+          "text": "red sinopia lines visible",
+          "src": "#22 L439"
+        },
+        {
+          "id": "22.1c",
+          "stage": "C",
+          "kind": "hueShare",
+          "where": { "sMin": null, "vMin": null },
+          "windows": [[260, 300]],
+          "max": 0.02,
+          "src": "#22 L439"
+        }
+      ]
+    },
+    {
+      "t": 7.0,
+      "role": "money",
+      "tests": [
+        {
+          "id": "22.2",
+          "stage": "L",
+          "kind": "custom",
+          "text": "cream stand silhouette behind the seal, at least 1.6x its height",
+          "src": "#22 L440"
+        },
+        {
+          "id": "22.2b",
+          "stage": "C",
+          "kind": "custom",
+          "text": "a light burst behind the card",
+          "src": "#22 L440"
+        },
+        {
+          "id": "22.7",
+          "stage": "L",
+          "kind": "custom",
+          "text": "32 x 32 downsample of the seal cut-out shows heavy low body, two round eyes and the gold diagonal; two reviewers agree",
+          "src": "#22 L445"
+        }
+      ]
+    },
+    {
+      "t": 8.458,
+      "role": "kill",
+      "tests": [
+        {
+          "id": "22.3",
+          "stage": "C",
+          "kind": "hueShare",
+          "where": { "sMin": 0.45, "vMin": null },
+          "windows": [[35, 45]],
+          "min": 0.30,
+          "src": "#22 L441"
+        },
+        {
+          "id": "22.3b",
+          "stage": "C",
+          "kind": "hueShare",
+          "where": { "sMin": 0.45, "vMin": null },
+          "windows": [[35, 45]],
+          "max": 0.45,
+          "src": "#22 L441"
+        },
+        {
+          "id": "22.3c",
+          "stage": "C",
+          "kind": "custom",
+          "text": "gold band along one diagonal; no colour invert anywhere",
+          "src": "#22 L441"
+        }
+      ]
+    }
+  ],
+  "every": [
+    {
+      "id": "22.4",
+      "stage": "C",
+      "kind": "lumaCap",
+      "max": 0.9239,
+      "src": "#22 L442"
+    },
+    {
+      "id": "22.4b",
+      "stage": "C",
+      "kind": "inkFloor",
+      "min": 0.035,
+      "grid": [64, 40],
+      "src": "#22 L442"
+    },
+    {
+      "id": "22.5",
+      "stage": "L",
+      "kind": "custom",
+      "text": "frames 0 to 143: zero island geometry, zero world labels, zero markers",
+      "src": "#22 L443"
+    },
+    {
+      "id": "22.6",
+      "stage": "P",
+      "kind": "custom",
+      "text": "renderer.info.render.calls at most 8 during the money beat and the kill; env tris at most 12k",
+      "src": "#22 L444"
+    }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    {
+      "id": "22.8",
+      "text": "money still beside the shipped pup and one other dock's still: 3 of 3 viewers say same seal",
+      "src": "#22 L446"
+    },
+    {
+      "id": "22.fan",
+      "text": "fan test: money still (7.0 s) named by 3 of 3 unprompted; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3",
+      "src": "#22 L456"
+    }
+  ]
+}

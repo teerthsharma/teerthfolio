@@ -1,0 +1,34 @@
+{
+  "dock": "pr-highway-3244",
+  "issue": 32,
+  "clock": { "fps": 12, "duration": 14.0 },
+  "stills": [
+    { "t": 0.5, "role": "other", "tests": [] },
+    { "t": 2.5, "role": "money", "tests": [
+      { "id": "32.2", "stage": "C", "kind": "custom", "text": "median hue of the sky region 220 to 250 deg", "src": "#32 L516" }
+    ] },
+    { "t": 4.5, "role": "money", "tests": [
+      { "id": "32.3", "stage": "C", "kind": "custom", "text": "at least 60% of dome pixels at Y >= 0.85", "src": "#32 L517" }
+    ] },
+    { "t": 6.5, "role": "money", "tests": [] },
+    { "t": 8.0, "role": "money", "tests": [
+      { "id": "32.1", "stage": "L", "kind": "regionBox", "what": "horizon (saturation step)", "x": null, "y": [0.16, 0.20], "minWidthH": null, "src": "#32 L515" },
+      { "id": "32.1", "stage": "C", "kind": "hueMedian", "where": { "sMin": 0.25 }, "range": [40, 60], "src": "#32 L515" },
+      { "id": "32.1", "stage": "C", "kind": "hueShare", "where": {}, "windows": [[280, 345]], "max": 0, "src": "#32 L515" }
+    ] },
+    { "t": 9.167, "role": "kill", "tests": [] },
+    { "t": 12.0, "role": "other", "tests": [] }
+  ],
+  "every": [
+    { "id": "32.4", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#32 L518" },
+    { "id": "32.4", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#32 L518" },
+    { "id": "32.5", "stage": "L", "kind": "custom", "text": "frames 0 to 167: 0 island geometry, 0 world labels, 0 markers (render-list probe and DOM query)", "src": "#32 L519" },
+    { "id": "32.6", "stage": "P", "kind": "custom", "text": "B5 has 12 distinct drawn frames at 24 fps; no bolt polyline survives more than 2 drawn frames", "src": "#32 L520" },
+    { "id": "32.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8 in B3 and B5; env tris <= 12k", "src": "#32 L521" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "32.8", "text": "two reviewers put the 8.0 s seal cut-out beside refs 48 and 54 and agree it is drawn like Ufotable's animals with no hair, costume or prop", "src": "#32 L522" },
+    { "id": "32.9", "text": "3 of 3 name Fate/Zero, Iskandar, Rider or Ionioi Hetairoi on the 8.0 or 9.167 s still and 3 of 3 say it is the same seal as on the island; pass rule: 8.0 s named by 3 of 3, at least 3 of 5 stills named by at least 2 of 3", "src": "#32 L523" }
+  ]
+}

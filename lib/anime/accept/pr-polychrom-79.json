@@ -1,0 +1,75 @@
+{
+  "dock": "pr-polychrom-79",
+  "issue": 33,
+  "clock": { "fps": 12, "duration": 28.2 },
+  "stills": [
+    {
+      "t": 1.5,
+      "role": "other",
+      "tests": [
+        { "id": "33.4", "stage": "C", "kind": "custom", "text": "median sky hue 220 to 260 deg", "src": "#33 L420" },
+        { "id": "33.6", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 labels, 0 markers in frames 0 to 275", "src": "#33 L422" }
+      ]
+    },
+    {
+      "t": 5.0,
+      "role": "money",
+      "tests": [
+        { "id": "33.1", "stage": "L", "kind": "regionCount", "what": "portal", "min": 12, "src": "#33 L417" },
+        { "id": "33.1", "stage": "L", "kind": "custom", "text": "median portal diameter 0.08 to 0.15 H", "src": "#33 L417" },
+        { "id": "33.1", "stage": "L", "kind": "custom", "text": "nearest-neighbour gap / diameter 1.5 to 2.5", "src": "#33 L417" },
+        { "id": "33.1", "stage": "L", "kind": "custom", "text": ">= 90% of portal centres in x < 0.66 W", "src": "#33 L417" },
+        { "id": "33.2", "stage": "P", "kind": "custom", "text": "4 to 6 rings on the largest portal (radial profile, FFT method)", "src": "#33 L418" },
+        { "id": "33.4", "stage": "C", "kind": "custom", "text": "sky hue 0 to 20 deg", "src": "#33 L420" },
+        { "id": "33.4", "stage": "C", "kind": "custom", "text": "no gold (40 to 60 deg) pixel in the sky region outside portals", "src": "#33 L420" },
+        { "id": "33.6", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 labels, 0 markers in frames 0 to 275", "src": "#33 L422" },
+        { "id": "33.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8 in B2", "src": "#33 L423" }
+      ]
+    },
+    {
+      "t": 10.0,
+      "role": "other",
+      "tests": [
+        { "id": "33.3", "stage": "P", "kind": "custom", "text": ">= 60% of weapon Hough segments within 20 deg of the dominant direction", "src": "#33 L419" },
+        { "id": "33.6", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 labels, 0 markers in frames 0 to 275", "src": "#33 L422" }
+      ]
+    },
+    {
+      "t": 17.0,
+      "role": "other",
+      "tests": [
+        { "id": "33.6", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 labels, 0 markers in frames 0 to 275", "src": "#33 L422" }
+      ]
+    },
+    {
+      "t": 22.0,
+      "role": "kill",
+      "tests": [
+        { "id": "33.6", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 labels, 0 markers in frames 0 to 275", "src": "#33 L422" },
+        { "id": "33.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8 in B6", "src": "#33 L423" }
+      ]
+    },
+    {
+      "t": 22.083,
+      "role": "kill",
+      "tests": [
+        { "id": "33.6", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 labels, 0 markers in frames 0 to 275", "src": "#33 L422" },
+        { "id": "33.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8 in B6", "src": "#33 L423" }
+      ]
+    },
+    {
+      "t": 25.0,
+      "role": "other",
+      "tests": []
+    }
+  ],
+  "every": [
+    { "id": "33.5", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#33 L421" },
+    { "id": "33.5", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#33 L421" }
+  ],
+  "budget": { "draws": 8, "envTris": 4000 },
+  "manual": [
+    { "id": "33.8", "text": "Animal test on the 5.0 s seal cut-out: two reviewers put it next to refs 38 and 40 and agree it is drawn like Ufotable's animals with no hair, armour, crown or prop.", "src": "#33 L424" },
+    { "id": "33.9", "text": "Fan test passes: 5.0 s still named Gate of Babylon, Gilgamesh or Fate by 3 of 3; at least 3 of 5 stills named by at least 2 of 3; 'same seal' 3 of 3.", "src": "#33 L425" }
+  ]
+}

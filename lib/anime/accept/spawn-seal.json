@@ -1,0 +1,69 @@
+{
+  "dock": "spawn-seal",
+  "issue": 35,
+  "clock": { "fps": 12, "duration": 30.0 },
+  "stills": [
+    {
+      "t": 1.5,
+      "role": "money",
+      "tests": [
+        { "id": "35.1", "stage": "L", "kind": "custom", "text": "at least 60% of pixels in the darkest of 4 greys", "src": "#35 L406" },
+        { "id": "35.1", "stage": "C", "kind": "hueMedian", "where": {}, "range": [205, 220], "src": "#35 L406" },
+        { "id": "35.1", "stage": "C", "kind": "satStat", "stat": "mean", "min": 0.55, "src": "#35 L406" }
+      ]
+    },
+    { "t": 3.0, "role": "other", "tests": [] },
+    {
+      "t": 5.0,
+      "role": "other",
+      "tests": [
+        { "id": "35.2", "stage": "P", "kind": "custom", "text": "pup rim brighter than core: mean Y of outer 15% of mask exceeds inner 50% by at least 0.08", "src": "#35 L407" },
+        { "id": "35.2", "stage": "P", "kind": "custom", "text": "specular share 3 to 8%", "src": "#35 L407" }
+      ]
+    },
+    {
+      "t": 9.0,
+      "role": "other",
+      "tests": [
+        { "id": "35.3", "stage": "L", "kind": "custom", "text": "seal head at most 0.22 of body length", "src": "#35 L408" },
+        { "id": "35.3", "stage": "L", "kind": "custom", "text": "0 hair, cloak, coat, collar or mitten meshes in the scene graph", "src": "#35 L408" }
+      ]
+    },
+    {
+      "t": 11.0,
+      "role": "other",
+      "tests": [
+        { "id": "35.4", "stage": "L", "kind": "regionCount", "what": "lens ellipses on an arc", "exact": 7, "src": "#35 L409" },
+        { "id": "35.4", "stage": "C", "kind": "custom", "text": "beam cores hue 45 to 55 deg", "src": "#35 L409" }
+      ]
+    },
+    { "t": 16.0, "role": "other", "tests": [] },
+    { "t": 27.5, "role": "kill", "tests": [] },
+    { "t": 29.5, "role": "other", "tests": [] }
+  ],
+  "every": [
+    { "id": "35.5", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#35 L410" },
+    { "id": "35.5", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#35 L410" },
+    { "id": "35.5", "stage": "C", "kind": "lumaCap", "max": 0.92, "src": "#35 L36" },
+    { "id": "35.6", "stage": "L", "kind": "custom", "text": "frames 0 to 351: 0 island geometry, 0 labels, 0 markers", "src": "#35 L411" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls at most 9", "src": "#35 L412" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "at least one naming shader slimeGloss", "src": "#35 L35" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "0 MeshStandard", "src": "#35 L35" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "draw 1, WORLD cave shell + crystals (instanced): at most 10k triangles", "src": "#35 L392" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "draw 2, WORLD pool + caustics: at most 2k triangles", "src": "#35 L393" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "draw 3, WORLD Veldora sphere + eye card: at most 2k triangles", "src": "#35 L394" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "draw 6, CAST slime-bud pup (slimeGloss): at most 1k triangles", "src": "#35 L397" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "draw 7, FX lenses + beams + lattice + maw (one atlas): at most 2k triangles", "src": "#35 L398" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "draw 8, bloom (quarter res, magic only): 2 triangles", "src": "#35 L399" },
+    { "id": "35.7", "stage": "P", "kind": "custom", "text": "draw 9, GRADE + OCCLUDE: 2 triangles", "src": "#35 L400" }
+  ],
+  "budget": { "draws": 9, "envTris": 14000 },
+  "manual": [
+    { "id": "35.8", "text": "two reviewers put the 9.0 s seal cut-out next to refs 32 and 33 and agree it is drawn like 8bit's Ranga and carries no hair or costume", "src": "#35 L413" },
+    { "id": "35.9", "text": "fan test passes (8.3)", "src": "#35 L414" },
+    { "id": "35.9", "text": "fan test: 1.5 s or 11.0 s named Tensura or Slime by 3 of 3; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3; costume 0 of 3", "src": "#35 L425" },
+    { "id": "35.9", "text": "fan test result file verification/fan-test/spawn-seal/<sha>.json", "src": "#35 L426" },
+    { "id": "35.x", "text": "owner to confirm the reference images", "src": "#35 L18" },
+    { "id": "35.x", "text": "owner to decide the statue", "src": "#35 L183" }
+  ]
+}

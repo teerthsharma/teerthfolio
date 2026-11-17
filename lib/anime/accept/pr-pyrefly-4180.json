@@ -1,0 +1,65 @@
+{
+  "dock": "pr-pyrefly-4180",
+  "issue": 27,
+  "clock": { "fps": 12, "duration": 18.0 },
+  "stills": [
+    {
+      "t": 1.0,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 6.5,
+      "role": "money",
+      "tests": [
+        { "id": "27.8.2.1", "stage": "L", "kind": "regionCover", "what": "fox mask (hue < 14 or > 340, S > 0.35)", "of": "frame", "min": 0.12, "src": "#27 L368" },
+        { "id": "27.8.2.1b", "stage": "L", "kind": "regionBox", "what": "fox mask", "x": null, "y": [0, 0.05], "minWidthH": null, "src": "#27 L368" },
+        { "id": "27.8.2.1c", "stage": "L", "kind": "custom", "text": "fox mask width at least 0.75 W", "src": "#27 L368" },
+        { "id": "27.8.2.2", "stage": "L", "kind": "custom", "text": "fire band peak row at 0.68 H plus or minus 0.06", "src": "#27 L369" },
+        { "id": "27.8.2.2b", "stage": "C", "kind": "custom", "text": "roofs below the fire band with Y under 0.10", "src": "#27 L369" },
+        { "id": "27.8.2.3", "stage": "C", "kind": "custom", "text": "of pixels with S above 0.20, red plus orange at least 80%", "src": "#27 L370" },
+        { "id": "27.8.2.3b", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.20 }, "windows": [[250, 320]], "max": 0.02, "src": "#27 L370" },
+        { "id": "27.10.6", "stage": "L", "kind": "custom", "text": "the fox fills the sky by 6.5 s", "src": "#27 L433" }
+      ]
+    },
+    {
+      "t": 9.0,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 9.52,
+      "role": "kill",
+      "tests": [
+        { "id": "27.8.2.4", "stage": "L", "kind": "custom", "text": "a streak with alpha 1.0 crosses at least 0.6 W", "src": "#27 L371" },
+        { "id": "27.8.2.4b", "stage": "P", "kind": "custom", "text": "by 9.63 s (k = 2) the streak has alpha 0.25", "src": "#27 L371" },
+        { "id": "27.8.2.4c", "stage": "P", "kind": "custom", "text": "by 9.65 s no streak", "src": "#27 L371" }
+      ]
+    },
+    {
+      "t": 13.0,
+      "role": "other",
+      "tests": []
+    }
+  ],
+  "every": [
+    { "id": "27.8.2.5", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#27 L372" },
+    { "id": "27.8.2.5b", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#27 L372" },
+    { "id": "27.8.2.6", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 labels, 0 title cards over the pocket (frames 0 to 215)", "src": "#27 L373" },
+    { "id": "27.8.2.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls at most 8", "src": "#27 L374" },
+    { "id": "27.8.2.7b", "stage": "L", "kind": "custom", "text": "environment triangles at most 12k", "src": "#27 L374" },
+    { "id": "27.8.2.8", "stage": "P", "kind": "custom", "text": "32 px test: the seal keeps head mass, lids and the back/belly split at 32 px", "src": "#27 L375" },
+    { "id": "27.8.1", "stage": "P", "kind": "custom", "text": "0 MeshStandard", "src": "#27 L362" },
+    { "id": "27.8.1b", "stage": "P", "kind": "custom", "text": "1 naming shader (ninetails: fan + streak)", "src": "#27 L362" },
+    { "id": "27.10.1", "stage": "C", "kind": "lumaCap", "max": 0.92, "src": "#27 L428" },
+    { "id": "27.10.2", "stage": "C", "kind": "lumaCap", "max": 0.92, "src": "#27 L429" },
+    { "id": "27.10.3", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#27 L430" },
+    { "id": "27.10.4", "stage": "L", "kind": "custom", "text": "title card only as credit after the kill, lower third", "src": "#27 L431" },
+    { "id": "27.10.5", "stage": "L", "kind": "custom", "text": "island never in the pocket", "src": "#27 L432" }
+  ],
+  "budget": { "draws": 6, "envTris": 10400 },
+  "manual": [
+    { "id": "27.8.2.9", "text": "Fan test: 3 of 3 name Naruto or the Nine-Tails attack on the 6.5 s still; 3 of 3 say it is the same seal", "src": "#27 L376" },
+    { "id": "27.8.3", "text": "Pass rule: 6.5 s named by 3 of 3; at least 3 of 5 named by at least 2 of 3; same seal 3 of 3", "src": "#27 L386" }
+  ]
+}

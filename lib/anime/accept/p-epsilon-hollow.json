@@ -1,0 +1,59 @@
+{
+  "dock": "p-epsilon-hollow",
+  "issue": 18,
+  "clock": { "fps": 12, "duration": 18.0 },
+  "stills": [
+    {
+      "t": 3.5,
+      "role": "other",
+      "tests": [
+        { "id": "18.1", "stage": "L", "kind": "regionBox", "what": "red disc", "x": null, "y": null, "minWidthH": 0.6, "src": "#18 L370" },
+        { "id": "18.1", "stage": "L", "kind": "regionCount", "what": "dark blades on the ring at r = 0.62 R", "exact": 3, "src": "#18 L370" },
+        { "id": "18.1", "stage": "C", "kind": "custom", "text": "a dark centre", "src": "#18 L370" }
+      ]
+    },
+    {
+      "t": 5.0,
+      "role": "other",
+      "tests": [
+        { "id": "18.2", "stage": "P", "kind": "custom", "text": "pattern angle at 5.0 s differs from 4.0 s by 80 to 100 deg (stepped turn)", "src": "#18 L371" }
+      ]
+    },
+    {
+      "t": 8.0,
+      "role": "money",
+      "tests": [
+        { "id": "18.3", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.4, "vMin": null }, "windows": [[340, 15]], "min": 0.10, "max": 0.25, "src": "#18 L372" },
+        { "id": "18.3", "stage": "L", "kind": "regionBox", "what": "red sky", "x": null, "y": [0, 0.45], "minWidthH": null, "src": "#18 L372" },
+        { "id": "18.3", "stage": "C", "kind": "custom", "text": "at least 65% of pixels have S < 0.12", "src": "#18 L372" },
+        { "id": "18.4", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.20, "vMin": null }, "windows": [[160, 190]], "max": 0.01, "src": "#18 L373" },
+        { "id": "18.4", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.20, "vMin": null }, "windows": [[35, 55]], "max": 0.01, "src": "#18 L373" }
+      ]
+    },
+    {
+      "t": 12.0,
+      "role": "other",
+      "tests": [
+        { "id": "18.5", "stage": "L", "kind": "lumaShare", "yBelow": 0.08, "min": 0.30, "src": "#18 L374" },
+        { "id": "18.5", "stage": "C", "kind": "lumaShare", "yBelow": 0.035, "max": 0, "src": "#18 L374" }
+      ]
+    },
+    {
+      "t": 15.0,
+      "role": "other",
+      "tests": []
+    }
+  ],
+  "every": [
+    { "id": "18.6", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#18 L375" },
+    { "id": "18.7", "stage": "L", "kind": "custom", "text": "every frame 0 to 215: 0 island geometry, 0 labels, 0 system windows, 0 sound cards", "src": "#18 L376" },
+    { "id": "18.8", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8; env tris <= 12k", "src": "#18 L377" },
+    { "id": "18.9", "stage": "L", "kind": "custom", "text": "32 px test: the seal reads as one shape with a muzzle wedge, also as a grey negative", "src": "#18 L378" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "18.10", "text": "Fan test: 3 of 3 name Naruto, Itachi or Tsukuyomi on the 8.0 s still; 3 of 3 say it is the same seal.", "src": "#18 L379" },
+    { "id": "18.10", "text": "Fan test pass: 8.0 s named by 3 of 3; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3.", "src": "#18 L389" },
+    { "id": "18.10", "text": "Fan test record saved as JSON at verification/fan-test/p-epsilon-hollow/<sha>.json.", "src": "#18 L390" }
+  ]
+}

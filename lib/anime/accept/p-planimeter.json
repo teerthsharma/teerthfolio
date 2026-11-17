@@ -1,0 +1,91 @@
+{
+  "dock": "p-planimeter",
+  "issue": 37,
+  "clock": { "fps": 12, "duration": 24.2 },
+  "stills": [
+    {
+      "t": 1.5,
+      "role": "other",
+      "tests": [
+        { "id": "37.1", "stage": "C", "kind": "custom", "text": "luma std 0.17 to 0.27 on the room; blazer pixels excluded from the room hue median", "src": "#37 L396" },
+        { "id": "37.1", "stage": "C", "kind": "hueMedian", "where": null, "range": [200, 240], "src": "#37 L396" },
+        { "id": "37.1", "stage": "C", "kind": "satStat", "stat": "mean", "max": 0.32, "src": "#37 L396" }
+      ]
+    },
+    {
+      "t": 4.5,
+      "role": "other",
+      "tests": [
+        { "id": "37.1", "stage": "C", "kind": "custom", "text": "luma std 0.17 to 0.27 on the room; blazer pixels excluded from the room hue median", "src": "#37 L396" },
+        { "id": "37.1", "stage": "C", "kind": "hueMedian", "where": null, "range": [200, 240], "src": "#37 L396" },
+        { "id": "37.1", "stage": "C", "kind": "satStat", "stat": "mean", "max": 0.32, "src": "#37 L396" }
+      ]
+    },
+    {
+      "t": 6.5,
+      "role": "other",
+      "tests": [
+        { "id": "37.1", "stage": "C", "kind": "custom", "text": "luma std 0.17 to 0.27 on the room; blazer pixels excluded from the room hue median", "src": "#37 L396" },
+        { "id": "37.1", "stage": "C", "kind": "hueMedian", "where": null, "range": [200, 240], "src": "#37 L396" },
+        { "id": "37.1", "stage": "C", "kind": "satStat", "stat": "mean", "max": 0.32, "src": "#37 L396" },
+        { "id": "37.2", "stage": "L", "kind": "regionCover", "what": "window glare", "of": "frame", "min": 0.10, "src": "#37 L397" },
+        { "id": "37.2", "stage": "L", "kind": "regionCover", "what": "window glare", "of": "frame", "max": 0.25, "src": "#37 L397" },
+        { "id": "37.2", "stage": "C", "kind": "custom", "text": "luma at 0.05 H inside the room from the glare edge >= 0.55", "src": "#37 L397" }
+      ]
+    },
+    {
+      "t": 7.5,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 8.5,
+      "role": "kill",
+      "tests": [
+        { "id": "37.4", "stage": "C", "kind": "hueMedian", "where": null, "range": [215, 240], "src": "#37 L399" }
+      ]
+    },
+    {
+      "t": 8.9,
+      "role": "kill",
+      "tests": [
+        { "id": "37.4", "stage": "L", "kind": "regionCount", "what": "'50' glyph on the board", "exact": 1, "src": "#37 L399" },
+        { "id": "37.4", "stage": "C", "kind": "custom", "text": "'50' glyph alpha 0.06 to 0.10 on the board", "src": "#37 L399" }
+      ]
+    },
+    {
+      "t": 10.5,
+      "role": "other",
+      "tests": [
+        { "id": "37.1", "stage": "C", "kind": "custom", "text": "luma std 0.17 to 0.27 on the room; blazer pixels excluded from the room hue median", "src": "#37 L396" },
+        { "id": "37.1", "stage": "C", "kind": "hueMedian", "where": null, "range": [200, 240], "src": "#37 L396" },
+        { "id": "37.1", "stage": "C", "kind": "satStat", "stat": "mean", "max": 0.32, "src": "#37 L396" }
+      ]
+    },
+    {
+      "t": 16.0,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 20.0,
+      "role": "other",
+      "tests": []
+    }
+  ],
+  "every": [
+    { "id": "37.5", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#37 L400" },
+    { "id": "37.5", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#37 L400" },
+    { "id": "37.3", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.35 }, "windows": [[80, 170]], "max": 0.03, "src": "#37 L333" },
+    { "id": "37.6", "stage": "L", "kind": "custom", "text": "frames 0 to 263: 0 island geometry, 0 labels, 0 markers", "src": "#37 L401" },
+    { "id": "37.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8", "src": "#37 L402" },
+    { "id": "37.8", "stage": "L", "kind": "custom", "text": "0 blazer, hair, suit, hairpin or clipboard meshes on any seal", "src": "#37 L403" },
+    { "id": "37.8", "stage": "L", "kind": "custom", "text": "seal head <= 0.22 of body length", "src": "#37 L403" },
+    { "id": "37.11", "stage": "P", "kind": "custom", "text": "triangles per draw as listed in the budget table (draws 1 to 8)", "src": "#37 L381" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "37.9", "text": "Two reviewers put the 10.5 s seal cut-out next to refs 42 and 43 and agree it is drawn like Lerche's Riku and carries no costume.", "src": "#37 L404" },
+    { "id": "37.10", "text": "Fan test: 1.5 s or 6.5 s named 'Classroom of the Elite' or 'Youjitsu' by 3 of 3; >= 3 of 5 stills by >= 2 of 3; 'same seal' 3 of 3; 'costume' 0 of 3.", "src": "#37 L415" }
+  ]
+}

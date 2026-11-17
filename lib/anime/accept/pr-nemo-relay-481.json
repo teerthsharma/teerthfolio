@@ -1,0 +1,54 @@
+{
+  "dock": "pr-nemo-relay-481",
+  "issue": 25,
+  "clock": { "fps": 12, "duration": 18.0 },
+  "stills": [
+    {
+      "t": 2.5,
+      "role": "other",
+      "tests": [
+        { "id": "25.1", "stage": "L", "kind": "regionCount", "what": "god card", "exact": 2, "src": "#25 L371" },
+        { "id": "25.1", "stage": "L", "kind": "custom", "text": "the ledge occupies the lower-left third with two god cards; the arena disc below it", "src": "#25 L371" }
+      ]
+    },
+    {
+      "t": 7.5,
+      "role": "money",
+      "tests": [
+        { "id": "25.2", "stage": "L", "kind": "lumaShare", "yAbove": 0.70, "min": 0.10, "max": 0.20, "src": "#25 L372" },
+        { "id": "25.2", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.12, "vMin": null }, "windows": [[190, 250]], "min": 0.40, "src": "#25 L372" },
+        { "id": "25.2", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.12, "vMin": null }, "windows": [[270, 330]], "max": 0.03, "src": "#25 L372" }
+      ]
+    },
+    {
+      "t": 9.5,
+      "role": "other",
+      "tests": [
+        { "id": "25.3", "stage": "P", "kind": "custom", "text": "3 afterimages visible behind the seal with alpha 0.75 / 0.5 / 0.25 (+/- 0.1)", "src": "#25 L373" }
+      ]
+    },
+    {
+      "t": 11.5,
+      "role": "kill",
+      "tests": [
+        { "id": "25.4", "stage": "C", "kind": "custom", "text": ">= 97% of pixels within 0.05 of #c00a1f or of the lifted ink", "src": "#25 L374" }
+      ]
+    },
+    {
+      "t": 14.0,
+      "role": "other",
+      "tests": []
+    }
+  ],
+  "every": [
+    { "id": "25.5", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#25 L375" },
+    { "id": "25.5", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#25 L375" },
+    { "id": "25.6", "stage": "L", "kind": "custom", "text": "frames 0 to 215: 0 island geometry, 0 labels, 0 title cards over the pocket; no band sky", "src": "#25 L376" },
+    { "id": "25.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8; env tris <= 12k", "src": "#25 L377" },
+    { "id": "25.8", "stage": "P", "kind": "custom", "text": "32 px test: the seal keeps a round head, eyes and the back/belly split at 32 px", "src": "#25 L378" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "25.9", "text": "Fan test: 3 of 3 name \"Dragon Ball\" or \"Ultra Instinct\" on the 7.5 s still; 3 of 3 say it is the same seal.", "src": "#25 L379" }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "dock": "home",
+  "issue": 38,
+  "clock": { "fps": 8, "duration": 30.2 },
+  "stills": [
+    {
+      "t": 4.0,
+      "role": "other",
+      "tests": [
+        { "id": "38.1", "stage": "C", "kind": "hueMedian", "range": [200, 225], "src": "#38 L395" },
+        { "id": "38.1", "stage": "L", "kind": "regionCover", "what": "snow (S < 0.25, V > 0.55)", "of": "frame", "min": 0.25, "max": 0.50, "src": "#38 L395" },
+        { "id": "38.1", "stage": "C", "kind": "custom", "text": "snow-shade pixels hue 210 to 230 deg", "src": "#38 L395" }
+      ]
+    },
+    {
+      "t": 7.0,
+      "role": "other",
+      "tests": [
+        { "id": "38.1", "stage": "C", "kind": "hueMedian", "range": [200, 225], "src": "#38 L395" },
+        { "id": "38.1", "stage": "L", "kind": "regionCover", "what": "snow (S < 0.25, V > 0.55)", "of": "frame", "min": 0.25, "max": 0.50, "src": "#38 L395" },
+        { "id": "38.1", "stage": "C", "kind": "custom", "text": "snow-shade pixels hue 210 to 230 deg", "src": "#38 L395" },
+        { "id": "38.2", "stage": "P", "kind": "custom", "text": "sea pixels (hue 160 to 200, S > 0.2) fall into three flat bands, k-means 3 residual small, no smooth vertical gradient", "src": "#38 L396" }
+      ]
+    },
+    {
+      "t": 14.0,
+      "role": "other",
+      "tests": [
+        { "id": "38.3", "stage": "C", "kind": "hueShare", "windows": [[50, 70]], "min": 0.20, "src": "#38 L397" }
+      ]
+    },
+    {
+      "t": 20.0,
+      "role": "other",
+      "tests": [
+        { "id": "38.4", "stage": "L", "kind": "regionCount", "what": "beacon points", "min": 3, "src": "#38 L398" },
+        { "id": "38.4", "stage": "L", "kind": "regionCover", "what": "each beacon point", "of": "frame", "max": 0.005, "src": "#38 L398" },
+        { "id": "38.4", "stage": "C", "kind": "custom", "text": "beacon points hue 15 to 55, S > 0.4, V > 0.6", "src": "#38 L398" }
+      ]
+    },
+    {
+      "t": 23.0,
+      "role": "money",
+      "tests": [
+        { "id": "38.4", "stage": "L", "kind": "regionCount", "what": "beacon points", "exact": 11, "src": "#38 L398" }
+      ]
+    }
+  ],
+  "every": [
+    { "id": "38.5", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#38 L399" },
+    { "id": "38.5", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#38 L399" },
+    { "id": "38.6", "stage": "L", "kind": "custom", "text": "frames 0 to 234: 0 island geometry, 0 labels, 0 markers", "src": "#38 L400" },
+    { "id": "38.8", "stage": "L", "kind": "regionCount", "what": "costume meshes (tunic, sleeve, strap, buckle, hair, tie, cloak, clasp) on any seal", "exact": 0, "src": "#38 L402" },
+    { "id": "38.8", "stage": "L", "kind": "custom", "text": "seal head <= 0.22 of body length", "src": "#38 L402" },
+    { "id": "38.8", "stage": "L", "kind": "custom", "text": "the Thors seal 1.3 to 1.5 times the hero's length", "src": "#38 L402" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "38.9", "text": "Two reviewers put the 4.0 s seal cut-outs beside refs 40 and 41 and agree they are drawn like Vinland Saga's horses, with no costume.", "src": "#38 L403" },
+    { "id": "38.10", "text": "Fan test passes: 4.0 or 23.0 s named Vinland Saga by 3 of 3; 3 of 5 stills by 2 of 3; same seal 3 of 3; costume 0 of 3; Thors picked as father by 2 of 3.", "src": "#38 L404" }
+  ]
+}

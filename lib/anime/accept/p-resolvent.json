@@ -1,0 +1,72 @@
+{
+  "dock": "p-resolvent",
+  "issue": 36,
+  "clock": { "fps": 12, "duration": 20.0 },
+  "stills": [
+    {
+      "t": 1.5,
+      "role": "other",
+      "tests": [
+        { "id": "36.1", "stage": "C", "kind": "custom", "text": "0% island snow (S < 0.12, V > 0.8 below 2%)", "src": "#36 L432" },
+        { "id": "36.3", "stage": "C", "kind": "custom", "text": "sky per-row median falls in luma from top to horizon (the army ramp), hue 340 to 20 deg", "src": "#36 L434" }
+      ]
+    },
+    {
+      "t": 4.0,
+      "role": "other",
+      "tests": [
+        { "id": "36.1", "stage": "C", "kind": "custom", "text": "0% island snow (S < 0.12, V > 0.8 below 2%)", "src": "#36 L432" },
+        { "id": "36.2", "stage": "C", "kind": "custom", "text": "hue median of saturated pixels 230 to 270 deg (court); >= 60% of pixels in the darkest of 4 greys", "src": "#36 L433" },
+        { "id": "36.5", "stage": "P", "kind": "custom", "text": "scale line <= 3 px wide; halo luma at 0.04 H from the line < 0.3 of the line's", "src": "#36 L436" }
+      ]
+    },
+    {
+      "t": 5.7,
+      "role": "money",
+      "tests": [
+        { "id": "36.1", "stage": "C", "kind": "custom", "text": "0% island snow (S < 0.12, V > 0.8 below 2%)", "src": "#36 L432" },
+        { "id": "36.4", "stage": "C", "kind": "custom", "text": "flame has three bands; core Y >= 0.85 after the cap; edge hue 175 to 190 deg", "src": "#36 L435" }
+      ]
+    },
+    {
+      "t": 7.7,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 8.5,
+      "role": "kill",
+      "tests": []
+    },
+    {
+      "t": 10.6,
+      "role": "other",
+      "tests": [
+        { "id": "36.1", "stage": "C", "kind": "custom", "text": "0% island snow (S < 0.12, V > 0.8 below 2%)", "src": "#36 L432" }
+      ]
+    },
+    {
+      "t": 12.0,
+      "role": "other",
+      "tests": [
+        { "id": "36.1", "stage": "C", "kind": "custom", "text": "0% island snow (S < 0.12, V > 0.8 below 2%); the court holds to 13.0 s", "src": "#36 L432" }
+      ]
+    },
+    {
+      "t": 15.0,
+      "role": "other",
+      "tests": []
+    }
+  ],
+  "every": [
+    { "id": "36.6", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#36 L437" },
+    { "id": "36.6", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#36 L437" },
+    { "id": "36.7", "stage": "L", "kind": "custom", "text": "0 cloak, hair, hat or staff meshes on any seal; seal head <= 0.22 of body length", "src": "#36 L438" },
+    { "id": "36.8", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 9", "src": "#36 L439" }
+  ],
+  "budget": { "draws": 9, "envTris": 14000 },
+  "manual": [
+    { "id": "36.9", "text": "Animal test: two reviewers put the 5.7 s seal beside refs 39 and 41 and agree it is drawn like Madhouse's animals, with no costume.", "src": "#36 L440" },
+    { "id": "36.10", "text": "Fan test passes (8.3): 5.7 s named Frieren by 3 of 3 and Aura or the scale by 2 of 3; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3; costume 0 of 3.", "src": "#36 L452" }
+  ]
+}

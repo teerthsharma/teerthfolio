@@ -1,0 +1,49 @@
+{
+  "dock": "pr-topograph-432",
+  "issue": 29,
+  "clock": { "fps": 12, "duration": 12.0 },
+  "stills": [
+    {
+      "t": 4.0,
+      "role": "other",
+      "tests": [
+        { "id": "29.1", "stage": "L", "kind": "regionCount", "what": "guardian silhouette", "min": 6, "src": "#29 L449" },
+        { "id": "29.1", "stage": "L", "kind": "custom", "text": "stair is one light wedge whose apex is the seat; guardians show no faces", "src": "#29 L449" },
+        { "id": "29.3.9", "stage": "L", "kind": "custom", "text": "seal about 10% of the band at B2, small at the top of the stair", "src": "#29 L219" }
+      ]
+    },
+    {
+      "t": 7.0,
+      "role": "money",
+      "tests": [
+        { "id": "29.2", "stage": "L", "kind": "custom", "text": "camera eye at least 3.2 m (on the stair)", "src": "#29 L450" },
+        { "id": "29.2", "stage": "L", "kind": "regionCover", "what": "seal", "of": "band", "min": 0.25, "src": "#29 L450" },
+        { "id": "29.2", "stage": "C", "kind": "custom", "text": "gold rim on the throne side", "src": "#29 L450" },
+        { "id": "29.3.9", "stage": "L", "kind": "custom", "text": "seal about 30% of the band at B4, turning before the throne back", "src": "#29 L219" }
+      ]
+    },
+    {
+      "t": 8.458,
+      "role": "kill",
+      "tests": [
+        { "id": "29.3", "stage": "L", "kind": "regionCount", "what": "gold ring", "exact": 4, "src": "#29 L451" },
+        { "id": "29.3", "stage": "L", "kind": "regionCount", "what": "gem dot", "exact": 7, "src": "#29 L451" },
+        { "id": "29.3", "stage": "C", "kind": "lumaRatio", "what": "hall outside the outer ring", "tA": 7.9, "tB": 8.458, "max": 0.6, "src": "#29 L451" }
+      ]
+    }
+  ],
+  "every": [
+    { "id": "29.4", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#29 L452" },
+    { "id": "29.4", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#29 L452" },
+    { "id": "29.5", "stage": "L", "kind": "custom", "text": "0 island geometry, 0 world labels, 0 markers in every frame 0 to 143 (render-list probe and DOM query)", "src": "#29 L453" },
+    { "id": "29.6", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls at most 8 during the money beat and the kill", "src": "#29 L454" },
+    { "id": "29.8.1", "stage": "P", "kind": "custom", "text": "frame time at most 4 ms GPU at 1280 x 800 on an integrated GPU; 0 MeshStandard", "src": "#29 L443" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "29.1.1", "text": "thumbnail squint test: the stair is one light wedge pointing at the seat", "src": "#29 L65" },
+    { "id": "29.7", "text": "32 x 32 downsample of the seal cut-out at the money still: round soft seal with a gold rim before a dark throne back (two reviewers agree)", "src": "#29 L455" },
+    { "id": "29.8", "text": "same-seal test: money still beside the shipped pup and one other dock's still; 3 of 3 viewers say same seal", "src": "#29 L456" },
+    { "id": "29.8.3", "text": "fan test pass rule: money still named by 3 of 3 unprompted; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3", "src": "#29 L466" }
+  ]
+}

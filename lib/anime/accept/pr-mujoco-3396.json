@@ -1,0 +1,40 @@
+{
+  "dock": "pr-mujoco-3396",
+  "issue": 24,
+  "clock": { "fps": 12, "duration": 18.0 },
+  "stills": [
+    { "t": 1.0, "role": "other", "tests": [] },
+    {
+      "t": 5.0,
+      "role": "other",
+      "tests": [
+        { "id": "24.4", "stage": "P", "kind": "custom", "text": "camera y offset differs between consecutive footfall frames (shake visible)", "src": "#24 L361" },
+        { "id": "24.4", "stage": "P", "kind": "custom", "text": "steam has exactly 4 density levels", "src": "#24 L361" }
+      ]
+    },
+    {
+      "t": 9.5,
+      "role": "money",
+      "tests": [
+        { "id": "24.1", "stage": "L", "kind": "custom", "text": "three face silhouettes, centres at 0.2 / 0.5 / 0.8 W +/- 0.05, middle one >= 0.35 H, all centred above 0.5 H", "src": "#24 L358" },
+        { "id": "24.2", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.20, "vMin": null }, "windows": [[345, 45]], "min": 0.95, "src": "#24 L359" },
+        { "id": "24.2", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.20, "vMin": null }, "windows": [[190, 250]], "max": 0.01, "src": "#24 L359" },
+        { "id": "24.3", "stage": "L", "kind": "notan", "thresholds": [0.18, 0.35], "target": [27, 43, 30], "tol": 10, "src": "#24 L360" }
+      ]
+    },
+    { "t": 12.25, "role": "kill", "tests": [] },
+    { "t": 14.0, "role": "other", "tests": [] }
+  ],
+  "every": [
+    { "id": "24.5", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#24 L362" },
+    { "id": "24.5", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#24 L362" },
+    { "id": "24.6", "stage": "L", "kind": "custom", "text": "frames 0 to 215: 0 island geometry, 0 labels, 0 title cards over the pocket", "src": "#24 L363" },
+    { "id": "24.7", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8; environment triangles <= 12k", "src": "#24 L364" },
+    { "id": "24.8", "stage": "P", "kind": "custom", "text": "32 px test: the seal on the ridge keeps a back rim and the back/belly split at 32 px", "src": "#24 L365" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "24.9", "text": "Fan test: 3 of 3 name \"Attack on Titan\" or \"the Rumbling\" on the 9.5 s still; 3 of 3 say it is the same seal.", "src": "#24 L366" },
+    { "id": "24.9", "text": "Fan pass rule: 9.5 s named by 3 of 3; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3.", "src": "#24 L376" }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "dock": "pr-openxla-46539",
+  "issue": 26,
+  "clock": { "fps": 12, "duration": 16.0 },
+  "stills": [
+    {
+      "t": 2.5,
+      "role": "other",
+      "tests": [
+        { "id": "26.8.2.5", "stage": "P", "kind": "custom", "text": "no Ben-Day dot pattern; FFT of a 256 px patch has no peak above 3x the median at 4 to 12 px periods", "src": "#26 L383" }
+      ]
+    },
+    {
+      "t": 5.0,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 7.5,
+      "role": "other",
+      "tests": [
+        { "id": "26.8.2.3", "stage": "L", "kind": "custom", "text": "speed lines converge within 0.05 W of the flipper tip (same Hough measure as section 1)", "src": "#26 L381" }
+      ]
+    },
+    {
+      "t": 8.125,
+      "role": "kill",
+      "tests": [
+        { "id": "26.8.2.4", "stage": "C", "kind": "custom", "text": "two colours only; k-means 2 explains at least 95 percent of variance", "src": "#26 L382" }
+      ]
+    },
+    {
+      "t": 11.0,
+      "role": "money",
+      "tests": [
+        { "id": "26.8.2.1", "stage": "L", "kind": "custom", "text": "the raised flipper touches the upper bar; the seal's eye sits on the upper third", "src": "#26 L379" },
+        { "id": "26.8.2.2", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.25 }, "windows": [[200, 250]], "min": 0.7, "src": "#26 L380" },
+        { "id": "26.8.2.2", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.25 }, "windows": [[290, 335]], "max": 0.01, "src": "#26 L380" },
+        { "id": "26.8.2.5", "stage": "P", "kind": "custom", "text": "no Ben-Day dot pattern; FFT of a 256 px patch has no peak above 3x the median at 4 to 12 px periods", "src": "#26 L383" }
+      ]
+    }
+  ],
+  "every": [
+    { "id": "26.8.2.6", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#26 L384" },
+    { "id": "26.8.2.6", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#26 L384" },
+    { "id": "26.8.2.7", "stage": "L", "kind": "custom", "text": "frames 0 to 191: 0 island geometry, 0 labels, 0 markers", "src": "#26 L385" },
+    { "id": "26.8.2.9", "stage": "P", "kind": "custom", "text": "back/belly split and the eye read at 32 px next to the Nezu tile", "src": "#26 L387" },
+    { "id": "26.7.8", "stage": "L", "kind": "custom", "text": "image height 1280 / 2.39 = 535.6 px and bars 132.2 px at 1280 x 800", "src": "#26 L355" },
+    { "id": "26.8.1", "stage": "P", "kind": "custom", "text": "7 draws, env tris at most 6k, 0 MeshStandard, one naming shader (smash)", "src": "#26 L373" },
+    { "id": "26.10.1", "stage": "C", "kind": "custom", "text": "max Y over the six site frames at most 0.92; percent above the cap 0", "src": "#26 L439" },
+    { "id": "26.10.2", "stage": "C", "kind": "custom", "text": "percent of a 64 x 40 downsample below Y 0.035 is 0 on every site frame", "src": "#26 L441" },
+    { "id": "26.10.3", "stage": "L", "kind": "custom", "text": "island never in the pocket", "src": "#26 L442" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "26.8.2.10", "text": "Fan test: 3 of 3 name My Hero Academia or United States of Smash on the 11.0 s or 7.5 s still; 3 of 3 say it is the same seal", "src": "#26 L388" },
+    { "id": "26.8.3", "text": "Pass rule: 11.0 s named by 3 of 3; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3", "src": "#26 L398" },
+    { "id": "26.8.3", "text": "Fan-test record: verification/fan-test/pr-openxla-46539/<sha>.json", "src": "#26 L399" },
+    { "id": "26.8.4", "text": "00_global_fixes 1 to 3 merged and D1 to D3 answered before PR 1", "src": "#26 L403" }
+  ]
+}

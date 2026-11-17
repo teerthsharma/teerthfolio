@@ -1,0 +1,33 @@
+{
+  "dock": "p-tangle",
+  "issue": 34,
+  "clock": { "fps": 12, "duration": 19.2 },
+  "stills": [
+    { "t": 1.5, "role": "other", "tests": [] },
+    { "t": 4.5, "role": "money", "tests": [
+      { "id": "34.1", "stage": "C", "kind": "custom", "text": "per-row median sky ramp matches the measured stops within dE 6 at each stop height", "src": "#34 L412" },
+      { "id": "34.2", "stage": "L", "kind": "regionCover", "what": "sky", "of": "frame", "min": 0.6, "src": "#34 L413" },
+      { "id": "34.2", "stage": "L", "kind": "regionCover", "what": "each seal", "of": "frame", "max": 0.04, "src": "#34 L413" },
+      { "id": "34.2", "stage": "L", "kind": "custom", "text": "seals within 0.05 W of the third lines", "src": "#34 L413" }
+    ] },
+    { "t": 7.9, "role": "other", "tests": [] },
+    { "t": 9.0, "role": "kill", "tests": [
+      { "id": "34.3", "stage": "L", "kind": "custom", "text": "comet core pixels fit a quadratic with |a - 0.66| < 0.2", "src": "#34 L414" },
+      { "id": "34.3", "stage": "C", "kind": "custom", "text": "cross-section has cyan (hue 180 to 200) between blue edges", "src": "#34 L414" }
+    ] },
+    { "t": 10.0, "role": "other", "tests": [] },
+    { "t": 13.0, "role": "other", "tests": [] },
+    { "t": 18.8, "role": "other", "tests": [] }
+  ],
+  "every": [
+    { "id": "34.4", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#34 L415" },
+    { "id": "34.4", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#34 L415" },
+    { "id": "34.5", "stage": "L", "kind": "custom", "text": "frames 0 to 220: zero island geometry, zero labels, zero markers", "src": "#34 L416" },
+    { "id": "34.6", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls <= 8", "src": "#34 L417" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "34.7", "text": "two reviewers put the 4.5 s seal beside refs 40 and 44 and agree it is drawn like Ame, with no uniform, hair or prop", "src": "#34 L418" },
+    { "id": "34.8", "text": "fan test passes: 4.5 s or 9.0 s named Your Name by 3 of 3; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3", "src": "#34 L419" }
+  ]
+}

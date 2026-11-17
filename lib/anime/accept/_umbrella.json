@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "issue": 10,
+      "title": "Director epic: six workstreams (camera, beauty, hideout, fountain, 24 docks, Band 1000)",
+      "rows": [
+        { "id": "10.a", "text": "Score is 10.0 minus 0.1 per failed tick; 10.0 needs zero authored fails and every moderator tick filled", "src": "#10 L22" },
+        { "id": "10.b", "text": "8.5 is reached with at most 15 failed ticks", "src": "#10 L22" },
+        { "id": "10.c", "text": "Score recomputed on the merged branch by that rule (4.8 / 10.0 on 460bafd is the starting figure)", "src": "#10 L22, L561" }
+      ]
+    },
+    {
+      "issue": 12,
+      "title": "Anime parity for all 24 cutscenes (script stills, not playback)",
+      "rows": [
+        { "id": "12.a", "text": "One composed TV-style stitch per dock (world, cast, FX, grade), not playback", "src": "#12 L243-L255" },
+        { "id": "12.b", "text": "The 3 s still names the homage", "src": "#12 L243-L255" },
+        { "id": "12.c", "text": "The 8 s still is drawable", "src": "#12 L243-L255" },
+        { "id": "12.d", "text": "The kill reads as collision, not a caption", "src": "#12 L243-L255" },
+        { "id": "12.e", "text": "Kit functions live in the family", "src": "#12 L243-L255" },
+        { "id": "12.f", "text": "Island look is unchanged", "src": "#12 L243-L255" },
+        { "id": "12.g", "text": "Lab stills match", "src": "#12 L243-L255" }
+      ]
+    },
+    {
+      "issue": 13,
+      "title": "Browser anime floor: how games and TV render, where CGI helps, how much is enough",
+      "rows": [
+        { "id": "13.a", "text": "4 named stills a watcher can name (5%)", "src": "#13 L182-L189" },
+        { "id": "13.b", "text": "Each still is one stitch, not twenty cards", "src": "#13 L182-L189" },
+        { "id": "13.c", "text": "Kill is collision, volume, tear or invert", "src": "#13 L182-L189" },
+        { "id": "13.d", "text": "CGI stays within the pocket budget", "src": "#13 L182-L189" },
+        { "id": "13.e", "text": "The jjk kit is consumed", "src": "#13 L182-L189" },
+        { "id": "13.f", "text": "Lab pause matches", "src": "#13 L182-L189" }
+      ]
+    },
+    {
+      "issue": 15,
+      "title": "Study of the seal: one animal, drawn the way each studio draws animals",
+      "rows": [
+        { "id": "15.a", "text": "Every skin passes C1-C4 (C5 by review)", "src": "#15 L418-L427" },
+        { "id": "15.b", "text": "No hair, clothing or props on the seal", "src": "#15 L418-L427" },
+        { "id": "15.c", "text": "Skin switch is a uniform write", "src": "#15 L418-L427" },
+        { "id": "15.d", "text": "CAST at most 3 draws; scene at most 8", "src": "#15 L418-L427" },
+        { "id": "15.e", "text": "Luma at most 0.92", "src": "#15 L418-L427" },
+        { "id": "15.f", "text": "#13 carries the amendment", "src": "#15 L418-L427" }
+      ]
+    },
+    {
+      "issue": 40,
+      "title": "Cutscene scripts, maximized: every scene as the real anime moment it re-stages",
+      "rows": [
+        { "id": "40.a", "text": "One verdict per scene for all 24 scenes: APPROVE, APPROVE WITH CHANGES or REWRITE", "src": "#40 L30-L53, L76-L82" },
+        { "id": "40.b", "text": "Each scene has a maximized shot script under a Verdict heading", "src": "#40 from L83" },
+        { "id": "40.c", "text": "Only real frames and real lines; unconfirmed wording is marked TBV", "src": "#40 L12-L14" }
+      ]
+    },
+    {
+      "issue": 42,
+      "title": "Animation storyboard: pr-topograph-432 (Black Hole, then the name), Overlord S1 E4 \"Ruler of Death\"",
+      "rows": [
+        { "id": "42.a", "text": "Cold open mid-clash: Sealinz performs Black Hole and the sky cracks", "src": "#42 L14-L17" },
+        { "id": "42.b", "text": "Throne Room: Greater Break Item, the name, the hail, back to the island", "src": "#42 L14-L17" },
+        { "id": "42.c", "text": "Meets the Throne Room minimum stated in the summary (a floor, not a ceiling)", "src": "#42 L14-L17" }
+      ]
+    }
+  ]
+}

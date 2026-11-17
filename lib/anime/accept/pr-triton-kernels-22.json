@@ -1,0 +1,72 @@
+{
+  "dock": "pr-triton-kernels-22",
+  "issue": 30,
+  "clock": { "fps": 12, "duration": 18.0 },
+  "stills": [
+    {
+      "t": 1.0,
+      "role": "other",
+      "tests": [
+        { "id": "30.5", "stage": "C", "kind": "hueShare", "where": { "sMin": 0, "vMin": 0 }, "windows": [[340, 10]], "max": 0.005, "src": "#30 L441" },
+        { "id": "30.5", "stage": "C", "kind": "hueShare", "where": { "sMin": 0, "vMin": 0 }, "windows": [[175, 195]], "max": 0.02, "src": "#30 L441" },
+        { "id": "30.6", "stage": "C", "kind": "custom", "text": "#e5142e (dE < 3) covers at most 6%", "src": "#30 L442" }
+      ]
+    },
+    {
+      "t": 2.0,
+      "role": "other",
+      "tests": [
+        { "id": "30.5", "stage": "C", "kind": "hueShare", "where": { "sMin": 0, "vMin": 0 }, "windows": [[340, 10]], "min": 0.02, "src": "#30 L441" },
+        { "id": "30.5", "stage": "C", "kind": "hueShare", "where": { "sMin": 0, "vMin": 0 }, "windows": [[175, 195]], "max": 0.02, "src": "#30 L441" },
+        { "id": "30.6", "stage": "C", "kind": "custom", "text": "#e5142e (dE < 3) covers at most 6%", "src": "#30 L442" }
+      ]
+    },
+    {
+      "t": 4.2,
+      "role": "money",
+      "tests": [
+        { "id": "30.1", "stage": "L", "kind": "custom", "text": "shrine is frontal; left/right NCC of the frame at least 0.70", "src": "#30 L437" },
+        { "id": "30.2", "stage": "L", "kind": "custom", "text": "horizontal mirror NCC at 0.61 H at least 0.60", "src": "#30 L438" },
+        { "id": "30.3", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.25, "vMin": 0 }, "windows": [[340, 10], [175, 195]], "min": 0.85, "src": "#30 L439" },
+        { "id": "30.3", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.25, "vMin": 0 }, "windows": [[250, 300]], "max": 0, "src": "#30 L439" },
+        { "id": "30.4", "stage": "L", "kind": "regionBox", "what": "emissive column centred at 0.22 W plus or minus 0.02", "x": [0.20, 0.24], "y": null, "minWidthH": null, "src": "#30 L440" },
+        { "id": "30.4", "stage": "L", "kind": "regionBox", "what": "emissive column centred at 0.78 W plus or minus 0.02", "x": [0.76, 0.80], "y": null, "minWidthH": null, "src": "#30 L440" },
+        { "id": "30.6", "stage": "C", "kind": "custom", "text": "#e5142e (dE < 3) covers at most 6%", "src": "#30 L442" }
+      ]
+    },
+    {
+      "t": 6.0,
+      "role": "other",
+      "tests": [
+        { "id": "30.6", "stage": "C", "kind": "custom", "text": "#e5142e (dE < 3) covers at most 6%", "src": "#30 L442" }
+      ]
+    },
+    {
+      "t": 13.95,
+      "role": "kill",
+      "tests": [
+        { "id": "30.6", "stage": "C", "kind": "custom", "text": "#e5142e (dE < 3) covers at least 90%", "src": "#30 L442" },
+        { "id": "30.9", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls at most 8 during B5 and B6", "src": "#30 L445" }
+      ]
+    },
+    {
+      "t": 15.0,
+      "role": "other",
+      "tests": [
+        { "id": "30.6", "stage": "C", "kind": "custom", "text": "#e5142e (dE < 3) covers at most 6%", "src": "#30 L442" }
+      ]
+    }
+  ],
+  "every": [
+    { "id": "30.7", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#30 L443" },
+    { "id": "30.7", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#30 L443" },
+    { "id": "30.8", "stage": "L", "kind": "custom", "text": "zero island geometry, labels or markers in frames 0 to 215", "src": "#30 L444" },
+    { "id": "30.9", "stage": "P", "kind": "custom", "text": "8 draws, one naming shader jawBite, zero MeshStandard", "src": "#30 L36" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "30.10", "text": "32 px test: the seal cut-out at 4.2 s reads as back/belly split plus eye, next to the Toad 32 px tile (two reviewers)", "src": "#30 L446" },
+    { "id": "30.11", "text": "Fan test: 3 of 3 name Jujutsu Kaisen or Malevolent Shrine unprompted on the 4.2 s still; 3 of 3 say same seal", "src": "#30 L447" },
+    { "id": "30.11", "text": "Fan pass rule: 4.2 s named by 3 of 3; at least 3 of 5 stills named by at least 2 of 3; same seal 3 of 3", "src": "#30 L457" }
+  ]
+}

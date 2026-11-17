@@ -1,0 +1,60 @@
+{
+  "dock": "p-aether-lang",
+  "issue": 16,
+  "clock": { "fps": 12, "duration": 12.0 },
+  "stills": [
+    {
+      "t": 0.5,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 2.0,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 4.0,
+      "role": "money",
+      "tests": [
+        { "id": "16.1", "stage": "L", "kind": "regionDisc", "mask": { "yBelow": 0.06, "blurPx": 3 }, "count": 1, "diameterH": [0.40, 0.60], "centre": [0.33, 0.55], "tol": 0.03, "src": "#16 L481" },
+        { "id": "16.2", "stage": "C", "kind": "hueMedian", "where": { "sMin": 0.25, "vMin": 0.08 }, "range": [200, 240], "src": "#16 L482" },
+        { "id": "16.2", "stage": "C", "kind": "custom", "text": "No violet in WORLD before 8.0 s.", "src": "#16 L482" },
+        { "id": "16.7", "stage": "C", "kind": "custom", "text": "Identity on the 4.0 s still and the B3 head CU: Y(belly)/Y(back) >= 1.40; back hue 200 to 290 deg with C* >= 4; pad L* >= belly L* - 15 with >= 3 freckles per pad; eye core L* <= 30; flippers and tail visible; no ears, hair or clothing. No silhouette IoU gate.", "src": "#16 L487" }
+      ]
+    },
+    {
+      "t": 5.5,
+      "role": "other",
+      "tests": []
+    },
+    {
+      "t": 8.458,
+      "role": "kill",
+      "tests": [
+        { "id": "16.5", "stage": "P", "kind": "custom", "text": "B5 has 12 distinct drawn frames at 24 fps; Purple is on screen; no caption names an effect not on screen.", "src": "#16 L485" }
+      ]
+    },
+    {
+      "t": 9.0,
+      "role": "other",
+      "tests": []
+    }
+  ],
+  "every": [
+    { "id": "16.3", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#16 L483" },
+    { "id": "16.3", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#16 L483" },
+    { "id": "16.4", "stage": "L", "kind": "regionCount", "what": "island geometry", "exact": 0, "src": "#16 L484" },
+    { "id": "16.4", "stage": "L", "kind": "regionCount", "what": "world labels", "exact": 0, "src": "#16 L484" },
+    { "id": "16.4", "stage": "L", "kind": "regionCount", "what": "markers", "exact": 0, "src": "#16 L484" },
+    { "id": "16.6", "stage": "P", "kind": "custom", "text": "renderer.info.render.calls at most 8 during B2 and B5; env tris at most 12k.", "src": "#16 L486" },
+    { "id": "16.11", "stage": "P", "kind": "custom", "text": "At least 1 naming shader (hole SDF); 0 MeshStandard.", "src": "#16 L32" },
+    { "id": "16.12", "stage": "C", "kind": "lumaCap", "max": 0.92, "src": "#16 L33" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "16.8", "text": "Fan test: 3 of 3 unprompted viewers say \"Jujutsu Kaisen\" or \"Gojo\" or \"Unlimited Void\" / \"Hollow Purple\" on the 4.0 s or 8.458 s still.", "src": "#16 L488" },
+    { "id": "16.9", "text": "Fan test pass: money still (4.0 s) named by 3 of 3; at least 3 of 5 stills named by at least 2 of 3.", "src": "#16 L498" },
+    { "id": "16.10", "text": "Fan test file at verification/fan-test/p-aether-lang/<sha>.json, stills side by side with refs 01 to 04 in the PR.", "src": "#16 L499" }
+  ]
+}

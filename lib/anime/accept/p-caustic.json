@@ -1,0 +1,67 @@
+{
+  "dock": "p-caustic",
+  "issue": 17,
+  "clock": { "fps": 12, "duration": 12.0 },
+  "stills": [
+    {
+      "t": 0.5,
+      "role": "other",
+      "tests": [
+        { "id": "17.6", "stage": "C", "kind": "custom", "text": "#e5142e at full saturation (dE below 3) covers at most 6 percent of pixels", "src": "#17 L460" }
+      ]
+    },
+    {
+      "t": 4.0,
+      "role": "money",
+      "tests": [
+        { "id": "17.1", "stage": "L", "kind": "regionCover", "what": "seal silhouette", "of": "band", "min": 0.55, "src": "#17 L455" },
+        { "id": "17.1b", "stage": "L", "kind": "custom", "text": "seal silhouette touches the upper bar", "src": "#17 L455" },
+        { "id": "17.2", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.25, "vMin": 0.08 }, "windows": [[330, 20], [160, 215]], "min": 0.70, "src": "#17 L456" },
+        { "id": "17.2b", "stage": "C", "kind": "hueShare", "where": { "sMin": 0.25, "vMin": 0.08 }, "windows": [[220, 300]], "max": 0.0, "src": "#17 L456" },
+        { "id": "17.3", "stage": "L", "kind": "notan", "thresholds": [0.12, 0.40], "target": [53, 33, 14], "tol": 10, "src": "#17 L457" },
+        { "id": "17.6", "stage": "C", "kind": "custom", "text": "#e5142e at full saturation (dE below 3) covers at most 6 percent of pixels", "src": "#17 L460" }
+      ]
+    },
+    {
+      "t": 5.5,
+      "role": "other",
+      "tests": [
+        { "id": "17.6", "stage": "C", "kind": "custom", "text": "#e5142e at full saturation (dE below 3) covers at most 6 percent of pixels", "src": "#17 L460" }
+      ]
+    },
+    {
+      "t": 8.25,
+      "role": "other",
+      "tests": [
+        { "id": "17.5", "stage": "P", "kind": "custom", "text": "one straight seam crosses the frame; the two halves are offset 14 plus or minus 2 px along it", "src": "#17 L459" },
+        { "id": "17.6", "stage": "C", "kind": "custom", "text": "#e5142e at full saturation (dE below 3) covers at most 6 percent of pixels", "src": "#17 L460" }
+      ]
+    },
+    {
+      "t": 8.333,
+      "role": "kill",
+      "tests": [
+        { "id": "17.6b", "stage": "C", "kind": "custom", "text": "#e5142e at full saturation (dE below 3) covers at least 90 percent of pixels", "src": "#17 L460" }
+      ]
+    },
+    {
+      "t": 9.0,
+      "role": "other",
+      "tests": [
+        { "id": "17.6", "stage": "C", "kind": "custom", "text": "#e5142e at full saturation (dE below 3) covers at most 6 percent of pixels", "src": "#17 L460" }
+      ]
+    }
+  ],
+  "every": [
+    { "id": "17.4", "stage": "C", "kind": "lumaCap", "max": 0.9239, "src": "#17 L458" },
+    { "id": "17.4b", "stage": "C", "kind": "inkFloor", "min": 0.035, "grid": [64, 40], "src": "#17 L458" },
+    { "id": "17.7", "stage": "L", "kind": "custom", "text": "every frame 0 to 143 has zero island geometry, zero world labels, zero markers", "src": "#17 L461" }
+  ],
+  "budget": { "draws": 8, "envTris": 12000 },
+  "manual": [
+    { "id": "17.9", "text": "32 px test: mass, coat pattern (blue-grey back, pale belly) and the eye read on a 32 x 32 downsample of the 4.0 s seal cut-out, side by side with the Panda 32 px tile (two reviewers)", "src": "#17 L463" },
+    { "id": "17.10", "text": "fan test: 3 of 3 name Jujutsu Kaisen or Sukuna unprompted on the 4.0 s or 8.25 s still", "src": "#17 L464" },
+    { "id": "17.10b", "text": "fan test: 3 of 3 say it is the same seal as on the island", "src": "#17 L464" },
+    { "id": "17.11", "text": "fan test pass: at least 3 of 5 stills named by at least 2 of 3 viewers", "src": "#17 L474" }
+  ]
+}
