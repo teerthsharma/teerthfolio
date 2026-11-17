@@ -21,3 +21,4 @@ public/uploads/*
 # scratch files agents leave in the repo root
 /_*.mjs
 /shot-output.txt
+public/plates/

@@ -14,8 +14,9 @@ import { cutUrl } from "./cut-serve.mjs";
 export const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 
 export async function launchChrome() {
-  let gpu = [];
-  try { gpu = await adapterFlags(chromium, CHROME, "nvidia"); } catch (e) { console.log("adapter pin failed:", String(e).slice(0, 120)); }
+  // strict: the NVIDIA adapter (GPU1) is pinned or the capture stops; never a silent fall back to the Intel iGPU
+  const gpu = await adapterFlags(chromium, CHROME, "nvidia");
+  if (!gpu.length) throw new Error("NVIDIA adapter not pinned: refusing to capture on another GPU");
   return chromium.launch({ executablePath: CHROME, headless: true, args: [...BASE_FLAGS, ...gpu] });
 }
 
