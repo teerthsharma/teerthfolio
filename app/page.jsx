@@ -58,6 +58,7 @@ export default function Home() {
         <h1>{PROFILE.name}: {PROFILE.title.replace("'", "’")}</h1>
         <p>{PROFILE.line}</p>
         <p><a href={`mailto:${PROFILE.email}`}>{PROFILE.email}</a></p>
+        <p><a href="/privacy">Privacy</a></p>
         {PLACES.map((place) => (
           <article key={place.id}>
             <h2>{place.name}</h2>

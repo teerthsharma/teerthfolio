@@ -1,5 +1,6 @@
 import { Instrument_Sans, JetBrains_Mono, Shantell_Sans } from "next/font/google";
 import Script from "next/script";
+import Clarity from "../components/Clarity";
 import "./globals.css";
 
 // Variable fonts, so no weight list is needed. Weights used: sans
@@ -35,6 +36,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${sans.variable} ${mono.variable} ${comic.variable}`}>
       <body>
         {children}
+        <Clarity />
         <Script
           src="https://static.cloudflareinsights.com/beacon.min.js"
           data-cf-beacon='{"token": "2a4259bb84734fe6ad6ecff564c4a27a"}'
