@@ -8,9 +8,9 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { AdditiveBlending, BoxGeometry, BufferGeometry, CanvasTexture, CircleGeometry, Group, Points, PointsMaterial, CatmullRomCurve3, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, TubeGeometry, Object3D, OctahedronGeometry, ShaderMaterial, TorusGeometry, Vector3, TetrahedronGeometry } from "three";
+import { AdditiveBlending, BufferGeometry, CanvasTexture, CircleGeometry, Group, Points, PointsMaterial, CatmullRomCurve3, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, InstancedMesh, MeshBasicMaterial, TubeGeometry, Object3D, OctahedronGeometry, ShaderMaterial, TorusGeometry, Vector3, TetrahedronGeometry } from "three";
 import { FOUNTAIN_TRAVEL } from "../../../lib/world/land";
-import { PEAK, STAIR, TEMPLE } from "../../../lib/world/peak";
+import { PEAK } from "../../../lib/world/peak";
 import { streamMaterial } from "./parts/moat-uphill";
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
@@ -22,14 +22,11 @@ const PLACE = PLACE_BY_ID["pr-polychrom-79"];
 const [A, B] = FOUNTAIN_TRAVEL.nodes;
 const TOP = PEAK.top;
 const GOLD = "#ffc933";
-const LEAF = "#d9a441"; // temple gold leaf
-const STONE = "#6a625c";
-const DARK = "#3a3228";
+const LEAF = "#d9a441"; // gold leaf
 const RADIATION = "#2bdc8a";
 const BEADS = 72;
-const HELIX = 3.4; // the helix stays inside the room
+const HELIX = 3.4; // the helix rises above the basin
 const CLOUDS = [[16, 0.9, 0.55, 90], [26, 0.8, 0.8, 44], [38, 0.7, 1.0, 30]]; // size, opacity, drift, count per layer
-const STEPS = 8;
 const MOTES = 40;
 const LANTERNS = ["#ff9ec7", "#ffe27a"];
 const SPARKS = 28;
@@ -85,42 +82,6 @@ function basinWater() {
   g.setAttribute("aAlong", new Float32BufferAttribute(G, 1));
   return g;
 }
-// the temple's repeats, all instanced: front columns, the rim's merlons, the stair's steps
-function scatter() {
-  const { hw, hd } = TEMPLE;
-  const cols = new InstancedMesh(new CylinderGeometry(0.34, 0.4, TEMPLE.height - 0.3, 10), mat(STONE, { roughness: 0.9, flatShading: true }), 6);
-  for (let i = 0; i < 6; i++) {
-    D.rotation.set(0, 0, 0);
-    D.scale.setScalar(1);
-    D.position.set(PEAK.x - hw + 0.4 + (i * (2 * hw - 0.8)) / 5, PEAK.top + (TEMPLE.height - 0.3) / 2, PEAK.z + hd + 0.9);
-    D.updateMatrix();
-    cols.setMatrixAt(i, D.matrix);
-  }
-  const merlons = new InstancedMesh(new BoxGeometry(1.5, 1.4, 0.6), mat(STONE, { roughness: 1, flatShading: true }), 40);
-  let m = 0;
-  for (let i = 0; i < 40; i++) {
-    const a = (i / 40) * Math.PI * 2;
-    if (Math.cos(a) < -0.97) continue; // the stair's gap, west
-    D.rotation.set(0, -a, 0);
-    D.scale.setScalar(1);
-    D.position.set(PEAK.x + Math.cos(a) * (PEAK.flat - 0.4), PEAK.top + 0.7, PEAK.z + Math.sin(a) * (PEAK.flat - 0.4));
-    D.updateMatrix();
-    merlons.setMatrixAt(m++, D.matrix);
-  }
-  merlons.count = m;
-  const steps = new InstancedMesh(new BoxGeometry(1, 1, 2 * STAIR.w + 1.0), mat(STONE, { roughness: 0.95, flatShading: true }), STAIR.run);
-  for (let i = 0; i < STAIR.run; i++) {
-    const h = (PEAK.top * (i + 1)) / STAIR.run;
-    D.rotation.set(0, 0, 0);
-    D.scale.set(1, h, 1);
-    D.position.set(PEAK.x - PEAK.flat - STAIR.run + i + 0.5, h / 2, PEAK.z);
-    D.updateMatrix();
-    steps.setMatrixAt(i, D.matrix);
-  }
-  for (const o of [cols, merlons, steps]) o.frustumCulled = false;
-  return { cols, merlons, steps };
-}
-
 // layered cloud banks: soft radial puffs on Points, three depths drifting at different speeds
 function puffTexture() {
   const c = document.createElement("canvas");
@@ -143,6 +104,8 @@ function cloudLayers() {
       pos[i * 3] = (hash(i, L + 10) - 0.5) * 150;
       pos[i * 3 + 1] = (L === 0 ? 0.5 + hash(i, L + 20) * 4.5 : 1 + hash(i, L + 20) * 7) + L * 1.5;
       pos[i * 3 + 2] = FUTURE_Z + 3 + L * 4 + hash(i, L + 30) * 20;
+      const e = Math.min(1, Math.max(0, (Math.abs(pos[i * 3] - PEAK.x) - 22) / 16));
+      pos[i * 3 + 2] += 30 * (1 - e * e * (3 - 2 * e));
     }
     const g = new BufferGeometry();
     g.setAttribute("position", new Float32BufferAttribute(pos, 3));
@@ -155,12 +118,12 @@ function cloudLayers() {
   for (let i = 0; i < 90; i++) {
     const a = hash(i, 40) * 6.283;
     const halo = i >= 60;
-    const r = halo ? 3 + hash(i, 41) * 4 : PEAK.edge - 3 + hash(i, 41) * 6;
-    mist.set([PEAK.x + Math.cos(a) * r, halo ? TOP + 1 + hash(i, 42) * 5 : 0.3 + hash(i, 42) * 2.7, PEAK.z + Math.sin(a) * r], i * 3);
+    const r = halo ? 2 + hash(i, 41) * 3 : PEAK.edge - 3 + hash(i, 41) * 6;
+    mist.set([PEAK.x + Math.cos(a) * r, halo ? TOP + 0.5 + hash(i, 42) * 2 : 0.3 + hash(i, 42) * 1.2, PEAK.z + Math.sin(a) * r], i * 3);
   }
   const mg = new BufferGeometry();
   mg.setAttribute("position", new Float32BufferAttribute(mist, 3));
-  const mp = new Points(mg, new PointsMaterial({ map, size: 7, color: "#fff1c8", transparent: true, opacity: 0.4, depthWrite: false }));
+  const mp = new Points(mg, new PointsMaterial({ map, size: 4, color: "#fff1c8", transparent: true, opacity: 0.4, depthWrite: false }));
   mp.frustumCulled = false;
   mp.userData.still = true;
   group.add(mp);
@@ -181,40 +144,6 @@ function signTexture() {
   g.textBaseline = "middle";
   g.fillText("NEW AREA SOON", 256, 74);
   return new CanvasTexture(c);
-}
-
-// the temple on the deck: paved floor, three walls and a south wall with the door, a roof with an oculus over the basin
-function Temple({ m }) {
-  const { hw, hd, wall, door, height } = TEMPLE;
-  const y = PEAK.top;
-  const Box = ({ p, a, mt }) => (
-    <mesh position={[PEAK.x + p[0], y + p[1], PEAK.z + p[2]]} material={m[mt]}>
-      <boxGeometry args={a} />
-    </mesh>
-  );
-  const sw = (hw - door) ;
-  return (
-    <>
-      <mesh position={[PEAK.x, y + 0.03, PEAK.z]} material={m.deck}>
-        <cylinderGeometry args={[PEAK.flat - 0.1, PEAK.flat - 0.1, 0.06, 48]} />
-      </mesh>
-      <Box p={[0, 0.09, 0]} a={[2 * hw, 0.06, 2 * hd]} mt="marble" />
-      <Box p={[-hw + wall / 2, height / 2, 0]} a={[wall, height, 2 * hd]} mt="wallM" />
-      <Box p={[hw - wall / 2, height / 2, 0]} a={[wall, height, 2 * hd]} mt="wallM" />
-      <Box p={[0, height / 2, -hd + wall / 2]} a={[2 * hw, height, wall]} mt="wallM" />
-      <Box p={[-(door + sw / 2), height / 2, hd - wall / 2]} a={[sw, height, wall]} mt="wallM" />
-      <Box p={[door + sw / 2, height / 2, hd - wall / 2]} a={[sw, height, wall]} mt="wallM" />
-      <Box p={[0, height - 0.9, hd - wall / 2]} a={[2 * door, 0.5, wall]} mt="gold" />
-      {/* the roof: four slabs round a 3 m oculus, a gold cornice, a low pediment on the door side */}
-      <Box p={[0, height + 0.25, -(hd + 0.6 + 1.5) / 2 - 0.0]} a={[2 * hw + 1.2, 0.5, hd - 1.5 + 0.6]} mt="wallM" />
-      <Box p={[0, height + 0.25, (hd + 0.9 + 1.5) / 2]} a={[2 * hw + 1.2, 0.5, hd - 1.5 + 0.9]} mt="wallM" />
-      <Box p={[-(hw + 0.6 + 1.5) / 2, height + 0.25, 0]} a={[hw - 1.5 + 0.6, 0.5, 3]} mt="wallM" />
-      <Box p={[(hw + 0.6 + 1.5) / 2, height + 0.25, 0]} a={[hw - 1.5 + 0.6, 0.5, 3]} mt="wallM" />
-      <Box p={[0, height + 0.6, hd + 0.9]} a={[2 * hw + 1.2, 0.25, 0.25]} mt="gold" />
-      <Box p={[0, height + 0.6, -hd - 0.6]} a={[2 * hw + 1.2, 0.25, 0.25]} mt="gold" />
-      <Box p={[0, height + 1.1, hd - 0.3]} a={[2 * hw + 0.6, 1.0, 0.5]} mt="wallM" />
-    </>
-  );
 }
 
 export default function Fountain() {
@@ -249,7 +178,6 @@ export default function Fountain() {
       sign: signTexture(),
       rill: rillGeometry(),
       water: basinWater(),
-      scatter: scatter(),
       beam: new CylinderGeometry(0.2, 1.0, 9, 16, 1, true),
       beamM: new MeshBasicMaterial({ color: "#ffd24a", transparent: true, opacity: 0.16, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false }),
       streamM: streamMaterial(RADIATION),
@@ -261,11 +189,8 @@ export default function Fountain() {
       ringM: new MeshBasicMaterial({ color: "#ffd24a", toneMapped: false }),
       tierG: [3.0, 2.2, 1.5, 0.9].map((r) => new CylinderGeometry(r, r + 0.2, 0.5, 20)),
       clouds: cloudLayers(),
-      deck: mat(DARK, { roughness: 1, flatShading: true }),
-      wallM: mat(STONE, { roughness: 0.9, flatShading: true }),
       gold: mat(LEAF, { roughness: 0.25, metalness: 0.9, envMapIntensity: 1.5, emissive: "#6b4a00", emissiveIntensity: 0.4 }),
       slate: mat("#3b3f63", { roughness: 0.95, flatShading: true, side: DoubleSide }),
-      marble: mat("#f7f4ff", { roughness: 0.35 }),
       inlay: mat(GOLD, { roughness: 0.3, metalness: 0.9, emissive: GOLD, emissiveIntensity: 0.4 }),
       white: mat("#f6f3ea", { roughness: 0.7 }),
       burstG: new TorusGeometry(1, 0.06, 6, 36).rotateX(Math.PI / 2),
@@ -280,7 +205,7 @@ export default function Fountain() {
         o.material.dispose();
         o.dispose();
       }
-      for (const x of [...m.tierG, ...m.arms, m.sign, m.rill, m.water, m.beam, m.scatter.cols.geometry, m.scatter.merlons.geometry, m.scatter.steps.geometry, m.motes.geometry, m.lipG, m.padG, m.padDiscG, m.ringG, m.burstG]) x.dispose();
+      for (const x of [...m.tierG, ...m.arms, m.sign, m.rill, m.water, m.beam, m.motes.geometry, m.lipG, m.padG, m.padDiscG, m.ringG, m.burstG]) x.dispose();
       m.motes.material.dispose();
       for (const x of [m.streamM, m.fluid, m.ringM, m.burstM, m.beamM]) x.dispose();
     },
@@ -349,8 +274,7 @@ export default function Fountain() {
   return (
     <>
       <mesh geometry={m.rill} material={m.streamM} renderOrder={2} frustumCulled={false} />
-      {Object.values(m.scatter).map((o, n) => <primitive key={n} object={o} />)}
-      <mesh geometry={m.beam} material={m.beamM} position={[PLACE.x, TOP + TEMPLE.height + 3.5, PLACE.z]} frustumCulled={false} />
+      <mesh geometry={m.beam} material={m.beamM} position={[PLACE.x, TOP + 4.5, PLACE.z]} frustumCulled={false} />
       <group position={[PLACE.x, TOP, PLACE.z]} scale={0.9}>
         {m.arms.map((g, n) => <mesh key={n} geometry={g} material={m.inlay} position={[0, 0.16, 0]} />)}
         {m.tierG.map((g, n) => (
@@ -365,7 +289,6 @@ export default function Fountain() {
       </group>
       <pointLight color="#ffd24a" intensity={6} distance={26} position={[PLACE.x, TOP + 3, PLACE.z]} />
       <primitive object={m.motes} />
-      <Temple m={m} />
       <primitive object={m.clouds} />
       <group position={[-12, 0, 67.5]}>
         {[-1.4, 1.4].map((x) => (

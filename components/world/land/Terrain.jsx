@@ -20,6 +20,8 @@ import { BufferAttribute, BufferGeometry, Color, Float32BufferAttribute, MeshSta
 import { ISLAND_RADIUS } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
 import { fbm, groundAt, KEEP_TOP } from "../../../lib/world/terrain";
+import { regionChannels, regionWeights } from "../../../lib/world/regions";
+import { REGION_KEY, regionShade } from "./Regions";
 import { HIDEOUT } from "../../../lib/world/hideout";
 import { C, SURFACE } from "../palette";
 
@@ -57,6 +59,16 @@ const K = {
   cliffLow: col(C.deepIce),
   hideout: col(HIDEOUT.rock), // the Akatsuki hideout's hill
   hideoutEdge: col(HIDEOUT.edge),
+  shelf: col("#e3edf8"),
+  blueIce: col("#cfe6f5"),
+  vein: col("#a9d4ee"),
+  thinRock: col("#dcd8dd"),
+  guano: col("#f1d6d2"),
+  scree: col("#cfc8cc"),
+  frost: col("#dfe6ee"),
+  lakeRim: col("#dbeaf5"),
+  deepIce: col(C.deepIce),
+  crust: col("#f4f6fb"),
 };
 
 const s01 = (a, b, x) => {
@@ -86,10 +98,8 @@ function faceColor(out, ny, h, g, seed) {
     } else if (g.stuff === 2) {
       out.copy(steep > 0.5 ? K.granite : K.snow).lerp(K.graniteDark, steep > 0.5 ? 0.6 * wobble : 0);
     } else if (g.stuff === 4) {
-      // the Fountain Peak: banded strata on the cliffs, snow on the terraces and the summit cap
-      const band = Math.floor(h * 1.6);
-      out.copy(K.rock).lerp(K.rockLit, 0.25 + 0.6 * rnd(band, 9.1)).lerp(K.graniteDark, band % 3 === 0 ? 0.35 : 0);
-      if (ny > 0.62 || h > 19.2) out.copy(K.snow).lerp(K.snowCool, 0.3 * wobble);
+      // the Fountain rise: snow on the dome, a cooler ring every 0.6 m of height
+      out.copy(K.snow).lerp(K.glacier, (Math.floor(h / 0.6) % 2 ? 0.5 : 0.1) + 0.15 * wobble);
     } else if (g.stuff === 5) {
       // the hideout hill: dark rock, its ice-edge on the ledges and the foot
       out.copy(K.hideout).lerp(K.hideoutEdge, ny > 0.82 || h < 0.9 ? 0.55 + 0.3 * wobble : 0.12 * wobble);
@@ -107,13 +117,27 @@ function faceColor(out, ny, h, g, seed) {
   return out;
 }
 
+// The outer ring's region weights for the vertex being coloured (lib/world/regions.js), and its aRegion channels.
+const W = { blue: 0, bend: 0, sast: 0, delta: 0, lake: 0, lakeCore: 0, guano: 0, rock: 0 };
+const RGF = [0, 0, 0, 0];
+
+function regionTint(out, x, z) {
+  if (W.blue + W.bend + W.sast + W.delta + W.lake + W.guano + W.rock <= 0) return out;
+  const f = fbm(x / 3.1, z / 3.1);
+  out.lerp(K.shelf, 0.6 * W.bend).lerp(K.blueIce, 0.85 * W.blue).lerp(K.vein, 0.5 * W.blue * s01(0.48, 0.52, f));
+  out.lerp(K.thinRock, 0.3 * W.rock * s01(0.5, 0.6, fbm(x / 4, z / 4))).lerp(K.frost, 0.7 * W.delta);
+  out.lerp(K.lakeRim, W.lake).lerp(K.deepIce, 0.9 * W.lakeCore).lerp(K.crust, 0.3 * W.sast);
+  const p = s01(0.45, 0.6, fbm(x / 5, z / 5));
+  return out.lerp(K.guano, 0.5 * W.guano * p).lerp(K.scree, 0.55 * W.guano * (1 - p));
+}
+
 // Smooth colour for a plain vertex.
 function plainColor(out, x, z, h, g) {
   if (g.gap < 0 && !g.coast) return out.copy(K.wet).lerp(K.bed, s01(-0.3, -0.8, h)).lerp(K.bedDeep, s01(-0.8, -2.6, h));
   const streak = s01(0.52, 0.8, fbm((x * 0.8 + z * 0.6) / 24, (z * 0.8 - x * 0.6) / 5));
-  out.copy(K.snow).lerp(K.snowCool, 0.65 * streak).lerp(K.oldIce, 0.6 * g.oldBed);
+  out.copy(K.snow).lerp(K.snowCool, (0.65 + 0.3 * W.sast) * streak).lerp(K.oldIce, 0.6 * g.oldBed);
   if (g.gap < 1.8) out.lerp(K.wet, s01(1.8, 0, g.gap) * 0.85);
-  return out;
+  return regionTint(out, x, z);
 }
 
 const INFO_KEYS = ["gap", "mount", "stuff", "glacier", "coast", "cliff", "rock", "keep", "oldBed"];
@@ -176,15 +200,19 @@ function buildTerrain() {
   const P = Array.from(pos);
   const N = Array.from(gridNormal);
   const COL = new Array(n * 3);
+  const RG = new Array(n * 4);
   const c = new Color();
   const g = {};
   const at = (i) => INFO_KEYS.forEach((k, j) => (g[k] = info[i * INFO_KEYS.length + j]));
   for (let i = 0; i < n; i++) {
     at(i);
+    regionWeights(pos[i * 3], pos[i * 3 + 2], W);
     plainColor(c, pos[i * 3], pos[i * 3 + 2], pos[i * 3 + 1], g);
     COL[i * 3] = c.r;
     COL[i * 3 + 1] = c.g;
     COL[i * 3 + 2] = c.b;
+    regionChannels(W, RGF, 0);
+    for (let k = 0; k < 4; k++) RG[i * 4 + k] = Math.round(RGF[k] * 255);
   }
   const index = [];
   const avg = {};
@@ -226,6 +254,7 @@ function buildTerrain() {
         P.push(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
         N.push(fx, fy, fz);
         COL.push(c.r, c.g, c.b);
+        RG.push(RG[i * 4], RG[i * 4 + 1], RG[i * 4 + 2], RG[i * 4 + 3]);
       }
     }
   }
@@ -234,6 +263,7 @@ function buildTerrain() {
   geo.setAttribute("position", new Float32BufferAttribute(P, 3));
   geo.setAttribute("normal", new Float32BufferAttribute(N, 3));
   geo.setAttribute("color", new Float32BufferAttribute(COL, 3));
+  geo.setAttribute("aRegion", new BufferAttribute(new Uint8Array(RG), 4, true));
   geo.setIndex(index);
   return tiles(geo);
 }
@@ -249,6 +279,7 @@ function tiles(geo) {
   const P = geo.attributes.position.array;
   const N = geo.attributes.normal.array;
   const K = geo.attributes.color.array;
+  const R = geo.attributes.aRegion.array;
   const idx = geo.index.array;
   const by = new Map();
   for (let t = 0; t < idx.length; t += 3) {
@@ -265,6 +296,7 @@ function tiles(geo) {
     const p = [];
     const n = [];
     const k = [];
+    const r = [];
     const ix = list.map((v) => {
       let j = remap.get(v);
       if (j === undefined) {
@@ -273,6 +305,7 @@ function tiles(geo) {
         p.push(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]);
         n.push(N[v * 3], N[v * 3 + 1], N[v * 3 + 2]);
         k.push(K[v * 3], K[v * 3 + 1], K[v * 3 + 2]);
+        r.push(R[v * 4], R[v * 4 + 1], R[v * 4 + 2], R[v * 4 + 3]);
       }
       return j;
     });
@@ -280,6 +313,7 @@ function tiles(geo) {
     g.setAttribute("position", new Float32BufferAttribute(p, 3));
     g.setAttribute("normal", new Float32BufferAttribute(n, 3));
     g.setAttribute("color", new Float32BufferAttribute(k, 3));
+    g.setAttribute("aRegion", new BufferAttribute(new Uint8Array(r), 4, true));
     g.setIndex(new BufferAttribute(remap.size < 65536 ? new Uint16Array(ix) : new Uint32Array(ix), 1));
     g.computeBoundingSphere();
     out.push(g);
@@ -321,8 +355,9 @@ function snowMaterial() {
         }
         #include <opaque_fragment>`,
       );
+    regionShade(shader);
   };
-  m.customProgramCacheKey = () => "snow-sparkle";
+  m.customProgramCacheKey = () => REGION_KEY;
   litTint(m, { cut: false }); // terrain keeps no cutaway: a hole in the ground shows the sea
   return m;
 }

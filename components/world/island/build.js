@@ -127,9 +127,9 @@ function buildRockBatch() {
   // Out in the south and west sea, past the coast's headlands (the north
   // coast is Triton's and the Google range's, rising out of the water).
   const icebergs = [
-    buildIceberg(-108, 26, 5, 7),
-    buildIceberg(66, 88, 7, 10),
-    buildIceberg(-50, 104, 6, 8),
+    buildIceberg(-134, 32, 5, 7),
+    buildIceberg(110, 84, 7, 10),
+    buildIceberg(-100, 100, 6, 8),
   ];
 
   const rand = mulberry32(SEED + 3);
