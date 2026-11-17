@@ -178,7 +178,9 @@ export default function SealGame() {
       const dock = dockPoint(place);
       Object.assign(live.seal, { x: dock.x, z: dock.z, vx: 0, vz: 0, heading: Math.PI });
     }
-    if (params.has("play") || place) setUi({ started: true });
+    const at = params.get("at")?.split(",").map(Number);
+    if (at?.length === 2 && at.every(Number.isFinite)) Object.assign(live.seal, { x: at[0], z: at[1], vx: 0, vz: 0, heading: Math.PI });
+    if (params.has("play") || place || at) setUi({ started: true });
   }, []);
 
   return (

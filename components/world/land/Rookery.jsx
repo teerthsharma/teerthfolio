@@ -14,7 +14,8 @@ import { C, mat } from "../palette";
 
 const SCALE = [0.4, 0.6, 1, 1, 1.25];
 const detail = (base, tier) => Math.max(1, Math.round(base * SCALE[tier]));
-const TONE = [new Color("#dfe6f3"), new Color("#f0cfcb")];
+const GROOVE_TONE = new Color("#dfe6f3");
+const FAN_TONE = [new Color("#e8d4cf"), new Color("#f4ebe8")];
 const dummy = new Object3D();
 
 const painted = (geo, hex) => {
@@ -47,7 +48,10 @@ function decal() {
   const g = new BufferGeometry();
   g.setAttribute("position", new Float32BufferAttribute(DECAL.pos, 3));
   const col = new Float32Array(DECAL.tone.length * 3);
-  DECAL.tone.forEach((t, i) => col.set([TONE[t].r, TONE[t].g, TONE[t].b], i * 3));
+  DECAL.tone.forEach((t, i) => {
+    const c = t ? FAN_TONE[0].clone().lerp(FAN_TONE[1], DECAL.fade[i]) : GROOVE_TONE;
+    col.set([c.r, c.g, c.b], i * 3);
+  });
   g.setAttribute("color", new Float32BufferAttribute(col, 3));
   g.setIndex(DECAL.index);
   g.computeVertexNormals();
@@ -56,7 +60,12 @@ function decal() {
 
 export default function Rookery() {
   const ground = useMemo(decal, []);
-  const nestGeo = useMemo(() => new TorusGeometry(0.42, 0.08, 4, 9).rotateX(Math.PI / 2).scale(1, 0.6, 1), []);
+  const nestGeo = useMemo(() => {
+    const ring = (r, tube, radial, tubular, hex) => painted(new TorusGeometry(r, tube, radial, tubular).rotateX(Math.PI / 2).scale(1, 0.6, 1), hex);
+    const g = mergeGeometries([ring(0.42, 0.09, 3, 10, "#8d8a92"), ring(0.25, 0.07, 3, 8, "#b0adb6")]);
+    g.computeVertexNormals();
+    return g;
+  }, []);
   const birdGeo = useMemo(bird, []);
   const chickGeo = useMemo(() => new IcosahedronGeometry(0.13, 0), []);
   const at = useMemo(() => BIRDS.map((b) => heightAt(b.x, b.z)), []);
@@ -65,7 +74,7 @@ export default function Rookery() {
   const chicks = useRef(null);
   const tier = useUi((s) => s.tier) ?? 0;
   const groundMat = mat("#ffffff", { vertexColors: true, roughness: 0.92 });
-  const nestMat = mat("#8d8a92", { roughness: 0.9 });
+  const nestMat = mat("#ffffff", { vertexColors: true, roughness: 0.9 });
   const birdMat = mat("#ffffff", { vertexColors: true, roughness: 0.6 });
   const chickMat = mat("#8b8f98", { roughness: 0.8 });
 
@@ -81,7 +90,7 @@ export default function Rookery() {
       mesh.instanceMatrix.needsUpdate = true;
       mesh.computeBoundingSphere();
     };
-    put(nests.current, NESTS, 0.03, () => 0);
+    put(nests.current, NESTS, 0.08, () => 0);
     put(birds.current, BIRDS, 0, (i) => BIRDS[i].yaw);
     put(chicks.current, CHICKS, 0.13, () => 0);
   }, [at]);

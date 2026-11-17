@@ -1,13 +1,13 @@
 "use client";
 
 // THE WEST SHELF (issue #77, west-margin): the blue cliff of Triton's western ice where it ends on the north-west apron.
-// The shelf, its slabs and bands are one vertex-coloured mesh (lib/world/shelf.js TRIS); the fallen blocks at the foot are
-// one instanced mesh cut by quality tier; the grotto is a lit arch panel on the face.
+// The face, its firn bands, slabs and the grotto recess are one vertex-coloured mesh (lib/world/shelf.js TRIS); the fallen
+// blocks at the foot are one instanced mesh cut by quality tier; the grotto's back wall is a lit panel 2.2 m inside.
 
 import { useEffect, useMemo } from "react";
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, InstancedMesh, Matrix4, Quaternion, Shape, ShapeGeometry, Vector3 } from "three";
+import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, InstancedMesh, Matrix4, PlaneGeometry, Quaternion, Vector3 } from "three";
 import { detail } from "../../../lib/world/detail";
-import { BLOCKS, GROTTO, TRIS, blockSites, footFrame, hash } from "../../../lib/world/shelf";
+import { BLOCKS, GROTTO, TOP, TRIS, blockSites, footFrame, hash } from "../../../lib/world/shelf";
 import { heightAt } from "../../../lib/world/terrain";
 import { useUi } from "../../../lib/world/store";
 import { C, lamp, mat } from "../palette";
@@ -39,21 +39,11 @@ function blocksMesh() {
   return m;
 }
 
-// A round-topped arch: a rectangle of height `top - r` under a half disc of radius r.
-function arch(r, top) {
-  const s = new Shape();
-  s.moveTo(-r, 0);
-  s.lineTo(r, 0);
-  s.lineTo(r, top - r);
-  s.absarc(0, top - r, r, 0, Math.PI, false);
-  s.closePath();
-  return s;
-}
-
 export default function Shelf() {
   const geo = useMemo(() => geometryOf(TRIS), []);
+  const top = useMemo(() => geometryOf(TOP), []);
   const blocks = useMemo(blocksMesh, []);
-  const panel = useMemo(() => new ShapeGeometry(arch(GROTTO.width / 2, GROTTO.height), 12), []);
+  const back = useMemo(() => new PlaneGeometry(GROTTO.width, GROTTO.height).translate(0, GROTTO.height / 2, 0), []);
   const tier = useUi((s) => s.tier);
   useEffect(() => {
     blocks.count = detail(BLOCKS, tier);
@@ -61,12 +51,13 @@ export default function Shelf() {
   const f = footFrame(GROTTO.x);
   return (
     <group>
+      <mesh geometry={top} material={mat("#ffffff", { vertexColors: true, roughness: 0.3, side: DoubleSide })} castShadow />
       <mesh geometry={geo} material={mat("#ffffff", { vertexColors: true, roughness: 0.3, side: DoubleSide })} castShadow receiveShadow />
       <primitive object={blocks} castShadow receiveShadow />
       <mesh
-        geometry={panel}
-        material={lamp("#7fe9ff", 1.2)}
-        position={[GROTTO.x + 0.05 * f.nx, heightAt(GROTTO.x, GROTTO.z) + 0.02, GROTTO.z + 0.05 * f.nz]}
+        geometry={back}
+        material={lamp("#7fe9ff", 0.8)}
+        position={[GROTTO.x - f.nx * GROTTO.depth, GROTTO.floor + 0.02, GROTTO.z - f.nz * GROTTO.depth]}
         rotation={[0, Math.atan2(f.nx, f.nz), 0]}
       />
     </group>

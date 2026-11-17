@@ -27,9 +27,10 @@ import { buildStone } from "../components/world/land/parts/mujorush-build.js";
 import { buildConcreteWall } from "../components/world/land/parts/dam-wall.js";
 import { PEAK, SEA_Y, WATER_Y, groundAt, heightAt, meadowAt } from "../lib/world/terrain.js";
 import { PEAK_PATH, PEAK_WORLD, peakBlocked, peakFloor } from "../lib/world/peak.js";
+import { PHYSICS_COLLIDERS } from "../lib/world/wild.js";
 import { HIDEOUT, HIDEOUT_WORLD, hideoutBlocked } from "../lib/world/hideout.js";
 
-const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...LAND_COLLIDERS];
+const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...PHYSICS_COLLIDERS];
 const world = { colliders, radius: ISLAND_RADIUS, northRim: NORTH_RIM, props: [], hideout: HIDEOUT_WORLD };
 const run = (seal, controls, seconds) => {
   for (let t = 0; t < seconds; t += 1 / 120) stepSeal(seal, controls, 1 / 120, world);
@@ -1256,7 +1257,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   for (const q of PLACES) if (q.id !== me.id && q.id !== "p-epsilon-hollow") nearest = Math.min(nearest, Math.hypot(q.x - me.x, q.z - me.z) - q.radius);
   for (const c of LAND_COLLIDERS) if (c.land !== "fountain-wall") nearest = Math.min(nearest, Math.hypot(c.x - me.x, c.z - me.z) - c.radius);
   assert.ok(nearest >= 20, `the fountain is only ${nearest.toFixed(1)} m from the nearest place or landform`);
-  assert.ok(Math.hypot(me.x - PEAK.x, me.z - PEAK.z) < 0.01 && PEAK.top >= 6 && PEAK.top <= 8 && PEAK.flat >= 9, "the fountain is not on a 6-8 m plateau at least 18 m across");
+  assert.ok(Math.hypot(me.x - PEAK.x, me.z - PEAK.z) < 0.01 && PEAK.top >= 2 && PEAK.top <= 3 && PEAK.flat >= 5.6, "the fountain is not on a 2-3 m rise with a crown at least 11 m across");
   // the climb: the path starts on the plain, ends at the dock on the summit, and its slope is walkable
   // (a dedicated check for this path only: 0.31 rise per metre, about 17 degrees; the island's own paths are flat)
   const dock = dockPoint(me);
@@ -1284,10 +1285,14 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
       if (peakBlocked(s.x, s.z)) off++;
     }
     assert.ok(off === 0 && Math.abs(s.climb - PEAK.top) < 0.5, `a seal following the peak path ends ${s.climb.toFixed(1)} m up (wanted ${PEAK.top}), ${off} steps off the bench`);
-    // the cliff stops a seal: pushed straight into the north face from the foot it stays on the plain
+    // the rise has no cliff: pushed south from the north foot, the seal climbs onto it
     const c = createSeal(PEAK.x + 6, PEAK.z - PEAK.edge - 1);
-    for (let t = 0; t < 4; t += 1 / 120) stepSeal(c, { input: { x: 0, z: 1 } }, 1 / 120, w);
-    assert.ok(c.climb < PEAK.top - 8 || Math.hypot(c.x - PEAK.x, c.z - PEAK.z) > PEAK.flat, "a seal ran straight up the cliff");
+    let top = 0;
+    for (let t = 0; t < 6; t += 1 / 120) {
+      stepSeal(c, { input: { x: 0, z: 1 } }, 1 / 120, w);
+      top = Math.max(top, c.climb);
+    }
+    assert.ok(top > PEAK.top - 0.5, "a seal cannot walk up the rise from the north");
   }
   // the glacier river: a real channel from the spring pool at the foot to the moat, deep, swimmable and ridable
   const g = GLACIER.points;
@@ -1319,7 +1324,7 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
     const [lx, lz] = n.land;
     const base = n.y; // the basin's landing is on the summit, the pad's on the snow
     assert.ok(!riverAt(lx, lz).inside && Math.abs(heightAt(lx, lz) - (base ? PEAK.top : 0)) <= 0.3 && Math.hypot(lx, lz) < ISLAND_RADIUS - 4, `the fountain's landing ${lx}, ${lz} is not dry flat ground`);
-    if (base) assert.ok(Math.hypot(lx - PEAK.x, lz - PEAK.z) <= PEAK.flat - MOTION.sealRadius, "the fountain landing is on the summit's flat top");
+    if (base) assert.ok(Math.hypot(lx - PEAK.x, lz - PEAK.z) <= PEAK.edge - 5, "the fountain landing is on the rise's shoulder");
     for (const c of colliders) assert.ok(Math.hypot(lx - c.x, lz - c.z) >= c.radius + MOTION.sealRadius, `the fountain's landing ${lx}, ${lz} is inside a collider`);
     for (const m of F.nodes) assert.ok(Math.hypot(lx - m.x, lz - m.z) >= m.reach + 1, "a landing is outside both basins");
   }

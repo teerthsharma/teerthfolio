@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { HIGHWAY } from "../../../lib/world/land";
 import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID } from "../../../lib/world/places";
 import { WATERS } from "../../../lib/world/river";
+import { AIR, ELLIPSES } from "../../../lib/world/regions";
 import { live } from "../../../lib/world/store";
 import { IconMap } from "./icons";
 
@@ -71,6 +72,10 @@ export default function Minimap({ onSelect }) {
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE} aria-hidden="true">
           <rect width={SIZE} height={SIZE} className="minimap-sea" />
           <circle cx={CENTER} cy={CENTER} r={RIM} className="minimap-island" />
+          {ELLIPSES.map(([id, x, z, a, b, rot], i) => {
+            const [cx, cy] = project(x, z);
+            return <ellipse key={i} cx={cx} cy={cy} rx={a * SCALE} ry={b * SCALE} transform={`rotate(${(rot * 180) / Math.PI} ${cx} ${cy})`} style={{ fill: AIR[id][0], opacity: 0.6 }} />;
+          })}
           {DISTRICTS.map((d) => {
             const [x, y] = project(d.x, d.z);
             return (

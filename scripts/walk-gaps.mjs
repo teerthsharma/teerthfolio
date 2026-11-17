@@ -12,7 +12,7 @@ await page.addInitScript(() => {
   const f = (t) => { const w = window.__world; window.__gaps.push([Math.round(t), Math.round(t - last), w?.gl ? w.gl.info.programs.length : -1, w?.gl ? w.gl.info.memory.textures : -1, w?.gl ? w.gl.info.memory.geometries : -1, w?.live ? Math.round(w.live.seal.x) + "," + Math.round(w.live.seal.z) : ""]); last = t; requestAnimationFrame(f); };
   requestAnimationFrame(f);
 });
-await page.goto(`${base}/?play&debug`, { waitUntil: "load" });
+await page.goto(`${base}/?play&debug${arg("at") ? "&at=" + arg("at") : ""}`, { waitUntil: "load" });
 await page.waitForFunction(() => window.__world?.ready, null, { timeout: 60000 });
 const t0 = await page.evaluate(() => performance.now());
 const gpu = await page.evaluate(() => { const g = document.createElement("canvas").getContext("webgl2"); const e = g.getExtension("WEBGL_debug_renderer_info"); return g.getParameter(e.UNMASKED_RENDERER_WEBGL); });
