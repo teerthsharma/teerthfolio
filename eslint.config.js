@@ -47,4 +47,15 @@ export default [
       },
     },
   },
+  {
+    files: ["app/lab/**/*.jsx"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      "no-redeclare": ["error", { builtinGlobals: false }],
+    },
+  },
 ];
