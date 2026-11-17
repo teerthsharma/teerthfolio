@@ -14,7 +14,7 @@ import { C } from "../components/world/palette";
 // so the share preview doesn't contradict the island: sea for the water,
 // warm-white snow for the ice, slate for the seal.
 
-export const alt = `${PROFILE.name} — ${PROFILE.title}`;
+export const alt = "Map of the ice island: a seal beside the igloo, with 23 coloured markers, one for each project or contribution.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -46,6 +46,9 @@ const mapPoint = (place) => ({
   x: MAP_CX + place.x * scaleX,
   y: MAP_CY + place.z * scaleY,
 });
+
+const UPSTREAM_COUNT = PLACES.filter((p) => p.section === "upstream").length;
+const LAB_COUNT = PLACES.filter((p) => p.section === "lab").length;
 
 export default async function OgImage() {
   // eslint.config.js only gives Node globals to app/api/**/*.js and lib/**/*.js;
@@ -86,7 +89,7 @@ export default async function OgImage() {
           </div>
           <div style={{ display: "flex", fontSize: 32, fontWeight: 700, color: blue, marginTop: 22 }}>{PROFILE.name}</div>
           <div style={{ display: "flex", fontSize: 22, color: muted, marginTop: 18, maxWidth: 600, fontWeight: 400 }}>
-            {`${PLACES.length - 1} projects and a home, on one ice island.`}
+            {`${UPSTREAM_COUNT} contributions and ${LAB_COUNT} projects, on one ice island.`}
           </div>
         </div>
         <div style={{ display: "flex", width: 420, height: 420, alignItems: "center", justifyContent: "center" }}>
