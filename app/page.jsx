@@ -5,6 +5,7 @@ export default function Home() {
   return (
     <main>
       <SealGame />
+      <a className="privacy-link" href="/privacy" style={{ position: "fixed", left: 12, top: 72, zIndex: 5, font: "500 12px/1 var(--font-sans), sans-serif", color: "#5f5b53" }}>Privacy</a>
       <noscript>
         {/* No JS: hide the (inert) canvas shell and let the plain-text
             section below stand on its own, in the landing site's palette. */}
@@ -15,6 +16,7 @@ export default function Home() {
             background: #fbfaf7;
           }
           .game { display: none; }
+          .privacy-link { display: none; }
           section.sr-only {
             position: static;
             width: auto;
