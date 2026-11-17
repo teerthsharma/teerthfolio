@@ -1,0 +1,85 @@
+# Teerth Sharma: Seal's Topology Land
+
+> A playable 3D ice island at https://www.evilseal.si. A baby seal slides to each stop, and every stop is a project by Teerth Sharma: a contribution merged into an open-source project, or a lab project. The island is a WebGL canvas, so each stop also has a plain-text page, listed below.
+
+Canonical origin: https://www.evilseal.si
+Sitemap: https://www.evilseal.si/sitemap.xml
+
+## About
+
+A twenty year old tech lover who likes turning maths and ideas into solid code. Some of those ideas now live inside the codebases of companies like these.
+
+The island is built with Next.js, React, React Three Fiber and Three.js. Each project page has its own title, description and structured data.
+
+## Contact and profiles
+
+- GitHub: https://github.com/teerthsharma
+- Website: https://teerthsharma.github.io/
+- Resume (PDF): https://github.com/teerthsharma/teerthsharma/raw/main/Teerth_Sharma_Resume.pdf
+
+## Upstream contributions
+
+Merged into the open-source projects named here. Each page gives the result and links the pull request.
+
+- [1,281.6x less scratch](https://www.evilseal.si/projects/pr-mujoco-3396): google-deepmind/mujoco #3396. 84,033,568 bytes to 65,568 at ntree 4,096. 1,281.6x less.
+  Pull request: https://github.com/google-deepmind/mujoco/pull/3396
+- [1.513x faster](https://www.evilseal.si/projects/pr-mujoco-warp-1541): google-deepmind/mujoco_warp #1541. 156.738 us to 101.097 us. Scratch 7,929,856 bytes to 180,224.
+  Pull request: https://github.com/google-deepmind/mujoco_warp/pull/1541
+- [15,361x fewer probes](https://www.evilseal.si/projects/pr-mujoco-3450): google-deepmind/mujoco #3450. 16 lines added. 15,361x fewer probes at V=40,962. Cold load 134.400 ms to 71.163 ms.
+  Pull request: https://github.com/google-deepmind/mujoco/pull/3450
+- [65.5x fewer comparisons](https://www.evilseal.si/projects/pr-highway-3244): google/highway #3244. 894,081,141 comparisons to 13,643,737 at one million keys. 65.5x.
+  Pull request: https://github.com/google/highway/pull/3244
+- [6.42% lower peak](https://www.evilseal.si/projects/pr-xnnpack-10801): google/XNNPACK #10801. MobileNet V1 peak 23.862980 to 22.331730 MiB. Workspace 144 MiB to 112 MiB.
+  Pull request: https://github.com/google/XNNPACK/pull/10801
+- [4 edges to 3](https://www.evilseal.si/projects/pr-tensorflow-124410): tensorflow/tensorflow #124410. Four control edges emitted where the unique transitive reduction is three.
+  Pull request: https://github.com/tensorflow/tensorflow/pull/124410
+- [23 files](https://www.evilseal.si/projects/pr-nemo-relay-481): NVIDIA/NeMo-Relay #481. One unchanging scaffold now keys to one profile instead of one per task. 23 files.
+  Pull request: https://github.com/NVIDIA/NeMo-Relay/pull/481
+- [804 lines added](https://www.evilseal.si/projects/pr-triton-kernels-22): triton-lang/kernels #22. A topology derived sparse attention kernel. 804 lines added, 17 tests passing.
+  Pull request: https://github.com/triton-lang/kernels/pull/22
+- [5 lines, deterministic](https://www.evilseal.si/projects/pr-openxla-46539): openxla/xla #46539. Five lines. Same program, two outputs before, one stable output after. XLA compiles for JAX and TensorFlow.
+  Pull request: https://github.com/openxla/xla/pull/46539
+- [145 lines gated](https://www.evilseal.si/projects/pr-topograph-432): dsx-ai-factory/topograph #432. 145 lines changed across 4 files. pods, nodes and daemonsets access no longer granted cluster wide.
+  Pull request: https://github.com/dsx-ai-factory/topograph/pull/432
+- [208 SCCs pinned](https://www.evilseal.si/projects/pr-pyrefly-4180): facebook/pyrefly #4180. 208 two-module SCCs chained in one Rust test. The failure is pinned at the end with should_panic.
+  Pull request: https://github.com/facebook/pyrefly/pull/4180
+- [11/11 pairs agree](https://www.evilseal.si/projects/pr-polychrom-79): open2c/polychrom #79. 11/11 test pairs agree with the fix, 1/11 on master. pytest 65/65, up from 64/64. Mismatched frees: 16 to 0.
+  Pull request: https://github.com/open2c/polychrom/pull/79
+
+## Lab projects
+
+Each lab project has its own repository, linked from its page.
+
+- [resolvent](https://www.evilseal.si/projects/p-resolvent): Attention and Markov paths share one operator.
+  Repository: https://github.com/teerthsharma/resolvent
+  Also: https://teerthsharma.github.io/resolvent/
+- [Epsilon-Hollow](https://www.evilseal.si/projects/p-epsilon-hollow): Memory, files and scheduler, on one sphere.
+  Repository: https://github.com/teerthsharma/Epsilon-Hollow
+  Also: https://github.com/teerthsharma/Epsilon-Hollow#readme
+- [Aether-Lang](https://www.evilseal.si/projects/p-aether-lang): Loops stop when their shape stops changing.
+  Repository: https://github.com/teerthsharma/Aether-Lang
+  Also: https://teerthsharma.github.io/Aether-Lang/
+- [caustic](https://www.evilseal.si/projects/p-caustic): Hallucination, measurable with no ground truth.
+  Repository: https://github.com/teerthsharma/caustic
+  Also: https://teerthsharma.github.io/caustic/
+- [monodromy](https://www.evilseal.si/projects/p-monodromy): Can it be undone? Topology answers.
+  Repository: https://github.com/teerthsharma/monodromy
+  Also: https://teerthsharma.github.io/monodromy/
+- [topological-ml-toolkit](https://www.evilseal.si/projects/p-topological-ml-toolkit): The shape of data, as an ordinary feature.
+  Repository: https://github.com/teerthsharma/topological-ml-toolkit
+  Also: https://teerthsharma.github.io/topological-ml-toolkit/
+- [faraday](https://www.evilseal.si/projects/p-faraday): The field coupling, found rather than assumed.
+  Repository: https://github.com/teerthsharma/faraday
+  Also: https://github.com/teerthsharma/faraday#readme
+- [nerve](https://www.evilseal.si/projects/p-nerve): The control that could kill my result.
+  Repository: https://github.com/teerthsharma/nerve
+  Also: https://github.com/teerthsharma/nerve#readme
+- [separatrix](https://www.evilseal.si/projects/p-separatrix): Decided by the data, not by rounding.
+  Repository: https://github.com/teerthsharma/separatrix
+  Also: https://github.com/teerthsharma/separatrix#readme
+- [planimeter](https://www.evilseal.si/projects/p-planimeter): Exact, or refused.
+  Repository: https://github.com/teerthsharma/planimeter
+  Also: https://github.com/teerthsharma/planimeter#readme
+- [tangle](https://www.evilseal.si/projects/p-tangle): It refuses rather than guesses.
+  Repository: https://github.com/teerthsharma/tangle
+  Also: https://github.com/teerthsharma/tangle#readme

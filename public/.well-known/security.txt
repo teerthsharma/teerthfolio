@@ -1,0 +1,4 @@
+Contact: mailto:teerths57@gmail.com
+Expires: 2027-11-17T00:00:00.000Z
+Canonical: https://www.evilseal.si/.well-known/security.txt
+Preferred-Languages: en

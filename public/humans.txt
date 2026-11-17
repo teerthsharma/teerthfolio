@@ -1,0 +1,11 @@
+/* TEAM */
+Name: Teerth Sharma
+Site: https://www.evilseal.si
+GitHub: https://github.com/teerthsharma
+
+/* SITE */
+Last update: 2026/11/17
+Built with: Next.js, React, React Three Fiber, Three.js
+Hosted on: Vercel, behind Cloudflare
+Measured with: Cloudflare Web Analytics, Microsoft Clarity
+Typefaces: Instrument Sans, JetBrains Mono, Shantell Sans (Google Fonts)

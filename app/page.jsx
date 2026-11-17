@@ -1,10 +1,14 @@
 import SealGame from "../components/world/SealGame";
+import { PERSON, WEBSITE, jsonLd } from "../lib/jsonld";
 import { PLACES, PROFILE } from "../lib/world/places";
+
+export const metadata = { alternates: { canonical: "/" } };
 
 export default function Home() {
   return (
     <main>
       <SealGame />
+      <a className="privacy-link" href="/privacy" style={{ position: "fixed", left: 12, top: 72, zIndex: 5, font: "500 12px/1 var(--font-sans), sans-serif", color: "#5f5b53" }}>Privacy</a>
       <noscript>
         {/* No JS: hide the (inert) canvas shell and let the plain-text
             section below stand on its own, in the landing site's palette. */}
@@ -15,6 +19,7 @@ export default function Home() {
             background: #fbfaf7;
           }
           .game { display: none; }
+          .privacy-link { display: none; }
           section.sr-only {
             position: static;
             width: auto;
@@ -51,6 +56,10 @@ export default function Home() {
           .
         </div>
       </noscript>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd({ "@context": "https://schema.org", "@graph": [WEBSITE, PERSON] }) }}
+      />
       {/* The same content as the island, as plain text for search engines and
           for visitors without JavaScript. SealGame marks it inert once the
           game runs, so its 30-odd links stop being invisible Tab stops. */}
@@ -58,9 +67,11 @@ export default function Home() {
         <h1>{PROFILE.name}: {PROFILE.title.replace("'", "’")}</h1>
         <p>{PROFILE.line}</p>
         <p><a href={`mailto:${PROFILE.email}`}>{PROFILE.email}</a></p>
+        <p><a href="/privacy">Privacy</a></p>
         {PLACES.map((place) => (
           <article key={place.id}>
             <h2>{place.name}</h2>
+            {place.section === "upstream" && <p>{place.verb} {place.repo} #{place.pr}: {place.title}</p>}
             <p>{place.hook}</p>
             <ul>
               {place.proof.map((p, i) => (
@@ -68,6 +79,12 @@ export default function Home() {
               ))}
             </ul>
             <p>{place.body}</p>
+            {place.checks && (
+              <>
+                <h3>How it was checked</h3>
+                <ul>{place.checks.map((c) => <li key={c}>{c}</li>)}</ul>
+              </>
+            )}
             <ul>
               {place.links.map((l) => (
                 <li key={l.url}><a href={l.url}>{l.label}</a></li>

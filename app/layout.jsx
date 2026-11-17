@@ -1,5 +1,8 @@
 import { Instrument_Sans, JetBrains_Mono, Shantell_Sans } from "next/font/google";
 import Script from "next/script";
+import Clarity from "../components/Clarity";
+import { SITE_URL } from "../lib/site";
+import { PLACES } from "../lib/world/places";
 import "./globals.css";
 
 // Variable fonts, so no weight list is needed. Weights used: sans
@@ -11,11 +14,12 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", displ
 // it is first needed seconds into a walk.
 const comic = Shantell_Sans({ subsets: ["latin"], variable: "--font-comic", display: "swap", axes: ["BNCE", "INFM"], preload: false });
 
+const UPSTREAM_COUNT = PLACES.filter((p) => p.section === "upstream").length;
+
 export const metadata = {
   title: "Teerth Sharma — Seal's Topology Land",
-  description:
-    "Slide a seal around an ice island where every stop is one of Teerth Sharma's projects: fourteen contributions landed upstream, a bare-metal Rust OS, a runtime whose loops stop when their shape does, and maths proved in Lean.",
-  metadataBase: new URL("https://teerthfolio.vercel.app"),
+  description: `A seal on an ice island where every stop is a Teerth Sharma project: ${UPSTREAM_COUNT} contributions landed upstream, a bare-metal Rust OS, maths proved in Lean.`,
+  metadataBase: new URL(SITE_URL),
   openGraph: {
     title: "Teerth Sharma — Seal's Topology Land",
     description: "A seal, an island, and every project Teerth built, each one a place to slide up to.",
@@ -35,6 +39,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${sans.variable} ${mono.variable} ${comic.variable}`}>
       <body>
         {children}
+        <Clarity />
         <Script
           src="https://static.cloudflareinsights.com/beacon.min.js"
           data-cf-beacon='{"token": "2a4259bb84734fe6ad6ecff564c4a27a"}'
