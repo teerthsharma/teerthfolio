@@ -9,7 +9,7 @@ import { BoxGeometry, BufferGeometry, CircleGeometry, Color, DoubleSide, Float32
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { detail } from "../../../lib/world/detail";
 import { CHANNEL, CRACKS, HOLE, LAKE } from "../../../lib/world/meltlake";
-import { regionWeights } from "../../../lib/world/regions";
+import { WIND, regionWeights } from "../../../lib/world/regions";
 import { TOP as TOP_TIER } from "../../../lib/world/quality";
 import { live, useUi } from "../../../lib/world/store";
 import { heightAt } from "../../../lib/world/terrain";
@@ -73,23 +73,29 @@ function decalGeo() {
   ]);
 }
 
-// Boxes along the lake's rim on its south-east half, each leaning back over the lid by 10 to 35 degrees.
+// Rim blocks on the south-east half, yawed along the wind's shove, 0.6 to 1.4x, 0.3 m jitter, 30 percent skipped: a broken line.
 function rampGeo() {
   const A = LAKE.a, B = LAKE.b, c = Math.cos(LAKE.rot), s = Math.sin(LAKE.rot);
   const phi = Math.atan2(B * (c - s), A * (c + s));
+  const shove = Math.atan2(WIND[1], WIND[0]);
   const rand = mulberry32(90011);
   const parts = [];
   for (let i = 0; i < RAMP; i++) {
     const t = phi - Math.PI / 2 + ((i + 0.5 + 0.3 * (rand() - 0.5)) / RAMP) * Math.PI;
+    if (rand() < 0.3) continue;
     const ca = A * Math.cos(t), sb = B * Math.sin(t);
-    const ex = LAKE.x + ca * c - sb * s, ez = LAKE.z + ca * s + sb * c;
+    const ex = LAKE.x + ca * c - sb * s + 0.3 * (2 * rand() - 1), ez = LAKE.z + ca * s + sb * c + 0.3 * (2 * rand() - 1);
     const tan = new Vector3(-A * Math.sin(t) * c - B * Math.cos(t) * s, 0, -A * Math.sin(t) * s + B * Math.cos(t) * c).normalize();
     const nrm = new Vector3(tan.z, 0, -tan.x);
     if (nrm.dot(new Vector3(ex - LAKE.x, 0, ez - LAKE.z)) < 0) nrm.negate();
     const tilt = (10 + 25 * rand()) * (Math.PI / 180);
     const lean = new Vector3(-Math.sin(tilt) * nrm.x, Math.cos(tilt), -Math.sin(tilt) * nrm.z);
-    const m = new Matrix4().makeBasis(tan, lean, new Vector3().crossVectors(tan, lean)).setPosition(ex, heightAt(ex, ez), ez);
-    const L = 0.5 + 0.6 * rand(), H = 0.5 + 0.6 * rand(), W = 0.5 + 0.3 * rand();
+    const yaw = shove + 0.2 * (2 * rand() - 1);
+    const along = new Vector3(Math.cos(yaw), 0, Math.sin(yaw));
+    along.sub(lean.clone().multiplyScalar(along.dot(lean))).normalize();
+    const m = new Matrix4().makeBasis(along, lean, new Vector3().crossVectors(along, lean)).setPosition(ex, heightAt(ex, ez), ez);
+    const k = 0.6 + 0.8 * rand();
+    const L = (0.5 + 0.6 * rand()) * k, H = (0.5 + 0.6 * rand()) * k, W = (0.5 + 0.3 * rand()) * k;
     parts.push(painted(new BoxGeometry(L, H, W).translate(0, H / 2, 0).applyMatrix4(m), rand() < 0.5 ? C.ice : C.deepIce));
   }
   return mergeGeometries(parts);

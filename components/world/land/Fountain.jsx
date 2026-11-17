@@ -189,7 +189,7 @@ export default function Fountain() {
       ringM: new MeshBasicMaterial({ color: "#ffd24a", toneMapped: false }),
       tierG: [3.0, 2.2, 1.5, 0.9].map((r) => new CylinderGeometry(r, r + 0.2, 0.5, 20)),
       clouds: cloudLayers(),
-      gold: mat(LEAF, { roughness: 0.25, metalness: 0.9, envMapIntensity: 1.5, emissive: "#6b4a00", emissiveIntensity: 0.4 }),
+      gold: mat(LEAF, { roughness: 0.25, metalness: 0.55, envMapIntensity: 1.5, emissive: "#6b4a00", emissiveIntensity: 0.7 }),
       slate: mat("#3b3f63", { roughness: 0.95, flatShading: true, side: DoubleSide }),
       inlay: mat(GOLD, { roughness: 0.3, metalness: 0.9, emissive: GOLD, emissiveIntensity: 0.4 }),
       white: mat("#f6f3ea", { roughness: 0.7 }),
