@@ -8,11 +8,16 @@ import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute } from "three
 import { TRIS } from "../../../lib/world/crevasse";
 import { mat } from "../palette";
 
+const FAR = new Color("#6f7dff"); // the Simulation Range's radiation, where the crack light fades east
+
 function geometryOf(tris) {
   const pos = new Float32Array(tris.length * 9);
   const col = new Float32Array(tris.length * 9);
+  const xs = tris.flat().map((v) => v[0]);
+  const west = Math.min(...xs);
+  const span = Math.max(...xs) - west || 1;
   tris.forEach((tri, i) => tri.forEach((v, k) => {
-    const c = new Color(v[3]);
+    const c = new Color(v[3]).lerp(FAR, (0.5 * (v[0] - west)) / span);
     pos.set([v[0], v[1], v[2]], (i * 3 + k) * 3);
     col.set([c.r, c.g, c.b], (i * 3 + k) * 3);
   }));

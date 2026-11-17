@@ -23,7 +23,7 @@ const quad = (out, a, b, c, d) => { tri(out, a, b, c); tri(out, a, c, d); };
 
 const SNOW = rgb("#f0f2f7");
 const RIME = rgb("#dbeaf5");
-const HORN = [rgb("#b9aea8"), rgb("#978a84")];
+const HORN = [rgb("#b79bff"), rgb("#ffb39a")];
 const SCOOP_IN = rgb("#8fc3e0");
 const SCOOP_OUT = rgb("#a9d4ee");
 const TAIL_C = rgb("#f5f9fd");

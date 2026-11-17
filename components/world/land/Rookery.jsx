@@ -15,7 +15,7 @@ import { C, mat } from "../palette";
 const SCALE = [0.4, 0.6, 1, 1, 1.25];
 const detail = (base, tier) => Math.max(1, Math.round(base * SCALE[tier]));
 const GROOVE_TONE = new Color("#dfe6f3");
-const FAN_TONE = [new Color("#e8d4cf"), new Color("#f4ebe8")];
+const FAN_TONE = [new Color("#f1d6d2"), new Color("#ffc4e6")];
 const dummy = new Object3D();
 
 const painted = (geo, hex) => {

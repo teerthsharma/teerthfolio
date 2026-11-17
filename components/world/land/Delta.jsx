@@ -11,7 +11,8 @@ import { heightAt } from "../../../lib/world/terrain";
 import { mat } from "../palette";
 
 const BONE = "#e9e2d3";
-const CRACK = "#b9c9da";
+const FROST = new Color("#fde0f5");
+const EAST = new Color("#ffe1dc");
 const GRANITE = "#b9aea8";
 const DARK = "#62636f";
 const SNOW = "#f0f2f7";
@@ -33,7 +34,8 @@ function ribbon(pl) {
   const g = new BufferGeometry();
   g.setAttribute("position", new Float32BufferAttribute(pts.flatMap(([x, z]) => [x, heightAt(x, z) + 0.06, z]), 3));
   g.setIndex(idx);
-  return painted(g, CRACK);
+  const east = Math.min(1, Math.max(0, (pl.reduce((s, [x]) => s + x, 0) / pl.length - 2) / 10));
+  return painted(g, FROST.clone().lerp(EAST, east));
 }
 
 function disc({ x, z }) {

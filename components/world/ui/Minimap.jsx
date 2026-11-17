@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { HIGHWAY } from "../../../lib/world/land";
-import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID } from "../../../lib/world/places";
+import { DISTRICTS, ISLAND_RADIUS, PLACES, PLACE_BY_ID, ZONE_BY_ID } from "../../../lib/world/places";
 import { WATERS } from "../../../lib/world/river";
 import { AIR, ELLIPSES } from "../../../lib/world/regions";
 import { live } from "../../../lib/world/store";
@@ -75,6 +75,10 @@ export default function Minimap({ onSelect }) {
           {ELLIPSES.map(([id, x, z, a, b, rot], i) => {
             const [cx, cy] = project(x, z);
             return <ellipse key={i} cx={cx} cy={cy} rx={a * SCALE} ry={b * SCALE} transform={`rotate(${(rot * 180) / Math.PI} ${cx} ${cy})`} style={{ fill: AIR[id][0], opacity: 0.6 }} />;
+          })}
+          {DISTRICTS.filter((d) => d.zone).map((d) => {
+            const [x, y] = project(d.x, d.z);
+            return <circle key={`zone-${d.id}`} cx={x} cy={y} r={(d.radius + 14) * SCALE} style={{ fill: ZONE_BY_ID[d.zone].ground, opacity: 0.5 }} />;
           })}
           {DISTRICTS.map((d) => {
             const [x, y] = project(d.x, d.z);

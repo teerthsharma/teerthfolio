@@ -3,12 +3,14 @@
 // THE COVENANT OF COMMUNITY (boykopovar/AnyPS5 #12609): a meadow on the east shore (where it grows: lib/world/terrain.js
 // meadowAt) and its one monument, a bronze fish leaping a granite wave on a plinth.
 
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, ExtrudeGeometry, Float32BufferAttribute, Matrix4, Object3D, Shape, Vector2 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { detail } from "../../../lib/world/detail";
 import { PLACE_BY_ID } from "../../../lib/world/places";
+import { useUi } from "../../../lib/world/store";
 import { fbm, heightAt, meadowAt } from "../../../lib/world/terrain";
-import { C, mat } from "../palette";
+import { mat } from "../palette";
 
 const PLACE = PLACE_BY_ID["pr-anyps5-12609"];
 const MEADOW = PLACE.district;
@@ -155,7 +157,7 @@ function turf() {
     const z = MEADOW.z + (j - N / 2 + (rnd(j + 7, i) - 0.5) * 0.5) * S;
     return [x, heightAt(x, z) + 0.03, z];
   };
-  const [light, deep, c] = [new Color("#a7c27f"), new Color("#86a665"), new Color()];
+  const [light, deep, c] = [new Color("#b7e07a"), new Color("#8fd05c"), new Color()];
   const pos = [];
   const col = [];
   for (let i = 0; i < N; i++)
@@ -176,8 +178,8 @@ function turf() {
   return g;
 }
 
-// Tufts and a few flowers (the roundabout bed's cups, in the island's accents) on the grass: seeded, thickest by the
-// plinth and thinning outward to the patches, clear of the plinth and the dock. One instanced draw each.
+// Tufts and the superbloom (candy petals on the grass) on the grass: seeded, thickest by the plinth and thinning
+// outward to the patches, clear of the plinth and the dock. One instanced draw each; the petal count follows the tier.
 const DOCK = { x: PLACE.x, z: PLACE.z + PLACE.radius + 1.6 };
 function scatter(seed, tries, cap, keep) {
   const out = [];
@@ -200,14 +202,15 @@ const near = (r) => 1 - Math.min(1, Math.max(0, r - PLACE.radius) / (MEADOW.radi
 const TUFT = mergeGeometries([-0.5, 0.4, 1.3].map((a, i) => new ConeGeometry(0.06, 0.34 - i * 0.04, 3).translate(0, 0.17, 0).rotateZ(0.28).rotateY(a * 2.1).translate(Math.cos(a) * 0.05, 0, Math.sin(a) * 0.05)));
 const CUP = new ConeGeometry(0.11, 0.22, 5).rotateX(Math.PI).translate(0, 0.13, 0);
 const BLADES = [new Color("#7d9c5a"), new Color("#5c7f45")];
-const PETALS = [C.lamp, C.warmWhite, C.deepIce].map((h) => new Color(h));
+const PETALS = ["#ffb627", "#ff9ec7", "#ffffff", "#5fd38d", "#ff6b7a"].map((h) => new Color(h));
 
 export default function Covenant() {
   const fishGeo = useMemo(fish, []);
   const stoneGeo = useMemo(stone, []);
   const turfGeo = useMemo(turf, []);
   const tufts = useMemo(() => scatter(12609, 2400, 220, (r, u) => u < 0.08 + 0.92 * near(r) ** 1.6), []);
-  const flowers = useMemo(() => scatter(9061, 900, 26, (r, u) => u < 0.5 * near(r)), []);
+  const flowers = useMemo(() => scatter(9061, 4000, 220, (r, u) => u < 0.9 * near(r)), []);
+  const tier = useUi((s) => s.tier);
   const grass = useRef(null);
   const cups = useRef(null);
   const bronze = mat("#ffffff", { vertexColors: true, metalness: 0.45, roughness: 0.4 });
@@ -231,6 +234,10 @@ export default function Covenant() {
       mesh.computeBoundingSphere();
     }
   }, [tufts, flowers]);
+
+  useEffect(() => {
+    if (cups.current) cups.current.count = Math.min(flowers.length, detail(220, tier));
+  }, [flowers, tier]);
 
   return (
     <>

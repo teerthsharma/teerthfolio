@@ -152,6 +152,7 @@ for (const p of PLACES) {
   const dock = dockPoint(p);
   assert.ok(p.district, `${p.id} has no district`);
   assert.equal(districtAt(dock.x, dock.z)?.id, p.district.id, `${p.id}'s dock is not in its district`);
+  assert.ok(p.id === "pr-polychrom-79" || dock.z <= 88, `${p.id}'s dock at z ${dock.z} puts the follow camera (21 m behind it) in the cloud bank that starts at z 108`);
   if (p.section === "lab") assert.match(p.radiation ?? "", /^#[0-9a-f]{6}$/i, `${p.id} has no radiation colour`);
 }
 for (const a of DISTRICTS) {
@@ -185,8 +186,9 @@ for (const a of DISTRICTS) {
     for (const [x, z] of d.hot) assert.ok(Math.hypot(x, z) < ISLAND_RADIUS, `${d.name}'s hot spot ${x}, ${z} is off the island`);
     for (const e of DISTRICTS) {
       if (e === d || !e.radiation || Math.hypot(d.x - e.x, d.z - e.z) - d.radius - e.radius >= 25) continue;
+      if (d.zone && d.zone === e.zone) { assert.equal(d.radiation, e.radiation, `${d.name} and ${e.name} are one zone and must share its colour`); continue; }
       const gap = Math.abs(hueOf(d.radiation) - hueOf(e.radiation));
-      assert.ok(Math.min(gap, 360 - gap) >= 20, `${d.name} and its neighbour ${e.name} glow in the same hue`);
+      assert.ok(Math.min(gap, 360 - gap) >= 25, `${d.name} and its neighbour ${e.name} glow in the same hue`);
     }
   }
   for (const p of PLACES) assert.equal(p.radiation, p.district.radiation, `${p.id} does not glow in its area's colour`);

@@ -32,6 +32,7 @@ const ICE = new Color(C.ice);
 const DEEP = new Color(C.deepIce);
 const MID = ICE.clone().lerp(DEEP, 0.5);
 const WHITE = new Color(C.foam);
+const WATERLINE = "#1ec8f0"; // the Ice Crown's radiation, the glow round the bergs' keels
 const WALL = [ICE, MID, DEEP, DEEP, DEEP]; // eave, upper wall, waterline notch, skirt, draft
 const RING = [[1, 0.7], [0.9, 0.25], [1.07, -0.2], [1, -DRAFT]]; // [scale, height above sea] of the wall rings under the eave
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -103,7 +104,7 @@ function berg({ x, z, w, d, free, turn, tilt = 0 }, seed) {
     foam.tri(edge(k, 0), edge(k2, FOAM), edge(k, FOAM), "up");
   }
   const keel = new CircleGeometry(1, 20).rotateX(-Math.PI / 2).scale(KEEL * w / 2, 1, KEEL * d / 2).rotateY(turn).translate(x, SEA_Y + 0.02, z);
-  return [hull.geometry().rotateZ(tilt).rotateY(turn).translate(x, SEA_Y, z), paint(keel, (c) => c.set(C.shallows)), foam.geometry().rotateY(turn).translate(x, SEA_Y, z)];
+  return [hull.geometry().rotateZ(tilt).rotateY(turn).translate(x, SEA_Y, z), paint(keel, (c) => c.set(WATERLINE)), foam.geometry().rotateY(turn).translate(x, SEA_Y, z)];
 }
 
 function spire() {

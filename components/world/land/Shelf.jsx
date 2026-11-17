@@ -56,7 +56,7 @@ export default function Shelf() {
       <primitive object={blocks} castShadow receiveShadow />
       <mesh
         geometry={back}
-        material={lamp("#7fe9ff", 0.8)}
+        material={lamp("#1ec8f0", 0.8)}
         position={[GROTTO.x - f.nx * GROTTO.depth, GROTTO.floor + 0.02, GROTTO.z - f.nz * GROTTO.depth]}
         rotation={[0, Math.atan2(f.nx, f.nz), 0]}
       />

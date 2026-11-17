@@ -13,8 +13,11 @@ import { C, mat } from "../palette";
 // Island.jsx's sun, in the ridge frame (the ridges are yawed by NOSE). Faces that look away from it are the lee.
 const SUN = new Vector3(-14, 26, 12).normalize().applyAxisAngle(new Vector3(0, 1, 0), -NOSE);
 const LIT = new Color(C.snow);
-const LEE = new Color("#c2c9ec");
+const LEE_BAND = new Color("#c3b3ea"); // the open west's lee band
+const LEE_PLAIN = new Color("#e3a8d6"); // the Shape Garden's plain
 const CENTRE = new Vector3(0, 0.3, 0);
+const SPLIT = RIDGES.findIndex((r) => r.z > 20); // lib/world/sastrugi.js lists the band first
+const BAND = SPLIT < 0 ? RIDGES.length : SPLIT;
 
 // One ridge in a unit box (x length, y height, z width): tail on the ground, crest, undercut nose lip, eight triangles.
 const T = [-0.5, 0, 0];
@@ -33,10 +36,10 @@ function lit([a, b, c]) {
   return Math.abs(side) > 1e-6 && n.multiplyScalar(Math.sign(side)).normalize().dot(SUN) > 0.1;
 }
 
-function ridge() {
+function ridge(lee) {
   const g = new BufferGeometry();
   const colour = TRIS.flatMap((t) => {
-    const c = lit(t) ? LIT : LEE;
+    const c = lit(t) ? LIT : lee;
     return [c.r, c.g, c.b, c.r, c.g, c.b, c.r, c.g, c.b];
   });
   g.setAttribute("position", new Float32BufferAttribute(TRIS.flat(2), 3));
@@ -47,28 +50,37 @@ function ridge() {
 const dummy = new Object3D();
 
 export default function Sastrugi() {
-  const geo = useMemo(ridge, []);
+  const bandGeo = useMemo(() => ridge(LEE_BAND), []);
+  const plainGeo = useMemo(() => ridge(LEE_PLAIN), []);
   const material = mat("#ffffff", { side: DoubleSide, vertexColors: true });
-  const ref = useRef(null);
+  const band = useRef(null);
+  const plain = useRef(null);
   const tier = useUi((s) => s.tier);
   const count = Math.min(RIDGES.length, detail(BASE, tier));
 
   useLayoutEffect(() => {
-    const mesh = ref.current;
     RIDGES.forEach((r, i) => {
       dummy.position.set(r.x, heightAt(r.x, r.z), r.z);
       dummy.rotation.set(0, r.yaw, 0);
       dummy.scale.set(r.len, r.h, r.w);
       dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
+      (i < BAND ? band.current : plain.current).setMatrixAt(i < BAND ? i : i - BAND, dummy.matrix);
     });
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.computeBoundingSphere();
-  }, [geo]);
+    for (const mesh of [band.current, plain.current]) {
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    }
+  }, [bandGeo]);
 
   useEffect(() => {
-    if (ref.current) ref.current.count = count;
+    band.current.count = Math.min(BAND, count);
+    plain.current.count = Math.max(0, count - BAND);
   }, [count]);
 
-  return <instancedMesh ref={ref} args={[geo, material, RIDGES.length]} castShadow receiveShadow />;
+  return (
+    <>
+      <instancedMesh ref={band} args={[bandGeo, material, BAND]} castShadow receiveShadow />
+      <instancedMesh ref={plain} args={[plainGeo, material, RIDGES.length - BAND]} castShadow receiveShadow />
+    </>
+  );
 }

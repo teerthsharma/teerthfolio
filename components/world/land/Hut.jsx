@@ -13,7 +13,7 @@ import { live } from "../../../lib/world/store";
 import { C, glow, lamp, mat } from "../palette";
 
 const WIND = [0.8, 0.6];
-const FLAG_HEX = ["#ff4d6a", "#27a6b8"];
+const FLAG_HEX = ["#f25fd0", "#27a6b8"];
 
 const painted = (geo, hex) => {
   const g = geo.index ? geo.toNonIndexed() : geo;

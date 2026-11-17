@@ -16,6 +16,7 @@ import { heightAt } from "../../../lib/world/terrain";
 import { mulberry32 } from "../life/spawn";
 import { C, mat } from "../palette";
 
+const LAKE_ICE = "#ff9ec7"; // the pink lake: its ice under the white bubble stacks
 const BUBBLES = 240;
 const MAX = detail(BUBBLES, TOP_TIER);
 const STACKS = Math.ceil(MAX / 8);
@@ -66,10 +67,10 @@ const arc = (cx, cz, r, lift, n = 16) => Array.from({ length: n + 1 }, (_, j) =>
 function decalGeo() {
   const { x, z } = HOLE;
   return mergeGeometries([
-    solid(strip(ribbon(CHANNEL, [-0.6, 0, 0.6], 0.04)), "#bfe0f2"),
+    solid(strip(ribbon(CHANNEL, [-0.6, 0, 0.6], 0.04)), LAKE_ICE),
     ...CRACKS.map((ray) => solid(strip(ribbon(ray, [-0.05, 0.05], 0.06)), "#f5f9fd")),
     solid(strip([arc(x, z, 0, 0.04), arc(x, z, HOLE.r, 0.04)]), "#12384d"),
-    solid(strip([arc(x, z, HOLE.r, 0.04), arc(x, z, 0.86, 0.1)]), "#dbeaf5"),
+    solid(strip([arc(x, z, HOLE.r, 0.04), arc(x, z, 0.86, 0.1)]), LAKE_ICE),
   ]);
 }
 

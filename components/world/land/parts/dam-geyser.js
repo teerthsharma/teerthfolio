@@ -67,3 +67,10 @@ export const PUFFS = Array.from({ length: PUFF_COUNT }, (_, i) => ({
   at: 0.4 + i * 0.22, // fraction into the build-up window each puff fires
 }));
 export const BUILDUP_COUNT = BUBBLE_COUNT + PUFF_COUNT;
+
+// THE GROUND (E5): four bands out to r 7.4, each cut into RING_ARC degrees of arc (an arc is dropped where the road or
+// the dam lies under it), and five mud pots on the inner edge of the outer band, 1.2 m or more off every landing.
+export const RINGS = [[2.8, 4.0, "#10d9a0"], [4.0, 5.2, "#ffe45c"], [5.2, 6.4, "#ff9140"], [6.4, 7.4, "#e0552b"]];
+export const RING_ARC = 5;
+export const MUD_R = 6.4;
+export const MUD_DEG = [235, 260, 285, 310, 335]; // 0 = east, 90 = south

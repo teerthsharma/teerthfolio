@@ -17,10 +17,10 @@
 import { useMemo } from "react";
 import { litTint } from "../../../lib/world/litTint";
 import { BufferAttribute, BufferGeometry, Color, Float32BufferAttribute, MeshStandardMaterial } from "three";
-import { ISLAND_RADIUS } from "../../../lib/world/places";
+import { ISLAND_RADIUS, ZONES } from "../../../lib/world/places";
 import { live } from "../../../lib/world/store";
 import { fbm, groundAt, KEEP_TOP } from "../../../lib/world/terrain";
-import { regionChannels, regionWeights } from "../../../lib/world/regions";
+import { regionChannels, regionWeights, zoneWeights } from "../../../lib/world/regions";
 import { REGION_KEY, regionShade } from "./Regions";
 import { HIDEOUT } from "../../../lib/world/hideout";
 import { C, SURFACE } from "../palette";
@@ -69,7 +69,12 @@ const K = {
   lakeRim: col("#dbeaf5"),
   deepIce: col(C.deepIce),
   crust: col("#f4f6fb"),
+  scoria: col("#b86a4a"),
+  scoriaRim: col("#e9a36b"),
 };
+const BAND = [col("#6f7dff"), col("#b79bff"), col("#ffb39a"), col("#ffe2a8")];
+const TRAV = [col("#fff4e6"), col("#ff9aa2"), col("#fff4e6"), col("#ffc933")];
+const band = (h, every, n) => ((Math.floor(h / every) % n) + n) % n;
 
 const s01 = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -87,8 +92,9 @@ function faceColor(out, ny, h, g, seed) {
   if (g.gap < 0 && h < -0.25 && !g.coast) {
     out.copy(K.bed).lerp(K.bedDeep, s01(-0.9, -2.6, h));
   } else if (g.keep > 0.5) {
-    // the mesa: snow on its flat top, bare rock all the way down its sides
-    out.copy(steep < 0.5 && h > KEEP_TOP - 0.9 ? K.snow : K.rock).lerp(K.rockLit, rnd(seed, 5.3) * 0.5);
+    // the mesa: snow on its flat top, warm scoria down its sides
+    if (steep < 0.5 && h > KEEP_TOP - 0.9) out.copy(K.snow).lerp(K.rockLit, rnd(seed, 5.3) * 0.5);
+    else out.copy(K.scoria).lerp(K.scoriaRim, s01(0, KEEP_TOP, h));
   } else if (g.mount > 0.2) {
     const wobble = rnd(seed, 1.7);
     if (g.stuff === 1) {
@@ -96,10 +102,10 @@ function faceColor(out, ny, h, g, seed) {
       out.copy(steep > 0.45 ? K.iceFace : K.snow).lerp(K.iceDeep, steep > 0.45 ? s01(0.55, 0.2, ny) : 0);
       if (g.glacier > 0.5) out.copy(steep > 0.7 ? K.iceFace : K.glacier);
     } else if (g.stuff === 2) {
-      out.copy(steep > 0.5 ? K.granite : K.snow).lerp(K.graniteDark, steep > 0.5 ? 0.6 * wobble : 0);
+      out.copy(steep > 0.5 ? K.granite : K.snow).lerp(K.graniteDark, steep > 0.5 ? 0.6 * wobble : 0).lerp(BAND[band(h, 3, 4)], 0.55 * s01(0.4, 0.7, steep));
     } else if (g.stuff === 4) {
-      // the Fountain rise: snow on the dome, a cooler ring every 0.6 m of height
-      out.copy(K.snow).lerp(K.glacier, (Math.floor(h / 0.6) % 2 ? 0.5 : 0.1) + 0.15 * wobble);
+      // the Fountain rise: travertine terraces, one pool colour every 0.6 m of height
+      out.copy(K.snow).lerp(TRAV[band(h, 0.6, 4)], 0.85);
     } else if (g.stuff === 5) {
       // the hideout hill: dark rock, its ice-edge on the ledges and the foot
       out.copy(K.hideout).lerp(K.hideoutEdge, ny > 0.82 || h < 0.9 ? 0.55 + 0.3 * wobble : 0.12 * wobble);
@@ -131,11 +137,35 @@ function regionTint(out, x, z) {
   return out.lerp(K.guano, 0.5 * W.guano * p).lerp(K.scree, 0.55 * W.guano * (1 - p));
 }
 
+// The zone wash (regions.js zoneWeights): each zone's ground tint, its shadow tint on steep faces, and its strength.
+const ZG = ZONES.map((z) => col(z.ground));
+const ZS = ZONES.map((z) => col(z.shadow));
+const ZK = ZONES.map((z) => z.strength);
+const ZW = new Float32Array(ZONES.length);
+const zoneMix = new Color();
+const zoneOne = new Color();
+function zoneTint(out, x, z, shade = 0, scale = 1) {
+  const t = zoneWeights(x, z, ZW);
+  if (t <= 0) return out;
+  let sum = 0;
+  let k = 0;
+  zoneMix.setRGB(0, 0, 0);
+  for (let i = 0; i < ZW.length; i++) {
+    if (ZW[i] <= 0) continue;
+    sum += ZW[i];
+    k += ZW[i] * ZK[i];
+    zoneMix.add(zoneOne.copy(ZG[i]).lerp(ZS[i], shade).multiplyScalar(ZW[i]));
+  }
+  return out.lerp(zoneMix.multiplyScalar(1 / sum), t * scale * (k / sum));
+}
+
 // Smooth colour for a plain vertex.
 function plainColor(out, x, z, h, g) {
   if (g.gap < 0 && !g.coast) return out.copy(K.wet).lerp(K.bed, s01(-0.3, -0.8, h)).lerp(K.bedDeep, s01(-0.8, -2.6, h));
   const streak = s01(0.52, 0.8, fbm((x * 0.8 + z * 0.6) / 24, (z * 0.8 - x * 0.6) / 5));
-  out.copy(K.snow).lerp(K.snowCool, (0.65 + 0.3 * W.sast) * streak).lerp(K.oldIce, 0.6 * g.oldBed);
+  out.copy(K.snow).lerp(K.snowCool, (0.65 + 0.3 * W.sast) * streak);
+  if (g.gap >= 0) zoneTint(out, x, z);
+  out.lerp(K.oldIce, 0.6 * g.oldBed);
   if (g.gap < 1.8) out.lerp(K.wet, s01(1.8, 0, g.gap) * 0.85);
   return regionTint(out, x, z);
 }
@@ -248,7 +278,13 @@ function buildTerrain() {
       at(i0);
       avg.stuff = g.stuff;
       const sy = (gridNormal[i0 * 3 + 1] + gridNormal[i1 * 3 + 1] + gridNormal[i2 * 3 + 1]) / 3;
-      faceColor(c, 0.5 * (fy + sy), (y(i0) + y(i1) + y(i2)) / 3, avg, i0 + t);
+      const ny = 0.5 * (fy + sy);
+      faceColor(c, ny, (y(i0) + y(i1) + y(i2)) / 3, avg, i0 + t);
+      if (avg.gap >= 0) {
+        const cx = (pos[i0 * 3] + pos[i1 * 3] + pos[i2 * 3]) / 3;
+        const cz = (pos[i0 * 3 + 2] + pos[i1 * 3 + 2] + pos[i2 * 3 + 2]) / 3;
+        zoneTint(c, cx, cz, s01(0.9, 0.6, ny), s01(0.55, 0.8, (c.r + c.g + c.b) / 3));
+      }
       for (const i of [i0, i1, i2]) {
         index.push(P.length / 3);
         P.push(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);

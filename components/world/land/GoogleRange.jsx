@@ -20,9 +20,11 @@
 // Nothing here explains anything. The cave quickens while the seal is there.
 
 import { useFrame } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef } from "react";
-import { IcosahedronGeometry, MeshStandardMaterial, Object3D, Shape, ShapeGeometry } from "three";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { Color, ConeGeometry, CylinderGeometry, Float32BufferAttribute, IcosahedronGeometry, MeshStandardMaterial, Object3D, Shape, ShapeGeometry } from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { featuresForTier } from "../../../lib/quality/modes";
 import { PLACE_BY_ID } from "../../../lib/world/places";
 import { useUi } from "../../../lib/world/store";
 import { mat } from "../palette";
@@ -69,6 +71,43 @@ const RESTING = [
   [5.5, 2.6, 1.05, 1.2],
 ];
 
+// The geode (E7): 40 crystals on the cave floor in front of the throat, in the mouth's own frame, kept out of the
+// cube's lane (|x| under 0.9). One merged mesh; the tips are white, the bodies violet or teal.
+const CRYSTALS = Array.from({ length: 40 }, (_, i) => {
+  const side = i % 2 ? 1 : -1;
+  const v = (i * 0.381 + 0.27) % 1;
+  return {
+    x: side * (0.95 + 1.3 * ((i * 0.618) % 1)),
+    z: 0.14 + 0.2 * v,
+    r: 0.16 + 0.12 * ((i * 0.37) % 1),
+    h: 0.55 + 0.9 * ((i * 0.73) % 1),
+    tilt: -side * (0.1 + 0.25 * v),
+    yaw: i * 2.4,
+    body: i % 3 ? "#8f7bff" : "#10d8ae",
+  };
+});
+function paint(g, hex) {
+  const h = g.index ? g.toNonIndexed() : g;
+  const c = new Color(hex);
+  h.deleteAttribute("uv");
+  h.deleteAttribute("normal");
+  h.setAttribute("color", new Float32BufferAttribute(Array.from({ length: h.attributes.position.count }, () => [c.r, c.g, c.b]).flat(), 3));
+  return h;
+}
+const crystalGeo = mergeGeometries(
+  CRYSTALS.flatMap((c) => {
+    const body = new CylinderGeometry(c.r * 0.9, c.r, c.h, 6).translate(0, c.h / 2, 0);
+    const tip = new ConeGeometry(c.r * 0.9, c.h * 0.35, 6).translate(0, c.h * 1.175, 0);
+    return [paint(body.rotateY(c.yaw).rotateZ(c.tilt).translate(c.x, 0, c.z), c.body), paint(tip.rotateY(c.yaw).rotateZ(c.tilt).translate(c.x, 0, c.z), "#ffffff")];
+  }),
+);
+function CrystalGlint({ material }) {
+  useFrame(({ clock }) => {
+    material.emissiveIntensity = 0.4 + 0.25 * Math.sin(clock.elapsedTime * 1.7);
+  });
+  return null;
+}
+
 // The roller: out of the mouth 3 tips (edge over edge, +z), a rest, back in.
 const CUBE = 1.35;
 const CUBE_Z0 = 1.1; // its first rest, just in front of the mouth
@@ -87,6 +126,13 @@ function Cave({ place, near }) {
   const rockMat = mat("#3b2d7a");
   const goldMat = mat("#ffb627", { metalness: 0.65, roughness: 0.3, emissive: "#ff8a00", emissiveIntensity: 0.3 });
   const snowMat = mat("#fff0d2", { flat: false, roughness: 0.55, emissive: amber, emissiveIntensity: 0.42 });
+  const tier = useUi((s) => s.tier);
+  const { shaders, live } = featuresForTier(tier);
+  const crystalMat = useMemo(() => mat("#ffffff", { vertexColors: true, roughness: 0.3 }).clone(), []);
+  useEffect(() => {
+    crystalMat.emissive.set("#ffffff");
+    crystalMat.emissiveIntensity = shaders ? 0.4 : 0;
+  }, [crystalMat, shaders]);
 
   const pyrite = useRef(null);
   const roller = useRef(null);
@@ -147,6 +193,8 @@ function Cave({ place, near }) {
   return (
     <group position={[CAVE.x, 0, CAVE.z]} rotation={[0, CAVE.turn, 0]}>
       <group scale={MOUTH}>
+        <mesh geometry={crystalGeo} material={crystalMat} />
+        {live && <CrystalGlint material={crystalMat} />}
         <mesh geometry={THROAT_GEOS[0]} material={darkMat} />
         <mesh geometry={THROAT_GEOS[1]} material={emberMat} position={[0, 0, 0.04]} />
         <mesh geometry={THROAT_GEOS[2]} material={lightMat} position={[0, 0, 0.08]} />

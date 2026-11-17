@@ -27,11 +27,16 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { BoxGeometry, Color, CylinderGeometry, IcosahedronGeometry, Object3D } from "three";
+import { BoxGeometry, BufferGeometry, CircleGeometry, Color, CylinderGeometry, Float32BufferAttribute, IcosahedronGeometry, Object3D, SphereGeometry } from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { featuresForTier } from "../../../lib/quality/modes";
+import { GEYSER, LAND_COLLIDERS, onHighway } from "../../../lib/world/land";
 import { PLACE_BY_ID } from "../../../lib/world/places";
+import { waterGap } from "../../../lib/world/river";
 import { live, useUi } from "../../../lib/world/store";
+import { heightAt, WATER_Y } from "../../../lib/world/terrain";
 import { clamp, smoothstep } from "../life/util";
-import { C, lamp, mat, REFLECT, SURFACE } from "../palette";
+import { C, glow, lamp, mat, REFLECT, SURFACE } from "../palette";
 import { useReflect } from "../useReflect";
 import {
   BUBBLES,
@@ -39,7 +44,11 @@ import {
   DROPS,
   ERUPT_PERIOD,
   FALL_S,
+  MUD_DEG,
+  MUD_R,
   PUFFS,
+  RINGS,
+  RING_ARC,
   RISE_S,
   SPLASH,
   STEAM,
@@ -366,6 +375,145 @@ function Geyser({ boost }) {
   );
 }
 
+// ---- E4: the three-step rapids on the spill (river at z -42, x 4 to 8): three foam lips across the channel, each
+// bowed half a metre downstream and painted on the water, and a white mist bow at the foot from GOOD up.
+
+const RAPIDS = { x: 6, z: -42, bars: [4.6, 6, 7.4], bow: 0.5, half: 5.2, w: 0.35 };
+const MIST = { x: 6, z: -41.6, r: 2.2 };
+
+function rapidsGeometry() {
+  const pos = [];
+  for (const bx of RAPIDS.bars) {
+    let prev = null;
+    for (let i = 0; i <= 24; i++) {
+      const u = i / 12 - 1;
+      const cx = bx + RAPIDS.bow * (1 - u * u);
+      const cz = RAPIDS.z + u * RAPIDS.half;
+      const row = waterGap(cx, cz) <= -0.3 ? [[cx - RAPIDS.w / 2, cz], [cx + RAPIDS.w / 2, cz]] : null;
+      if (prev && row) for (const [x, z] of [prev[0], row[0], prev[1], prev[1], row[0], row[1]]) pos.push(x, WATER_Y + 0.03, z);
+      prev = row;
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute("position", new Float32BufferAttribute(pos, 3));
+  g.setAttribute("normal", new Float32BufferAttribute(pos.map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+  return g;
+}
+
+function FoamShimmer({ material }) {
+  useFrame(({ clock }) => {
+    const s = live.seal;
+    if (Math.hypot(s.x - RAPIDS.x, s.z - RAPIDS.z) > 60) return;
+    material.emissiveIntensity = 0.1 + 0.08 * Math.sin(clock.elapsedTime * 2.7);
+  });
+  return null;
+}
+
+function Rapids() {
+  const tier = useUi((s) => s.tier);
+  const f = featuresForTier(tier);
+  const foamGeo = useMemo(rapidsGeometry, []);
+  const mistGeo = useMemo(() => new CircleGeometry(MIST.r, 28).rotateX(-Math.PI / 2).translate(MIST.x, WATER_Y + 0.06, MIST.z), []);
+  const foam = useMemo(() => mat("#ffffff", { roughness: 0.4, emissive: "#ffffff", emissiveIntensity: 0 }).clone(), []);
+  const mistMat = useMemo(() => glow("#ffffff", 0.3), []);
+  return (
+    <>
+      <mesh geometry={foamGeo} material={foam} />
+      {f.shaders && <mesh geometry={mistGeo} material={mistMat} />}
+      {f.heavy && <FoamShimmer material={foam} />}
+    </>
+  );
+}
+
+// ---- E5: the geyser's ground rings, cut where the road or the dam lies under them, and five mud pots on the outer
+// band's inner edge. The pots' bubbles are the only live part (MEDIUM and up).
+
+const ARC = (RING_ARC * Math.PI) / 180;
+const DAM = LAND_COLLIDERS.filter((c) => c.land === "dam");
+const clearOfRoad = (x, z) => ![[0.6, 0], [-0.6, 0], [0, 0.6], [0, -0.6], [0, 0]].some(([a, b]) => onHighway(x + a, z + b));
+const kept = (x, z) => clearOfRoad(x, z) && !DAM.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius + 0.3);
+const ground = (a, r) => {
+  const x = GEYSER.x + Math.cos(a) * r;
+  const z = GEYSER.z + Math.sin(a) * r;
+  return [x, Math.max(heightAt(x, z), 0) + 0.04, z];
+};
+const POT_R = 0.25;
+const POTS = MUD_DEG.map((deg) => ground((deg * Math.PI) / 180, MUD_R));
+
+function paint(g, hex) {
+  const h = g.index ? g.toNonIndexed() : g;
+  const c = new Color(hex);
+  h.deleteAttribute("uv");
+  h.setAttribute("color", new Float32BufferAttribute(Array.from({ length: h.attributes.position.count }, () => [c.r, c.g, c.b]).flat(), 3));
+  return h;
+}
+
+const dome = ([x, y, z]) => paint(new SphereGeometry(POT_R, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1).translate(x, y, z), "#ff9ec7");
+
+function ringsGeometry() {
+  const pos = [];
+  const nor = [];
+  const col = [];
+  for (const [r0, r1, hex] of RINGS) {
+    const c = new Color(hex);
+    for (let k = 0; k < 360 / RING_ARC; k++) {
+      const a0 = k * ARC;
+      const a1 = a0 + ARC;
+      const am = (a0 + a1) / 2;
+      const rm = (r0 + r1) / 2;
+      if (!kept(GEYSER.x + Math.cos(am) * rm, GEYSER.z + Math.sin(am) * rm)) continue;
+      const q = [ground(a0, r0), ground(a1, r0), ground(a1, r1), ground(a0, r1)];
+      for (const i of [0, 1, 2, 0, 2, 3]) pos.push(...q[i]), nor.push(0, 1, 0), col.push(c.r, c.g, c.b);
+    }
+  }
+  const band = new BufferGeometry();
+  band.setAttribute("position", new Float32BufferAttribute(pos, 3));
+  band.setAttribute("normal", new Float32BufferAttribute(nor, 3));
+  band.setAttribute("color", new Float32BufferAttribute(col, 3));
+  return mergeGeometries([band, ...POTS.map(dome)]);
+}
+
+const RING_GEO = ringsGeometry();
+const BUBBLE_GEO = new SphereGeometry(0.07, 6, 4);
+
+function MudBubbles() {
+  const ref = useRef();
+  const bubbleMat = useMemo(() => lamp(GEYSER_COLOR, 0.9), []);
+  useFrame(({ clock }) => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const s = live.seal;
+    mesh.visible = Math.hypot(s.x - GEYSER.x, s.z - GEYSER.z) <= 60;
+    if (!mesh.visible) return;
+    const t = clock.elapsedTime;
+    let n = 0;
+    POTS.forEach((p, pi) => {
+      for (let b = 0; b < 3; b++) {
+        const phase = (t * 0.8 + b / 3 + pi * 0.37) % 1;
+        dummy.position.set(p[0] + Math.sin(t * 2 + b) * 0.04, p[1] + 0.12 + phase * 0.4, p[2]);
+        dummy.scale.setScalar(0.5 + 0.5 * Math.sin(phase * Math.PI));
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(n++, dummy.matrix);
+      }
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+  return <instancedMesh ref={ref} args={[BUBBLE_GEO, bubbleMat, POTS.length * 3]} frustumCulled={false} visible={false} />;
+}
+
+function GeyserRings() {
+  const tier = useUi((s) => s.tier);
+  const f = featuresForTier(tier);
+  const ringMat = useMemo(() => mat("#ffffff", { vertexColors: true, flat: false, roughness: 0.7 }), []);
+  return (
+    <>
+      <mesh geometry={RING_GEO} material={ringMat} receiveShadow />
+      {f.heavy && <MudBubbles />}
+    </>
+  );
+}
+
 // ---- assembly ---------------------------------------------------------------
 
 export default function IceDam() {
@@ -446,6 +594,8 @@ export default function IceDam() {
       <Spillways boost={damBoost} />
       <Outlets boost={damBoost} />
       <Geyser boost={geyserBoost} />
+      <Rapids />
+      <GeyserRings />
     </group>
   );
 }
