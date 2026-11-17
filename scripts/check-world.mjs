@@ -29,6 +29,7 @@ import { PEAK, SEA_Y, WATER_Y, groundAt, heightAt, meadowAt } from "../lib/world
 import { PEAK_PATH, PEAK_WORLD, peakBlocked, peakFloor } from "../lib/world/peak.js";
 import { PHYSICS_COLLIDERS } from "../lib/world/wild.js";
 import { HIDEOUT, HIDEOUT_WORLD, hideoutBlocked } from "../lib/world/hideout.js";
+const ENGINE_ONLY = new Set(["pr-anyps5-12609", "pr-tensorflow-128930"]); // docks only the engine plays: no R3F move (v1, 2026-11-17)
 
 const colliders = [...PLACES.map(({ x, z, radius }) => ({ x, z, radius })), ...PHYSICS_COLLIDERS];
 const world = { colliders, radius: ISLAND_RADIUS, northRim: NORTH_RIM, props: [], hideout: HIDEOUT_WORLD };
@@ -1422,7 +1423,8 @@ if (process.env.LOOP_TABLE) console.log("loop humans (win = 3 clean in a row wit
   for (const id of ids) {
     assert.ok(existsSync(new URL(`../lib/world/cutscene/cards/${id}.js`, import.meta.url)), `${id} has no card file`);
     // only an approved scene plays, so only an approved dock needs its move; the rest show the place, its label and panel
-    if (APPROVED.has(id)) assert.ok(existsSync(new URL(`../components/world/cutscene/moves/${id}.jsx`, import.meta.url)) && moves.includes(`"${id}": `), `${id} has no move`);
+    // a dock only the engine plays (no R3F move, ENGINE_ONLY) needs no move file
+    if (APPROVED.has(id) && !ENGINE_ONLY.has(id)) assert.ok(existsSync(new URL(`../components/world/cutscene/moves/${id}.jsx`, import.meta.url)) && moves.includes(`"${id}": `), `${id} has no move`);
   }
   // the villains' sound: Sukuna and Aizen declare sorted cues in scene s, every name a real voice, inside the scene
   for (const c of CARDS) {
@@ -1698,7 +1700,8 @@ for (const [k, g] of Object.entries(buildConcreteWall())) assert.ok(g, `dam-wall
     assert.ok(Math.hypot(x, z) > ISLAND_RADIUS + 4 && heightAt(x, z) < SEA_Y - 2, `the rig's leg at ${x}, ${z} is not in the sea (floor ${heightAt(x, z).toFixed(1)} m)`);
   }
   assert.ok(Math.hypot(rig.look.x - RIG.x, rig.look.z - RIG.z) < 8, "the docked view at the wellhead does not look at the rig");
-  for (const p of [meadow, rig]) assert.ok(cardFor(p.id) && !APPROVED.has(p.id), `${p.id} needs a card and no approved scene yet`);
+  // the owner approved both for v1 (2026-11-17, every engine cutscene above 50): they play on the engine only, with no R3F move
+  for (const p of [meadow, rig]) assert.ok(cardFor(p.id) && APPROVED.has(p.id) && ENGINE_ONLY.has(p.id), `${p.id} needs a card and the v1 approval as an engine-only dock`);
   // the landing count comes from the data and reads the same in every copy, the README's table included
   const n = showcase.upstream.length;
   assert.ok(UPSTREAM_LEAD.startsWith(`${UPSTREAM_COUNT} landed`) && showcase.intro.upstreamLead.startsWith(`${UPSTREAM_COUNT} landed`) && cardFor("home").c.text.startsWith(`${UPSTREAM_COUNT} landed`), `the landing count does not read ${UPSTREAM_COUNT} (${n}) everywhere`);
