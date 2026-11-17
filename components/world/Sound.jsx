@@ -18,6 +18,7 @@ import { createVillains } from "../../lib/world/cutscene/cues";
 import { JUMP_IN, SKIP_WINDOW, ZOOM_IN, ZOOM_OUT } from "../../lib/world/moments";
 import { districtAt, PLACES } from "../../lib/world/places";
 import { getUi, live, useUi } from "../../lib/world/store";
+import { engineActive } from "../../lib/anime/live.js";
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const smoothstep = (a, b, x) => {
@@ -726,7 +727,8 @@ function createEngine() {
   function frame(clockT = 0) {
     const audible = Boolean(ctx) && ctx.state === "running";
     const arr = live.arrival;
-    villains.step(arr.id, arr.id ? sceneT(arr.id, clockT - arr.start) : 0, audible, cardFor);
+    const vid = engineActive(arr.id, getUi().engineFail) ? null : arr.id; // an engine cut carries no R3F cues
+    villains.step(vid, vid ? sceneT(vid, clockT - arr.start) : 0, audible, cardFor);
     const now = ctx ? ctx.currentTime : 0;
     const ui = getUi();
     const seal = live.seal;

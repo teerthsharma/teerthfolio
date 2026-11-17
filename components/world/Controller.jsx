@@ -154,8 +154,9 @@ export default function Controller() {
       lastWarm = t;
       warmTick(state.gl, state.camera, window.__world?.composer);
     }
-    if (arrival.id && (t - arrival.start >= arrivalLength(arrival.id) || ui.open || freshInput(arrival))) {
+    if (arrival.id && (t - arrival.start >= (arrival.len ?? arrivalLength(arrival.id)) || ui.open || freshInput(arrival))) {
       arrival.id = null;
+      arrival.len = null;
       live.lastArrivalEnd = t;
       live.arrivalPos = { x: live.seal.x, z: live.seal.z };
       setUi({ cutscene: null, beat: 0 });
@@ -165,7 +166,7 @@ export default function Controller() {
       const beat = cutsceneMode(arrival.id) ? beatAt(cutFor(arrival.id)?.tl, beatT(arrival.id, t - arrival.start)) : awakeMode(arrival.id) ? awakeBeat(sceneT(arrival.id, t - arrival.start)) : 0;
       if (beat !== ui.beat) setUi({ beat });
     }
-    const holding = arrival.id && t - arrival.start < arrivalHold(arrival.id);
+    const holding = arrival.id && t - arrival.start < (arrival.len ? arrival.len - 0.4 : arrivalHold(arrival.id));
     const input = ui.open || ui.list || holding ? null : keyInput(live.keys) || live.stick;
     if (input) cancelTravel(live);
 

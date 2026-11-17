@@ -3,6 +3,7 @@
 // The land: the terrain (lib/world/terrain.js as one mesh), and every
 // landform built on it from components/world/land/*. Mounted by Scene.jsx.
 
+import Covenant from "./land/Covenant";
 import Floes from "./land/Floes";
 import Fountain from "./land/Fountain";
 import GoogleRange from "./land/GoogleRange";
@@ -11,6 +12,7 @@ import IceDam from "./land/IceDam";
 import LabAnomalies from "./life/anomalies/LabAnomalies";
 import Moat from "./land/Moat";
 import MujoRush from "./land/MujoRush";
+import OilRig from "./land/OilRig";
 import SealColony from "./life/SealColony";
 import Terrain from "./land/Terrain";
 import Triton from "./land/Triton";
@@ -27,6 +29,8 @@ export default function Districts() {
       <Triton />
       <IceDam />
       <MujoRush />
+      <Covenant />
+      <OilRig />
       <LabAnomalies />
       <SealColony />
     </>

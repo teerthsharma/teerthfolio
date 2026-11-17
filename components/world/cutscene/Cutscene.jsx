@@ -9,7 +9,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import { CARDS } from "../../../lib/world/cutscene/cards";
 import { POSES, cutFor, cutsceneMode } from "../../../lib/world/cutscene/timeline";
-import { live, useUi } from "../../../lib/world/store";
+import { getUi, live, useUi } from "../../../lib/world/store";
+import { engineActive } from "../../../lib/anime/live.js";
 import FrameGuard from "./FrameGuard";
 import Guest from "./Guest";
 import { MOVES } from "./moves";
@@ -32,12 +33,13 @@ export default function Cutscene() {
   const cut = mode ? cutFor(id) : null;
   useFrame(() => {
     for (const k of POSES) live.pose[k] = 0;
-    live.stageOn = Boolean(live.arrival.id) && cutsceneMode(live.arrival.id) === "full";
+    live.stageOn = Boolean(live.arrival.id) && cutsceneMode(live.arrival.id) === "full" && !engineActive(live.arrival.id, getUi().engineFail);
   }, -1.3);
-  const Move = cut ? MOVES[id] : null;
+  const engine = useUi((s) => engineActive(s.cutscene, s.engineFail));
+  const Move = cut && !engine ? MOVES[id] : null;
   return (
     <>
-      <group name="cutscene"><PupUpright id={id} />{Move && cut.tl.credit != null ? <ReturnWipe key={id} tl={cut.tl} mode={mode} color={accentFor(cut.card, cut.place)} /> : null}{Move ? <Move key={id} {...cut} mode={mode} /> : null}</group>
+      <group name="cutscene"><PupUpright id={engine ? null : id} />{Move && cut.tl.credit != null ? <ReturnWipe key={id} tl={cut.tl} mode={mode} color={accentFor(cut.card, cut.place)} /> : null}{Move ? <Move key={id} {...cut} mode={mode} /> : null}</group>
       <FrameGuard />
       {Move ? <Guest key={id} {...cut} mode={mode} /> : null}
     </>

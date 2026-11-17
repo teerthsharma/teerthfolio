@@ -24,7 +24,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { CustomBlending, ShaderMaterial, SrcColorFactor, ZeroFactor } from "three";
 import { PUP_YAW, cutFor, cutsceneMode, smooth, turnFor } from "../../lib/world/cutscene/timeline";
 import { awakeMode, awakeYaw, flyAt, liftAt } from "../../lib/world/awakening";
-import { live, useUi } from "../../lib/world/store";
+import { getUi, live, useUi } from "../../lib/world/store";
+import { engineActive } from "../../lib/anime/live.js";
 import { createDrive, stepDrive } from "./seal/drive";
 // The judge picked D (verification/J-seal-sheet.jpg): cutest of the four
 // candidates. The others' files stay in seal/variants/ but are unimported.
@@ -90,7 +91,7 @@ export default function Seal() {
     // THE CUTSCENE (lib/world/cutscene/): the pup turns three-quarters to the
     // lens, toward its speaker, as the scene opens, and back as it closes.
     const arrival = live.arrival;
-    const cut = arrival.id && cutsceneMode(arrival.id) ? cutFor(arrival.id) : null;
+    const cut = arrival.id && cutsceneMode(arrival.id) && !engineActive(arrival.id, getUi().engineFail) ? cutFor(arrival.id) : null;
     if (cut) {
       const u = Math.min(sceneT(arrival.id, state.clock.elapsedTime - arrival.start) / cut.tl.duration, 1);
       const k = smooth(0, 0.06, u) * (1 - smooth(0.95, 1, u));

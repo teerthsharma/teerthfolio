@@ -44,7 +44,7 @@ export default function PlaceLabel({ place, y = 6.5 }) {
         {place.section === "upstream" && place.logo && (
           <img className="place-label-logo" src={place.logo} alt="" width="14" height="14" />
         )}
-        <span className="place-label-name">{place.name}</span>
+        <span className="place-label-name">{place.label ?? place.name}</span>
       </div>
     </Html>
   );

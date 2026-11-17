@@ -1,3 +1,4 @@
+/* global process */
 import { notFound } from "next/navigation";
 import AnimeLab from "../../../components/anime/AnimeLab.jsx";
 

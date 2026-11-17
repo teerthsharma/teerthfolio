@@ -1,0 +1,83 @@
+{
+  "source": "data/showcase.json upstream entries; state and visibility from gh pr view and gh repo view on 2026-11-10. openxla/xla #46539 and facebook/pyrefly #4180 are shown as landed by import, linked by commit, because GitHub shows them CLOSED.",
+  "items": [
+    {
+      "repo": "google-deepmind/mujoco",
+      "pr": 3396,
+      "title": "Quadratic scratch in island discovery",
+      "state": "MERGED"
+    },
+    {
+      "repo": "google-deepmind/mujoco_warp",
+      "pr": 1541,
+      "title": "A linear-memory GPU disjoint-set union",
+      "state": "MERGED"
+    },
+    {
+      "repo": "google-deepmind/mujoco",
+      "pr": 3450,
+      "title": "An inverted point-id table for convex hulls",
+      "state": "MERGED"
+    },
+    {
+      "repo": "google/highway",
+      "pr": 3244,
+      "title": "Pruned collisions by slice structure",
+      "state": "MERGED"
+    },
+    {
+      "repo": "google/XNNPACK",
+      "pr": 10801,
+      "title": "Reusing the leading gap in the memory planner",
+      "state": "MERGED"
+    },
+    {
+      "repo": "tensorflow/tensorflow",
+      "pr": 124410,
+      "title": "A missing back-propagation in transitive reduction",
+      "state": "MERGED"
+    },
+    {
+      "repo": "NVIDIA/NeMo-Relay",
+      "pr": 481,
+      "title": "One scaffold, not one profile per task",
+      "state": "MERGED"
+    },
+    {
+      "repo": "triton-lang/kernels",
+      "pr": 22,
+      "title": "A topology-derived sparse attention kernel",
+      "state": "MERGED"
+    },
+    {
+      "repo": "dsx-ai-factory/topograph",
+      "pr": 432,
+      "title": "Gating cluster wide RBAC to the rules that apply",
+      "state": "MERGED"
+    },
+    {
+      "repo": "open2c/polychrom",
+      "pr": 79,
+      "title": "Fix the sign of getLinkingNumber",
+      "state": "MERGED"
+    },
+    {
+      "repo": "openxla/xla",
+      "pr": 46539,
+      "title": "Deterministic GPU codegen in reduction grouping",
+      "state": "CLOSED",
+      "status": "landed",
+      "commit": "3d5df1da699b",
+      "url": "https://github.com/openxla/xla/commit/3d5df1da699b"
+    },
+    {
+      "repo": "facebook/pyrefly",
+      "pr": 4180,
+      "title": "Pinning a 208-module recheck propagation panic",
+      "state": "CLOSED",
+      "status": "landed",
+      "commit": "3e90baa2a447",
+      "url": "https://github.com/facebook/pyrefly/commit/3e90baa2a447"
+    }
+  ]
+}

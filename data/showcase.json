@@ -4,7 +4,7 @@
     "heading": "Hi, I'm Teerth.",
     "lead": "A twenty year old tech lover who likes turning maths and ideas into solid code. Some of those ideas now live inside the codebases of companies like these.",
     "upstreamHeading": "What I fixed, and where.",
-    "upstreamLead": "Eleven landed contributions. Every number below was measured on a named machine against a control, and every one of them sits in a merged diff or on the default branch it targets."
+    "upstreamLead": "Fourteen landed contributions. Every number below was measured on a named machine against a control, and every one of them sits in a merged diff or on the default branch it targets."
   },
   "upstream": [
     {
@@ -470,6 +470,57 @@
       },
       "headline": "11/11 pairs agree",
       "rank": 11
+    },
+    {
+      "id": "pr-anyps5-12609",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "boykopovar",
+      "repo": "boykopovar/AnyPS5",
+      "pr": 12609,
+      "logo": null,
+      "title": "A stall reported once, not once per frame",
+      "body": "trace_digest.py ranked the slowest frames one at a time, so a stall several frames long took several lines and pushed the next stall off the list. I added persistent spikes: the 0-dimensional persistence of the frame-time series under a falling threshold, one union-find pass. Each stall is listed once, with its height above the fastest frame that separates it from a longer one.",
+      "result": "Reviewers measured 0 differences from a brute-force oracle on 60,000 random series, and 10^6 frames in 2.1 s. 79 tests passing.",
+      "tags": [
+        "Python",
+        "persistent homology"
+      ],
+      "checks": [
+        "0 differences from a brute-force oracle on 60,000 random series, measured by the reviewer rooklz",
+        "10^6 frames digested in 2.1 s",
+        "79 tests passing in tools/tests/test_trace_digest.py"
+      ],
+      "url": "https://github.com/boykopovar/AnyPS5/pull/12609",
+      "figure": null,
+      "headline": "0 diffs in 60,000",
+      "rank": 12
+    },
+    {
+      "id": "pr-tensorflow-128930",
+      "section": "upstream",
+      "verb": "merged into",
+      "org": "tensorflow",
+      "repo": "tensorflow/tensorflow",
+      "pr": 128930,
+      "logo": "tensorflow.png",
+      "title": "Ranking a ghost above a real box",
+      "body": "Combined NMS sorted by score only after padding empty slots at -1.0, so real scores below -1.0 lost to slots that held nothing: [-2, -3, -4] with box 2 suppressed came back [-1, -2]. I made both orders total, real before padding, then score, class and box index, and packed candidates into uint64 heap keys so the fix costs less than master on every detection-like case.",
+      "result": "Master matched 8 of 18 named cases and mismatched 1,459 / 5,000 tie-rich and 8,833 / 30,000 wild inputs; after: all match. -24% at 4000x90.",
+      "tags": [
+        "C++ correctness",
+        "total order"
+      ],
+      "checks": [
+        "18/18 named cases match an O(n^2) oracle, 8/18 on master",
+        "0/5,000 tie-rich inputs mismatch, 1,459 on master",
+        "0/30,000 wild inputs mismatch, 8,833 on master",
+        "ASan and UBSan clean on g++ 15 and clang 21"
+      ],
+      "url": "https://github.com/tensorflow/tensorflow/pull/128930",
+      "figure": null,
+      "headline": "0 of 35,000 off",
+      "rank": 13
     }
   ],
   "lab": [

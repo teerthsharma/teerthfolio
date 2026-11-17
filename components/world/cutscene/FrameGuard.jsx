@@ -43,6 +43,7 @@ import { sceneT } from "../../../lib/world/cutscene/clock";
 import { beats, grammarFor } from "../../../lib/world/cutscene/camera";
 import { BEAT, anchorFor, cutFor, cutsceneMode } from "../../../lib/world/cutscene/timeline";
 import { getUi, live } from "../../../lib/world/store";
+import { engineActive } from "../../../lib/anime/live.js";
 
 // the safe zone frame-audit enforces
 export const SAFE = { margin: 0.04, minH: 0.16, maxH: 0.55 };
@@ -317,7 +318,7 @@ export default function FrameGuard() {
     const s = st.current;
     const dt = Math.min(dt0, 0.1);
     const now = clock.elapsedTime;
-    const id = live.arrival.id;
+    const id = engineActive(live.arrival.id, getUi().engineFail) ? null : live.arrival.id; // under an engine cut the island keeps the follow's guard
     const active = Boolean(id) && cutsceneMode(id) !== null && !off;
     const cut = active ? cutFor(id) : null;
     const opt = cut?.card.frame && typeof cut.card.frame === "object" ? cut.card.frame : null;

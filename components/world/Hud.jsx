@@ -16,11 +16,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import showcase from "../../data/showcase.json" with { type: "json" };
-import { PLACE_BY_ID, PLACES, PROFILE, districtAt, dockPoint } from "../../lib/world/places";
+import { PLACE_BY_ID, PLACES, PROFILE, UPSTREAM_LEAD, districtAt, dockPoint } from "../../lib/world/places";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import { replayArrival } from "./Controller";
 import { cutsceneMode } from "../../lib/world/cutscene/timeline";
 import { cardFor } from "../../lib/world/cutscene/cards";
+import { engineActive } from "../../lib/anime/live.js";
 import Minimap from "./ui/Minimap";
 import MoveCoach from "./ui/MoveCoach";
 import AwakeningLayer from "./ui/AwakeningLayer";
@@ -545,7 +546,7 @@ function List({ list, failed, titleRef }) {
           <h3 className="list-group-head">
             {showcase.intro.upstreamHeading} <span className="list-group-count">{UPSTREAM.length}</span>
           </h3>
-          <p className="list-group-lead">{showcase.intro.upstreamLead}</p>
+          <p className="list-group-lead">{UPSTREAM_LEAD}</p>
           <div className="fallback-grid">
             {UPSTREAM.map((place) => (
               <FallbackCard key={place.id} place={place} />
@@ -573,7 +574,7 @@ function List({ list, failed, titleRef }) {
           <h3 className="list-group-head">
             {showcase.intro.upstreamHeading} <span className="list-group-count">{UPSTREAM.length}</span>
           </h3>
-          <p className="list-group-lead">{showcase.intro.upstreamLead}</p>
+          <p className="list-group-lead">{UPSTREAM_LEAD}</p>
           <ul className="list-rows">
             {UPSTREAM.map((place) => (
               <ListRow key={place.id} place={place} />
@@ -602,6 +603,7 @@ export default function Hud() {
   const sound = useUi((s) => s.sound);
   const failed = useUi((s) => s.failed);
   const cutscene = useUi((s) => s.cutscene);
+  const engine = useUi((s) => engineActive(s.cutscene, s.engineFail));
   const settings = useUi((s) => s.settings);
 
   useEffect(() => {
@@ -633,12 +635,12 @@ export default function Hud() {
   return (
     <div className="hud" data-cutscene={cutscene ? "on" : undefined} onKeyDown={onHudKeyDown}>
       <Curtain ready={ready} />
-      <div className="hud-letterbox" data-on={!!cutscene} aria-hidden="true" />
-      <Bubbles />
+      <div className="hud-letterbox" data-on={!!cutscene && !engine} aria-hidden="true" />
+      {engine ? null : <Bubbles />}
       <AwakeningLayer />
-      <CutsceneTitle id={cutscene} />
+      <CutsceneTitle id={engine ? null : cutscene} />
       {cutscene && (
-        <button type="button" className="cut-skip" onClick={() => (live.arrival.skip = true)}>
+        <button type="button" className="cut-skip" onClick={() => (live.engineSkip ? live.engineSkip() : (live.arrival.skip = true))}>
           Skip
         </button>
       )}

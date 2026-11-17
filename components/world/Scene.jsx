@@ -39,6 +39,7 @@ import LoopAwakening from "./LoopAwakening";
 import LoopBanner from "./LoopBanner";
 import LoopCounter from "./LoopCounter";
 import Cutscene from "./cutscene/Cutscene";
+import EngineCut from "../anime/EngineCut";
 import Seal from "./Seal";
 import Sound from "./Sound";
 import StaticMerge from "./StaticMerge";
@@ -201,6 +202,7 @@ function FrameGovernor() {
 export default function Scene() {
   const [epoch, setEpoch] = useState(0);
   return (
+    <>
     <Canvas
       shadows
       dpr={1}
@@ -245,5 +247,7 @@ export default function Scene() {
       <Look key={epoch} />
       <FrameGovernor />
     </Canvas>
+    <EngineCut />
+    </>
   );
 }

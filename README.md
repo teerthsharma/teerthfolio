@@ -24,7 +24,7 @@
 
 A Bruno-Simon-style open world. You are a baby harp-seal pup, the island's
 enlightened "Buddha seal". The **landscape** is Teerth's merged contributions to
-Google DeepMind, NVIDIA, TensorFlow, XLA, Google, Meta and Triton. The
+Google DeepMind, NVIDIA, TensorFlow, XLA, Google, Meta, Triton, open2c and AnyPS5. The
 **buildings** are his own research projects. Slide up to anything and its panel
 opens with the claim, the numbers and the link, verbatim from
 [teerthsharma.github.io](https://teerthsharma.github.io) (extracted by
@@ -54,6 +54,9 @@ Two rules shape everything you see:
 | Triton | [triton-lang/kernels #22](https://github.com/triton-lang/kernels/pull/22) | 804 lines added | purple |
 | The XLA Geyser | [openxla/xla #46539](https://github.com/openxla/xla/pull/46539) | 5 lines, deterministic | orbit |
 | Pyrefly Floes | [facebook/pyrefly #4180](https://github.com/facebook/pyrefly/pull/4180) | 208 SCCs pinned | orbit |
+| The Fountain of Immortality | [open2c/polychrom #79](https://github.com/open2c/polychrom/pull/79) | 11/11 pairs agree | Gate of Babylon |
+| The Covenant of Community | [boykopovar/AnyPS5 #12609](https://github.com/boykopovar/AnyPS5/pull/12609) | 0 diffs in 60,000 | no scene yet |
+| The TensorFlow Rig | [tensorflow/tensorflow #128930](https://github.com/tensorflow/tensorflow/pull/128930) | 0 of 35,000 off | no scene yet |
 
 The geology is one story: Triton's glacier feeds **the river**, which runs south
 between Mount MujoRush (three seal faces carved like Rushmore, a PR number on
@@ -62,7 +65,9 @@ each neck) and the Google range, fills the lake behind the **TensorFlow Dam**
 **the NVIDIA Moat** round a rock keep. The XLA geyser erupts every 50 s exactly;
 pyrefly's 208 floes hang over the outflow as a funnel above a whirlpool. A real
 four-lane **highway** runs from town to MujoRush's car park, cars in lockstep
-lanes.
+lanes. On the east shore the snow gives way to a meadow holding one bronze fish
+on a granite wave; off the north-east coast an oil rig stands in the sea on four
+legs, its flare burning at the end of the boom.
 
 **Anomalies you can touch:** ride the river for fast travel; swim into the
 pyrefly whirlpool and it spins you round and throws you onto the bank; stand at

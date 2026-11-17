@@ -1,9 +1,11 @@
 "use client";
 // One detachable shader tool alone (/lab/anime?tool=<name>) or every tool in a grid (?tool=all):
 // each panel is the tool's GLSL demo on a fullscreen quad, linear colour shown in sRGB.
+// ?pack=<name> loads a shader pack first (lib/anime/tools/packs.js): ?tool=<registry name>&pack=jjk, or ?tool=all&pack=jjk for that pack alone.
 import { useEffect, useRef, useState } from "react";
 import { DataTexture, LinearFilter, Mesh, OrthographicCamera, PlaneGeometry, RepeatWrapping, Scene, ShaderMaterial, WebGLRenderer } from "three";
 import { TOOLS, glslFor, tool, uniformsFor } from "../../lib/anime/tools/index.js";
+import { loadPack } from "../../lib/anime/tools/packs.js";
 
 // a 256x256 test image for texture tools: soft colour fields with hard-edged blocks and fine noise
 function testImage() {
@@ -19,8 +21,16 @@ function testImage() {
 export default function ToolLab({ name }) {
   const ref = useRef(null);
   const [err, setErr] = useState("");
-  const list = (name === "all" ? TOOLS : [tool(name)]).filter((t) => t.demo);
+  const [ready, setReady] = useState(false);
+  const [pack, setPack] = useState(null);
   useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("pack");
+    setPack(p);
+    (p ? loadPack(p) : Promise.resolve()).then(() => setReady(true), (e) => { setErr(String(e.message ?? e)); });
+  }, []);
+  const list = !ready ? [] : (name === "all" ? (pack ? TOOLS.filter((t) => t.pack === pack) : TOOLS) : [tool(name)]).filter((t) => t.demo);
+  useEffect(() => {
+    if (!ready) return undefined;
     const r = new WebGLRenderer({ canvas: ref.current, antialias: false });
     const cam = new OrthographicCamera(-1, 1, 1, -1, 0, 1), tex = testImage();
     const panels = list.map((t) => {
@@ -45,7 +55,7 @@ export default function ToolLab({ name }) {
     const bad = panels.filter((P) => { const prog = r.info.programs?.find((p) => p.name === P.m.name); return prog && prog.diagnostics && !prog.diagnostics.runnable; });
     if (bad.length) setErr(bad.map((P) => P.t.name).join(", "));
     return () => { cancelAnimationFrame(raf); r.dispose(); };
-  }, [name]);
+  }, [name, ready]);
   const cols = Math.ceil(Math.sqrt(list.length)), rows = Math.ceil(list.length / cols);
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", fontFamily: "var(--font, system-ui)" }}>

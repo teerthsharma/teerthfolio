@@ -1,0 +1,103 @@
+{
+  "source": "data/showcase.json upstream entries; state and visibility from gh pr view and gh repo view on 2026-11-10. openxla/xla #46539 and facebook/pyrefly #4180 are shown as landed by import, linked by commit, because GitHub shows them CLOSED.",
+  "entries": [
+    {
+      "repo": "google-deepmind/mujoco",
+      "pr": 3396,
+      "title": "Quadratic scratch in island discovery",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "google-deepmind/mujoco_warp",
+      "pr": 1541,
+      "title": "A linear-memory GPU disjoint-set union",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "google-deepmind/mujoco",
+      "pr": 3450,
+      "title": "An inverted point-id table for convex hulls",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "google/highway",
+      "pr": 3244,
+      "title": "Pruned collisions by slice structure",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "google/XNNPACK",
+      "pr": 10801,
+      "title": "Reusing the leading gap in the memory planner",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "tensorflow/tensorflow",
+      "pr": 124410,
+      "title": "A missing back-propagation in transitive reduction",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "NVIDIA/NeMo-Relay",
+      "pr": 481,
+      "title": "One scaffold, not one profile per task",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "triton-lang/kernels",
+      "pr": 22,
+      "title": "A topology-derived sparse attention kernel",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "dsx-ai-factory/topograph",
+      "pr": 432,
+      "title": "Gating cluster wide RBAC to the rules that apply",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "open2c/polychrom",
+      "pr": 79,
+      "title": "Fix the sign of getLinkingNumber",
+      "visibility": "public",
+      "state": "MERGED",
+      "hold": null
+    },
+    {
+      "repo": "openxla/xla",
+      "pr": 46539,
+      "title": "Deterministic GPU codegen in reduction grouping",
+      "visibility": "public",
+      "state": "CLOSED",
+      "landedCommit": "3d5df1da699b",
+      "hold": null
+    },
+    {
+      "repo": "facebook/pyrefly",
+      "pr": 4180,
+      "title": "Pinning a 208-module recheck propagation panic",
+      "visibility": "public",
+      "state": "CLOSED",
+      "landedCommit": "3e90baa2a447",
+      "hold": null
+    }
+  ]
+}

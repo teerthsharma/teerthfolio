@@ -40,6 +40,7 @@ import { cutsceneMode } from "../../../../lib/world/cutscene/timeline";
 import { AWAKE, awakeMode, flyAt, powerAt } from "../../../../lib/world/awakening";
 import { PLACE_BY_ID, districtAt } from "../../../../lib/world/places";
 import { getUi, live, useUi } from "../../../../lib/world/store";
+import { engineActive } from "../../../../lib/anime/live.js";
 import { glow } from "../../palette";
 import Outfit, { HEAD_RADIUS } from "../Outfit";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -241,7 +242,7 @@ export default function SealD({ pose, near, drive, headRef }) {
     // for its pose hooks; with reduced motion (no stage) it looks round,
     // left, then right, then settles on the place, and smiles.
     const arrival = live.arrival;
-    const arrivalPlace = arrival.id ? PLACE_BY_ID[arrival.id] : null;
+    const arrivalPlace = arrival.id && !engineActive(arrival.id, getUi().engineFail) ? PLACE_BY_ID[arrival.id] : null;
     const cut = arrivalPlace && cutsceneMode(arrival.id) === "full";
     const P = live.pose;
     const sign = cut ? P.sign : 0;

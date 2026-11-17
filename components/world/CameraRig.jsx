@@ -22,6 +22,7 @@ import { MOTION } from "../../lib/world/motion";
 import { PLACES, PLACE_BY_ID } from "../../lib/world/places";
 import { getUi, live } from "../../lib/world/store";
 import { TINT } from "../../lib/world/litTint";
+import { engineActive } from "../../lib/anime/live.js";
 
 // Direction from the seal to the camera: 42 degrees of elevation, so the
 // districts ahead show, 35.5 m away. Fixed: the azimuth never rotates.
@@ -217,7 +218,9 @@ export default function CameraRig() {
 
     // THE CUTSCENE (lib/world/cutscene/) frames its own two-shot, below.
     const arrival = live.arrival;
-    const cutscene = arrival.id && cutsceneMode(arrival.id) === "full" ? cutFor(arrival.id) : null;
+    // an engine cut plays over the island: the rig stays on the follow, so the island is framed as its iris closes
+    const held = arrival.id && !engineActive(arrival.id, ui.engineFail) ? arrival.id : null;
+    const cutscene = held && cutsceneMode(held) === "full" ? cutFor(held) : null;
     // THE RADIATION beat (moments.js): the view creeps in while the area's
     // radiation floods it, then kicks back out at the mutation.
     const radSince = t - live.rad.start;
@@ -351,7 +354,7 @@ export default function CameraRig() {
     // A lab or the igloo between the lens and the pup (the view looks due north): rise until the sight
     // line clears its roof, up to LIFT_MAX; the cutaway (litTint.js) dissolves what is left.
     let liftTo = ELEVATION;
-    if (ui.started && !arrival.id) {
+    if (ui.started && !held) {
       for (const p of BLOCKERS) {
         const ox = focus.current.x - p.x;
         const oz = focus.current.z - p.z;
@@ -450,7 +453,7 @@ export default function CameraRig() {
     }
     // Never inside a building: walk the eye back along the line to the pup until it is clear of every
     // lab and the igloo (footprint radius + margin, below BLOCK_H). It closes in at once and eases back out.
-    if (!arrival.id && ui.started && since >= JUMP_IN.duration) {
+    if (!held && ui.started && since >= JUMP_IN.duration) {
       const fx = focus.current.x;
       const fz = focus.current.z;
       const dx = camera.position.x - fx;
@@ -481,7 +484,7 @@ export default function CameraRig() {
     }
     // The cutaway (litTint.js) follows the pup in the chase only.
     TINT.uPup.value.set(seal.x, Math.max(heightAt(seal.x, seal.z), WATER_Y) + (seal.climb || 0), seal.z);
-    TINT.uCut.value = !arrival.id && ui.started && !ui.open && since >= JUMP_IN.duration ? 1 : 0;
+    TINT.uCut.value = !held && ui.started && !ui.open && since >= JUMP_IN.duration ? 1 : 0;
     camera.lookAt(lookAt.current);
 
     // Fog is tuned for the follow distance; push it back by however much
