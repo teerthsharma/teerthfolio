@@ -1,6 +1,6 @@
 # E1/E2 topo-field results
 
-Env: HEAD 66b9f23df64bc10ddb0f5f8301883b97b34997a8, node v25.8.1, CPU Intel(R) Core(TM) i7-14700HX (28 logical cores), 2026-11-20T08:21:53.927Z.
+Env: HEAD bb9a44698d169898be8da5689a8a99f9927ba203, node v25.8.1, CPU Intel(R) Core(TM) i7-14700HX (28 logical cores), 2026-11-20T09:11:26.876Z.
 
 ## Verdict
 
@@ -10,7 +10,7 @@ Env: HEAD 66b9f23df64bc10ddb0f5f8301883b97b34997a8, node v25.8.1, CPU Intel(R) C
 
 - E1 DEAD: SIMPLIFIED events 3060 over 21921 frames is 0.1396 per frame, above 0.1.
 
-- E2 PASS: pooled core p95 0.10869999999704305 ms per frame at h=4, N=20 (bar <= 0.5 ms).
+- E2 PASS: pooled core p95 0.09770000001299195 ms per frame at h=4, N=20 (bar <= 0.5 ms).
 
 Bars, verbatim from the prereg:
 
@@ -18,6 +18,64 @@ Bars, verbatim from the prereg:
 - DEAD if SIMPLIFIED events > 1 per 10 frames at h=4, N=20. Anything between is reported as unresolved, not as a pass.
 - Bar: p95 <= 0.5 ms CPU per frame.
 - K5 negative control: same walk with mover positions re-randomised every frame: events/frame must be at least 20x the real walk (shows the detector can see events).
+
+## Post-hoc variant SIMP-H (not pre-registered)
+
+The SIMP-H rule (lineage latch: a raw live component is significant if its min c <= 0.25 now, or it overlaps a component that was significant last frame) was chosen after the pre-registered numbers were seen, by a reviewer who had seen them. It can only add information. It never replaces the pre-registered verdict, which is the Verdict section above, printed first and unchanged.
+
+SIMP-H post-hoc reading (same bars, same pure verdict function, fed the SIMP-H counts): E1 **UNRESOLVED**, E2 **PASS**. K5 ratio on SIMP-H at h=4, N=20: 788.26x.
+
+- E1 UNRESOLVED on seed 1: SIMP-H median 2/s (bar <= 1), mean 1.7819/s vs 0.1 x B1 = 0.0788/s.
+- E1 UNRESOLVED on seed 2: SIMP-H median 2/s (bar <= 1), mean 2.0446/s vs 0.1 x B1 = 0.0690/s.
+- E1 UNRESOLVED on seed 3: SIMP-H median 2/s (bar <= 1), mean 1.9953/s vs 0.1 x B1 = 0.0788/s.
+- E2 PASS: pooled core p95 0.09770000001299195 ms per frame at h=4, N=20 (bar <= 0.5 ms).
+
+Invariant reading, per cell: SIMP-H total <= RAW total + SIMP-H frame-0 births (the column after SIMP-H total). Subtract that column to compare. The tests also assert SIMP-H death, merge, split and hole kinds are each <= RAW.
+
+Known defect 1 (recorded, not fixed): the pre-registered SIMPLIFIED column can exceed RAW (h8 N20 seed 1, 5 s roam: RAW 121, SIMPLIFIED 127), because its significance test has no memory from frame to frame.
+
+Known defect 2 (recorded, not fixed, warm start): frame-0 events are suppressed in both detectors (G9), so a component already live at frame 0 has no birth on record; if it turns significant later, SIMP-H records a birth that RAW cannot match, so the excess is bounded by the frame-0 births column (witness h4 N60 seed 3: RAW 361, SIMP-H 362).
+
+| h | N | seed | ncells | seconds | RAW total | SIMP-H total | SIMP-H frame-0 births | SIMP-H birth | SIMP-H death | SIMP-H merge | SIMP-H split | SIMP-H holeOpen | SIMP-H holeClose | SIMP-H seam | SIMP-H events/s (mean) | SIMP-H median/s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+
+| 2 | 0 | 1 | 6409 | 121.78 | 21 | 21 | 0 | 0 | 0 | 11 | 10 | 0 | 0 | 0 | 0.172 | 0.0 |
+| 2 | 0 | 2 | 6409 | 121.78 | 15 | 15 | 0 | 0 | 0 | 8 | 7 | 0 | 0 | 0 | 0.123 | 0.0 |
+| 2 | 0 | 3 | 6409 | 121.78 | 21 | 21 | 0 | 0 | 0 | 11 | 10 | 0 | 0 | 0 | 0.172 | 0.0 |
+| 2 | 20 | 1 | 6409 | 121.78 | 110 | 110 | 0 | 0 | 0 | 55 | 53 | 1 | 1 | 0 | 0.903 | 1.0 |
+| 2 | 20 | 2 | 6409 | 121.78 | 151 | 151 | 0 | 0 | 0 | 74 | 75 | 1 | 1 | 0 | 1.240 | 1.0 |
+| 2 | 20 | 3 | 6409 | 121.78 | 157 | 157 | 0 | 0 | 0 | 76 | 77 | 2 | 2 | 0 | 1.289 | 1.0 |
+| 2 | 60 | 1 | 6409 | 121.78 | 625 | 625 | 0 | 0 | 0 | 300 | 299 | 13 | 13 | 0 | 5.132 | 5.0 |
+| 2 | 60 | 2 | 6409 | 121.78 | 559 | 559 | 0 | 0 | 0 | 271 | 270 | 9 | 9 | 0 | 4.590 | 4.0 |
+| 2 | 60 | 3 | 6409 | 121.78 | 520 | 520 | 0 | 0 | 0 | 255 | 249 | 8 | 8 | 0 | 4.270 | 4.0 |
+| 4 | 0 | 1 | 1615 | 121.78 | 21 | 21 | 0 | 0 | 0 | 11 | 10 | 0 | 0 | 0 | 0.172 | 0.0 |
+| 4 | 0 | 2 | 1615 | 121.78 | 15 | 15 | 0 | 0 | 0 | 8 | 7 | 0 | 0 | 0 | 0.123 | 0.0 |
+| 4 | 0 | 3 | 1615 | 121.78 | 19 | 19 | 0 | 0 | 0 | 10 | 9 | 0 | 0 | 0 | 0.156 | 0.0 |
+| 4 | 20 | 1 | 1615 | 121.78 | 217 | 217 | 0 | 47 | 50 | 59 | 61 | 0 | 0 | 0 | 1.782 | 2.0 |
+| 4 | 20 | 2 | 1615 | 121.78 | 251 | 249 | 0 | 51 | 54 | 69 | 75 | 0 | 0 | 0 | 2.045 | 2.0 |
+| 4 | 20 | 3 | 1615 | 121.78 | 243 | 243 | 0 | 47 | 44 | 76 | 76 | 0 | 0 | 0 | 1.995 | 2.0 |
+| 4 | 60 | 1 | 1615 | 121.78 | 785 | 779 | 0 | 85 | 91 | 294 | 305 | 2 | 2 | 0 | 6.397 | 6.0 |
+| 4 | 60 | 2 | 1615 | 121.78 | 784 | 777 | 1 | 114 | 108 | 279 | 274 | 1 | 1 | 0 | 6.380 | 6.0 |
+| 4 | 60 | 3 | 1615 | 121.78 | 682 | 677 | 1 | 105 | 112 | 224 | 234 | 1 | 1 | 0 | 5.559 | 5.0 |
+| 8 | 0 | 1 | 397 | 121.78 | 21 | 21 | 0 | 0 | 0 | 11 | 10 | 0 | 0 | 0 | 0.172 | 0.0 |
+| 8 | 0 | 2 | 397 | 121.78 | 13 | 13 | 0 | 0 | 0 | 7 | 6 | 0 | 0 | 0 | 0.107 | 0.0 |
+| 8 | 0 | 3 | 397 | 121.78 | 17 | 17 | 0 | 0 | 0 | 9 | 8 | 0 | 0 | 0 | 0.140 | 0.0 |
+| 8 | 20 | 1 | 397 | 121.78 | 230 | 217 | 0 | 89 | 90 | 18 | 20 | 0 | 0 | 0 | 1.782 | 2.0 |
+| 8 | 20 | 2 | 397 | 121.78 | 271 | 257 | 0 | 111 | 108 | 20 | 18 | 0 | 0 | 0 | 2.110 | 2.0 |
+| 8 | 20 | 3 | 397 | 121.78 | 213 | 187 | 0 | 75 | 74 | 18 | 20 | 0 | 0 | 1 | 1.536 | 1.0 |
+| 8 | 60 | 1 | 397 | 121.78 | 510 | 482 | 0 | 185 | 194 | 50 | 53 | 0 | 0 | 0 | 3.958 | 4.0 |
+| 8 | 60 | 2 | 397 | 121.78 | 490 | 449 | 0 | 188 | 186 | 38 | 37 | 0 | 0 | 0 | 3.687 | 3.0 |
+| 8 | 60 | 3 | 397 | 121.78 | 539 | 489 | 0 | 196 | 211 | 36 | 46 | 0 | 0 | 0 | 4.015 | 4.0 |
+
+Economics at h=4, N=20, all three seeds: RAW and SIMP-H events per second against B1 chunk-boundary crossings per second (mean rates over the judged walk).
+
+| seed | RAW events/s | SIMP-H events/s | B1 crossings/s |
+|---|---|---|---|
+
+| 1 | 1.782 | 1.782 | 0.788 |
+| 2 | 2.061 | 2.045 | 0.690 |
+| 3 | 1.995 | 1.995 | 0.788 |
+| pooled | 1.946 | 1.941 | 0.755 |
 
 ## Known-answer tests
 
@@ -37,6 +95,11 @@ Gate: `node --test experiments/topo-field/test/known.test.mjs`, exit status 0.
 | K7 hysteresis: 0.30/0.60 oscillation makes no events; 0.30 to 0.70 to 0.30 makes one death and one birth | pass |
 | det.live keeps its identity across calls | pass |
 | K8 persistence filter matches h0Superlevel on five seeds | pass |
+| K9 sticky (post-hoc SIMP-H): a blob wobbling 0.24/0.27 flickers in SIMPLIFIED, SIMP-H has one birth and no events after it | pass |
+| K10 sticky (post-hoc SIMP-H): a real split of a significant component is exactly one split | pass |
+| K11 sticky (post-hoc SIMP-H): a blob born insignificant at 0.30 that never dips to 0.25 gives 0 SIMP-H events | pass |
+| K13 warm start (post-hoc SIMP-H): a component live at frame 0 that turns significant later gives one SIMP-H birth and one frame-0 birth, and no RAW event | pass |
+| K12 sticky (post-hoc SIMP-H): a significant lineage that drifts to 0.40 (above 0.35, still live) stays significant | pass |
 
 K5 is the shuffled control, reported below.
 
@@ -106,17 +169,17 @@ Per (h, N): median and p95 of the per-frame core (field update + tag + count) an
 | h | N | judged | core median | core p95 | full median | full p95 |
 |---|---|---|---|---|---|---|
 
-| 2 | 0 |  | 0.1452 | 0.2069 | 0.5733 | 0.6691 |
-| 2 | 20 |  | 0.3518 | 0.4343 | 0.8428 | 0.9747 |
-| 2 | 60 |  | 0.6736 | 0.7663 | 1.1852 | 1.3198 |
-| 4 | 0 |  | 0.0432 | 0.0511 | 0.1666 | 0.1949 |
-| 4 | 20 | yes | 0.0916 | 0.1076 | 0.2182 | 0.2628 |
-| 4 | 60 |  | 0.1763 | 0.2079 | 0.3092 | 0.3675 |
-| 8 | 0 |  | 0.0100 | 0.0114 | 0.0385 | 0.0433 |
-| 8 | 20 |  | 0.0233 | 0.0267 | 0.0517 | 0.0592 |
-| 8 | 60 |  | 0.0469 | 0.0520 | 0.0765 | 0.0869 |
+| 2 | 0 |  | 0.1623 | 0.2254 | 0.6667 | 0.7522 |
+| 2 | 20 |  | 0.3560 | 0.4190 | 0.8555 | 0.9323 |
+| 2 | 60 |  | 0.6696 | 0.7424 | 1.1781 | 1.2722 |
+| 4 | 0 |  | 0.0413 | 0.0457 | 0.1608 | 0.1748 |
+| 4 | 20 | yes | 0.0894 | 0.0978 | 0.2134 | 0.2327 |
+| 4 | 60 |  | 0.1714 | 0.1865 | 0.3000 | 0.3308 |
+| 8 | 0 |  | 0.0096 | 0.0105 | 0.0373 | 0.0405 |
+| 8 | 20 |  | 0.0229 | 0.0246 | 0.0508 | 0.0549 |
+| 8 | 60 |  | 0.0454 | 0.0491 | 0.0742 | 0.0810 |
 
-Pooled over the 3 seeds at h=4, N=20 (judged, from the concatenated per-frame arrays after the 300-frame warm-up): core median 0.0915 ms, core p95 0.1087 ms (bar <= 0.5 ms), full median 0.2179 ms, full p95 0.2642 ms.
+Pooled over the 3 seeds at h=4, N=20 (judged, from the concatenated per-frame arrays after the 300-frame warm-up): core median 0.0894 ms, core p95 0.0977 ms (bar <= 0.5 ms), full median 0.2134 ms, full p95 0.2334 ms.
 
 ## Sensitivity
 
