@@ -8,6 +8,7 @@ Pure maths for the route-heat field of the topological shader: the hex grid the 
 - `critical.js`: `makeCritical(grid)`, the piecewise-linear critical-cell classification, H0 bars and dual-sweep hole bars (T2), and `holesAt` and `thresholds`.
 - `heatfield.js`: `makeHeat(grid, { sigma, halfLifeS })`, the per-tick deposit (cut at 3.5 sigma), the half-life decay, and the running-maximum normalisation into `hn`.
 - `route-weights.js`: `makeRouteWeights(plates, g, opts)`, the D6 plate weights `w`, the explained fraction (`e` scalar, `eCell` per cell), the D3 control input `C = min(c, e)`, the early-session gate (M below 80 holds everything LIVE) and the D10 plate pick `pick()` (top two plates, each held by its own two-threshold latch on its weight). `plates` is the injected `route-plates.json` object; the module never imports the file. It is unmeasured: T1 found that the route library does not explain roam heat, and the module exists behind the `?topo` flag for the owner's blind pairs (T6). Readings: `experiments/topological-shader/PREREGISTRATION-D10.md`.
+- `route-heat.js`: `routeHeat(grid, ticks)`, the D5 deposit of one walked leg (sigma 6 m, cut 3.5 sigma, 10 Hz, decay suspended, normalised to 1), `ticksAlong(polyline, speed)`, and the shared constants `SIGMA`, `CUT_SIGMAS`, `TICK_S`. `scripts/bake-route-heat.mjs` uses it to write `public/topo/route-plates.json`; `experiments/topological-shader/heat.mjs` imports the constants.
 - Modules with no `three` import and no DOM, so the experiment and the browser can load the same code.
 
 ## Does not belong here
