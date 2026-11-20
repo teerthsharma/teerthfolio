@@ -48,3 +48,20 @@ Each item is a place where the pre-registered text does not fix a choice. The re
 ## What the measurement does not cover
 
 Only the 8 L8 legs and the tour and roam beds of the design are measured. No visitor route exists, so the roams are synthetic walks from `makePath`. Alternative readings of items 1, 2 and 10 were not run.
+
+## T2: topology correctness
+
+The question is whether the piecewise-linear critical-cell classification, the H0 bars and the dual-sweep hole bars of a field on the 1,615-cell hex disc (coned with one virtual vertex) agree exactly with the Banchoff sum, the maxima count and `holeLabels` (`experiments/topo-field/cc.mjs`). Bars, readings and the order of events are in `PREREGISTRATION-T2.md`, committed before the first run. The result is in `out/t2.md` and `out/t2.json`.
+
+| file | purpose |
+|---|---|
+| `PREREGISTRATION-T2.md` | T2 bars verbatim and the readings taken before any run |
+| `critical.mjs` | link cycles, critical classification and Banchoff sum, H0 bars, dual-sweep hole bars, the `holeLabels` bridge |
+| `run-t2.mjs` | the gate, 1,000 random fields, 50 D5 snapshots, K4, and `out/t2.json` and `out/t2.md` |
+| `test/critical.test.mjs` | known answers (single bump, two bumps, ring, saddle, monkey saddle, constant field, K4) and the bar strings |
+
+Run with `node experiments/topological-shader/run-t2.mjs`.
+
+The first run of `run-t2.mjs` (commit `ec67088`) was VOID, not a verdict: its monkey-saddle gate compared the multiplicity summed over the whole field (the lattice adds saddles near the border) with 2, where the unit test and the pre-registration reading 12 mean the origin cell. The gate line in the runner was corrected and the experiment re-run; the field counts of the two runs are identical (0 mismatches in both). No bar, threshold or field family changed.
+
+Limits: on the 50 D5 snapshots only 10 of 1,000 thresholds have a hole (at most 1), so the hole bar is exercised mostly by the 1,000 random fields (11,636 of 20,000 thresholds with at least one hole, up to 158 holes). The D5 snapshots carry exact-zero plateaus and run on the tie order of reading 2. The two hole counts are computed by independent code paths but on the same grid, so they test the dual sweep against the complement labelling, not the grid against the design.

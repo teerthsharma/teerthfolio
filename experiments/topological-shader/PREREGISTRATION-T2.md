@@ -1,0 +1,32 @@
+# T2 pre-registration addendum: topology correctness
+
+Written and committed before the first run of `run-t2.mjs`; never edited after that run. A reading that a number suggests after the run is a new addendum for a new run, not an edit here. The T1 file `PREREGISTRATION.md` is unchanged.
+
+## 1. The bars, verbatim
+
+From `PREREGISTRATION.md` section 6.5:
+
+T2 topology correctness (gate for T3 and T4): `critical.mjs`. 1,000 random fields plus 50 D5 snapshots. Bars, all exact: the Banchoff sum = 2 on every field; finite H0 bars of f = maxima - 1; at 20 thresholds per field the dual-sweep hole count equals `holeLabels` (`cc.mjs:98`); K4 passes. KILL: any mismatch; holes are then dropped from the harness.
+
+From the design report (`docs/topological-shader/README.md` on `release/seo-plus-load`), test table row T2:
+
+| T2 topology correctness | 1,000 random fields plus 50 D5 snapshots | all exact: Banchoff sum = 2 on every field; finite H0 bars of f = maxima - 1; at 20 thresholds per field the dual-sweep hole count equals `holeLabels` (`cc.mjs:98`); K4 passes | KILL: any mismatch; holes are then dropped from the harness | `critical.mjs` |
+
+## 2. Readings fixed before the run
+
+The text leaves the following open. Each reading is taken now.
+
+1. Grid. `makeHexGrid(84, 4)`: 1,615 cells, 144 border cells (degree below 6). The coned sphere adds one virtual vertex w joined to every border cell. w lies below every cell (f'(w) = minus infinity, which is -f'(w) = plus infinity in the design's dual sweep).
+2. Tie order. A cell j is above cell i when f(j) > f(i), or f(j) = f(i) and j < i (the order of `topology.js:45`). Every comparison in this test uses that one order; the dual sweep uses its exact reverse.
+3. Cyclic links. The link of an interior cell is its 6 neighbours in angular order about the cell. The link of a border cell is its in-disc neighbours in angular order with w inserted in the one angular gap. The run is void if a border cell has more than one gap larger than 1.1 rad.
+4. Critical classification and the Banchoff sum. For each cell, U(v) is the set of link vertices above v and a(v) the number of maximal cyclic runs of U(v). U empty: maximum, index +1. U the whole link: minimum, index +1. a = 1 with U proper: regular, index 0. a >= 2: saddle, index 1 - a. w is a minimum, index +1, and is counted. The Banchoff sum is the sum of the indices over the 1,616 vertices; the bar is that it equals 2.
+5. Finite H0 bars. The sweep is a union-find over the order of reading 2, elder rule by position in that order, on the in-disc graph (no cone). Every merge of two components is a finite bar, so a merge of persistence 0 is counted. The bar "finite H0 bars of f = maxima - 1" compares that count with the number of cells whose U is empty, minus 1. The positive-persistence bars of the same sweep must also equal, as a multiset of (birth, death) values, the pairs returned by `h0Superlevel` (`lib/anime/topology.js`) on the same field and graph. A mismatch in either is a mismatch of this bar.
+6. Dual sweep. A union-find over the cells in the reverse order of reading 2 (f ascending, id descending), on the coned graph, with w present before any cell. The elder is the component born earlier in that order, w is oldest, and a merge of two components records the bar (birth cell of the younger, merging cell). A hole bar covers threshold t when f(birth cell) <= t < f(merging cell). The dual-sweep hole count at t is the number of bars covering t.
+7. The comparison set. At threshold t the set is A_t = {f > t}. The count to match is the number of bounded components of the complement of A_t as computed by `holeLabels` (`cc.mjs:98`). That function is closed inside `makeDetector`, which is read and not changed, so it is reached through `makeDetector(GRID, { lo: -t }).step(-f)` and the result is `det.holes`. The detector's live set is {c < lo}, which is {f > t} for c = -f and lo = -t; its touch mask is `g.border`, as at `cc.mjs:83`.
+8. Thresholds. For a field with minimum lo_f and maximum hi_f, the 20 thresholds are t_k = lo_f + k (hi_f - lo_f) / 21 for k = 1 to 20. A field with hi_f = lo_f is not used.
+9. The 1,000 random fields. Field i, i = 0 to 999, is built with `mulberry32(i + 1)` (from `experiments/topo-field/field.mjs`). Even i: independent uniform values on [0, 1) at every cell. Odd i: the sum of K = 3 + (i mod 7) Gaussian bumps with centres uniform on the disc of radius 84 m, sigma uniform on [4, 14] m and signed amplitude uniform on [-1, 1], plus independent uniform noise on [0, 0.02). The two families are reported separately and together.
+10. The 50 D5 snapshots. The live heat field of `heat.mjs` (`liveSamples`, normalised Hn, one per second, decay on) along the 60 s roam of `roamWalk(seed)` for seeds 1 to 5, taking the samples with 0-based index 5, 11, 17, 23, 29, 35, 41, 47, 53 and 59 of each roam: 5 seeds times 10 snapshots. These fields have plateaus of exact zeros; the tie order of reading 2 applies to them, and a snapshot with hi_f = lo_f is replaced by the next sample of the same roam.
+11. K4. The bar "K4 passes" is two checks, both required. (a) `node --test --test-name-pattern=K4 experiments/topo-field/test/known.test.mjs` exits 0 with that test counted as passed. (b) On the K4 field of that test at frame 99 (no island) and at frame 100 (island of radius 6 m opened inside the disc of radius 30 m), with the live set {c < 0.35}: the dual-sweep hole count at t = -0.35 on f = -c is 0 at frame 99 and 1 at frame 100, and `holeLabels` through the detector gives the same 0 and 1.
+12. Gate. The known answers in `test/critical.test.mjs` (a single Gaussian bump: 1 maximum, no saddle, Banchoff sum 2, no hole at any threshold; two bumps: 2 maxima, 1 saddle, 1 finite H0 bar equal to the lower peak minus the saddle value; a ring: one hole at half height, from both the dual sweep and `holeLabels`; a saddle f = x^2 - z^2: 2 maxima, 1 saddle of multiplicity 1; a monkey saddle: multiplicity 2) are asserted again at the top of `run-t2.mjs`. The run is void, not killed, if any fails.
+13. Verdict. PASS only if every one of the 1,050 fields satisfies bars 1, 2 and 3, and K4 passes. KILL on any one mismatch, and the output reports the mismatch count per bar and per family. No threshold, tolerance or field family is changed to avoid a KILL. All arithmetic is Float64; the Banchoff sum, the bar counts and the hole counts are integers and compare with strict equality.
+14. Cost. The wall time of the run is reported; it is not a bar.
