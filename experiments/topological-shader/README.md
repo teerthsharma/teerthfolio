@@ -65,3 +65,22 @@ Run with `node experiments/topological-shader/run-t2.mjs`.
 The first run of `run-t2.mjs` (commit `ec67088`) was VOID, not a verdict: its monkey-saddle gate compared the multiplicity summed over the whole field (the lattice adds saddles near the border) with 2, where the unit test and the pre-registration reading 12 mean the origin cell. The gate line in the runner was corrected and the experiment re-run; the field counts of the two runs are identical (0 mismatches in both). No bar, threshold or field family changed.
 
 Limits: on the 50 D5 snapshots only 10 of 1,000 thresholds have a hole (at most 1), so the hole bar is exercised mostly by the 1,000 random fields (11,636 of 20,000 thresholds with at least one hole, up to 158 holes). The D5 snapshots carry exact-zero plateaus and run on the tie order of reading 2. The two hole counts are computed by independent code paths but on the same grid, so they test the dual sweep against the complement labelling, not the grid against the design.
+
+## T3, L1 half: how much of the field does a critical-cell residual cover?
+
+The question is whether the live residual of L1, confined to one ring around the surviving critical cells (persistence >= 0.05) of the live heat field, stays within 10 percent of the 1,615 cells (Q11). Only the L1 half is tested. L5 (re-bake staleness) is not built: T1 killed the route-plate library, so there is no plate to refresh, and no plate from `library.mjs` is an input here. The T1 bed is used only as a simulator of the tour and the 30 roams, with the D5 field of `heat.mjs` sampled at 1 Hz. Bars, readings and the order of events are in `PREREGISTRATION-T3.md`, committed (`6b7881a`) before any code or run. The result is in `out/t3.md` and `out/t3.json`.
+
+| file | purpose |
+|---|---|
+| `PREREGISTRATION-T3.md` | T3 bars verbatim and 14 numbered readings, fixed before any code |
+| `alive.mjs` | surviving critical cells (bar persistence from `h0Bars` and `holeBars`), the one-ring share, the permuted control, the verdict |
+| `run-t3.mjs` | the known-answer gate, the 31 beds, the permuted control, and `out/t3.json` and `out/t3.md` |
+| `test/alive.test.mjs` | known answers (single bump 7/1,615, two bumps 21/1,615, a bump under the filter, ring minimum, constant field, permuted bump), verdict precedence and the bar strings |
+
+Run with `node experiments/topological-shader/run-t3.mjs`.
+
+Result (one run on the commit that adds `out/t3.json`, Node v25.8.1 single thread, 6.1 s, no void first run): PASS. Over the tour and 30 roams (31 beds, 1,861 one-second samples, none skipped) the median share per bed lies between 0.0043 and 0.0477 (median of medians 0.0130). The tour is the largest at 0.0477 and the largest roam is roam 24 at 0.0381. No bed exceeds 0.10 (the PASS bar) and none exceeds 0.25 (the DEAD bar). The permuted control gives a median share of at least 0.614 on every bed, at least 18.1 times the real share, so the 3 times condition holds on all 31 beds. The known-answer gate passed and the count of bar cells that `classify` does not call critical is 0.
+
+Context, not bars. The 95th percentile of the share is at most 0.091 on any bed (the tour). Without the persistence filter the median share is 0.044 to 0.150 across beds; on the tour the filter takes it from 0.1195 to 0.0477. The mean number of surviving critical cells per sample on the tour is 5.0 maxima, 4.2 saddles and 0.2 minima.
+
+Limits: the PASS says the live field's own structure is sparse, not that a residual near critical cells reproduces the live field; the pixels outside the rings are not compared with anything. The field is a sum of Gaussian deposits along one walker's track, so it is smooth and has few critical cells by construction, and the permuted control is white noise on the same values, far above any real field, so the 3 times condition is easy. The tour has the least margin (median 0.0477, p95 0.091 against the 0.10 bar). The walks are synthetic (`makePath`); no visitor route exists. The PASS is a necessary condition for L1 and says nothing about L5.
