@@ -1,0 +1,78 @@
+{
+  "verdict": "PASS",
+  "gate": {
+    "ok": true,
+    "checks": {
+      "singleBump": true,
+      "twoBumps": true,
+      "ring": true,
+      "monkey": true
+    }
+  },
+  "counts": {
+    "fields": 1050,
+    "banchoffMismatch": 0,
+    "h0Mismatch": 0,
+    "holeFieldMismatch": 0,
+    "holeThresholdMismatch": 0,
+    "thresholds": 21000,
+    "thresholdsWithHole": 11646
+  },
+  "families": {
+    "uniform": {
+      "fields": 500,
+      "banchoff": 0,
+      "h0": 0,
+      "holeFields": 0,
+      "holeThresholds": 0,
+      "thresholds": 10000,
+      "thresholdsWithHole": 7362,
+      "maxHoles": 158,
+      "maxima": 119963,
+      "saddles": 213847
+    },
+    "bumps": {
+      "fields": 500,
+      "banchoff": 0,
+      "h0": 0,
+      "holeFields": 0,
+      "holeThresholds": 0,
+      "thresholds": 10000,
+      "thresholdsWithHole": 4274,
+      "maxHoles": 109,
+      "maxima": 74417,
+      "saddles": 130240
+    },
+    "d5": {
+      "fields": 50,
+      "banchoff": 0,
+      "h0": 0,
+      "holeFields": 0,
+      "holeThresholds": 0,
+      "thresholds": 1000,
+      "thresholdsWithHole": 10,
+      "maxHoles": 1,
+      "maxima": 546,
+      "saddles": 719
+    }
+  },
+  "k4": {
+    "pass": true,
+    "testPass": true,
+    "frames": [
+      {
+        "frame": 99,
+        "dual": 0,
+        "holeLabels": 0
+      },
+      {
+        "frame": 100,
+        "dual": 1,
+        "holeLabels": 1
+      }
+    ]
+  },
+  "mismatches": [],
+  "costMs": 7727.4132,
+  "node": "v25.8.1"
+}

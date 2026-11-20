@@ -76,11 +76,12 @@ const gate = (() => {
   const g2 = classify(f2);
   const ring = field((x, z) => Math.exp(-((Math.hypot(x, z) - 40) ** 2) / 72));
   const monkey = classify(field((x, z) => x ** 3 - 3 * x * z * z));
+  const origin = Array.from({ length: n }, (_, i) => i).reduce((b, i) => (Math.hypot(GRID.x[i], GRID.z[i]) < Math.hypot(GRID.x[b], GRID.z[b]) ? i : b), 0);
   const checks = {
     singleBump: g1.maxima === 1 && g1.saddles === 0 && g1.banchoff === 2,
     twoBumps: g2.maxima === 2 && g2.saddleMult === 1 && g2.banchoff === 2 && h0Bars(f2).length === 1,
     ring: holesAt(holeBars(ring), 0.5) === 1 && detectorHoles(ring, 0.5) === 1,
-    monkey: monkey.saddleMult === 2 && monkey.banchoff === 2,
+    monkey: monkey.mult[origin] === 2 && monkey.banchoff === 2,
   };
   return { ok: Object.values(checks).every(Boolean), checks };
 })();
