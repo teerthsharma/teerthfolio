@@ -16,7 +16,9 @@ param(
     [string]$Ref = '',
     [string]$WorkDir = '',
     [string]$OutDir = '',
-    [string]$NodeModulesSource = ''
+    [string]$NodeModulesSource = '',
+    [string]$Query = '',
+    [string]$Phases = 'load,walk,memory'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -178,7 +180,10 @@ function Invoke-Boot([string]$Adapter) {
     for ($n = 1; $n -le $Runs; $n++) {
         foreach ($variant in 'default', 'hudoff') {
             $cli = @('scripts/cut-load.mjs', '--phase', 'boot', '--gpu', $Adapter, '--runs', '1', '--url', $Url)
-            if ($variant -eq 'hudoff') { $cli += @('--query', '?hud=off') }
+            if ($variant -eq 'hudoff') {
+                $hudQuery = if ($Query) { '?hud=off&' + ($Query -replace '^\?', '') } else { '?hud=off' }
+                $cli += @('--query', $hudQuery)
+            } elseif ($Query) { $cli += @('--query', $Query) }
             $cli += @('--out', (Join-Path $RawDir "boot-$Adapter-$variant-r$n.json"))
             $script:Counts['boot'] += 1
             Invoke-Node $cli
@@ -190,7 +195,9 @@ function Invoke-Walk([string]$Adapter) {
     for ($n = 1; $n -le $Runs; $n++) {
         $script:Counts['walk'] += 1
         $base = Join-Path $RawDir "walk-$Adapter-r$n"
-        Invoke-Node @('scripts/perf-frames.mjs', '--phase', 'load,walk,memory', '--secs', '20', '--gpu', $Adapter, '--url', $Url) "$base.json" "$base.err" -Loose
+        $cli = @('scripts/perf-frames.mjs', '--phase', $Phases, '--secs', '20', '--gpu', $Adapter, '--url', $Url)
+        if ($Query) { $cli += @('--query', $Query) }
+        Invoke-Node $cli "$base.json" "$base.err" -Loose
     }
 }
 
