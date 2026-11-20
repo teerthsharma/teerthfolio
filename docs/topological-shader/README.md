@@ -19,16 +19,16 @@ Status words: IMPLEMENTED (code or proof exists), SPECIFIED (written down with b
 | hex grid, 6-adjacency, disc | yes (experiment side) | `hexgrid.mjs`; chi = 1 [S] | IMPLEMENTED | production copy in `lib/world/heat/` |
 | H0 persistence | yes | `topology.js:40` | IMPLEMENTED | none |
 | holes by complement labels | yes | `cc.mjs:98-112`; K4 pass (`results.md:93`) | IMPLEMENTED (experiment) | none |
-| H1 diagram by dual sweep, PL critical types | no | derivation in "What is formal" | SPECIFIED | T2 |
+| H1 diagram by dual sweep, PL critical types | yes | `lib/world/heat/critical.js`, `experiments/topological-shader/out/t2.md` | T2 PASS: 0 mismatches in 1,050 fields, 21,000 thresholds | none |
 | certainty field c as an event economy | yes | E1 0.1396/frame | EXPERIMENT DONE NEGATIVE | used as data only |
 | c cost | yes | E2 p95 0.0977 ms | SUPPORTED (Node) | none |
 | route heat D5 scripts | no (not committed) | RR section 5 | numbers recorded, code lost | rewrite in T1 |
 | occluder field D7 | yes (experiment) | 0.43-0.49 x B1, control 2.59x | EXPERIMENT DONE, UNRESOLVED | out of this machine (K11, K12) |
 | latch D2 | yes (experiment) | `cc.mjs:116-129`; K7 pass | IMPLEMENTED (experiment) | add governor shift |
 | Lean Flip, Components, Heat | yes | re-run: exit 0, no sorry | IMPLEMENTED | items 1-5 of the next Lean round |
-| harness controller D1-D10 | no | "What is formal" | SPECIFIED | after T1, T2 |
+| harness controller D1-D10 | partly | `lib/world/heat/{hexgrid,heatfield,latch,governor,harness}.js`; Lean `Governor`, `Shrink`, `LemmaT`, `MinLipschitz`, `NormalisedStep` | latch, governor, T_h codec IMPLEMENTED and tested; D6 and D10 DROPPED with the route plates | governor step size and recovery rule are placeholders, owner decision |
 | tier governor T3 | yes (anime engine) | `anime-engine.md:79-87`, synthetic traces | IMPLEMENTED, not wired to thresholds | wire after T5 |
-| topological shader program | no | "Architecture" | SPECIFIED | T5 |
+| topological shader program | yes, behind `?topo`, default off | `components/world/topo/`, `lib/anime/post.js` plate pass, `experiments/topological-shader/out/t5.md` | BUILT neutral (a = 0); T5 pixel, programs and window bars PASS; tick and key-press bars FAIL, and the off arm in the same session fails the same two | re-baseline those two bars in a new pre-registration, then T6 |
 | route library L8 | computed | [S], `experiments/topological-shader/out/t1.md` | T1 DEAD: median X_A on roams 0.0185, margin -0.3208 | redesign needs a new pre-registration |
 | route plate bake | no | "Architecture", Figure 3 | BLOCKED by T1 DEAD | not started |
 | composer plate mode | yes | `post.js:346,531`, `framework.js:144` | IMPLEMENTED (cutscenes) | T6 bed |
