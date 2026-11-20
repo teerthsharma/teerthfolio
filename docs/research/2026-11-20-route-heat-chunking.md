@@ -26,7 +26,7 @@ Queue, `components/world/cutscene/prewarm.js` unless noted. All MEASURED by read
 | a dock point, 26 places | min 1, median 4, max 8 | min 18, median 24, max 27 | not run |
 
 - [DERIVED] After ready the 8 s horizon (120 m) admits all 27 docks from spawn; a heat prior can only reorder, e.g. `key = s / (eps + p)` (R3's example, HYPOTHESIS), and reordering matters only while the queue has not drained.
-- [DERIVED] Marking cold regions lazy narrows `inWindow` and moves build and link cost onto the arrival frame, which stage 3 of `docs/ARCHITECTURE.md` section 3.1 was built to avoid.
+- [DERIVED] Marking cold regions lazy narrows `inWindow` and moves build and link cost onto the arrival frame, which stage 3 of `docs/architecture/overview.md` section 3.1 was built to avoid.
 - [DERIVED] Before ready, the critical set is the 5 docks within 1.6 s of spawn; a distance-based first-visitor prior is `deadlineS` already.
 - [DERIVED] Draining 27 world builds plus compile roots needs at least (27 + distinct materials) ticks; docks own 71 meshes (`e0-after/E0.md`), so about 100 ticks, about 10 s, as an upper-bound inference from tick cadence. Drain time is not measured; probes `window.__warm` and `window.__warmLog` (`prewarm.js:19,121`) exist.
 - Program ownership, MEASURED (`verification/topo/e0-after/E0.md`, Q3, RTX 4060 default URL, clean build `dc2677d`, median of 3): 124 programs at ready = static-only 29 (23.4%), live-only 37 (29.8%), dock-only 18 (14.5%), mixed 9 (7.3%), unattributed 31 (25.0%). Intel default: 109 total, dock-only 18 (16.5%). Before the load work (`e0-base`, `43f71f7`): dock-only 29 (21.0% RTX, 20.4% Intel) of 138 and 142. `?hud=off`: 0 dock-only. Ceiling of a per-chunk dock-program manifest: 18 programs.
@@ -193,7 +193,7 @@ Topology events at tau = 25% of max over the walk (events; per minute; walk 2.03
 Deduplicated from the three reports' "could not verify" and "not covered" lists.
 - Real data: no real visitor route exists; every section 5 number is synthetic. Cold-arrival rate, queue drain time, compile and build cost per chunk and arrival-frame cost at HEAD are unmeasured (no browser was used); 150 ms per link and 30 to 90 ms per build come from the brief.
 - A per-chunk program manifest would be new data: the registries (`registerWarm`, `registerLoader`, `registerEngineProvider`, `prewarm.js:20-21,26-36`) are keyed by dock id with no program list; not examined further.
-- `docs/ARCHITECTURE.md` has two sections numbered 3.5 (lines 180 and 225); not edited.
+- `docs/architecture/overview.md` has two sections numbered 3.5 (lines 180 and 225); not edited.
 - Unreal: the `MostToLeastUsed` / `FirstToLatestUsed` enum and `SortOrder` key come from two third-party blogs, not from engine source or an Epic page; the FShaderCache page has no version stamp; the PSO precaching fetch stopped at the validation section.
 - Steam: Valve's own FAQ fetch returned empty; Steam statements rest on issue threads and GamingOnLinux.
 - Unity: "Graphics Settings: Shader loading" (auto-tracking steps) not read.
@@ -234,4 +234,4 @@ Deduplicated from the three reports' "could not verify" and "not covered" lists.
   - https://goldberg.berkeley.edu/pubs/icra2016-final-topo-traj-clustering.pdf (Pokorny, Goldberg, Kragic, topological trajectory clustering, ICRA 2016)
   - https://dev.epicgames.com/documentation/en-us/unreal-engine/world-partition-in-unreal-engine (UE 5.9, World Partition)
   - https://dev.epicgames.com/documentation/en-us/unreal-engine/world-partition---hierarchical-level-of-detail-in-unreal-engine (World Partition HLOD, search snippet)
-- Repo files (R3 and context): `components/world/cutscene/prewarm.js`, `lib/world/cutscene/deadline.js`, `components/world/Controller.jsx`, `lib/clarity.js`, `app/privacy/page.jsx`, `docs/ARCHITECTURE.md`, `verification/topo/e0-after/E0.md`, `experiments/topo-field/README.md` and `out/results.md`, `experiments/occluder-topology/README.md`.
+- Repo files (R3 and context): `components/world/cutscene/prewarm.js`, `lib/world/cutscene/deadline.js`, `components/world/Controller.jsx`, `lib/clarity.js`, `app/privacy/page.jsx`, `docs/architecture/overview.md`, `verification/topo/e0-after/E0.md`, `experiments/topo-field/README.md` and `out/results.md`, `experiments/occluder-topology/README.md`.

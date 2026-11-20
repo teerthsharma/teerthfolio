@@ -14,7 +14,7 @@ A HUD-off still is a colour field \(I:[0,1]^2\to\mathbb{R}^3\). Pixel Shannon en
 - For a continuous random variable the differential entropy is \(h(X)=-\int p(x)\log p(x)\,dx\). It is only defined up to the choice of measure; a pixel field needs a quantizer before \(H\) is a bit count. — [Cover & Thomas, *Elements of Information Theory*, ch. 8–9](https://doi.org/10.1002/047174882X)
 - Issue #12 states the naming test in English: “A watcher who has seen the show does not name the homage from a HUD-off still.” The 3 s Aether still on `460bafd` is mean RGB \(45,18,57\) (“type-on-purple”), not flood/core. — [teerthfolio#12](https://github.com/teerthsharma/teerthfolio/issues/12)
 - Issue #10 makes the same test a ledger row: T78 fail = “Aether 3 s is still type-on-purple… Not flood/core as the subject.” Earn: “3 s: flood or white-violet core occupies ≥ 40% of the frame.” T93 fail = “Aether 8 s is still a koan on dark purple, not a domain you could draw.” — [teerthfolio#10](https://github.com/teerthsharma/teerthfolio/issues/10)
-- The quality-gap note opens with the same observer: “A watcher who has seen the show scratches their eye.” Live `p-aether-lang` “have” is a koan on a dark card; “see” is Unlimited Void. — [research_notes/anime-quality-gap.md](https://github.com/teerthsharma/teerthfolio/blob/main/research_notes/anime-quality-gap.md)
+- The quality-gap note opens with the same observer: “A watcher who has seen the show scratches their eye.” Live `p-aether-lang` “have” is a koan on a dark card; “see” is Unlimited Void. — [docs/research/anime-quality-gap.md](https://github.com/teerthsharma/teerthfolio/blob/main/docs/research/anime-quality-gap.md)
 - The 2D stitch that *would* name Void is already a short program: `jjkStitch` beat 0 = `jjkDomain`, beat 1 = domain+hero, beat 2 = kill; timed by `jjkHold(t, 12.0)` at \(t<3\), \(t<6.4\), else kill. — [lib/anime/tools/jjk/kit.glsl.js](https://github.com/teerthsharma/teerthfolio/blob/main/lib/anime/tools/jjk/kit.glsl.js)
 
 ### Inferences
@@ -64,7 +64,7 @@ Shannon’s \(R(D)\) says: spend bits only to hold distortion under a threshold.
 - Issue #12: “A dock that ships 20 named slots that all draw the same wash is 20 ugly cards. Aether’s 20 slots already alias three beats on purpose. That is the pattern.” Control table: `CUTS_A` 160 + `CUTS_D` 160 = 320 named slots across 16 folders (20 each). — [teerthfolio#12](https://github.com/teerthsharma/teerthfolio/issues/12)
 - Issue #12 acceptance: parity on a dock is true only when “One composed stitch (WORLD + CAST + optional FX kill + GRADE). Not 20 disconnected cards,” and “The script’s 3 s still names the homage with HUD ignored.” — [teerthfolio#12](https://github.com/teerthsharma/teerthfolio/issues/12)
 - Issue #12: 5% of site-wide anime means **four** HUD-off stills a watcher can name (planimeter, Aether, Caustic or Triton, Polychrom or Mujo) plus CAST dress. “That is not 8.5 and not 750 wallpaper plates.” — [teerthfolio#12](https://github.com/teerthsharma/teerthfolio/issues/12)
-- The gap note: “Wallpaper = more hex on `voidMaterial` / Stage night. That is how we stayed at 1%.” Pocket budget: \(\le 8\) draws, \(\le 12\)k env tris, \(\ge 1\) naming shader, 0 extra PBR cities. — [research_notes/anime-quality-gap.md](https://github.com/teerthsharma/teerthfolio/blob/main/research_notes/anime-quality-gap.md)
+- The gap note: “Wallpaper = more hex on `voidMaterial` / Stage night. That is how we stayed at 1%.” Pocket budget: \(\le 8\) draws, \(\le 12\)k env tris, \(\ge 1\) naming shader, 0 extra PBR cities. — [docs/research/anime-quality-gap.md](https://github.com/teerthsharma/teerthfolio/blob/main/docs/research/anime-quality-gap.md)
 - `jjkStitch` / `jjkStitchTimed` is the existence proof of a low-rate code: three beats, one kit, held at 12 fps. — [lib/anime/tools/jjk/kit.glsl.js](https://github.com/teerthsharma/teerthfolio/blob/main/lib/anime/tools/jjk/kit.glsl.js)
 
 ### Inferences
@@ -391,13 +391,13 @@ Those percentages are **not** computed mutual informations. In this tree they ar
 
 ### Cited Findings
 
-- Gap note, first line: “**~1% overall. ~10% on school.**” Later: “10% = the tools exist. The still does not.” School: 50 named shaders + `classroom-kit`; live 3 s is cream `195,185,184`. “This is why 10% not 40%.” Faraday is “~5% picture, not 10%.” — [research_notes/anime-quality-gap.md](https://github.com/teerthsharma/teerthfolio/blob/main/research_notes/anime-quality-gap.md)
+- Gap note, first line: “**~1% overall. ~10% on school.**” Later: “10% = the tools exist. The still does not.” School: 50 named shaders + `classroom-kit`; live 3 s is cream `195,185,184`. “This is why 10% not 40%.” Faraday is “~5% picture, not 10%.” — [docs/research/anime-quality-gap.md](https://github.com/teerthsharma/teerthfolio/blob/main/docs/research/anime-quality-gap.md)
 - Issue #10 instrument: **Score \(= 10.0 - 0.1 \times\) (failed ticks).** 100 authored ticks T01–T100. Live on `460bafd`: **4.8 / 10.0 = 10.0 − 0.1 × 52 fails** (48 pass). “There is no ‘feels better +0.3.’” — [teerthfolio#10](https://github.com/teerthsharma/teerthfolio/issues/10); [docs/superpowers/specs/2026-10-05-director-epic-design.md](https://github.com/teerthsharma/teerthfolio/blob/main/docs/superpowers/specs/2026-10-05-director-epic-design.md)
 - #10: “0.1 = one still, one number, or one law.” Highway 8 s black \(0.85\to 0.03\) earned **T66 only**. 24/24 playing is T54–T77 = **2.4 of 10**. — [teerthfolio#10](https://github.com/teerthsharma/teerthfolio/issues/10)
 - #10 targets: 8.5 = \(\le 15\) fails (flip 37 of 52). 9.0 = \(\le 10\) fails. 10.0 = 0 authored fails and every filled moderator row. If the mod fills \(k\) M-rows, Score \(= 10\times(\mathrm{pass})/(100+k)\). — [teerthfolio#10](https://github.com/teerthsharma/teerthfolio/issues/10)
 - Issue #12: picture grade on that SHA is 4.8; “5% of site-wide anime means four HUD-off stills… That is ~4/75 required stills + one costume law.” Site-wide parity = 24/24 docks plus spawn. — [teerthfolio#12](https://github.com/teerthsharma/teerthfolio/issues/12)
 - Picture-naming band T78–T85: 2 pass (T82 Highway chroma, T83 Nazarick title) / 6 fail (Aether flood, Caustic LOW, Polychrom gates, Mujo faces, Epsilon iris, Monodromy tear). Playback T54–T77 is 24/24 and is *not* naming. — [teerthfolio#10](https://github.com/teerthsharma/teerthfolio/issues/10)
-- A search of `research_notes/` and the #12/#10 bodies finds **no** “15% parity” phrase. The gap note’s only percents are ~1% overall, ~10% school, Faraday ~5%, and the 5% four-still target.
+- A search of `docs/research/` and the #12/#10 bodies finds **no** “15% parity” phrase. The gap note’s only percents are ~1% overall, ~10% school, Faraday ~5%, and the 5% four-still target.
 
 ### Inferences
 

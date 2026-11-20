@@ -44,7 +44,7 @@ Palette: a macro or factory takes `edge`, `body`, `tone`, `lit`, `seam`, `near`,
 
 ## Third pass: effects inside the value budget (2026-11-15)
 
-- **Body below 1.0, core above.** `emit` (2.6) lifts only the thin cores; every body, edge and lit-near colour is plain. The photography now enforces this for any layer: a broad bright body is held to `look.photo.value.body` (0.5; 0.42 in a hold) and only thin lines keep their value (docs/PHOTOGRAPHY.md, "Power is thin"). A burst blob of white therefore reads as a coloured mass with a bright ring and cracks, not a white hole.
+- **Body below 1.0, core above.** `emit` (2.6) lifts only the thin cores; every body, edge and lit-near colour is plain. The photography now enforces this for any layer: a broad bright body is held to `look.photo.value.body` (0.5; 0.42 in a hold) and only thin lines keep their value (docs/site/photography.md, "Power is thin"). A burst blob of white therefore reads as a coloured mass with a bright ring and cracks, not a white hole.
 - **Effects light the seal.** `scene.cel` writes `shared.uFxRim` from its first entry's colour (`rim: "#hex"` to choose, `rim: false` to opt out). A dock with no `scene.cel` gets the same from the framework, from each impact and shake beat. The rim's width follows the effect's strength, not the seal's size.
 - **The painted sky is not covered.** `FIELD.dark` (the stepped dark vignette of the `field` kind) is 0.15, was 0.3: the set's painted sky shows through; the photography darkens the set, the field no longer does it twice.
 - Thin forked lightning for a frame: `{ kind: "veins", events: veinField({ count: 34, seed: 4, loop: 1.5, width: [0.0025, 0.012] }), body: "#d8141c", core: "#ffd9cf" }` (the `_key` lab).

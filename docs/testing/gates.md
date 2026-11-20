@@ -157,7 +157,7 @@ These produce pictures, data or pages. They are not pass/fail gates unless the t
 | `scripts/gpu-adapter.mjs` | `BASE_FLAGS` and `adapterFlags()`, which pin one adapter of a hybrid laptop by LUID from `chrome://gpu`. | `scripts/gpu-adapter.mjs` lines 1 to 8 |
 | `scripts/lab-url.mjs` | The lab URL of a cutscene: the per-cutscene page from `lab-routes.mjs` if present, else the shared registry page. | `scripts/lab-url.mjs` lines 1 to 2 |
 | `scripts/lab-routes.mjs` | Writes one dev-only lab page per cutscene and per hero look. Safe to re-run; it rewrites pages under `app/lab`. | `scripts/lab-routes.mjs` lines 1 to 3 |
-| `scripts/shader-catalog.mjs` | Builds `lib/anime/tools/catalog.json`; `--check <file>` compiles the tools a file exports (needs `glslangValidator`); `--docs` writes `docs/SHADERS.md`. | `scripts/shader-catalog.mjs` lines 1 to 5 |
+| `scripts/shader-catalog.mjs` | Builds `lib/anime/tools/catalog.json`; `--check <file>` compiles the tools a file exports (needs `glslangValidator`); `--docs` writes `docs/shaders/README.md`. | `scripts/shader-catalog.mjs` lines 1 to 5 |
 | `scripts/shader-pulls.mjs <dock>` | Lists compiling tools whose `suits` names the dock. | `scripts/shader-pulls.mjs` lines 1 to 2 |
 | `scripts/issues-checklist.mjs` | Writes `verification/ISSUES.md`, the page the owner reads to close open issues. | `scripts/issues-checklist.mjs` line 1 |
 | `scripts/extract-showcase.mjs` | Copies the island's words from `teerthsharma.github.io` verbatim. Needs network access. | `scripts/extract-showcase.mjs` lines 1 to 5 |
@@ -227,10 +227,10 @@ the script headers and the owner's standing deploy rule. Run each step in turn; 
 
 ## 8. Notes for the next reader
 
-- `docs/TESTING.md` already existed at commit `7d949add` with the load gate section and the T1 to T19 table. This
+- `docs/testing/gates.md` already existed at commit `7d949add` with the load gate section and the T1 to T19 table. This
   rewrite keeps that section and its numbers unchanged (section 6).
 - `scripts/cut-load.mjs` line 2 cites `ARCHITECTURE-PLAN` section 4, and the check headers cite `ARCHITECTURE-PLAN`
-  sections 3.1 and WP2. No such file is tracked; `docs/ARCHITECTURE.md` is the only architecture document in `docs/`.
+  sections 3.1 and WP2. No such file is tracked; `docs/architecture/overview.md` is the only architecture document in `docs/`.
 - `.oneshot/` holds more `*.check.mjs` files, for example under `.oneshot/p-nerve/issue-build/`. The directory is
   excluded from git by `.git/info/exclude` line 10, so these are not part of the repository's tests and are not
   counted above.

@@ -48,38 +48,38 @@ Then glslFor(["jjkVoidSpace"]), tool(name) and uniformsFor(...) from lib/anime/t
 
 ## Packs
 
-- [araki](shaders/araki.md): 13 tools, 13 compile
-- [basic](shaders/basic.md): 151 tools, 151 compile
-- [bg](shaders/bg.md): 21 tools, 21 compile
-- [core](shaders/core.md): 17 tools, 17 compile (registered in TOOLS already)
-- [cuts](shaders/cuts.md): 610 tools, 610 compile
-- [deepmath](shaders/deepmath.md): 61 tools, 61 compile
-- [dock](shaders/dock.md): 51 tools, 51 compile
-- [gold](shaders/gold.md): 51 tools, 51 compile
-- [indexneeds](shaders/indexneeds.md): 16 tools, 16 compile
-- [jcstaff](shaders/jcstaff.md): 14 tools, 14 compile
-- [jjk](shaders/jjk.md): 37 tools, 37 compile
-- [jojo](shaders/jojo.md): 151 tools, 151 compile
-- [madhouse](shaders/madhouse.md): 13 tools, 13 compile
-- [mappa](shaders/mappa.md): 14 tools, 14 compile
-- [myth](shaders/myth.md): 51 tools, 51 compile
-- [occlude](shaders/occlude.md): 151 tools, 151 compile
-- [other](shaders/other.md): 51 tools, 51 compile
-- [phys](shaders/phys.md): 61 tools, 61 compile
-- [pierrot](shaders/pierrot.md): 14 tools, 14 compile
-- [prettytv](shaders/prettytv.md): 13 tools, 13 compile
-- [print](shaders/print.md): 31 tools, 31 compile
-- [sakuga](shaders/sakuga.md): 41 tools, 41 compile
-- [school](shaders/school.md): 51 tools, 51 compile
-- [shinkai](shaders/shinkai.md): 14 tools, 14 compile
-- [shonen](shaders/shonen.md): 13 tools, 13 compile
-- [space](shaders/space.md): 151 tools, 151 compile
-- [topo](shaders/topo.md): 151 tools, 151 compile
-- [ufotable](shaders/ufotable.md): 14 tools, 14 compile
+- [araki](araki.md): 13 tools, 13 compile
+- [basic](basic.md): 151 tools, 151 compile
+- [bg](bg.md): 21 tools, 21 compile
+- [core](core.md): 17 tools, 17 compile (registered in TOOLS already)
+- [cuts](cuts.md): 610 tools, 610 compile
+- [deepmath](deepmath.md): 61 tools, 61 compile
+- [dock](dock.md): 51 tools, 51 compile
+- [gold](gold.md): 51 tools, 51 compile
+- [indexneeds](indexneeds.md): 16 tools, 16 compile
+- [jcstaff](jcstaff.md): 14 tools, 14 compile
+- [jjk](jjk.md): 37 tools, 37 compile
+- [jojo](jojo.md): 151 tools, 151 compile
+- [madhouse](madhouse.md): 13 tools, 13 compile
+- [mappa](mappa.md): 14 tools, 14 compile
+- [myth](myth.md): 51 tools, 51 compile
+- [occlude](occlude.md): 151 tools, 151 compile
+- [other](other.md): 51 tools, 51 compile
+- [phys](phys.md): 61 tools, 61 compile
+- [pierrot](pierrot.md): 14 tools, 14 compile
+- [prettytv](prettytv.md): 13 tools, 13 compile
+- [print](print.md): 31 tools, 31 compile
+- [sakuga](sakuga.md): 41 tools, 41 compile
+- [school](school.md): 51 tools, 51 compile
+- [shinkai](shinkai.md): 14 tools, 14 compile
+- [shonen](shonen.md): 13 tools, 13 compile
+- [space](space.md): 151 tools, 151 compile
+- [topo](topo.md): 151 tools, 151 compile
+- [ufotable](ufotable.md): 14 tools, 14 compile
 
 ## Backgrounds: the kit is the front door
 
-Painting a set (a sky, a city, a floor, a far row, a foreground) starts at the background kit, not at this table: `import { bg } from "lib/anime/kit/bg/index.js"` (docs/BACKGROUNDS.md). The kit's painters are also in the table as the **bg** pack (21 tools with demos: the painter's functions, six sky presets, seven silhouette cards). For everything else, the table is filed by background need in [docs/shaders/backgrounds.md](shaders/backgrounds.md) (282 real, compiling tools under sky, water, ground, interior, city, atmosphere, foreground, light), and from code:
+Painting a set (a sky, a city, a floor, a far row, a foreground) starts at the background kit, not at this table: `import { bg } from "lib/anime/kit/bg/index.js"` (docs/BACKGROUNDS.md). The kit's painters are also in the table as the **bg** pack (21 tools with demos: the painter's functions, six sky presets, seven silhouette cards). For everything else, the table is filed by background need in [docs/shaders/backgrounds.md](backgrounds.md) (282 real, compiling tools under sky, water, ground, interior, city, atmosphere, foreground, light), and from code:
 
 ```js
 import { bg } from "../../kit/bg/index.js";

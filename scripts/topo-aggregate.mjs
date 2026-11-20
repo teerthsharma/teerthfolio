@@ -10,7 +10,7 @@ const URL_LABEL = { default: "default", hudoff: "?hud=off" };
 const CLASSES = ["static-only", "live-only", "dock-only", "mixed", "derived", "unattributed"];
 const OWNER_ORDER = ["island-static", "buildings", "movers", "water+sea", "seal", "sky+fx", "post", "docks"];
 const MIN_RUNS = 3;
-const PRIOR_ART = "E0c prior art: 5.40 s / 112 programs at beff5e24 (docs/ARCHITECTURE.md:103-110).";
+const PRIOR_ART = "E0c prior art: 5.40 s / 112 programs at beff5e24 (docs/architecture/overview.md:103-110).";
 const LIMITS = `The audit runs on a tag-patched build, so its program totals are compared with the clean build's \`progs\` (boot table): a difference > 0 on the same adapter and URL is reported under the Q3 block, not hidden. Attribution follows the last program a material linked (\`currentProgram\`), so older variants of one material appear as \`unattributed\`; the anime engine's own context, renderer-internal PMREM and background programs are outside \`gl.info.programs\`. Owner grouping is by component, and several STATIC owners animate (land/Moat, MeltLake, Fountain, Highway, Triton, Rookery and others call \`useFrame\`), so \`moved\` and \`custom\` flags are printed beside the owner verdict and the verdict token uses owner classes only. "Time to first frame" is \`fcp\` (document paint) plus \`canvasMs\` from the audit, not a GPU frame stamp. Frame times come from \`--phase memory --secs 20\` (key cycle W D S A, 2 s each) at 1440x900 DPR 2, one machine, 3 runs, Intel UHD and RTX 4060 Laptop never compared. The tagged build is audit-only (Stage.jsx:245 and LoopAwakening.jsx:509 hide top-level scene children during an arrival).`;
 
 export function median(xs) {

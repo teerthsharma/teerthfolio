@@ -115,7 +115,7 @@ Source: `.oneshot/warp/LOAD-ANALYSIS.md` section 2 and `.oneshot/warp/ARCHITECTU
 | Engine chunks after the arrival fires | 20 requests, 519,623 B gzip | same |
 | Arrival frame p95 | 83.2 ms | 33.4 ms |
 
-The gate for these numbers is in `docs/TESTING.md`, section "Load gate" (line 12). Its targets T1 to T19 are listed with every row marked "pending". Sections 3.4 and 3.5 hold the measurements taken after this table.
+The gate for these numbers is in `docs/testing/gates.md`, section "Load gate" (line 12). Its targets T1 to T19 are listed with every row marked "pending". Sections 3.4 and 3.5 hold the measurements taken after this table.
 
 ### 3.4 Measured at 43f71f7 and at dc2677d
 
@@ -298,7 +298,7 @@ Packages are named in `.oneshot/warp/ARCHITECTURE-PLAN.md` section 5. "Done in c
 | WP5 headers, robots, beacon | Done in part. `public/llms.txt` changed by 4 lines in `7d949add` | `next.config.mjs` headers (lines 6 to 13), `app/robots.js:4`, `app/layout.jsx:43-46`, `app/lab/layout.jsx:2` |
 | WP6 the awakening as an engine cutscene | Not done. `the-loop` is in `ENGINE_DOCKS` (`live.js:4`) and not in `ENGINE_LIVE` (`live.js:5-8`) or in `DOCKS` (`lib/anime/cutscenes/index.js:4`) | `lib/anime/cutscenes/the-loop/` exists |
 | WP7 generated lab routes as dynamic routes | Not done. `scripts/lab-routes.mjs` still writes one folder per cutscene and per hero look under `app/lab/` (dev only, untracked). The query route `/lab/anime?cut=<id>` is the one tracked path | `scripts/lab-routes.mjs`, `app/lab/anime/page.jsx`, `lib/anime/cutscenes/index.js:3` |
-| WP8 registries, check repair, docs | Partly. The doc gate table is in `docs/TESTING.md` | `docs/TESTING.md:12` onward |
+| WP8 registries, check repair, docs | Partly. The doc gate table is in `docs/testing/gates.md` | `docs/testing/gates.md:12` onward |
 | Bake packages B1 to B8 | Not started in `lib/` | section 5 |
 
 ## 7. Notes for a later reader
@@ -307,4 +307,4 @@ Packages are named in `.oneshot/warp/ARCHITECTURE-PLAN.md` section 5. "Done in c
 - The lab counts differ by source. The build at `beff5e24` emitted 38 hero routes and 70 lab routes (`LOAD-ANALYSIS.md` section 2; `ARCHITECTURE-PLAN.md` T19). The tracked tree at HEAD has no generated hero or cut folders; `scripts/lab-routes.mjs` writes them on demand (section 6, WP7).
 - This file replaces the 68-line version committed earlier in `7d949add`. Its "Cutscene loading" content is now sections 3.1 and 3.2. Its line that said `moves/index.js` exports `MOVE_LOADERS` described WP3; at HEAD WP3 is in code (section 6), and the table is `LOAD` at `moves/index.js:6`, not exported.
 - Uncommitted items in this worktree when this file was written: `scripts/bake-plates.mjs`, `scripts/jolly.mjs`, `public/plates/`, `undefined/` and the modified `scripts/cut-cap.mjs`. The commit for this file does not include them. The `undefined/` folder at the worktree root looks like a path built from an unset value; no code read here refers to it.
-- For checks, see [TESTING.md](TESTING.md). The import graph in section 2 came from a one-off node script over `lib/` and `components/`; it is not committed.
+- For checks, see [TESTING.md](../testing/gates.md). The import graph in section 2 came from a one-off node script over `lib/` and `components/`; it is not committed.
