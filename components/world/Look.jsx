@@ -199,13 +199,14 @@ function Post({ rung }) {
   const frame = useFrameLook();
   const dpr = useThree((s) => s.viewport.dpr);
   const ready = useUi((s) => s.ready);
+  const tierFrom = useUi((s) => s.tierFrom);
   useLayoutEffect(() => {
     composer.current?.setSize();
     window.__world = { ...(window.__world || {}), composer: composer.current };
   }, [dpr, rung.msaa]);
   return (
     <EffectComposer ref={composer} multisampling={rung.msaa}>
-      {rung.ao && ready ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
+      {rung.ao && (ready || tierFrom === "guess") ? <N8AO ref={opaqueOnly} halfRes aoRadius={0.9} distanceFalloff={0.5} intensity={2.5} aoSamples={12} denoiseSamples={6} color={LIGHT.ao} /> : null}
       <primitive object={frame} dispose={null} />
       {rung.bloom ? <Glow /> : <FilmOnly />}
       {rung.tilt ? <TiltShift offset={0} rotation={0} focusArea={0.45} feather={0.3} resolutionScale={0.5} /> : null}
