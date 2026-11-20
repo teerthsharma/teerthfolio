@@ -50,6 +50,8 @@ export const SAFE = { margin: 0.04, minH: 0.16, maxH: 0.55 };
 // the composer's floors: f is the pup's share of the frame height
 export const FLOOR = { wide: 0, arc: 0.12, hero: 0.28, aim: 0.32, max: 0.5, home: 0.12 };
 const FG_MAX = 0.15; // share of the frame a foreground mesh in front of the pup may cover
+const FOLLOW_GRID_RAYS = 2; // island follow: foreground grid rays a frame (the cutscene casts 6; the 24 cells sweep in 12 frames)
+const FOLLOW_PROBE_EVERY = 2; // island follow: the occlusion probe runs every 2nd frame (each of its 5 probe points refreshed every 10)
 const EYE_RISE = 2.1; // m over the pup's ground on the island: its eye (0.6 m) + 1.5 m
 // the foreground grid: NDC points sampled for meshes nearer than the pup (6 x 4)
 const GRID = Array.from({ length: 24 }, (_, i) => [-0.85 + (i % 6) * 0.34, -0.85 + Math.floor(i / 6) * (1.7 / 3)]);
@@ -409,7 +411,7 @@ export default function FrameGuard() {
       s.fgShare = 0;
     }
     // occlusion of the authored (or held) shot: one probe a frame, each with its own hold clock
-    if (guarding && have && !cover) {
+    if (guarding && have && !cover && (!follow || s.frame % FOLLOW_PROBE_EVERY === 0)) {
       const k = s.frame % 5;
       const h = blocker(scene, camera.position, probe(k, camera, P), root);
       s.occ[k] = h ? s.occ[k] || now : 0;
@@ -418,10 +420,11 @@ export default function FrameGuard() {
     const held = (i) => (s.occ[i] ? now - s.occ[i] : 0);
     const many = s.occ.filter(Boolean).length >= 3;
     let blockedFor = many ? Math.max(...s.occ.map((_, i) => held(i))) : Math.max(held(0), held(1));
-    // the foreground: six grid rays a frame; a mesh nearer than the pup over FG_MAX of the frame is a block too
+    // the foreground: six grid rays a frame (two on the island follow); a mesh nearer than the pup over FG_MAX of the frame is a block too
     if (guarding && have && raw.ok && !cover) {
-      for (let j = 0; j < 6; j++) {
-        const i = (s.frame * 6 + j) % GRID.length;
+      const rays = follow ? FOLLOW_GRID_RAYS : 6;
+      for (let j = 0; j < rays; j++) {
+        const i = (s.frame * rays + j) % GRID.length;
         s.fg[i] = front(scene, camera, GRID[i][0], GRID[i][1], raw.depth, box.min.y, root) ? 1 : 0;
       }
       const share = s.fg.reduce((a, b) => a + b, 0) / GRID.length;
