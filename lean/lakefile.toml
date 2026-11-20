@@ -1,0 +1,6 @@
+name = "topological-rendering"
+defaultTargets = ["TopologicalRendering"]
+
+[[lean_lib]]
+name = "TopologicalRendering"
+globs = ["TopologicalRendering.+"]
