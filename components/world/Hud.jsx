@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import showcase from "../../data/showcase.json" with { type: "json" };
 import { PLACE_BY_ID, PLACES, PROFILE, UPSTREAM_LEAD, districtAt, dockPoint } from "../../lib/world/places";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
-import { replayArrival } from "./Controller";
+import { replayArrival } from "./replay";
 import { cutsceneMode } from "../../lib/world/cutscene/timeline";
 import { cardFor } from "../../lib/world/cutscene/cards";
 import { engineActive } from "../../lib/anime/live.js";
