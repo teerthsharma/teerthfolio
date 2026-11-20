@@ -3,10 +3,12 @@
 // from chrome://gpu. Windows' per-app GPU preference and
 // --force_low_power_gpu both lose to it; no system setting is touched.
 //   const flags = await adapterFlags(chromium, chromePath, "intel" | "nvidia" | "amd")
-export const BASE_FLAGS = ["--enable-gpu", "--ignore-gpu-blocklist", "--use-angle=d3d11"];
+// Linux (the GPU host): one NVIDIA adapter, so no LUID pin; ANGLE over Vulkan instead of D3D11
+export const BASE_FLAGS = process.platform === "win32" ? ["--enable-gpu", "--ignore-gpu-blocklist", "--use-angle=d3d11"] : ["--enable-gpu", "--ignore-gpu-blocklist", "--use-angle=vulkan"];
 
 export async function adapterFlags(chromium, executablePath, vendor) {
   if (!vendor) return [];
+  if (process.platform !== "win32") return ["--use-gl=angle"]; // single adapter on Linux: nothing to pin
   const probe = await chromium.launch({ executablePath, headless: true, args: BASE_FLAGS });
   try {
     const page = await probe.newPage();

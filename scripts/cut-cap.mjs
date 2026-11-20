@@ -11,7 +11,7 @@ import { BASE_FLAGS, adapterFlags } from "./gpu-adapter.mjs";
 import { withGpuLock } from "./cut-lock.mjs";
 import { cutUrl } from "./cut-serve.mjs";
 
-export const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+export const CHROME = process.env.CUT_CHROME ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 
 export async function launchChrome() {
   // strict: the NVIDIA adapter (GPU1) is pinned or the capture stops; never a silent fall back to the Intel iGPU
