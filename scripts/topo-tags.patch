@@ -1,0 +1,54 @@
+diff --git a/components/world/Districts.jsx b/components/world/Districts.jsx
+index fc5a6db..d0b48af 100644
+--- a/components/world/Districts.jsx
++++ b/components/world/Districts.jsx
+@@ -70,7 +70,7 @@ export default function Districts() {
+       <SeaStacks />
+       <Atoll />
+       <LabAnomalies />
+-      <SealColony />
++      <group name="own:movers"><SealColony /></group>
+     </>
+   );
+ }
+diff --git a/components/world/Scene.jsx b/components/world/Scene.jsx
+index 53c2011..de37dd3 100644
+--- a/components/world/Scene.jsx
++++ b/components/world/Scene.jsx
+@@ -220,24 +220,20 @@ export default function Scene() {
+       }}
+     >
+       <Suspense fallback={null}>
+-        <Atmosphere />
+-        <Island />
+-        <Sea />
++        <group name="own:sky+fx"><Atmosphere /></group>
++        <group name="own:island-static"><Island /></group>
++        <group name="own:water+sea"><Sea /></group>
+         <Harbour />
+-        <Districts />
+-        <Buildings />
+-        <SpawnStatue />
+-        <Props />
+-        <Toys />
++        <group name="own:island-static"><Districts /></group>
++        <group name="own:buildings"><Buildings /><SpawnStatue /></group>
++        <group name="own:movers"><Props /><Toys /></group>
+         <Seal />
+-        <LoopAwakening />
+-        <LoopBanner />
+-        <LoopCounter />
+-        <Cutscene />
+-        <Trail />
+-        <Effects />
+-        <Blast />
+-        <Penguins />
++        <group name="own:sky+fx"><LoopAwakening /><LoopBanner /><LoopCounter /></group>
++        <group name="own:docks"><Cutscene /></group>
++        <group name="own:sky+fx"><Trail /></group>
++        <group name="own:sky+fx"><Effects /></group>
++        <group name="own:sky+fx"><Blast /></group>
++        <group name="own:movers"><Penguins /></group>
+         <FirstFrame />
+       </Suspense>
+       <CameraRig />
