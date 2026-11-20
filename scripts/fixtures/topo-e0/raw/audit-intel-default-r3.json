@@ -1,0 +1,40 @@
+{
+ "schema": "topo-audit/1",
+ "synthetic": true,
+ "programsNote": "synthetic: programs lists only the unattributed entries",
+ "commit": "43f71f7",
+ "build": "fixture-tagged",
+ "url": "http://localhost:3231",
+ "query": "",
+ "gpuFlag": "intel",
+ "adapter": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A788) Direct3D11)",
+ "run": 3,
+ "viewport": "1440x900@2",
+ "marks": { "canvasMs": 920, "readyMs": 5200 },
+ "total": { "atReady": 114, "afterSettle": 114 },
+ "tagGroups": 15,
+ "noProgram": 0,
+ "owners": {
+  "island-static": { "exclusive": 30, "shared": 10, "meshes": 88 },
+  "buildings": { "exclusive": 10, "shared": 0, "meshes": 22 },
+  "movers": { "exclusive": 0, "shared": 10, "meshes": 30 },
+  "seal": { "exclusive": 8, "shared": 0, "meshes": 4 },
+  "water+sea": { "exclusive": 8, "shared": 0, "meshes": 14 },
+  "sky+fx": { "exclusive": 6, "shared": 0, "meshes": 12 },
+  "post": { "exclusive": 9, "shared": 0, "meshes": 0 },
+  "docks": { "exclusive": 21, "shared": 0, "meshes": 18 }
+ },
+ "classes": { "static-only": 40, "live-only": 31, "dock-only": 21, "mixed": 10, "derived": 6, "unattributed": 6 },
+ "mixedPairs": { "island-static+movers": 10 },
+ "programs": [
+  { "id": "3a4b5c01", "name": "pmrem", "usedTimes": 1, "owners": [], "class": "unattributed", "moved": false, "custom": false, "meshes": 0, "dockIds": [] },
+  { "id": "3a4b5c02", "name": "pmrem", "usedTimes": 1, "owners": [], "class": "unattributed", "moved": false, "custom": false, "meshes": 0, "dockIds": [] },
+  { "id": "3a4b5c03", "name": "pmrem", "usedTimes": 1, "owners": [], "class": "unattributed", "moved": false, "custom": false, "meshes": 0, "dockIds": [] },
+  { "id": "3a4b5c04", "name": "background", "usedTimes": 1, "owners": [], "class": "unattributed", "moved": false, "custom": false, "meshes": 0, "dockIds": [] },
+  { "id": "3a4b5c05", "name": "background", "usedTimes": 1, "owners": [], "class": "unattributed", "moved": false, "custom": false, "meshes": 0, "dockIds": [] },
+  { "id": "3a4b5c06", "name": "stale-standard", "usedTimes": 1, "owners": [], "class": "unattributed", "moved": false, "custom": false, "meshes": 0, "dockIds": [] }
+ ],
+ "untaggedSamples": [],
+ "dockEntries": [],
+ "post": { "materials": 8 }
+}
