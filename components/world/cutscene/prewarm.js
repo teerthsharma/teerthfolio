@@ -191,9 +191,10 @@ function warmStep(gl, camera, composer) {
     for (const j of q.p.jobs()) {
       const s = deadlineS(seal, j);
       if (q.started.has(j.id) && s > DROP_S) { q.p.drop?.(j.id); q.started.delete(j.id); q.done.delete(j.id); continue; }
-      if (q.done.has(j.id) || !engineActive(j.id, ui.engineFail)) continue;
+      if (q.done.has(j.id) || !engineActive(j.id, ui.engineFail) || live.seen.has(j.id)) continue;
       const due = inWindow(j.id, s, j.x, j.z, ui.ready) || (!ui.ready && q.p.critical?.(j.id) === true);
       if (!due) continue;
+      if ([...q.started].some((id) => id !== j.id && !q.done.has(id))) continue;
       cands.push({ id: j.id, key: travelling(j.x, j.z) ? -1000 : s, entry: null, kind: "engine", run: () => engineStep(q, j.id, { gl, camera, composer }) });
     }
   }
