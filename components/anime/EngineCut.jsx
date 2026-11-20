@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import { engineOwns } from "../../lib/anime/live.js";
 import * as prep from "../../lib/anime/prep.js";
 import { modeForTier } from "../../lib/quality/modes.js";
+import { classify } from "../../lib/world/quality.js";
 import { PLACES } from "../../lib/world/places.js";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import { registerEngineProvider } from "../world/cutscene/prewarm.js";
@@ -25,7 +26,7 @@ const modules = () => (loaded ??= Promise.all([import("../../lib/anime/cutscenes
   .then(([reg, fw, en]) => Object.assign(mods, { reg, CutscenePlayer: fw.CutscenePlayer, AnimeEngine: en.AnimeEngine })));
 
 prep.configure({
-  env: () => ({ memory: navigator.deviceMemory, saveData: navigator.connection?.saveData, off: new URLSearchParams(location.search).get("hot") === "off" }),
+  env: () => ({ memory: navigator.deviceMemory, saveData: navigator.connection?.saveData, off: new URLSearchParams(location.search).get("hot") === "off" || modeForTier(classify(window.__world?.gpu)) === "low" }),
   loadModules: modules,
   loadCut: async (id) => { await modules(); if (fault() === id) throw new Error(`engine-fault ${id}`); return mods.reg.loadCut(id); },
   makeCanvas: () => { const c = document.createElement("canvas"); c.style.cssText = "width:100%;height:100%;display:block"; return c; },

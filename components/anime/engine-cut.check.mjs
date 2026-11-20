@@ -26,6 +26,7 @@ assert.match(src, /engine-fault/, "the fault injection is in the host");
 assert.match(src, /"hang"/);
 assert.match(src, /prep\.configure\(\{/, "the host supplies the prep's loaders and factories");
 assert.match(src, /modeOf: \(engine\) => modeForTier\(engine\.tier\)/, "the mode comes from lib/quality/modes.js");
+assert.match(src, /off: new URLSearchParams\(location\.search\)\.get\("hot"\) === "off" \|\| modeForTier\(classify\(window\.__world\?\.gpu\)\) === "low"/, "a low-mode GPU never spins the resident engine");
 
 assert.match(src, /registerEngineProvider\(\{/, "the engine's jobs are registered with the shared prewarm");
 assert.match(src, /critical: \(\) => true/, "the shared modules load before ready");
