@@ -47,6 +47,7 @@ function createEngine() {
   let ctx = null;
   let noiseBuf = null;
   let unlocked = false;
+  let gestured = false; // set only by unlock(), which runs from a gesture listener
   let wantSound = true;
   let oneShots = 0;
   let lastParamT = -1;
@@ -900,19 +901,23 @@ function createEngine() {
     }
   }
 
-  function unlock() {
-    if (!unlocked) {
-      unlocked = true;
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      ctx = new Ctx();
-      noiseBuf = makeNoiseBuffer(ctx);
-      buildGraph();
-      villains.attach(ctx, master, noiseBuf);
-      if (!wantSound) {
-        master.gain.value = 0.0001;
-        ctx.suspend();
-      }
+  function ensure() {
+    if (unlocked) return;
+    unlocked = true;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    ctx = new Ctx();
+    noiseBuf = makeNoiseBuffer(ctx);
+    buildGraph();
+    villains.attach(ctx, master, noiseBuf);
+    if (!wantSound) {
+      master.gain.value = 0.0001;
+      ctx.suspend();
     }
+  }
+
+  function unlock() {
+    gestured = true;
+    ensure();
     if (wantSound && !document.hidden && ctx.state !== "running") return ctx.resume();
   }
 
@@ -933,7 +938,7 @@ function createEngine() {
     if (!ctx) return;
     if (document.hidden) {
       if (ctx.state === "running") ctx.suspend();
-    } else if (wantSound && ctx.state === "suspended") {
+    } else if (gestured && wantSound && ctx.state === "suspended") {
       ctx.resume();
     }
   }
@@ -942,13 +947,25 @@ function createEngine() {
     return ctx ? ctx.state : "locked";
   }
 
-  return { unlock, dispose, setSoundOn, onVisibility, frame, state, counts, cues: villains.played, tick: playTick };
+  return { ensure, unlock, dispose, setSoundOn, onVisibility, frame, state, counts, cues: villains.played, tick: playTick };
 }
 
 export default function Sound() {
   const engineRef = useRef(null);
   if (!engineRef.current) engineRef.current = createEngine();
   const sound = useUi((s) => s.sound);
+  const ready = useUi((s) => s.ready);
+
+  useEffect(() => {
+    if (!ready) return;
+    const engine = engineRef.current;
+    if (typeof window.requestIdleCallback !== "function") {
+      const timer = setTimeout(engine.ensure, 1500);
+      return () => clearTimeout(timer);
+    }
+    const idle = window.requestIdleCallback(engine.ensure, { timeout: 4000 });
+    return () => window.cancelIdleCallback(idle);
+  }, [ready]);
 
   useEffect(() => {
     const engine = engineRef.current;
