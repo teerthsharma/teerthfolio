@@ -35,7 +35,21 @@ prep.configure({
   onLost: (canvas, fn) => canvas.addEventListener("webglcontextlost", fn),
   makePlayer: (engine, cut) => new mods.CutscenePlayer(engine, cut.scene, cut.build, { seed: 7 }),
   steps: (player) => player.initSteps(),
-  compile: (engine, player) => { const gl = engine.renderer, target = engine.composer?.scene; gl.setRenderTarget(target?.isWebGLRenderTarget ? target : null); const compiled = gl.compileAsync(player.root, player.camera); gl.setRenderTarget(null); return compiled; },
+  compile: async (engine, player) => {
+    const gl = engine.renderer, target = engine.composer?.scene, rt = target?.isWebGLRenderTarget ? target : null;
+    const meshes = [], seen = new Set(); // one mesh per distinct material, the walk prewarm.js uses
+    player.root.traverse((n) => {
+      if (!n.material) return;
+      const ms = Array.isArray(n.material) ? n.material : [n.material];
+      if (ms.some((x) => !seen.has(x))) { ms.forEach((x) => seen.add(x)); meshes.push(n); }
+    });
+    for (const mesh of meshes) {
+      gl.setRenderTarget(rt);
+      await gl.compileAsync(mesh, player.camera, player.root);
+      gl.setRenderTarget(null);
+      await new Promise((r) => setTimeout(r, 16));
+    }
+  },
   restyle: (player) => player.restyle(),
   shrink: (engine) => { engine.reset(); engine.resize(1, 1, 1); },
   modeOf: (engine) => modeForTier(engine.tier),
