@@ -118,6 +118,18 @@ function markdown(res, raw, meta, order) {
     ];
     for (const [k, what, lm] of lines) L.push(`| ${gpu} | ${what} | ${f(b[k].value)}${k === "tick" && !raw.runs[adapter].neutral.every((x) => x.tickLogged) ? " (a run with no tick over 30 ms counts 30)" : ""} | ${lm} | ${b[k].void ? "VOID" : b[k].pass ? "PASS" : "FAIL"} |`);
   }
+  L.push("", "## The off arm against the same bars (control for session drift)", "", "| adapter | row | off arm | limit | result |", "|---|---|---|---|---|");
+  for (const adapter of ["intel", "nvidia"]) {
+    const o = raw.runs[adapter].off;
+    const lim = LIMIT[adapter];
+    const rows = [
+      ["programs at ready, max", max(o.map((x) => x.progs)), `<= ${lim.programs}`, max(o.map((x) => x.progs)) <= lim.programs],
+      ["first-visit window, min", min(o.map((x) => x.window)), `>= ${lim.window}`, min(o.map((x) => x.window)) >= lim.window],
+      ["longest prewarm tick, max ms", max(o.map((x) => x.tick)), `<= ${lim.tick}`, max(o.map((x) => x.tick)) <= lim.tick],
+      ["first key-press frame, max ms", max(o.map((x) => x.key)), `<= ${LIMIT.key}`, max(o.map((x) => x.key)) <= LIMIT.key],
+    ];
+    for (const [what, v, lm, ok] of rows) L.push(`| ${adapter} | ${what} | ${f(v)} | ${lm} | ${ok ? "PASS" : "FAIL"} |`);
+  }
   L.push("", "## Every run", "", "| adapter | arm | run | programs at ready | first-visit window, frames | longest prewarm tick, ms | first key-press frame, ms |", "|---|---|---|---|---|---|---|");
   for (const adapter of ["intel", "nvidia"]) {
     for (const arm of ["off", "neutral"]) {

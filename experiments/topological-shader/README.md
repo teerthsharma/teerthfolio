@@ -78,3 +78,5 @@ The question is whether `?topo=neutral` (the heat field, latch, T_h texture and 
 | `test/topo-core.test.mjs` | `components/world/topo/core.js`: the texture, the odd-r lookup against the cells, neutral forced LIVE, the latch and the governor shift |
 
 Run with `pwsh -NoProfile -File scripts/topo-run.ps1 -Ref <sha> -SkipTagged -Arms off,neutral -Pixels -Phases fresh,walk -OutDir <dir>` and then `node experiments/topological-shader/neutral.mjs report --raw <dir>/raw --meta <dir>/raw/meta.json`.
+
+Result (commit `5176b57`, production build, 3 runs per adapter per arm, order alternating by run, off and neutral in one session): KILL. Pixel difference 0 on 18 held frames (positive control 201 to 255), programs at ready 109 (Intel) and 124 (RTX), first-visit window at least 1,141 and 1,075 frames pass. Longest prewarm tick (Intel 44 ms against 37, RTX 48 against 40) and first key-press frame (Intel 48.5 ms, RTX 66.6, against 36.4) fail. The off arm in the same session fails the same two rows (Intel 54 ms and 48.4 ms, RTX 48 ms and 42.4 ms), so the failure is the machine against the old baseline numbers, not the flag; the bar stands as written. See `out/t5.md`.
