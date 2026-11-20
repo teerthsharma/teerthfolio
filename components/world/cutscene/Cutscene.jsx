@@ -39,7 +39,14 @@ export default function Cutscene() {
   const want = cut && !engine ? id : null;
   const Move = want ? getMove(want) : null;
   const [, again] = useReducer((n) => n + 1, 0);
-  useEffect(() => { if (want && !getMove(want)) loadMove(want).then(again, (e) => console.error(`[cutscene ${want}] move failed to load`, e)); }, [want]);
+  useEffect(() => {
+    if (!want) return;
+    if (getMove(want)) { again(); return; } // loaded between this render and the effect: re-render so Move is set
+    loadMove(want).then(again, (e) => {
+      console.error(`[cutscene ${want}] move failed to load`, e);
+      if (live.arrival.id === want) live.arrival.len = 0; // as EngineCut's onEnd: the arrival ends, the seal is not held in a bare-pup arrival
+    });
+  }, [want]);
   return (
     <>
       <group name="cutscene"><PupUpright id={engine ? null : id} />{Move && cut.tl.credit != null ? <ReturnWipe key={id} tl={cut.tl} mode={mode} color={accentFor(cut.card, cut.place)} /> : null}{Move ? <Move key={id} {...cut} mode={mode} /> : null}</group>
