@@ -5,6 +5,7 @@ Pure maths for the route-heat field of the topological shader: the hex grid the 
 ## Belongs here
 
 - `hexgrid.js`: `makeHexGrid(R, h)`, the odd-r hex cells on a disc, their CSR six-neighbour adjacency, border flags, and a nearest-cell lookup.
+- `critical.js`: `makeCritical(grid)`, the piecewise-linear critical-cell classification, H0 bars and dual-sweep hole bars (T2), and `holesAt` and `thresholds`.
 - `heatfield.js`: `makeHeat(grid, { sigma, halfLifeS })`, the per-tick deposit (cut at 3.5 sigma), the half-life decay, and the running-maximum normalisation into `hn`.
 - Modules with no `three` import and no DOM, so the experiment and the browser can load the same code.
 
@@ -18,4 +19,4 @@ Pure maths for the route-heat field of the topological shader: the hex grid the 
 
 The experiment copies are `experiments/topo-field/hexgrid.mjs` and `experiments/topological-shader/heat.mjs`. `experiments/topological-shader/test/heat-lib.test.mjs` requires that this library reproduces their cell graph, cell lookup and heat values exactly (heat is compared after rounding to the float32 storage of `hn`). A change to a constant here fails that test.
 
-Files: `hexgrid.js` (the hex grid), `heatfield.js` (the decayed heat field), `latch.js` (the two-threshold region latch, D7), `governor.js` (the budget governor, D5) and `harness.js` (the 43x49 RGBA8 harness texture codec: `packTh` and `unpackTh`, tests in `experiments/topological-shader/test/harness.test.mjs`).
+Files: `hexgrid.js` (the hex grid), `critical.js` (critical cells and bars; `experiments/topological-shader/test/critical-lib.test.mjs` requires it to return exactly what `experiments/topological-shader/critical.mjs` returns), `heatfield.js` (the decayed heat field), `latch.js` (the two-threshold region latch, D7), `governor.js` (the budget governor, D5) and `harness.js` (the 43x49 RGBA8 harness texture codec: `packTh` and `unpackTh`, tests in `experiments/topological-shader/test/harness.test.mjs`).

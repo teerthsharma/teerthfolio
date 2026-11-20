@@ -1,0 +1,402 @@
+{
+ "verdict": "KILL",
+ "bars": {
+  "intel": {
+   "pixel": {
+    "value": 0,
+    "bar": "neutral-vs-off pixel difference <= 1/255 per channel on 3 held frames",
+    "pass": true,
+    "void": false
+   },
+   "programs": {
+    "value": 109,
+    "bar": "programs at ready <= 109 (Intel) and <= 124 (RTX)",
+    "pass": true
+   },
+   "window": {
+    "value": 1141,
+    "bar": "first-visit window >= 938 (Intel) and >= 844 (RTX) frames",
+    "pass": true
+   },
+   "tick": {
+    "value": 44,
+    "bar": "longest prewarm tick <= 37 and <= 40 ms",
+    "pass": false
+   },
+   "key": {
+    "value": 48.5,
+    "bar": "first key-press frame <= 36.4 ms",
+    "pass": false
+   }
+  },
+  "nvidia": {
+   "pixel": {
+    "value": 0,
+    "bar": "neutral-vs-off pixel difference <= 1/255 per channel on 3 held frames",
+    "pass": true,
+    "void": false
+   },
+   "programs": {
+    "value": 124,
+    "bar": "programs at ready <= 109 (Intel) and <= 124 (RTX)",
+    "pass": true
+   },
+   "window": {
+    "value": 1075,
+    "bar": "first-visit window >= 938 (Intel) and >= 844 (RTX) frames",
+    "pass": true
+   },
+   "tick": {
+    "value": 48,
+    "bar": "longest prewarm tick <= 37 and <= 40 ms",
+    "pass": false
+   },
+   "key": {
+    "value": 66.6,
+    "bar": "first key-press frame <= 36.4 ms",
+    "pass": false
+   }
+  }
+ },
+ "runs": {
+  "intel": {
+   "off": [
+    {
+     "progs": 109,
+     "window": 1185,
+     "tick": 54,
+     "tickLogged": true,
+     "key": 30.1
+    },
+    {
+     "progs": 109,
+     "window": 1177,
+     "tick": 41,
+     "tickLogged": true,
+     "key": 30.2
+    },
+    {
+     "progs": 109,
+     "window": 1163,
+     "tick": 43,
+     "tickLogged": true,
+     "key": 48.4
+    }
+   ],
+   "neutral": [
+    {
+     "progs": 109,
+     "window": 1164,
+     "tick": 41,
+     "tickLogged": true,
+     "key": 48.5
+    },
+    {
+     "progs": 109,
+     "window": 1169,
+     "tick": 41,
+     "tickLogged": true,
+     "key": 24.2
+    },
+    {
+     "progs": 109,
+     "window": 1141,
+     "tick": 44,
+     "tickLogged": true,
+     "key": 48.5
+    }
+   ],
+   "pixels": [
+    {
+     "adapter": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A788) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+     "run": 1,
+     "diffs": [
+      0,
+      0,
+      0
+     ],
+     "controls": [
+      0,
+      0,
+      0
+     ],
+     "positives": [
+      239,
+      227,
+      255
+     ],
+     "linked": [
+      true,
+      true,
+      true
+     ],
+     "offLinked": [
+      false,
+      false,
+      false
+     ],
+     "t": 2,
+     "worlds": [
+      "jjk",
+      "frieren",
+      "your-name"
+     ]
+    },
+    {
+     "adapter": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A788) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+     "run": 2,
+     "diffs": [
+      0,
+      0,
+      0
+     ],
+     "controls": [
+      0,
+      0,
+      0
+     ],
+     "positives": [
+      239,
+      227,
+      255
+     ],
+     "linked": [
+      true,
+      true,
+      true
+     ],
+     "offLinked": [
+      false,
+      false,
+      false
+     ],
+     "t": 2,
+     "worlds": [
+      "jjk",
+      "frieren",
+      "your-name"
+     ]
+    },
+    {
+     "adapter": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A788) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+     "run": 3,
+     "diffs": [
+      0,
+      0,
+      0
+     ],
+     "controls": [
+      0,
+      0,
+      0
+     ],
+     "positives": [
+      239,
+      227,
+      255
+     ],
+     "linked": [
+      true,
+      true,
+      true
+     ],
+     "offLinked": [
+      false,
+      false,
+      false
+     ],
+     "t": 2,
+     "worlds": [
+      "jjk",
+      "frieren",
+      "your-name"
+     ]
+    }
+   ]
+  },
+  "nvidia": {
+   "off": [
+    {
+     "progs": 121,
+     "window": 1146,
+     "tick": 43,
+     "tickLogged": true,
+     "key": 42.4
+    },
+    {
+     "progs": 124,
+     "window": 1079,
+     "tick": 48,
+     "tickLogged": true,
+     "key": 30.2
+    },
+    {
+     "progs": 124,
+     "window": 1110,
+     "tick": 46,
+     "tickLogged": true,
+     "key": 30.1
+    }
+   ],
+   "neutral": [
+    {
+     "progs": 124,
+     "window": 1098,
+     "tick": 47,
+     "tickLogged": true,
+     "key": 36.4
+    },
+    {
+     "progs": 124,
+     "window": 1138,
+     "tick": 44,
+     "tickLogged": true,
+     "key": 66.6
+    },
+    {
+     "progs": 124,
+     "window": 1075,
+     "tick": 48,
+     "tickLogged": true,
+     "key": 30.2
+    }
+   ],
+   "pixels": [
+    {
+     "adapter": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+     "run": 1,
+     "diffs": [
+      0,
+      0,
+      0
+     ],
+     "controls": [
+      0,
+      0,
+      0
+     ],
+     "positives": [
+      241,
+      201,
+      255
+     ],
+     "linked": [
+      true,
+      true,
+      true
+     ],
+     "offLinked": [
+      false,
+      false,
+      false
+     ],
+     "t": 2,
+     "worlds": [
+      "jjk",
+      "frieren",
+      "your-name"
+     ]
+    },
+    {
+     "adapter": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+     "run": 2,
+     "diffs": [
+      0,
+      0,
+      0
+     ],
+     "controls": [
+      0,
+      0,
+      0
+     ],
+     "positives": [
+      241,
+      201,
+      255
+     ],
+     "linked": [
+      true,
+      true,
+      true
+     ],
+     "offLinked": [
+      false,
+      false,
+      false
+     ],
+     "t": 2,
+     "worlds": [
+      "jjk",
+      "frieren",
+      "your-name"
+     ]
+    },
+    {
+     "adapter": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+     "run": 3,
+     "diffs": [
+      0,
+      0,
+      0
+     ],
+     "controls": [
+      0,
+      0,
+      0
+     ],
+     "positives": [
+      241,
+      201,
+      255
+     ],
+     "linked": [
+      true,
+      true,
+      true
+     ],
+     "offLinked": [
+      false,
+      false,
+      false
+     ],
+     "t": 2,
+     "worlds": [
+      "jjk",
+      "frieren",
+      "your-name"
+     ]
+    }
+   ]
+  }
+ },
+ "adapters": {
+  "intel": [
+   "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A788) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  ],
+  "nvidia": [
+   "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028E0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  ]
+ },
+ "order": [
+  "intel r1 off,neutral",
+  "intel r2 neutral,off",
+  "intel r3 off,neutral",
+  "nvidia r1 off,neutral",
+  "nvidia r2 neutral,off",
+  "nvidia r3 off,neutral"
+ ],
+ "meta": {
+  "date": "2026-11-20T19:47:36.3560836+05:30",
+  "ref": "HEAD",
+  "commit": "5176b57",
+  "buildClean": "wNTMRS9ZrbP714Gclj0o_",
+  "buildTagged": null,
+  "freeRamKbAtStart": 7082476,
+  "node": "v25.8.1",
+  "adapters": [
+   "intel",
+   "nvidia"
+  ]
+ }
+}

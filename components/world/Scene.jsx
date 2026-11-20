@@ -14,7 +14,7 @@
 
 import { warmPending } from "./cutscene/prewarm";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Component, Suspense, useEffect, useRef, useState } from "react";
+import { Component, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { PLACES, dockPoint } from "../../lib/world/places";
 import { getUi, live, setUi } from "../../lib/world/store";
 import { BUILDINGS } from "./buildings";
@@ -44,6 +44,15 @@ import Seal from "./Seal";
 import Sound from "./Sound";
 import StaticMerge from "./StaticMerge";
 import Trail from "./Trail";
+import { topoMode } from "./topo/topoFlag";
+
+const TopoDriver = lazy(() => import("./topo/TopoDriver"));
+// ?topo=neutral|on only: the driver is fetched, and a texture made, when the flag asks for it
+function TopoGate() {
+  const [on, setOn] = useState(false);
+  useEffect(() => setOn(topoMode() !== "off"), []);
+  return on ? <Suspense fallback={null}><TopoDriver /></Suspense> : null;
+}
 
 // One broken building must not take the island down with it.
 class Contain extends Component {
@@ -242,6 +251,7 @@ export default function Scene() {
       </Suspense>
       <CameraRig />
       <Controller />
+      <TopoGate />
       <StaticMerge />
       <Sound />
       <Look key={epoch} />

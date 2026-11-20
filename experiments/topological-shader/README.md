@@ -84,3 +84,18 @@ Result (one run on the commit that adds `out/t3.json`, Node v25.8.1 single threa
 Context, not bars. The 95th percentile of the share is at most 0.091 on any bed (the tour). Without the persistence filter the median share is 0.044 to 0.150 across beds; on the tour the filter takes it from 0.1195 to 0.0477. The mean number of surviving critical cells per sample on the tour is 5.0 maxima, 4.2 saddles and 0.2 minima.
 
 Limits: the PASS says the live field's own structure is sparse, not that a residual near critical cells reproduces the live field; the pixels outside the rings are not compared with anything. The field is a sum of Gaussian deposits along one walker's track, so it is smooth and has few critical cells by construction, and the permuted control is white noise on the same values, far above any real field, so the 3 times condition is easy. The tour has the least margin (median 0.0477, p95 0.091 against the 0.10 bar). The walks are synthetic (`makePath`); no visitor route exists. The PASS is a necessary condition for L1 and says nothing about L5.
+
+## T5: the renderer gate, neutral against off
+
+The question is whether `?topo=neutral` (the heat field, latch, T_h texture and the chunk in the cutscene plate pass, everything on and a = 0) costs the island anything or changes a pixel against the flag off. Bars, readings and the order of events are in `PREREGISTRATION-T5.md`, committed before the first measured run. The result is in `out/t5.md` and `out/t5.json`.
+
+| file | purpose |
+|---|---|
+| `PREREGISTRATION-T5.md` | T5 bars verbatim and the readings taken before any run |
+| `neutral.mjs` | `pixels` (three held plate frames, neutral against off, with an off-against-off control) and `report` (the bars from the raw runs, `out/t5.json` and `out/t5.md`) |
+| `test/neutral.test.mjs` | the bar strings against the pre-registration, and the evaluator at every limit |
+| `test/topo-core.test.mjs` | `components/world/topo/core.js`: the texture, the odd-r lookup against the cells, neutral forced LIVE, the latch and the governor shift |
+
+Run with `pwsh -NoProfile -File scripts/topo-run.ps1 -Ref <sha> -SkipTagged -Arms off,neutral -Pixels -Phases fresh,walk -OutDir <dir>` and then `node experiments/topological-shader/neutral.mjs report --raw <dir>/raw --meta <dir>/raw/meta.json`.
+
+Result (commit `5176b57`, production build, 3 runs per adapter per arm, order alternating by run, off and neutral in one session): KILL. Pixel difference 0 on 18 held frames (positive control 201 to 255), programs at ready 109 (Intel) and 124 (RTX), first-visit window at least 1,141 and 1,075 frames pass. Longest prewarm tick (Intel 44 ms against 37, RTX 48 against 40) and first key-press frame (Intel 48.5 ms, RTX 66.6, against 36.4) fail. The off arm in the same session fails the same two rows (Intel 54 ms and 48.4 ms, RTX 48 ms and 42.4 ms), so the failure is the machine against the old baseline numbers, not the flag; the bar stands as written. See `out/t5.md`.

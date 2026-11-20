@@ -18,7 +18,9 @@ param(
     [string]$OutDir = '',
     [string]$NodeModulesSource = '',
     [string]$Query = '',
-    [string]$Phases = 'load,walk,memory'
+    [string]$Phases = 'load,walk,memory',
+    [string[]]$Arms = @(),
+    [switch]$Pixels
 )
 
 $ErrorActionPreference = 'Stop'
@@ -201,6 +203,32 @@ function Invoke-Walk([string]$Adapter) {
     }
 }
 
+# -Arms off,neutral: one build, one server; per adapter and run, every arm's boot and walk, then the held-frame pixel check. The arm order
+# alternates by run (off first on odd runs, last on even runs) and each run's order is appended to raw/order.txt.
+function Invoke-ArmRuns([string]$Adapter) {
+    for ($n = 1; $n -le $Runs; $n++) {
+        $idx = if ($n % 2 -eq 1) { 0..($Arms.Count - 1) } else { ($Arms.Count - 1)..0 }
+        Invoke-Planned "order for $Adapter run ${n}: $(($idx | ForEach-Object { $Arms[$_] }) -join ' then ')" {
+            Add-Content -LiteralPath (Join-Path $RawDir 'order.txt') -Value "$Adapter r$n $(($idx | ForEach-Object { $Arms[$_] }) -join ',')"
+        }
+        foreach ($i in $idx) {
+            $arm = $Arms[$i]
+            $bootQ = if ($arm -eq 'off') { '' } else { "?topo=$arm" }
+            $walkQ = if ($arm -eq 'off') { '?play' } else { "?play&topo=$arm" }
+            $script:Counts['boot'] += 1
+            $cli = @('scripts/cut-load.mjs', '--phase', 'boot', '--gpu', $Adapter, '--runs', '1', '--url', $Url)
+            if ($bootQ) { $cli += @('--query', $bootQ) }
+            Invoke-Node ($cli + @('--out', (Join-Path $RawDir "boot-$Adapter-$arm-r$n.json")))
+            $script:Counts['walk'] += 1
+            $base = Join-Path $RawDir "walk-$Adapter-$arm-r$n"
+            Invoke-Node @('scripts/perf-frames.mjs', '--phase', $Phases, '--secs', '20', '--gpu', $Adapter, '--url', $Url, '--query', $walkQ) "$base.json" "$base.err" -Loose
+        }
+        if ($Pixels) {
+            Invoke-Node @('experiments/topological-shader/neutral.mjs', 'pixels', '--url', $Url, '--gpu', $Adapter, '--run', "$n", '--out', (Join-Path $RawDir "pixels-$Adapter-r$n.json"))
+        }
+    }
+}
+
 function Invoke-Audit {
     foreach ($adapter in $Adapters) {
         for ($n = 1; $n -le $Runs; $n++) {
@@ -227,6 +255,7 @@ function Invoke-Clean {
     Start-Server 'clean'
     try {
         foreach ($adapter in $Adapters) {
+            if ($Arms.Count) { Invoke-ArmRuns $adapter; continue }
             if ($DoBoot) { Invoke-Boot $adapter }
             if ($DoWalk) { Invoke-Walk $adapter }
         }

@@ -10,6 +10,7 @@ import { AnimeEngine } from "../../lib/anime/engine.js";
 import { Composer } from "../../lib/anime/post.js";
 import { WORLDS, worldById } from "../../lib/anime/worlds.js";
 import { styleById } from "../../lib/anime/styles.js";
+import { topoMode } from "../world/topo/topoFlag.js";
 import ToolLab from "./ToolLab.jsx";
 import CutLab from "./CutLab.jsx";
 
@@ -34,6 +35,8 @@ function WorldLab() {
     const single = q.get("demo") === "world" ? worldById(q.get("style")) : null;
     const list = single ? [single] : WORLDS;
     const canvas = ref.current;
+    // ?topo=neutral|on: the plate pass reads T_h as it does under the island (T5 holds a frame of each arm here); the seal rests at the origin
+    if (topoMode() !== "off") import("../world/topo/core.js").then(({ createTopo }) => { const t = createTopo(topoMode()); t.step(0, 0, 0, 8); window.__world = { ...(window.__world || {}), topo: t.plug }; });
     const engine = new AnimeEngine(canvas, { style: list[0].id, tier: q.get("tier") !== null ? Number(q.get("tier")) : undefined });
     // one composer per panel, so each world keeps its own plate
     const panels = list.map((w, i) => {
