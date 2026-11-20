@@ -18,4 +18,4 @@ Pure maths for the route-heat field of the topological shader: the hex grid the 
 
 The experiment copies are `experiments/topo-field/hexgrid.mjs` and `experiments/topological-shader/heat.mjs`. `experiments/topological-shader/test/heat-lib.test.mjs` requires that this library reproduces their cell graph, cell lookup and heat values exactly (heat is compared after rounding to the float32 storage of `hn`). A change to a constant here fails that test.
 
-Files: `hexgrid.js` (the hex grid), `heatfield.js` (the decayed heat field), `latch.js` (the two-threshold region latch, D7) and `governor.js` (the budget governor, D5).
+Files: `hexgrid.js` (the hex grid), `heatfield.js` (the decayed heat field), `latch.js` (the two-threshold region latch, D7), `governor.js` (the budget governor, D5) and `harness.js` (the 43x49 RGBA8 harness texture codec: `packTh` and `unpackTh`, tests in `experiments/topological-shader/test/harness.test.mjs`).
