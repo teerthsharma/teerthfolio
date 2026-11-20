@@ -12,8 +12,8 @@ const K1 = (x, z) => (Math.hypot(x, z) < 20 ? 0 : 1);
 const ZERO = { birth: 0, death: 0, merge: 0, split: 0, holeOpen: 0, holeClose: 0 };
 const KEYS = Object.keys(ZERO);
 
-function run(g, at, frames = 300) {
-  const det = makeDetector(g);
+function run(g, at, frames = 300, opts = {}) {
+  const det = makeDetector(g, opts);
   const c = new Float64Array(g.n);
   const raw = { ...ZERO }, simp = { ...ZERO };
   for (let f = 0; f < frames; f++) {
@@ -180,4 +180,53 @@ test('K8 persistence filter matches h0Superlevel on five seeds', () => {
     const viaPairs = bc.pairs.filter((p) => p.death < -0.35 && p.birth >= cut).length + (bc.essential >= cut ? 1 : 0);
     assert.equal(direct, viaPairs);
   }
+});
+
+test('K9 sticky (post-hoc SIMP-H): a blob wobbling 0.24/0.27 flickers in SIMPLIFIED, SIMP-H has one birth and no events after it', () => {
+  const idx = nearest(G, 60, 0);
+  const wobble = (i, f) => (i === idx ? (f >= 50 && f < 150 ? (f % 2 === 0 ? 0.24 : 0.27) : 1) : K1(G.x[i], G.z[i]));
+  const plain = run(G, wobble, 150);
+  assert.ok(plain.simp.birth + plain.simp.death > 10, `SIMPLIFIED should flicker, got ${JSON.stringify(plain.simp)}`);
+  const sticky = run(G, wobble, 150, { sticky: true });
+  assert.deepEqual(sticky.simp, { ...ZERO, birth: 1 });
+  assert.deepEqual(sticky.raw, { ...ZERO, birth: 1 });
+});
+
+test('K10 sticky (post-hoc SIMP-H): a real split of a significant component is exactly one split', () => {
+  const at = (i, f) => (f >= 100 && Math.abs(G.x[i]) < 2.5 ? 1 : K1(G.x[i], G.z[i]));
+  const { simp } = run(G, at, 300, { sticky: true });
+  assert.deepEqual(simp, { ...ZERO, split: 1 });
+});
+
+test('K11 sticky (post-hoc SIMP-H): a blob born insignificant at 0.30 that never dips to 0.25 gives 0 SIMP-H events', () => {
+  const idx = nearest(G, 60, 0);
+  const blip = (i, f) => (i === idx ? (f >= 50 && f < 150 ? 0.30 : 1) : K1(G.x[i], G.z[i]));
+  const { raw, simp } = run(G, blip, 300, { sticky: true });
+  assert.deepEqual(raw, { ...ZERO, birth: 1, death: 1 });
+  assert.deepEqual(simp, ZERO);
+});
+
+test('K13 warm start (post-hoc SIMP-H): a component live at frame 0 that turns significant later gives one SIMP-H birth and one frame-0 birth, and no RAW event', () => {
+  const idx = nearest(G, 60, 0);
+  const det = makeDetector(G, { sticky: true });
+  const c = new Float64Array(G.n);
+  const raw = { ...ZERO }, simp = { ...ZERO };
+  let frame0 = 0;
+  for (let f = 0; f < 60; f++) {
+    for (let i = 0; i < G.n; i++) c[i] = i === idx ? (f < 20 ? 0.30 : 0.24) : K1(G.x[i], G.z[i]);
+    const ev = det.step(c);
+    for (const k of KEYS) { raw[k] += ev.raw[k]; simp[k] += ev.simp[k]; }
+    frame0 += ev.frame0Births;
+  }
+  assert.deepEqual(raw, ZERO);
+  assert.deepEqual(simp, { ...ZERO, birth: 1 });
+  assert.equal(frame0, 1);
+});
+
+test('K12 sticky (post-hoc SIMP-H): a significant lineage that drifts to 0.40 (above 0.35, still live) stays significant', () => {
+  const idx = nearest(G, 60, 0);
+  const drift = (i, f) => (i === idx ? (f >= 50 && f < 60 ? 0.24 : (f >= 60 && f < 150 ? 0.40 : 1)) : K1(G.x[i], G.z[i]));
+  const { raw, simp } = run(G, drift, 150, { sticky: true });
+  assert.deepEqual(raw, { ...ZERO, birth: 1 });
+  assert.deepEqual(simp, { ...ZERO, birth: 1 });
 });
