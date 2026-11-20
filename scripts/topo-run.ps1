@@ -254,7 +254,6 @@ if ($DryRun) {
     if (-not (Test-Path -LiteralPath $NodeModulesSource)) { Write-Host "WARN node_modules not found at $NodeModulesSource (a real run stops here)" }
 }
 else {
-    if (-not (Test-Path -LiteralPath $NodeModulesSource)) { throw "node_modules not found at $NodeModulesSource" }
     if (Test-Path -LiteralPath $WorkDir) { throw "WorkDir $WorkDir already exists; remove it or pass -WorkDir" }
     $script:FreeRamKbAtStart = [int64](Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory
 }
@@ -269,10 +268,13 @@ try {
     Invoke-Planned "copy $($CopyFiles -join ', ') from $RepoRoot into $WorkDir" {
         foreach ($f in $CopyFiles) { Copy-Item -LiteralPath (Join-Path $RepoRoot $f) -Destination (Join-Path $WorkDir $f) -Force }
     }
-    Invoke-Planned "junction $NodeModules -> $NodeModulesSource" {
-        New-Item -ItemType Junction -Path $NodeModules -Target $NodeModulesSource | Out-Null
+    Invoke-Planned "npm ci in $WorkDir (Turbopack rejects a node_modules junction that points outside the project root)" {
+        Push-Location -LiteralPath $WorkDir
+        npm ci --no-audit --no-fund
+        $code = $LASTEXITCODE
+        Pop-Location
+        if ($code -ne 0) { throw "npm ci failed in $WorkDir" }
     }
-    $script:JunctionMade = $true
     if (-not $DryRun) { Set-Location -LiteralPath $WorkDir }
     Invoke-Planned "git -C $WorkDir apply --check $PatchName (must apply to $Short)" {
         git -C $WorkDir apply --check $PatchName
