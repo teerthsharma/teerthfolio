@@ -208,5 +208,8 @@ export function warmPending() {
     if (!e || e.state === "used" || e.state === "compiled" || live.seen.has(p.id) || !cutsceneMode(p.id)) return false;
     if (engineActive(p.id, ui.engineFail)) return false;
     return deadlineS(seal, p) <= criticalS(p.id);
+  }) || [...LOADERS].some(([id, l]) => {
+    const p = PLACE_BY_ID[id];
+    return p && (l.state === "idle" || l.state === "loading") && !live.seen.has(id) && cutsceneMode(id) && !engineActive(id, ui.engineFail) && deadlineS(seal, p) <= criticalS(id);
   });
 }
