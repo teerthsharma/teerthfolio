@@ -2,12 +2,13 @@
 // cut at 3.5 sigma, peak rho = 1, one deposit per 10 Hz tick of size K = dt = 0.1 (design spec via 2.7), and a
 // half-life of 90 s on the live field. Plates are baked with decay suspended (P9) and normalised to their maximum.
 import { makeHexGrid } from "../topo-field/hexgrid.mjs";
+import { SIGMA, CUT_SIGMAS, TICK_S } from "../../lib/world/heat/route-heat.js";
+
+export { SIGMA, TICK_S };
 
 export const GRID = makeHexGrid(84, 4);
-export const SIGMA = 6;
-export const CUT = 3.5 * SIGMA;
+export const CUT = CUT_SIGMAS * SIGMA;
 export const HALF_LIFE = 90;
-export const TICK_S = 0.1;
 export const DECAY = Math.pow(0.5, TICK_S / HALF_LIFE);
 const K = TICK_S;
 const SIG2 = 2 * SIGMA * SIGMA;

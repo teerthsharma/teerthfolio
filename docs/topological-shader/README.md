@@ -8,7 +8,7 @@ The island's shading can be split into a baked part and a live part, with topolo
 
 ## Current condition (in development)
 
-The experiments, the offline fields (hex grid, H0 persistence, hole labels, the certainty and heat fields), the Lean statements and the load-path engineering are built; the harness controller, the uber shader and the baked plate library are not.
+The experiments, the offline fields (hex grid, H0 persistence, hole labels, the certainty and heat fields), the Lean statements and the load-path engineering are built; the harness controller and the uber shader are not. The route plate bake is built as a pipeline (`public/topo/route-plates.json`); its value is unproven, T1 is DEAD, and the plates are judged by the owner's blind pairs (T6).
 
 State as of 2026-11-20
 
@@ -30,7 +30,7 @@ Status words: IMPLEMENTED (code or proof exists), SPECIFIED (written down with b
 | tier governor T3 | yes (anime engine) | `anime-engine.md:79-87`, synthetic traces | IMPLEMENTED, not wired to thresholds | wire after T5 |
 | topological shader program | yes, behind `?topo`, default off | `components/world/topo/`, `lib/anime/post.js` plate pass, `experiments/topological-shader/out/t5.md` | BUILT neutral (a = 0); T5 pixel, programs and window bars PASS; tick and key-press bars FAIL, and the off arm in the same session fails the same two | re-baseline those two bars in a new pre-registration, then T6 |
 | route library L8 | computed | [S], `experiments/topological-shader/out/t1.md` | T1 DEAD: median X_A on roams 0.0185, margin -0.3208 | redesign needs a new pre-registration |
-| route plate bake | no | "Architecture", Figure 3 | BLOCKED by T1 DEAD | not started |
+| route plate bake | yes, offline, behind `?topo` (default off) | `scripts/bake-route-heat.mjs`, `lib/world/heat/route-heat.js`, `public/topo/route-plates.json`; `npm run bake:topo`, `--check` | BUILT as a pipeline; value unproven, T1 DEAD (the library does not explain roam heat) | judged by the owner's blind pairs (T6) |
 | composer plate mode | yes | `post.js:346,531`, `framework.js:144` | IMPLEMENTED (cutscenes) | T6 bed |
 | baked plate loader | no | `overview.md:285` | SPECIFIED (plan) | outside this report |
 | stash protocol | yes, as data | `protocol.js`; engine note line 8 | IMPLEMENTED as contract, sampled by no player | treat as contract |
@@ -452,4 +452,4 @@ The evidence lives on the branch `exp/topology-field-and-load` at commit 4caf702
 | Lean | `lean/TopologicalRendering/` (`Flip.lean`, `Components.lean`, `Heat.lean`), `lean/README.md` |
 | protocol, topology | `lib/anime/layers/protocol.js`, `lib/anime/topology.js` |
 | shader packs | `docs/shaders/README.md`, `topo.md`, `occlude.md` |
-| planned | `experiments/topological-shader/`, `lib/world/heat/`, `scripts/bake-route-heat.mjs` (none exists yet) |
+| built since | `experiments/topological-shader/`, `lib/world/heat/`, `scripts/bake-route-heat.mjs` |

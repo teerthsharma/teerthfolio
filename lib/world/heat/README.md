@@ -7,6 +7,7 @@ Pure maths for the route-heat field of the topological shader: the hex grid the 
 - `hexgrid.js`: `makeHexGrid(R, h)`, the odd-r hex cells on a disc, their CSR six-neighbour adjacency, border flags, and a nearest-cell lookup.
 - `critical.js`: `makeCritical(grid)`, the piecewise-linear critical-cell classification, H0 bars and dual-sweep hole bars (T2), and `holesAt` and `thresholds`.
 - `heatfield.js`: `makeHeat(grid, { sigma, halfLifeS })`, the per-tick deposit (cut at 3.5 sigma), the half-life decay, and the running-maximum normalisation into `hn`.
+- `route-heat.js`: `routeHeat(grid, ticks)`, the D5 deposit of one walked leg (sigma 6 m, cut 3.5 sigma, 10 Hz, decay suspended, normalised to 1), `ticksAlong(polyline, speed)`, and the shared constants `SIGMA`, `CUT_SIGMAS`, `TICK_S`. `scripts/bake-route-heat.mjs` uses it to write `public/topo/route-plates.json`; `experiments/topological-shader/heat.mjs` imports the constants.
 - Modules with no `three` import and no DOM, so the experiment and the browser can load the same code.
 
 ## Does not belong here
