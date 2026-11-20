@@ -126,6 +126,16 @@ const travelling = (x, z) => Boolean(live.target) && Math.hypot(live.target.x - 
 // before ready only the critical horizon is worked (the curtain waits on it); after ready the horizon; the dock travelled to always
 const inWindow = (id, s, x, z, ready) => travelling(x, z) || (ready ? s <= HORIZON_S : s <= criticalS(id));
 
+// the one test a lazy move chunk passes to start loading (warmStep) or to hold the curtain (warmPending): a cutscene dock the seal has not seen,
+// not owned by the engine, in its window. A loader still to start or in flight is "idle" or "loading".
+function eligible(id, loader) {
+  const dock = PLACE_BY_ID[id];
+  const ui = getUi();
+  if (!dock || live.seen.has(id) || !cutsceneMode(id) || engineActive(id, ui.engineFail)) return false;
+  if (loader.state !== "idle" && loader.state !== "loading") return false;
+  return inWindow(id, deadlineS(live.seal, dock), dock.x, dock.z, ui.ready);
+}
+
 // one world step; false when the world has nothing to do this tick (a compile still in flight)
 function worldStep(e, gl, camera, composer) {
   if (e.state === "idle") {
@@ -165,6 +175,7 @@ function engineStep(q, id, ctx) {
 
 function warmStep(gl, camera, composer) {
   if (!gl || !camera || live.arrival.id) return null;
+  for (const [id, l] of LOADERS) if (l.state === "idle" && eligible(id, l)) startLoad(l); // async and free: they never take the tick a world build needs
   const ui = getUi();
   const seal = live.seal;
   const cands = [];
@@ -175,13 +186,6 @@ function warmStep(gl, camera, composer) {
     if (!e || e.state === "used" || live.seen.has(p.id) || !cutsceneMode(p.id) || engineActive(p.id, ui.engineFail)) continue;
     if ((e.state !== "idle" && e.state !== "built") || !inWindow(p.id, s, p.x, p.z, ui.ready)) continue;
     cands.push({ id: p.id, key: travelling(p.x, p.z) ? -1000 : s, entry: e, kind: "world", run: () => worldStep(e, gl, camera, composer) });
-  }
-  for (const [id, l] of LOADERS) {
-    const dock = PLACE_BY_ID[id];
-    if (!dock || l.state !== "idle" || engineActive(id, ui.engineFail)) continue;
-    const s = deadlineS(seal, dock);
-    if (!inWindow(id, s, dock.x, dock.z, ui.ready)) continue;
-    cands.push({ id, key: travelling(dock.x, dock.z) ? -1000 : s, entry: null, kind: "load", run: () => { startLoad(l); return true; } });
   }
   for (const q of ENGINE) {
     for (const j of q.p.jobs()) {
@@ -203,13 +207,12 @@ export function warmPending() {
   if (performance.now() >= PENDING_MS) return false;
   const ui = getUi();
   const seal = live.seal;
-  return DOCKS.some((p) => {
+  if (DOCKS.some((p) => {
     const e = WARM.get(p.id);
     if (!e || e.state === "used" || e.state === "compiled" || live.seen.has(p.id) || !cutsceneMode(p.id)) return false;
     if (engineActive(p.id, ui.engineFail)) return false;
     return deadlineS(seal, p) <= criticalS(p.id);
-  }) || [...LOADERS].some(([id, l]) => {
-    const p = PLACE_BY_ID[id];
-    return p && (l.state === "idle" || l.state === "loading") && !live.seen.has(id) && cutsceneMode(id) && !engineActive(id, ui.engineFail) && deadlineS(seal, p) <= criticalS(id);
-  });
+  })) return true;
+  for (const [id, l] of LOADERS) if (eligible(id, l)) return true;
+  return false;
 }

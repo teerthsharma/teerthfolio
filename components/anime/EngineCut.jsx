@@ -12,6 +12,7 @@ import { modeForTier } from "../../lib/quality/modes.js";
 import { PLACES } from "../../lib/world/places.js";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import { registerEngineProvider } from "../world/cutscene/prewarm.js";
+import { loadMove } from "../world/cutscene/moves";
 
 const IRIS_S = 0.4;
 const IRIS_MAX = 75; // the radius in % at which the iris covers the frame's corners at any aspect
@@ -71,7 +72,7 @@ export default function EngineCut() {
 }
 
 // the ui's place keys the failure (what Cutscene.jsx reads); the registry, the prep and the engine key on the dock
-export function markEngineFail(place) { setUi({ engineFail: { ...getUi().engineFail, [place]: true } }); }
+export function markEngineFail(place) { setUi({ engineFail: { ...getUi().engineFail, [place]: true } }); loadMove(place).catch(() => {}); }
 
 function EngineRun({ place, dock }) {
   const hostRef = useRef(null), canvasRef = useRef(null);
