@@ -65,3 +65,16 @@ Run with `node experiments/topological-shader/run-t2.mjs`.
 The first run of `run-t2.mjs` (commit `ec67088`) was VOID, not a verdict: its monkey-saddle gate compared the multiplicity summed over the whole field (the lattice adds saddles near the border) with 2, where the unit test and the pre-registration reading 12 mean the origin cell. The gate line in the runner was corrected and the experiment re-run; the field counts of the two runs are identical (0 mismatches in both). No bar, threshold or field family changed.
 
 Limits: on the 50 D5 snapshots only 10 of 1,000 thresholds have a hole (at most 1), so the hole bar is exercised mostly by the 1,000 random fields (11,636 of 20,000 thresholds with at least one hole, up to 158 holes). The D5 snapshots carry exact-zero plateaus and run on the tie order of reading 2. The two hole counts are computed by independent code paths but on the same grid, so they test the dual sweep against the complement labelling, not the grid against the design.
+
+## T5: the renderer gate, neutral against off
+
+The question is whether `?topo=neutral` (the heat field, latch, T_h texture and the chunk in the cutscene plate pass, everything on and a = 0) costs the island anything or changes a pixel against the flag off. Bars, readings and the order of events are in `PREREGISTRATION-T5.md`, committed before the first measured run. The result is in `out/t5.md` and `out/t5.json`.
+
+| file | purpose |
+|---|---|
+| `PREREGISTRATION-T5.md` | T5 bars verbatim and the readings taken before any run |
+| `neutral.mjs` | `pixels` (three held plate frames, neutral against off, with an off-against-off control) and `report` (the bars from the raw runs, `out/t5.json` and `out/t5.md`) |
+| `test/neutral.test.mjs` | the bar strings against the pre-registration, and the evaluator at every limit |
+| `test/topo-core.test.mjs` | `components/world/topo/core.js`: the texture, the odd-r lookup against the cells, neutral forced LIVE, the latch and the governor shift |
+
+Run with `pwsh -NoProfile -File scripts/topo-run.ps1 -Ref <sha> -SkipTagged -Arms off,neutral -Pixels -Phases fresh,walk -OutDir <dir>` and then `node experiments/topological-shader/neutral.mjs report --raw <dir>/raw --meta <dir>/raw/meta.json`.
