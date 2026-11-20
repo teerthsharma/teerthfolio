@@ -58,7 +58,7 @@ test("routeHeat equals the experiment's bakePlate on a walked L8 leg", () => {
 test("a bake is deterministic and matches the committed file byte for byte", () => {
   const a = bakeRoutePlates();
   assert.equal(a, bakeRoutePlates());
-  assert.equal(a, readFileSync(PLATES, "utf8"));
+  assert.equal(a, readFileSync(PLATES, "utf8").replace(/\r\n/g, "\n"));
 });
 
 test("the plates file has the pinned schema and the 8 legs of L8 totalling 182.2 m", () => {

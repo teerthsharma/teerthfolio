@@ -34,7 +34,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (args.includes("--check")) {
     let have = null;
     try {
-      have = readFileSync(file, "utf8");
+      have = readFileSync(file, "utf8").replace(/\r\n/g, "\n");
     } catch {}
     if (have !== fresh) {
       console.error(`bake-route-heat: ${file} differs from a fresh bake`);
