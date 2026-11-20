@@ -1,14 +1,17 @@
 // The topological shader's CPU half (docs/topological-shader/README.md, "One frame"): the seal's route heat, the latch, the governor,
 // the critical cells, and the 43 x 49 harness texture T_h that the chunk in uber.glsl.js reads. Built only by TopoDriver and the lab,
 // never on the default path. Mode "neutral" forces every cell LIVE (I2); "on" lets the latch run. kappa and Lambda are reserved zeros
-// (T1 killed the route plates), so uA stays 0 and the alive multiply is the identity in both.
+// (T1 killed the route plates), so uA stays 0 and the alive multiply is the identity in both. Mode "on" may load the baked route plates
+// (loadPlates): the latch then reads C' = min(c, e) and the plate pick is published as data; with no load call it is the plain latch.
 import { DataTexture, NearestFilter, RGBAFormat, UnsignedByteType, Vector2 } from "three";
 import { makeHexGrid } from "../../../lib/world/heat/hexgrid.js";
 import { makeHeat } from "../../../lib/world/heat/heatfield.js";
 import { makeLatch } from "../../../lib/world/heat/latch.js";
 import { makeGovernor } from "../../../lib/world/heat/governor.js";
 import { makeCritical } from "../../../lib/world/heat/critical.js";
+import { makeRouteWeights } from "../../../lib/world/heat/route-weights.js";
 import { packTh, TH_COLS, TH_ROWS } from "../../../lib/world/heat/harness.js";
+import { loadRoutePlates } from "./plates.js";
 import { topoChunk } from "./uber.glsl.js";
 
 const R = 84;
@@ -58,12 +61,15 @@ export function createTopo(mode) {
   let acc = 0;
   let lastU = 0;
   let lastCrit = -Infinity;
+  let wantPlates = false; // loadPlates was asked: LIVE until the plates are in, and for good if they fail
+  let rw = null;
+  let samples = 0;
   const topo = {
     grid,
     tex,
     th,
     uniforms,
-    plug: { chunk: topoChunk, uniforms },
+    plug: { chunk: topoChunk, uniforms, pick: () => (rw && rw.latched.includes(1) ? rw.pick() : [-1, -1]) }, // [-1, -1] until some plate latches (gate, cold start, load failure)
     C: heat.hn,
     u: 0,
     step(x, z, t, frameMs) {
@@ -76,18 +82,32 @@ export function createTopo(mode) {
       if (tick) {
         heat.tick(x, z, acc);
         acc = 0;
+        if (rw) rw.observe(heat.hn, heat.hn, t, samples++);
       }
       if (!tick && topo.u === lastU) return;
       lastU = topo.u;
-      if (live) latch.step(heat.hn, topo.u);
+      const run = live && (!wantPlates || rw);
+      if (run) latch.step(rw ? rw.C : heat.hn, topo.u);
       if (t - lastCrit >= CRIT_S) {
         const c = crit.classify(heat.hn);
         cType = c.type;
         cMult = c.mult;
         lastCrit = t;
       }
-      packTh(th, live ? latch.type : zero, cType, cMult, heat.hn, null, null, grid);
+      packTh(th, run ? latch.type : zero, cType, cMult, heat.hn, null, null, grid);
       tex.needsUpdate = true;
+    },
+    async loadPlates(loader = loadRoutePlates) {
+      if (!live) return null;
+      wantPlates = true;
+      const plates = await loader();
+      try {
+        rw = plates ? makeRouteWeights(plates, grid) : null;
+      } catch {
+        rw = null;
+      }
+      samples = 0;
+      return rw ? plates : null;
     },
   };
   return topo;

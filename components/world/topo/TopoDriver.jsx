@@ -11,6 +11,7 @@ import { topoMode } from "./topoFlag";
 export default function TopoDriver() {
   const topo = useMemo(() => createTopo(topoMode()), []);
   useEffect(() => {
+    topo.loadPlates(); // "on" only: fetches the baked route plates once; any failure leaves every cell LIVE
     window.__world = { ...(window.__world || {}), topo: topo.plug };
     return () => {
       if (window.__world?.topo === topo.plug) window.__world = { ...window.__world, topo: undefined };
