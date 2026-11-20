@@ -188,12 +188,15 @@ function warmStep(gl, camera, composer) {
     cands.push({ id: p.id, key: travelling(p.x, p.z) ? -1000 : s, entry: e, kind: "world", run: () => worldStep(e, gl, camera, composer) });
   }
   for (const q of ENGINE) {
-    for (const j of q.p.jobs()) {
+    const jobs = [...q.p.jobs()];
+    const dueNow = new Set(jobs.filter((j) => { const s = deadlineS(seal, j); return s <= DROP_S && !live.seen.has(j.id) && engineActive(j.id, ui.engineFail) && (inWindow(j.id, s, j.x, j.z, ui.ready) || (!ui.ready && q.p.critical?.(j.id) === true)); }).map((j) => j.id));
+    for (const j of jobs) {
       const s = deadlineS(seal, j);
       if (q.started.has(j.id) && s > DROP_S) { q.p.drop?.(j.id); q.started.delete(j.id); q.done.delete(j.id); continue; }
-      if (q.done.has(j.id) || !engineActive(j.id, ui.engineFail)) continue;
+      if (q.done.has(j.id) || !engineActive(j.id, ui.engineFail) || live.seen.has(j.id)) continue;
       const due = inWindow(j.id, s, j.x, j.z, ui.ready) || (!ui.ready && q.p.critical?.(j.id) === true);
       if (!due) continue;
+      if ([...q.started].some((id) => id !== j.id && dueNow.has(id) && !q.done.has(id))) continue;
       cands.push({ id: j.id, key: travelling(j.x, j.z) ? -1000 : s, entry: null, kind: "engine", run: () => engineStep(q, j.id, { gl, camera, composer }) });
     }
   }
