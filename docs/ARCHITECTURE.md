@@ -222,6 +222,29 @@ Finding (measured, 3 runs each, same commit `8000dd5`):
 
 The numbers come from one machine: a hybrid laptop with an Intel UHD and an RTX 4060 Laptop GPU, the same 16 GB box as section 3.3. The boot rows are three cold launches per adapter, which is a small sample. The browser is a headless real Chrome: `scripts/perf-frames.mjs:76` and `scripts/cut-load.mjs:243` launch `chromium` with `executablePath` set to the installed `chrome.exe` and `headless: true`. The walk rows hold every dock seen (`perf-frames.mjs:218` and `:382`), so a first-time visitor's own builds are not in them; only the `fresh` phase covers a first visit, and it is measured only in the A/B of section 3.5. Nothing here covers a second device, a second GPU vendor, a slower network, or a longer session than the 20 s walk.
 
+### 3.5 The first-time-visitor window (`perf-frames --phase fresh`)
+
+The `fresh` phase opens the page with no dock seen, waits 12 s, then runs one key cycle W D S A; its frame series, heartbeat, long tasks and prewarm tick log are in the raw JSON under `verification/topo/<run>/raw/walk-<adapter>-r<n>.json`. Every row below is three cold launches per adapter, real Chrome, the same machine, a production build of the commit named.
+
+| Build | Adapter | Frames in the window | Longest frame, ms | First key press frame, ms | Longest prewarm tick, ms |
+|---|---|---|---|---|---|
+| `8000dd5`, resident engine on | RTX 4060 Laptop | 22, 23, 25 | 4556.8, 4314.5, 4326.6 | not recorded | not recorded |
+| `8000dd5`, `?hot=off` | RTX 4060 Laptop | 776, 805, 819 | 193.9, 169.7, 175.6 | not recorded | not recorded |
+| low-GPU skip, seen-dock skip, staggered engine compile (S3A, S4, S3B) | RTX 4060 Laptop | 833, 828, 826 | 169.7, 163.6, 163.8 | 133.2, 121.0, 133.2 | 92 |
+| plus audio graph at idle and a yielding `pr-xnnpack-10801` build (S5, F5), `cca8ba2` | RTX 4060 Laptop | 999, 845, 844 | 163.7, 163.6, 163.7 | 36.4, 24.4, 30.4 | 40 |
+| `8000dd5`, resident engine on | Intel UHD | 785, 786, 784 | 212.3, 175.8, 199.8 | not recorded | not recorded |
+| S3A, S4, S3B | Intel UHD | 838, 940, 814 | 175.7, 151.5, 169.5 | 145.3, 115.1, 115.0 | 89 |
+| S3A, S4, S3B plus S5, F5 | Intel UHD | 981, 987, 938 | 157.5, 157.5, 151.2 | 36.3, 36.4, 36.4 | 37 |
+
+What the rows show:
+
+- With the resident engine on, the RTX window holds 22 to 25 frames: the main thread stalls for 3.1 to 4.6 s at a time, each stall linking 26 to 73 programs in one task. The heartbeat gap equals the long task, so the main thread is blocked, not the GPU starved. With `?hot=off` the same window holds 776 to 819 frames. On Intel the first 4 s after ready hold a 540 to 576 ms frame with the engine on and 48 to 91 ms with it off.
+- The staggered compile (S3B) removes the stall without turning the engine off: 826 to 833 frames, and prewarm still links programs (peak 16 to 18 per second against 45 to 52).
+- The first key press frame falls from 115 to 145 ms to 24 to 36 ms once the AudioContext is built at idle (S5), and the longest prewarm tick falls from 89 to 92 ms to 37 to 40 ms once the `pr-xnnpack-10801` world builds in nine steps (F5).
+- The longest frame in the window is still 151 to 164 ms in every configuration, including `?hot=off`. Those frames fall in the first 0.2 to 0.9 s after ready and link one or two programs; their cause is not identified. The bar of no frame over 100 ms is therefore not met.
+
+Limits: headless Chrome on one hybrid laptop; the harness shows 24.2 ms frames on both adapters (four vsyncs at 165 Hz), so absolute frame times are not those of a 60 Hz display; the tier is 0 at ready on both adapters in every run, an effect of the audition seeing those 24 ms frames, so it says nothing about what a visitor's tier would be.
+
 ## 4. The render modes
 
 `lib/world/quality.js` holds the five tiers: `TIERS` (line 28), each with a pixel budget `mpx`. `classify(renderer)` (line 54) guesses the tier from the WebGL renderer string and returns 2 when nothing matches. `lib/quality/modes.js` maps each tier to one of four modes (`BY_TIER`, line 3) and lists what each mode enables (`FEATURES`, lines 5 to 10).
