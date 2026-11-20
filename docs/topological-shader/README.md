@@ -29,8 +29,8 @@ Status words: IMPLEMENTED (code or proof exists), SPECIFIED (written down with b
 | harness controller D1-D10 | no | "What is formal" | SPECIFIED | after T1, T2 |
 | tier governor T3 | yes (anime engine) | `anime-engine.md:79-87`, synthetic traces | IMPLEMENTED, not wired to thresholds | wire after T5 |
 | topological shader program | no | "Architecture" | SPECIFIED | T5 |
-| route library L8 | computed | [S] | SPECIFIED | T1 |
-| route plate bake | no | "Architecture", Figure 3 | SPECIFIED | after T1 PASS |
+| route library L8 | computed | [S], `experiments/topological-shader/out/t1.md` | T1 DEAD: median X_A on roams 0.0185, margin -0.3208 | redesign needs a new pre-registration |
+| route plate bake | no | "Architecture", Figure 3 | BLOCKED by T1 DEAD | not started |
 | composer plate mode | yes | `post.js:346,531`, `framework.js:144` | IMPLEMENTED (cutscenes) | T6 bed |
 | baked plate loader | no | `overview.md:285` | SPECIFIED (plan) | outside this report |
 | stash protocol | yes, as data | `protocol.js`; engine note line 8 | IMPLEMENTED as contract, sampled by no player | treat as contract |
@@ -439,7 +439,7 @@ Every number cited comes from one laptop (Intel UHD and RTX 4060 Laptop, never c
 
 ## Where the evidence is
 
-The evidence lives on the branch `exp/topology-field-and-load` at commit 4caf702. Repository paths in this document are relative to that branch. The main branch holds the documents only; the thesis is at `docs/TOPOLOGICAL-RENDERING-THESIS.md` on main.
+The evidence lives on the branch `exp/topology-field-and-load` at commit 4caf702. Repository paths in this document are relative to that branch. The main branch holds the documents only; the thesis is at `docs/thesis/topological-rendering.md` on main.
 
 | key | path on the branch |
 |---|---|

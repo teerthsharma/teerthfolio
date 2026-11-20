@@ -13,7 +13,7 @@ const ignored = (f) => f.startsWith(".oneshot/") || f.startsWith("node_modules/"
 const pathToken = /^(?:app|components|lib|scripts|docs|experiments|lean|public|data)\/[\w./@[\]-]+$/;
 
 // paths a document names as planned or optional, not present in the tree
-const PLANNED = ["public/plates", "lib/anime/bake", "lib/anime/catalog.js"];
+const PLANNED = ["public/plates", "lib/anime/bake", "lib/anime/catalog.js", "lib/world/heat", "scripts/bake-route-heat.mjs"];
 const planned = (t) => PLANNED.some((p) => t === p || t.startsWith(p + "/"));
 
 let bad = 0;
