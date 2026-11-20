@@ -90,7 +90,8 @@ function slashMaterial() {
   });
 }
 
-function buildWorld() {
+// a generator: each yield ends one step, so warmTick (prewarm.js) runs one step per tick and no tick stalls the frame
+function* buildWorld() {
     const shared = sharedUniforms();
     const hullPaper = hullMaterial(shared, PAPER, 1);
     const cp = colonyPup();
@@ -108,25 +109,55 @@ function buildWorld() {
       for (let i = 0; i < N_PUPS; i++) hide(x, i);
     }
     bodiesLine.frustumCulled = armsLine.frustumCulled = false;
+    yield;
     const gi = gin();
     const ur = urahara();
+    yield;
+    const shell = skyShell(shared);
+    yield;
+    const ground = desert();
+    yield;
+    const tsuki = moon(shared);
+    const paperG = paperMaterial(shared, 2);
+    const paperP = paperMaterial(shared, 1);
+    const paper = paperMaterial(shared, 0);
+    const sil = silhouetteMaterial(shared);
+    const hullInk = hullMaterial(shared, INK, 1);
+    yield;
+    const pal = palace();
+    const tr = trees();
+    yield;
+    const th = throne();
+    const thInk = throneInk();
+    const az = aizen();
+    const ic = ichigo();
+    yield;
+    const detail = mat({ color: PAPER, side: DoubleSide });
+    const gap = mat({ color: "#5fb6ff", transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending });
+    const gapG = new PlaneGeometry(5.2, 0.26);
+    const slashM = slashMaterial();
+    const slashG = new RingGeometry(0.85, 1.15, 48, 1, 0.1, 2.7);
+    yield;
+    const letA = lettering("KYOKA SUIGETSU", "#080a0f", -0.06);
+    const letB = lettering("ILLUSION BROKEN", "#080a0f", 0.05);
+    const flash = flashQuad("#d8ecff");
     return {
       shared,
-      shell: skyShell(shared),
-      ground: desert(),
-      tsuki: moon(shared),
-      paperG: paperMaterial(shared, 2),
-      paperP: paperMaterial(shared, 1),
-      paper: paperMaterial(shared, 0),
-      sil: silhouetteMaterial(shared),
-      hullInk: hullMaterial(shared, INK, 1),
+      shell,
+      ground,
+      tsuki,
+      paperG,
+      paperP,
+      paper,
+      sil,
+      hullInk,
       hullPaper,
-      pal: palace(),
-      tr: trees(),
-      th: throne(),
-      thInk: throneInk(),
-      az: aizen(),
-      ic: ichigo(),
+      pal,
+      tr,
+      th,
+      thInk,
+      az,
+      ic,
       gi,
       ur,
       cpBody,
@@ -136,14 +167,14 @@ function buildWorld() {
       bodiesLine,
       arms,
       armsLine,
-      detail: mat({ color: PAPER, side: DoubleSide }),
-      gap: mat({ color: "#5fb6ff", transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending }),
-      gapG: new PlaneGeometry(5.2, 0.26),
-      slashM: slashMaterial(),
-      slashG: new RingGeometry(0.85, 1.15, 48, 1, 0.1, 2.7),
-      letA: lettering("KYOKA SUIGETSU", "#080a0f", -0.06),
-      letB: lettering("ILLUSION BROKEN", "#080a0f", 0.05),
-      flash: flashQuad("#d8ecff"),
+      detail,
+      gap,
+      gapG,
+      slashM,
+      slashG,
+      letA,
+      letB,
+      flash,
     };
 }
 
