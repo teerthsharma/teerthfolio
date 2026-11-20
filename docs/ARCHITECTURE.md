@@ -222,7 +222,7 @@ Finding (measured, 3 runs each, same commit `8000dd5`):
 
 The numbers come from one machine: a hybrid laptop with an Intel UHD and an RTX 4060 Laptop GPU, the same 16 GB box as section 3.3. The boot rows are three cold launches per adapter, which is a small sample. The browser is a headless real Chrome: `scripts/perf-frames.mjs:76` and `scripts/cut-load.mjs:243` launch `chromium` with `executablePath` set to the installed `chrome.exe` and `headless: true`. The walk rows hold every dock seen (`perf-frames.mjs:218` and `:382`), so a first-time visitor's own builds are not in them; only the `fresh` phase covers a first visit, and it is measured only in the A/B of section 3.5. Nothing here covers a second device, a second GPU vendor, a slower network, or a longer session than the 20 s walk.
 
-### 3.5 The first-time-visitor window (`perf-frames --phase fresh`)
+### 3.7 The first-time-visitor window (`perf-frames --phase fresh`)
 
 The `fresh` phase opens the page with no dock seen, waits 12 s, then runs one key cycle W D S A; its frame series, heartbeat, long tasks and prewarm tick log are in the raw JSON under `verification/topo/<run>/raw/walk-<adapter>-r<n>.json`. Every row below is three cold launches per adapter, real Chrome, the same machine, a production build of the commit named.
 
