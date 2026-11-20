@@ -1,56 +1,43 @@
-// Every place's move, one file each, imported by name (a missing one fails
-// the build). A move gets the cutscene's props { card, place, tl, mode } and
-// draws in 3D with the kit (../kit.jsx).
-import lab_aether_lang from "./p-aether-lang.jsx";
-import lab_resolvent from "./p-resolvent.jsx";
-import lab_epsilon_hollow from "./p-epsilon-hollow.jsx";
-import spawn_seal from "./spawn-seal.jsx";
-import lab_caustic from "./p-caustic.jsx";
-import lab_monodromy from "./p-monodromy.jsx";
-import lab_topological_ml_toolkit from "./p-topological-ml-toolkit.jsx";
-import lab_faraday from "./p-faraday.jsx";
-import lab_nerve from "./p-nerve.jsx";
-import lab_separatrix from "./p-separatrix.jsx";
-import lab_planimeter from "./p-planimeter.jsx";
-import lab_tangle from "./p-tangle.jsx";
-import pr_mujoco_3396 from "./pr-mujoco-3396.jsx";
-import pr_mujoco_warp_1541 from "./pr-mujoco-warp-1541.jsx";
-import pr_mujoco_3450 from "./pr-mujoco-3450.jsx";
-import pr_highway_3244 from "./pr-highway-3244.jsx";
-import pr_xnnpack_10801 from "./pr-xnnpack-10801.jsx";
-import pr_tensorflow_124410 from "./pr-tensorflow-124410.jsx";
-import pr_nemo_relay_481 from "./pr-nemo-relay-481.jsx";
-import pr_triton_kernels_22 from "./pr-triton-kernels-22.jsx";
-import pr_openxla_46539 from "./pr-openxla-46539.jsx";
-import pr_topograph_432 from "./pr-topograph-432.jsx";
-import pr_pyrefly_4180 from "./pr-pyrefly-4180.jsx";
-import pr_polychrom_79 from "./pr-polychrom-79.jsx";
-import home from "./home.jsx";
+// Every place's move, one file each, loaded on demand: the prewarm (registerLoader) or Cutscene.jsx on mount (loadMove).
+// A move gets the cutscene's props { card, place, tl, mode } and draws in 3D with the kit (../kit.jsx).
+import { registerLoader } from "../prewarm";
+import { cardFor } from "../../../../lib/world/cutscene/cards";
 
-export const MOVES = {
-  "p-aether-lang": lab_aether_lang,
-  "p-resolvent": lab_resolvent,
-  "p-epsilon-hollow": lab_epsilon_hollow,
-  "spawn-seal": spawn_seal,
-  "p-caustic": lab_caustic,
-  "p-monodromy": lab_monodromy,
-  "p-topological-ml-toolkit": lab_topological_ml_toolkit,
-  "p-faraday": lab_faraday,
-  "p-nerve": lab_nerve,
-  "p-separatrix": lab_separatrix,
-  "p-planimeter": lab_planimeter,
-  "p-tangle": lab_tangle,
-  "pr-mujoco-3396": pr_mujoco_3396,
-  "pr-mujoco-warp-1541": pr_mujoco_warp_1541,
-  "pr-mujoco-3450": pr_mujoco_3450,
-  "pr-highway-3244": pr_highway_3244,
-  "pr-xnnpack-10801": pr_xnnpack_10801,
-  "pr-tensorflow-124410": pr_tensorflow_124410,
-  "pr-nemo-relay-481": pr_nemo_relay_481,
-  "pr-triton-kernels-22": pr_triton_kernels_22,
-  "pr-openxla-46539": pr_openxla_46539,
-  "pr-topograph-432": pr_topograph_432,
-  "pr-pyrefly-4180": pr_pyrefly_4180,
-  "pr-polychrom-79": pr_polychrom_79,
-  "home": home,
+const LOAD = {
+  "p-aether-lang": () => import("./p-aether-lang.jsx"),
+  "p-resolvent": () => import("./p-resolvent.jsx"),
+  "p-epsilon-hollow": () => import("./p-epsilon-hollow.jsx"),
+  "spawn-seal": () => import("./spawn-seal.jsx"),
+  "p-caustic": () => import("./p-caustic.jsx"),
+  "p-monodromy": () => import("./p-monodromy.jsx"),
+  "p-topological-ml-toolkit": () => import("./p-topological-ml-toolkit.jsx"),
+  "p-faraday": () => import("./p-faraday.jsx"),
+  "p-nerve": () => import("./p-nerve.jsx"),
+  "p-separatrix": () => import("./p-separatrix.jsx"),
+  "p-planimeter": () => import("./p-planimeter.jsx"),
+  "p-tangle": () => import("./p-tangle.jsx"),
+  "pr-mujoco-3396": () => import("./pr-mujoco-3396.jsx"),
+  "pr-mujoco-warp-1541": () => import("./pr-mujoco-warp-1541.jsx"),
+  "pr-mujoco-3450": () => import("./pr-mujoco-3450.jsx"),
+  "pr-highway-3244": () => import("./pr-highway-3244.jsx"),
+  "pr-xnnpack-10801": () => import("./pr-xnnpack-10801.jsx"),
+  "pr-tensorflow-124410": () => import("./pr-tensorflow-124410.jsx"),
+  "pr-nemo-relay-481": () => import("./pr-nemo-relay-481.jsx"),
+  "pr-triton-kernels-22": () => import("./pr-triton-kernels-22.jsx"),
+  "pr-openxla-46539": () => import("./pr-openxla-46539.jsx"),
+  "pr-topograph-432": () => import("./pr-topograph-432.jsx"),
+  "pr-pyrefly-4180": () => import("./pr-pyrefly-4180.jsx"),
+  "pr-polychrom-79": () => import("./pr-polychrom-79.jsx"),
+  "home": () => import("./home.jsx"),
 };
+
+const LOADED = {};
+const PENDING = {};
+export const getMove = (id) => LOADED[id] ?? null;
+export function loadMove(id) {
+  if (LOADED[id]) return Promise.resolve(LOADED[id]);
+  if (!LOAD[id]) return Promise.reject(new Error(`no move ${id}`));
+  return (PENDING[id] ??= LOAD[id]().then((m) => (LOADED[id] = m.default), (e) => { delete PENDING[id]; throw e; }));
+}
+// a group dock's card plays another dock's scene (its move is loaded under that id), so it registers no loader
+for (const id of Object.keys(LOAD)) if (!cardFor(id)?.plays) registerLoader(id, () => loadMove(id));

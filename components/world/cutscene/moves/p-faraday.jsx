@@ -8,26 +8,26 @@
 // river and the girders). The burn is also why we go home: it spreads from the shot's line across the whole
 // sheet, which chars, glows at its edge and falls away, and the real island is under it. The flex, then the
 // credit. No post pass: everything is a mesh or a shader. Card: lib/world/cutscene/cards/p-faraday.js.
-// Parts: ./p-faraday/ (blue.js the look, scenery.js, world.js, fields.js, figures.js, pup.js, ui.jsx, cache.js).
+// Parts: ./p-faraday/ (blue.js the look, scenery.js, world.js, fields.js, figures.js, pup.js, ui.jsx).
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { Color, Object3D, Quaternion, Vector3 } from "three";
-import { radiusAt } from "../../../../lib/world/cutscene/timeline";
+import { APPROVED, radiusAt } from "../../../../lib/world/cutscene/timeline";
 import { live } from "../../../../lib/world/store";
 import { Stage, onTwos, signAt, smooth, useCutFrame } from "../kit";
+import { registerWarm, takeWarm } from "../prewarm";
 import { flashQuad, hash, holdFlash, islandList, pupParts } from "./p-caustic/parts";
 import { SKY_R } from "./p-faraday/backdrop";
 import { U } from "./p-faraday/blue";
-import { prewarm, takeWorld } from "./p-faraday/cache";
 import { FIELD_T0, SHOT, STOP, amberAt, stopped, updateBeam, updateBits, updateFields } from "./p-faraday/fields";
 import { jacket } from "./p-faraday/figures";
 import { flipperTip, pupBlue } from "./p-faraday/pup";
 import { DECK_Y, TRACK_X, TRACK_Y, TRACK_Z } from "./p-faraday/scenery";
 import { mountOverlay } from "./p-faraday/ui";
-import { NBULB, NCOLONY, PHI, TOUMA } from "./p-faraday/world";
+import { NBULB, NCOLONY, PHI, TOUMA, buildWorld } from "./p-faraday/world";
 
-prewarm();
+if (APPROVED.has("p-faraday")) registerWarm("p-faraday", buildWorld);
 
 const CORE_Y = 0.9;
 // the clock (s from the arrival); the card's beats put the credit at 17.45 and the collapse at 20.65
@@ -65,7 +65,7 @@ export default function Move(cut) {
   const restored = useRef(false);
   const shown = useRef(0);
   const full = mode === "full";
-  const w = useMemo(() => (full ? takeWorld() : null), [full]);
+  const w = useMemo(() => (full ? takeWarm("p-faraday", buildWorld) : null), [full]);
   const flash = useMemo(() => flashQuad("#ffe0a6"), []);
 
   useEffect(() => {

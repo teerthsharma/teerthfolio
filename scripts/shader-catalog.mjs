@@ -1,7 +1,7 @@
 // node scripts/shader-catalog.mjs                 build lib/anime/tools/catalog.json (+ packs.gen.js) and print the summary
 // node scripts/shader-catalog.mjs --check <file>  compile only the tools a file exports; exit 1 on any failure
 // node scripts/shader-catalog.mjs --merge <dir>   fold description files (.oneshot/shaders/*.json) into catalog.json
-// node scripts/shader-catalog.mjs --docs          write docs/SHADERS.md and docs/shaders/<pack>.md from catalog.json
+// node scripts/shader-catalog.mjs --docs          write docs/shaders/README.md and docs/shaders/<pack>.md from catalog.json
 // Compile check: glslangValidator (PATH or a Vulkan SDK folder) on a GLSL ES 3.00 fragment shader built the way three r178
 // builds a ShaderMaterial. Without the validator every record says "unchecked" and the run says so.
 import { execFile } from "node:child_process";
@@ -327,7 +327,7 @@ function modeDocs() {
   for (const p of packs) {
     const rs = recs.filter((r) => r.pack === p), ok = rs.filter((r) => r.compiles === true).length;
     const hasSub = rs.some((r) => r.sub);
-    lines.push(`- [${p}](shaders/${p}.md): ${rs.length} tools, ${ok} compile${rs.some((r) => r.compiles === false) ? `, ${rs.filter((r) => r.compiles === false).length} fail` : ""}${p === "core" ? " (registered in TOOLS already)" : ""}`);
+    lines.push(`- [${p}](${p}.md): ${rs.length} tools, ${ok} compile${rs.some((r) => r.compiles === false) ? `, ${rs.filter((r) => r.compiles === false).length} fail` : ""}${p === "core" ? " (registered in TOOLS already)" : ""}`);
     const head = [`# ${p}`, "", `${rs.length} tools. ${p === "core" ? "These are in TOOLS already: glslFor([name])." : `Pull one: await loadPack("${p}"), then glslFor(["<name>"]) from lib/anime/tools/index.js.`}`, "",
       `| name | ${hasSub ? "dock | " : ""}what it draws | use | suits | inputs | rated | compiles | how to pull it |`, `|${hasSub ? "---|" : ""}---|---|---|---|---|---|---|---|`];
     const rows = rs.map((r) => `| ${cell(r.name)} | ${hasSub ? cell(r.sub) + " | " : ""}${cell(r.draws || r.doc)} | ${cell(r.use)} | ${cell(r.suits)} | ${cell(r.params || r.uniforms.map((u) => u.name).join(", ") || "none", 80)} | ${r.quality ?? ""}${r.aliasOf ? ` (use ${cell(r.aliasOf)})` : ""} | ${mark(r.compiles)} | glslFor(["${cell(r.pull ?? r.name)}"]) |`);
@@ -387,8 +387,8 @@ Then glslFor(["jjkVoidSpace"]), tool(name) and uniformsFor(...) from lib/anime/t
 
 ${lines.join("\n")}
 `;
-  writeFileSync(path.join(ROOT, "docs/SHADERS.md"), md);
-  console.log(`wrote docs/SHADERS.md and ${packs.length} files in docs/shaders/`);
+  writeFileSync(path.join(ROOT, "docs/shaders/README.md"), md);
+  console.log(`wrote docs/shaders/README.md and ${packs.length} files in docs/shaders/`);
 }
 
 const argv = process.argv.slice(2), arg = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };

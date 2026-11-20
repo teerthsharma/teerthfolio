@@ -5,7 +5,8 @@
 //
 //   node scripts/perf-frames.mjs [--url http://localhost:3403] [--w 1440] [--h 900] [--dpr 2]
 //        [--phase load,walk,arrival,skip,reduced,tiers,memory] [--secs 180 (memory)]
-//        phases also: first, flap (2 min), nostorage, ramp [--top 2]
+//        phases also: first, flap (2 min), nostorage, ramp [--top 2], fresh (first visit, report only)
+//        node scripts/perf-frames.mjs --self-test   (statistics only, no browser)
 //        [--query "?play&look=2"] [--gpu intel|nvidia | --hp | --lp (one adapter of a hybrid laptop)]
 //
 // Budgets (a 60 Hz laptop; exit 1 on any breach):
@@ -21,6 +22,7 @@
 // The dev machine is Intel UHD (fill-bound, low tier): quote its numbers as
 // such. Run one at a time: concurrent WebGL pages share the one GPU.
 
+import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
@@ -39,6 +41,20 @@ const H = Number(args.h || 900);
 const DPR = Number(args.dpr || 2);
 const phases = String(args.phase || "load,walk,arrival,skip,reduced,tiers").split(",");
 const BUDGET = { p95: 33.4, max: 100, load: 250, heapMB: 20, nodes: 500 };
+const VSYNC_MS = 6.06;
+
+// Pure statistics only: no browser is launched.
+if (args["self-test"]) {
+  assert.equal(stats([10, 20, 30]).mean, 20);
+  const { vs } = stats([VSYNC_MS, 2 * VSYNC_MS, 3 * VSYNC_MS, 100]);
+  assert.equal(vs[1], 1);
+  assert.equal(vs[2], 1);
+  assert.equal(vs[3], 1);
+  assert.equal(vs["13+"], 1);
+  assert.equal(Object.values(vs).reduce((a, b) => a + b, 0), 4);
+  console.log("self-test ok");
+  process.exit(0);
+}
 
 const local = process.env.LOCALAPPDATA;
 // --edge launches Edge instead: on a hybrid laptop where Windows pins
@@ -74,8 +90,36 @@ function recorder() {
       return link.call(this, p);
     };
   }
+  // Event-loop heartbeat, long tasks, WebGL context loss and the AudioContext constructor time.
+  window.__hb = [];
+  setInterval(() => window.__hb.push(performance.now()), 25);
+  window.__lt = [];
+  if (PerformanceObserver.supportedEntryTypes?.includes("longtask")) {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) window.__lt.push([e.startTime, e.duration]);
+    }).observe({ type: "longtask", buffered: true });
+  }
+  window.__ctx = [];
+  for (const type of ["webglcontextlost", "webglcontextrestored"]) {
+    window.addEventListener(type, () => window.__ctx.push([type, performance.now()]), true);
+  }
+  for (const name of ["AudioContext", "webkitAudioContext"]) {
+    const Ctor = window[name];
+    if (!Ctor) continue;
+    window[name] = class extends Ctor {
+      constructor(...a) {
+        const t = performance.now();
+        super(...a);
+        window.__ac = +(performance.now() - t).toFixed(1);
+      }
+    };
+  }
   let last = 0;
   const tick = (now) => {
+    if (window.__readyAt == null && window.__world?.ready) {
+      window.__readyAt = now;
+      window.__lookAtReady = window.__world.look ?? -1;
+    }
     const hud = document.querySelector(".hud");
     window.__pf.push([now, last ? now - last : 0, hud?.dataset.cutscene === "on" ? 1 : 0, document.documentElement.dataset.pop || "", window.__world?.camera?.fov ?? 0, window.__world?.look ?? -1, window.__links]);
     last = now;
@@ -84,12 +128,19 @@ function recorder() {
   requestAnimationFrame(tick);
 }
 
-const stats = (dts) => {
+function stats(dts) {
   const s = [...dts].sort((a, b) => a - b);
   if (!s.length) return { frames: 0 };
   const pct = (p) => +s[Math.min(s.length - 1, Math.floor(s.length * p))].toFixed(1);
-  return { frames: s.length, p50: pct(0.5), p95: pct(0.95), p99: pct(0.99), max: +s[s.length - 1].toFixed(1), over50: s.filter((d) => d > 50).length };
-};
+  // Frames per whole vsync step (6.06 ms at 165 Hz): 1..12, then 13+.
+  const vs = Object.fromEntries(Array.from({ length: 13 }, (_, i) => [i < 12 ? i + 1 : "13+", 0]));
+  for (const d of s) {
+    const k = Math.round(d / VSYNC_MS);
+    if (k >= 1) vs[k >= 13 ? "13+" : k] += 1;
+  }
+  const mean = +(s.reduce((a, b) => a + b, 0) / s.length).toFixed(1);
+  return { frames: s.length, p50: pct(0.5), p95: pct(0.95), p99: pct(0.99), mean, max: +s[s.length - 1].toFixed(1), over50: s.filter((d) => d > 50).length, vs };
+}
 // The longest frame and what was happening around it.
 const worstOf = (frames) => {
   const i = frames.reduce((a, f, j) => (j && f[1] > frames[a][1] ? j : a), 1);
@@ -184,6 +235,9 @@ try {
     // compiles mid-walk. Reported, and the worst frame says if it linked one.
     report.walk.linkedDuringWalk = frames.at(-1)[6] - frames[0][6];
     report.walk.worstFrame.linked = frames[worst][6] - frames[worst - 1][6];
+    // The first key's cost (audio unlock runs on the first keydown) and the AudioContext constructor time.
+    report.walk.firstKey = +Math.max(...frames.slice(0, 6).map((f) => f[1])).toFixed(1);
+    report.walk.ac = await page.evaluate(() => window.__ac ?? null);
     // Programs linked from each tier change to 30 frames after it.
     report.walk.linksPerTierStep = frames.flatMap((f, i) => (i && f[5] !== frames[i - 1][5] ? [(frames[Math.min(frames.length - 1, i + 30)][6] - frames[i - 1][6])] : []));
     check("tier step recompile", report.walk.linksPerTierStep.every((n) => n <= 20), `programs linked per tier step ${report.walk.linksPerTierStep} (<= 20 each)`);
@@ -334,8 +388,10 @@ try {
       const m = Object.fromEntries(metrics.map((x) => [x.name, x.value]));
       return { heapMB: +(m.JSHeapUsedSize / 2 ** 20).toFixed(1), nodes: m.Nodes, listeners: m.JSEventListeners };
     };
-    await page.waitForTimeout(6000);
+    // The GC in sample() runs 3 s before the window, so it cannot land inside it.
+    await page.waitForTimeout(3000);
     const start = await sample();
+    await page.waitForTimeout(3000);
     const from = await now(page);
     const keys = ["KeyW", "KeyD", "KeyS", "KeyA"];
     for (let i = 0; i * 2 < secs; i++) {
@@ -344,11 +400,48 @@ try {
       await page.waitForTimeout(2000);
       await page.keyboard.up(k);
     }
-    const end = await sample();
     const frames = await framesSince(page, from);
+    const end = await sample();
     const s = stats(frames.map((f) => f[1]).slice(1));
     report.memory = { secs, start, end, ...s, worstFrame: worstOf(frames), tierChanges: frames.filter((f, i) => i && f[5] !== frames[i - 1][5]).length };
     check("memory", end.heapMB - start.heapMB < BUDGET.heapMB && end.nodes - start.nodes < BUDGET.nodes, `heap +${(end.heapMB - start.heapMB).toFixed(1)} MB, nodes +${end.nodes - start.nodes}`);
+    await context.close();
+  }
+
+  if (phases.includes("fresh")) {
+    // A first-time visitor (no seen docks): idle, a short walk, idle. Reported, not asserted.
+    const { context, page, mark } = await open({ seen: false });
+    await page.waitForTimeout(12000);
+    for (const k of ["KeyD", "KeyA"]) {
+      await page.keyboard.down(k);
+      await page.waitForTimeout(2000);
+      await page.keyboard.up(k);
+    }
+    await page.waitForTimeout(4000);
+    const frames = await framesSince(page, mark);
+    const probe = await page.evaluate(() => ({ hb: window.__hb, lt: window.__lt, ctx: window.__ctx, ac: window.__ac ?? null, warmLog: window.__warmLog ?? null, lookAtReady: window.__lookAtReady ?? null }));
+    const hb = probe.hb ?? [];
+    const lt = probe.lt ?? [];
+    // Largest heartbeat gap and total long-task time overlapping a frame's interval [start, end].
+    const hbGapIn = (start, end) => {
+      let gap = 0;
+      for (let j = 1; j < hb.length; j++) {
+        if (hb[j - 1] < end && hb[j] > start) gap = Math.max(gap, hb[j] - hb[j - 1]);
+      }
+      return gap;
+    };
+    const longtaskIn = (start, end) => lt.reduce((sum, [s, d]) => (s < end && s + d > start ? sum + d : sum), 0);
+    const slow = frames.flatMap((f, i) => {
+      if (!i || f[1] <= 50) return [];
+      const start = f[0] - f[1];
+      return [{ atS: +((f[0] - frames[0][0]) / 1000).toFixed(1), ms: +f[1].toFixed(1), linksDelta: f[6] - frames[i - 1][6], hbGapMs: +hbGapIn(start, f[0]).toFixed(1), longtaskMs: +longtaskIn(start, f[0]).toFixed(1), look: f[5] }];
+    });
+    let peakLinksPerSecond = 0;
+    for (let i = 0, j = 0; i < frames.length; i++) {
+      while (j < frames.length && frames[j][0] < frames[i][0] + 1000) j++;
+      peakLinksPerSecond = Math.max(peakLinksPerSecond, frames[j - 1][6] - frames[i][6]);
+    }
+    report.fresh = { ...stats(frames.map((f) => f[1]).slice(1)), slow, warmLog: probe.warmLog, lt: lt.map(([s, d]) => [+s.toFixed(0), +d.toFixed(0)]), ctx: probe.ctx, ac: probe.ac, lookAtReady: probe.lookAtReady, peakLinksPerSecond };
     await context.close();
   }
 } finally {

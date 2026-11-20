@@ -6,14 +6,14 @@
 // here is per place: a dock's scene lives in its own card and move.
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect } from "react";
+import { useEffect, useReducer } from "react";
 import { CARDS } from "../../../lib/world/cutscene/cards";
 import { POSES, cutFor, cutsceneMode } from "../../../lib/world/cutscene/timeline";
 import { getUi, live, useUi } from "../../../lib/world/store";
 import { engineActive } from "../../../lib/anime/live.js";
 import FrameGuard from "./FrameGuard";
 import Guest from "./Guest";
-import { MOVES } from "./moves";
+import { getMove, loadMove } from "./moves";
 import PupUpright from "./PupUpright";
 import { ReturnWipe } from "./kit";
 import { accentFor } from "../../../lib/world/cutscene/look";
@@ -36,7 +36,17 @@ export default function Cutscene() {
     live.stageOn = Boolean(live.arrival.id) && cutsceneMode(live.arrival.id) === "full" && !engineActive(live.arrival.id, getUi().engineFail);
   }, -1.3);
   const engine = useUi((s) => engineActive(s.cutscene, s.engineFail));
-  const Move = cut && !engine ? MOVES[id] : null;
+  const want = cut && !engine ? id : null;
+  const Move = want ? getMove(want) : null;
+  const [, again] = useReducer((n) => n + 1, 0);
+  useEffect(() => {
+    if (!want) return;
+    if (getMove(want)) { again(); return; } // loaded between this render and the effect: re-render so Move is set
+    loadMove(want).then(again, (e) => {
+      console.error(`[cutscene ${want}] move failed to load`, e);
+      if (live.arrival.id === want) live.arrival.len = 0; // as EngineCut's onEnd: the arrival ends, the seal is not held in a bare-pup arrival
+    });
+  }, [want]);
   return (
     <>
       <group name="cutscene"><PupUpright id={engine ? null : id} />{Move && cut.tl.credit != null ? <ReturnWipe key={id} tl={cut.tl} mode={mode} color={accentFor(cut.card, cut.place)} /> : null}{Move ? <Move key={id} {...cut} mode={mode} /> : null}</group>

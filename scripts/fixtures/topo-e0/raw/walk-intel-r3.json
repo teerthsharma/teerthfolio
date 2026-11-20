@@ -1,0 +1,11 @@
+{
+ "synthetic": true,
+ "commit": "43f71f7",
+ "build": "fixture-clean",
+ "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A788) Direct3D11)",
+ "tier": "high",
+ "load": { "readyMs": 5150, "frames": 240, "p50": 16.7, "p95": 24.2, "p99": 38.5, "max": 85, "over50": 2 },
+ "memory": { "secs": 20, "frames": 1201, "p50": 16.7, "p95": 19.0, "p99": 26.0, "max": 55.9, "over50": 2, "tierChanges": 0, "worstFrame": { "ms": 56 } },
+ "walk": { "frames": 600, "p50": 16.7, "p95": 19.4, "p99": 25.1, "max": 41.5, "over50": 1, "linkedDuringWalk": 0 },
+ "pass": true
+}

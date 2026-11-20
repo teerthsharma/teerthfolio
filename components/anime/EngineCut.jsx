@@ -9,9 +9,11 @@ import { useEffect, useRef } from "react";
 import { engineOwns } from "../../lib/anime/live.js";
 import * as prep from "../../lib/anime/prep.js";
 import { modeForTier } from "../../lib/quality/modes.js";
+import { classify } from "../../lib/world/quality.js";
 import { PLACES } from "../../lib/world/places.js";
 import { getUi, live, setUi, useUi } from "../../lib/world/store";
 import { registerEngineProvider } from "../world/cutscene/prewarm.js";
+import { loadMove } from "../world/cutscene/moves";
 
 const IRIS_S = 0.4;
 const IRIS_MAX = 75; // the radius in % at which the iris covers the frame's corners at any aspect
@@ -24,7 +26,7 @@ const modules = () => (loaded ??= Promise.all([import("../../lib/anime/cutscenes
   .then(([reg, fw, en]) => Object.assign(mods, { reg, CutscenePlayer: fw.CutscenePlayer, AnimeEngine: en.AnimeEngine })));
 
 prep.configure({
-  env: () => ({ memory: navigator.deviceMemory, saveData: navigator.connection?.saveData, off: new URLSearchParams(location.search).get("hot") === "off" }),
+  env: () => ({ memory: navigator.deviceMemory, saveData: navigator.connection?.saveData, off: new URLSearchParams(location.search).get("hot") === "off" || modeForTier(classify(window.__world?.gpu)) === "low" }),
   loadModules: modules,
   loadCut: async (id) => { await modules(); if (fault() === id) throw new Error(`engine-fault ${id}`); return mods.reg.loadCut(id); },
   makeCanvas: () => { const c = document.createElement("canvas"); c.style.cssText = "width:100%;height:100%;display:block"; return c; },
@@ -33,7 +35,21 @@ prep.configure({
   onLost: (canvas, fn) => canvas.addEventListener("webglcontextlost", fn),
   makePlayer: (engine, cut) => new mods.CutscenePlayer(engine, cut.scene, cut.build, { seed: 7 }),
   steps: (player) => player.initSteps(),
-  compile: (engine, player) => { const gl = engine.renderer, target = engine.composer?.scene; gl.setRenderTarget(target?.isWebGLRenderTarget ? target : null); const compiled = gl.compileAsync(player.root, player.camera); gl.setRenderTarget(null); return compiled; },
+  compile: async (engine, player) => {
+    const gl = engine.renderer, target = engine.composer?.scene, rt = target?.isWebGLRenderTarget ? target : null;
+    const meshes = [], seen = new Set(); // one mesh per distinct material, the walk prewarm.js uses
+    player.root.traverse((n) => {
+      if (!n.material) return;
+      const ms = Array.isArray(n.material) ? n.material : [n.material];
+      if (ms.some((x) => !seen.has(x))) { ms.forEach((x) => seen.add(x)); meshes.push(n); }
+    });
+    for (const mesh of meshes) {
+      gl.setRenderTarget(rt);
+      await gl.compileAsync(mesh, player.camera, player.root);
+      gl.setRenderTarget(null);
+      await new Promise((r) => setTimeout(r, 16));
+    }
+  },
   restyle: (player) => player.restyle(),
   shrink: (engine) => { engine.reset(); engine.resize(1, 1, 1); },
   modeOf: (engine) => modeForTier(engine.tier),
@@ -71,7 +87,7 @@ export default function EngineCut() {
 }
 
 // the ui's place keys the failure (what Cutscene.jsx reads); the registry, the prep and the engine key on the dock
-export function markEngineFail(place) { setUi({ engineFail: { ...getUi().engineFail, [place]: true } }); }
+export function markEngineFail(place) { setUi({ engineFail: { ...getUi().engineFail, [place]: true } }); loadMove(place).catch(() => {}); }
 
 function EngineRun({ place, dock }) {
   const hostRef = useRef(null), canvasRef = useRef(null);

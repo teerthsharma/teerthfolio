@@ -1,0 +1,15 @@
+{
+ "synthetic": true,
+ "commit": "43f71f7",
+ "build": "fixture-clean",
+ "gpu": "intel",
+ "query": "?hud=off",
+ "phases": {
+  "boot": {
+   "net": "none",
+   "runs": [
+    { "adapter": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A788) Direct3D11)", "readyMs": 4200, "progs": 90, "fcp": 860, "pupMs": 1540, "requests": 58, "bytes": 11900000 }
+   ]
+  }
+ }
+}

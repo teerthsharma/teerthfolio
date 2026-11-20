@@ -1,0 +1,1369 @@
+{
+  "env": {
+    "head": "d318826ca4cac1e38ff9e90c756781b3d9ef4959",
+    "node": "v25.8.1",
+    "cpu": "Intel(R) Core(TM) i7-14700HX",
+    "cpuCount": 28,
+    "date": "2026-11-20T10:28:55.798Z"
+  },
+  "known": {
+    "pass": true,
+    "count": 11
+  },
+  "judged": {
+    "plain": {
+      "verdict": "UNRESOLVED",
+      "reasons": [
+        "seed 1: filtered 0.3433/s, B1 0.7883/s, 0.1 x B1 0.0788/s: between.",
+        "seed 2: filtered 0.2951/s, B1 0.6897/s, 0.1 x B1 0.0690/s: between.",
+        "seed 3: filtered 0.3825/s, B1 0.7883/s, 0.1 x B1 0.0788/s: between.",
+        "control ratio 2.5943x is below the 20x bar, so PASS is blocked even if every seed is under 0.1 x B1."
+      ]
+    },
+    "latched": {
+      "verdict": "UNRESOLVED",
+      "reasons": [
+        "LATCHED: seed 1: filtered 0.4022/s, B1 0.7883/s, 0.1 x B1 0.0788/s: between.",
+        "LATCHED: seed 2: filtered 0.3142/s, B1 0.6897/s, 0.1 x B1 0.0690/s: between.",
+        "LATCHED: seed 3: filtered 0.4208/s, B1 0.7883/s, 0.1 x B1 0.0788/s: between.",
+        "LATCHED: control ratio 2.4322x is below the 20x bar, so PASS is blocked even if every seed is under 0.1 x B1."
+      ]
+    }
+  },
+  "controlRatio": {
+    "plain": 2.594339622641509,
+    "latched": 2.4322033898305087
+  },
+  "real": [
+    {
+      "seed": 1,
+      "shuffle": false,
+      "variant": "nominal",
+      "N": 20,
+      "pOffset": 0.5,
+      "frames": 7307,
+      "counted": 6117,
+      "seconds": 101.95,
+      "seamCount": 1,
+      "invalid": 1171,
+      "invalidShare": 0.1602353585112206,
+      "raw": {
+        "birth": 37,
+        "death": 37,
+        "merge": 1,
+        "split": 2,
+        "total": 77
+      },
+      "plain": {
+        "birth": 19,
+        "death": 16,
+        "merge": 0,
+        "split": 0,
+        "total": 35
+      },
+      "latched": {
+        "birth": 19,
+        "death": 19,
+        "merge": 1,
+        "split": 2,
+        "total": 41,
+        "frame0Births": 0
+      },
+      "excluded": {
+        "raw": {
+          "birth": 5,
+          "death": 5,
+          "merge": 1,
+          "split": 0,
+          "total": 11
+        },
+        "plain": {
+          "birth": 2,
+          "death": 5,
+          "merge": 0,
+          "split": 0,
+          "total": 7
+        },
+        "latched": {
+          "birth": 2,
+          "death": 3,
+          "merge": 0,
+          "split": 0,
+          "total": 5
+        }
+      },
+      "all": {
+        "raw": 88,
+        "plain": 42,
+        "latched": 46
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "cls": {
+        "framesWithOver": 45,
+        "framesWithBand": 53,
+        "framesWithSolid": 326,
+        "meanOccludedShare": 0.029428900691023534,
+        "meanSolidComponents": 0.04460864805692392
+      },
+      "tracking": {
+        "birthDeathSameFrame": 14
+      },
+      "invariant": {
+        "plainHolds": true,
+        "latchedHolds": true
+      },
+      "ms": {
+        "analyseMedian": 0.030600000000049477,
+        "analyseP95": 0.11130000000002838
+      }
+    },
+    {
+      "seed": 2,
+      "shuffle": false,
+      "variant": "nominal",
+      "N": 20,
+      "pOffset": 0.5,
+      "frames": 7307,
+      "counted": 6302,
+      "seconds": 105.03333333333333,
+      "seamCount": 1,
+      "invalid": 987,
+      "invalidShare": 0.13505747126436782,
+      "raw": {
+        "birth": 33,
+        "death": 34,
+        "merge": 0,
+        "split": 0,
+        "total": 67
+      },
+      "plain": {
+        "birth": 16,
+        "death": 15,
+        "merge": 0,
+        "split": 0,
+        "total": 31
+      },
+      "latched": {
+        "birth": 16,
+        "death": 17,
+        "merge": 0,
+        "split": 0,
+        "total": 33,
+        "frame0Births": 0
+      },
+      "excluded": {
+        "raw": {
+          "birth": 3,
+          "death": 1,
+          "merge": 1,
+          "split": 0,
+          "total": 5
+        },
+        "plain": {
+          "birth": 2,
+          "death": 3,
+          "merge": 0,
+          "split": 0,
+          "total": 5
+        },
+        "latched": {
+          "birth": 2,
+          "death": 1,
+          "merge": 0,
+          "split": 0,
+          "total": 3
+        }
+      },
+      "all": {
+        "raw": 72,
+        "plain": 36,
+        "latched": 36
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "cls": {
+        "framesWithOver": 42,
+        "framesWithBand": 48,
+        "framesWithSolid": 291,
+        "meanOccludedShare": 0.028250290777230434,
+        "meanSolidComponents": 0.039956212370005476
+      },
+      "tracking": {
+        "birthDeathSameFrame": 14
+      },
+      "invariant": {
+        "plainHolds": true,
+        "latchedHolds": true
+      },
+      "ms": {
+        "analyseMedian": 0.031899999999950523,
+        "analyseP95": 0.0974000000005617
+      }
+    },
+    {
+      "seed": 3,
+      "shuffle": false,
+      "variant": "nominal",
+      "N": 20,
+      "pOffset": 0.5,
+      "frames": 7307,
+      "counted": 6274,
+      "seconds": 104.56666666666666,
+      "seamCount": 1,
+      "invalid": 1011,
+      "invalidShare": 0.1383415435139573,
+      "raw": {
+        "birth": 34,
+        "death": 38,
+        "merge": 3,
+        "split": 5,
+        "total": 80
+      },
+      "plain": {
+        "birth": 16,
+        "death": 17,
+        "merge": 3,
+        "split": 4,
+        "total": 40
+      },
+      "latched": {
+        "birth": 16,
+        "death": 20,
+        "merge": 3,
+        "split": 5,
+        "total": 44,
+        "frame0Births": 0
+      },
+      "excluded": {
+        "raw": {
+          "birth": 5,
+          "death": 1,
+          "merge": 3,
+          "split": 1,
+          "total": 10
+        },
+        "plain": {
+          "birth": 5,
+          "death": 4,
+          "merge": 1,
+          "split": 0,
+          "total": 10
+        },
+        "latched": {
+          "birth": 4,
+          "death": 1,
+          "merge": 2,
+          "split": 1,
+          "total": 8
+        }
+      },
+      "all": {
+        "raw": 90,
+        "plain": 50,
+        "latched": 52
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "cls": {
+        "framesWithOver": 51,
+        "framesWithBand": 62,
+        "framesWithSolid": 401,
+        "meanOccludedShare": 0.03541856420190202,
+        "meanSolidComponents": 0.05637657361795293
+      },
+      "tracking": {
+        "birthDeathSameFrame": 14
+      },
+      "invariant": {
+        "plainHolds": true,
+        "latchedHolds": true
+      },
+      "ms": {
+        "analyseMedian": 0.031299999998736894,
+        "analyseP95": 0.1316999999980908
+      }
+    }
+  ],
+  "shuffled": [
+    {
+      "seed": 1,
+      "shuffle": true,
+      "variant": "nominal",
+      "N": 20,
+      "pOffset": 0.5,
+      "frames": 7307,
+      "counted": 6117,
+      "seconds": 101.95,
+      "seamCount": 1,
+      "invalid": 1171,
+      "invalidShare": 0.1602353585112206,
+      "raw": {
+        "birth": 81,
+        "death": 81,
+        "merge": 1,
+        "split": 2,
+        "total": 165
+      },
+      "plain": {
+        "birth": 43,
+        "death": 40,
+        "merge": 0,
+        "split": 0,
+        "total": 83
+      },
+      "latched": {
+        "birth": 43,
+        "death": 43,
+        "merge": 1,
+        "split": 2,
+        "total": 89,
+        "frame0Births": 0
+      },
+      "excluded": {
+        "raw": {
+          "birth": 12,
+          "death": 12,
+          "merge": 1,
+          "split": 0,
+          "total": 25
+        },
+        "plain": {
+          "birth": 7,
+          "death": 10,
+          "merge": 0,
+          "split": 0,
+          "total": 17
+        },
+        "latched": {
+          "birth": 7,
+          "death": 8,
+          "merge": 0,
+          "split": 0,
+          "total": 15
+        }
+      },
+      "all": {
+        "raw": 190,
+        "plain": 100,
+        "latched": 104
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "cls": {
+        "framesWithOver": 49,
+        "framesWithBand": 56,
+        "framesWithSolid": 324,
+        "meanOccludedShare": 0.029349124033593323,
+        "meanSolidComponents": 0.04433497536945813
+      },
+      "tracking": {
+        "birthDeathSameFrame": 14
+      },
+      "invariant": {
+        "plainHolds": true,
+        "latchedHolds": true
+      },
+      "ms": {
+        "analyseMedian": 0.03169999999954598,
+        "analyseP95": 0.10719999999855645
+      }
+    },
+    {
+      "seed": 2,
+      "shuffle": true,
+      "variant": "nominal",
+      "N": 20,
+      "pOffset": 0.5,
+      "frames": 7307,
+      "counted": 6302,
+      "seconds": 105.03333333333333,
+      "seamCount": 1,
+      "invalid": 987,
+      "invalidShare": 0.13505747126436782,
+      "raw": {
+        "birth": 78,
+        "death": 81,
+        "merge": 0,
+        "split": 0,
+        "total": 159
+      },
+      "plain": {
+        "birth": 43,
+        "death": 43,
+        "merge": 0,
+        "split": 0,
+        "total": 86
+      },
+      "latched": {
+        "birth": 43,
+        "death": 45,
+        "merge": 0,
+        "split": 0,
+        "total": 88,
+        "frame0Births": 0
+      },
+      "excluded": {
+        "raw": {
+          "birth": 13,
+          "death": 9,
+          "merge": 1,
+          "split": 0,
+          "total": 23
+        },
+        "plain": {
+          "birth": 6,
+          "death": 6,
+          "merge": 0,
+          "split": 0,
+          "total": 12
+        },
+        "latched": {
+          "birth": 6,
+          "death": 4,
+          "merge": 0,
+          "split": 0,
+          "total": 10
+        }
+      },
+      "all": {
+        "raw": 182,
+        "plain": 98,
+        "latched": 98
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "cls": {
+        "framesWithOver": 45,
+        "framesWithBand": 52,
+        "framesWithSolid": 315,
+        "meanOccludedShare": 0.02868004241926656,
+        "meanSolidComponents": 0.04310344827586207
+      },
+      "tracking": {
+        "birthDeathSameFrame": 14
+      },
+      "invariant": {
+        "plainHolds": true,
+        "latchedHolds": true
+      },
+      "ms": {
+        "analyseMedian": 0.03169999999954598,
+        "analyseP95": 0.10890000000290456
+      }
+    },
+    {
+      "seed": 3,
+      "shuffle": true,
+      "variant": "nominal",
+      "N": 20,
+      "pOffset": 0.5,
+      "frames": 7307,
+      "counted": 6274,
+      "seconds": 104.56666666666666,
+      "seamCount": 1,
+      "invalid": 1011,
+      "invalidShare": 0.1383415435139573,
+      "raw": {
+        "birth": 97,
+        "death": 102,
+        "merge": 3,
+        "split": 5,
+        "total": 207
+      },
+      "plain": {
+        "birth": 49,
+        "death": 50,
+        "merge": 3,
+        "split": 4,
+        "total": 106
+      },
+      "latched": {
+        "birth": 49,
+        "death": 53,
+        "merge": 3,
+        "split": 5,
+        "total": 110,
+        "frame0Births": 0
+      },
+      "excluded": {
+        "raw": {
+          "birth": 8,
+          "death": 3,
+          "merge": 3,
+          "split": 1,
+          "total": 15
+        },
+        "plain": {
+          "birth": 5,
+          "death": 4,
+          "merge": 1,
+          "split": 0,
+          "total": 10
+        },
+        "latched": {
+          "birth": 4,
+          "death": 1,
+          "merge": 2,
+          "split": 1,
+          "total": 8
+        }
+      },
+      "all": {
+        "raw": 222,
+        "plain": 116,
+        "latched": 118
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "cls": {
+        "framesWithOver": 58,
+        "framesWithBand": 76,
+        "framesWithSolid": 407,
+        "meanOccludedShare": 0.03542551292248221,
+        "meanSolidComponents": 0.0571975916803503
+      },
+      "tracking": {
+        "birthDeathSameFrame": 15
+      },
+      "invariant": {
+        "plainHolds": true,
+        "latchedHolds": true
+      },
+      "ms": {
+        "analyseMedian": 0.03110000000015134,
+        "analyseP95": 0.13220000000001164
+      }
+    }
+  ],
+  "sens": {
+    "envelope": [
+      {
+        "seed": 1,
+        "shuffle": false,
+        "variant": "envelope",
+        "N": 20,
+        "pOffset": 0.5,
+        "frames": 7307,
+        "counted": 6117,
+        "seconds": 101.95,
+        "seamCount": 1,
+        "invalid": 1171,
+        "invalidShare": 0.1602353585112206,
+        "raw": {
+          "birth": 44,
+          "death": 45,
+          "merge": 1,
+          "split": 2,
+          "total": 92
+        },
+        "plain": {
+          "birth": 25,
+          "death": 23,
+          "merge": 0,
+          "split": 0,
+          "total": 48
+        },
+        "latched": {
+          "birth": 24,
+          "death": 26,
+          "merge": 1,
+          "split": 2,
+          "total": 53,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 16,
+            "death": 15,
+            "merge": 1,
+            "split": 0,
+            "total": 32
+          },
+          "plain": {
+            "birth": 13,
+            "death": 15,
+            "merge": 0,
+            "split": 0,
+            "total": 28
+          },
+          "latched": {
+            "birth": 13,
+            "death": 12,
+            "merge": 0,
+            "split": 0,
+            "total": 25
+          }
+        },
+        "all": {
+          "raw": 124,
+          "plain": 76,
+          "latched": 78
+        },
+        "b1": {
+          "crossings": 96,
+          "loads": 290,
+          "seconds": 121.78333333333333,
+          "perSec": 0.7882852059668811,
+          "loadsPerSec": 2.381278226358287
+        },
+        "cls": {
+          "framesWithOver": 62,
+          "framesWithBand": 72,
+          "framesWithSolid": 1054,
+          "meanOccludedShare": 0.12454445791427203,
+          "meanSolidComponents": 0.1442255062944718
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.031599999994796235,
+          "analyseP95": 0.16089999999530846
+        }
+      },
+      {
+        "seed": 2,
+        "shuffle": false,
+        "variant": "envelope",
+        "N": 20,
+        "pOffset": 0.5,
+        "frames": 7307,
+        "counted": 6302,
+        "seconds": 105.03333333333333,
+        "seamCount": 1,
+        "invalid": 987,
+        "invalidShare": 0.13505747126436782,
+        "raw": {
+          "birth": 42,
+          "death": 42,
+          "merge": 0,
+          "split": 0,
+          "total": 84
+        },
+        "plain": {
+          "birth": 23,
+          "death": 19,
+          "merge": 0,
+          "split": 0,
+          "total": 42
+        },
+        "latched": {
+          "birth": 23,
+          "death": 25,
+          "merge": 0,
+          "split": 0,
+          "total": 48,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 18,
+            "death": 17,
+            "merge": 1,
+            "split": 0,
+            "total": 36
+          },
+          "plain": {
+            "birth": 17,
+            "death": 21,
+            "merge": 0,
+            "split": 0,
+            "total": 38
+          },
+          "latched": {
+            "birth": 17,
+            "death": 15,
+            "merge": 0,
+            "split": 0,
+            "total": 32
+          }
+        },
+        "all": {
+          "raw": 120,
+          "plain": 80,
+          "latched": 80
+        },
+        "b1": {
+          "crossings": 84,
+          "loads": 254,
+          "seconds": 121.78333333333333,
+          "perSec": 0.689749555221021,
+          "loadsPerSec": 2.085671274120706
+        },
+        "cls": {
+          "framesWithOver": 68,
+          "framesWithBand": 86,
+          "framesWithSolid": 917,
+          "meanOccludedShare": 0.10384916358784893,
+          "meanSolidComponents": 0.12561576354679804
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.03139999999984866,
+          "analyseP95": 0.16030000000318978
+        }
+      },
+      {
+        "seed": 3,
+        "shuffle": false,
+        "variant": "envelope",
+        "N": 20,
+        "pOffset": 0.5,
+        "frames": 7307,
+        "counted": 6274,
+        "seconds": 104.56666666666666,
+        "seamCount": 1,
+        "invalid": 1011,
+        "invalidShare": 0.1383415435139573,
+        "raw": {
+          "birth": 39,
+          "death": 42,
+          "merge": 3,
+          "split": 5,
+          "total": 89
+        },
+        "plain": {
+          "birth": 19,
+          "death": 19,
+          "merge": 3,
+          "split": 4,
+          "total": 45
+        },
+        "latched": {
+          "birth": 19,
+          "death": 24,
+          "merge": 3,
+          "split": 5,
+          "total": 51,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 15,
+            "death": 12,
+            "merge": 3,
+            "split": 1,
+            "total": 31
+          },
+          "plain": {
+            "birth": 15,
+            "death": 15,
+            "merge": 1,
+            "split": 0,
+            "total": 31
+          },
+          "latched": {
+            "birth": 14,
+            "death": 10,
+            "merge": 2,
+            "split": 1,
+            "total": 27
+          }
+        },
+        "all": {
+          "raw": 120,
+          "plain": 76,
+          "latched": 78
+        },
+        "b1": {
+          "crossings": 96,
+          "loads": 290,
+          "seconds": 121.78333333333333,
+          "perSec": 0.7882852059668811,
+          "loadsPerSec": 2.381278226358287
+        },
+        "cls": {
+          "framesWithOver": 65,
+          "framesWithBand": 88,
+          "framesWithSolid": 812,
+          "meanOccludedShare": 0.08532227097016967,
+          "meanSolidComponents": 0.11261631089217296
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.03110000000015134,
+          "analyseP95": 0.15430000000196742
+        }
+      }
+    ],
+    "n0": [
+      {
+        "seed": 1,
+        "shuffle": false,
+        "variant": "nominal",
+        "N": 0,
+        "pOffset": 0.5,
+        "frames": 7307,
+        "counted": 6117,
+        "seconds": 101.95,
+        "seamCount": 1,
+        "invalid": 1171,
+        "invalidShare": 0.1602353585112206,
+        "raw": {
+          "birth": 32,
+          "death": 32,
+          "merge": 1,
+          "split": 2,
+          "total": 67
+        },
+        "plain": {
+          "birth": 15,
+          "death": 12,
+          "merge": 0,
+          "split": 0,
+          "total": 27
+        },
+        "latched": {
+          "birth": 15,
+          "death": 15,
+          "merge": 1,
+          "split": 2,
+          "total": 33,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 5,
+            "death": 5,
+            "merge": 1,
+            "split": 0,
+            "total": 11
+          },
+          "plain": {
+            "birth": 2,
+            "death": 5,
+            "merge": 0,
+            "split": 0,
+            "total": 7
+          },
+          "latched": {
+            "birth": 2,
+            "death": 3,
+            "merge": 0,
+            "split": 0,
+            "total": 5
+          }
+        },
+        "all": {
+          "raw": 78,
+          "plain": 34,
+          "latched": 38
+        },
+        "b1": {
+          "crossings": 96,
+          "loads": 290,
+          "seconds": 121.78333333333333,
+          "perSec": 0.7882852059668811,
+          "loadsPerSec": 2.381278226358287
+        },
+        "cls": {
+          "framesWithOver": 40,
+          "framesWithBand": 43,
+          "framesWithSolid": 290,
+          "meanOccludedShare": 0.028601468425013682,
+          "meanSolidComponents": 0.03968253968253968
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.03130000000237487,
+          "analyseP95": 0.09489999999641441
+        }
+      },
+      {
+        "seed": 2,
+        "shuffle": false,
+        "variant": "nominal",
+        "N": 0,
+        "pOffset": 0.5,
+        "frames": 7307,
+        "counted": 6302,
+        "seconds": 105.03333333333333,
+        "seamCount": 1,
+        "invalid": 987,
+        "invalidShare": 0.13505747126436782,
+        "raw": {
+          "birth": 32,
+          "death": 33,
+          "merge": 0,
+          "split": 0,
+          "total": 65
+        },
+        "plain": {
+          "birth": 15,
+          "death": 14,
+          "merge": 0,
+          "split": 0,
+          "total": 29
+        },
+        "latched": {
+          "birth": 15,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "total": 31,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 2,
+            "death": 0,
+            "merge": 1,
+            "split": 0,
+            "total": 3
+          },
+          "plain": {
+            "birth": 1,
+            "death": 2,
+            "merge": 0,
+            "split": 0,
+            "total": 3
+          },
+          "latched": {
+            "birth": 1,
+            "death": 0,
+            "merge": 0,
+            "split": 0,
+            "total": 1
+          }
+        },
+        "all": {
+          "raw": 68,
+          "plain": 32,
+          "latched": 32
+        },
+        "b1": {
+          "crossings": 84,
+          "loads": 254,
+          "seconds": 121.78333333333333,
+          "perSec": 0.689749555221021,
+          "loadsPerSec": 2.085671274120706
+        },
+        "cls": {
+          "framesWithOver": 36,
+          "framesWithBand": 37,
+          "framesWithSolid": 282,
+          "meanOccludedShare": 0.027910471615010948,
+          "meanSolidComponents": 0.03858784893267652
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.03080000000045402,
+          "analyseP95": 0.049399999996239785
+        }
+      },
+      {
+        "seed": 3,
+        "shuffle": false,
+        "variant": "nominal",
+        "N": 0,
+        "pOffset": 0.5,
+        "frames": 7307,
+        "counted": 6274,
+        "seconds": 104.56666666666666,
+        "seamCount": 1,
+        "invalid": 1011,
+        "invalidShare": 0.1383415435139573,
+        "raw": {
+          "birth": 32,
+          "death": 36,
+          "merge": 3,
+          "split": 5,
+          "total": 76
+        },
+        "plain": {
+          "birth": 14,
+          "death": 15,
+          "merge": 3,
+          "split": 4,
+          "total": 36
+        },
+        "latched": {
+          "birth": 14,
+          "death": 18,
+          "merge": 3,
+          "split": 5,
+          "total": 40,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 4,
+            "death": 0,
+            "merge": 3,
+            "split": 1,
+            "total": 8
+          },
+          "plain": {
+            "birth": 4,
+            "death": 3,
+            "merge": 1,
+            "split": 0,
+            "total": 8
+          },
+          "latched": {
+            "birth": 3,
+            "death": 0,
+            "merge": 2,
+            "split": 1,
+            "total": 6
+          }
+        },
+        "all": {
+          "raw": 84,
+          "plain": 44,
+          "latched": 46
+        },
+        "b1": {
+          "crossings": 96,
+          "loads": 290,
+          "seconds": 121.78333333333333,
+          "perSec": 0.7882852059668811,
+          "loadsPerSec": 2.381278226358287
+        },
+        "cls": {
+          "framesWithOver": 48,
+          "framesWithBand": 53,
+          "framesWithSolid": 371,
+          "meanOccludedShare": 0.034581109742747675,
+          "meanSolidComponents": 0.052271483305966066
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.030499999993480742,
+          "analyseP95": 0.12039999999979045
+        }
+      }
+    ],
+    "pOffset0": [
+      {
+        "seed": 1,
+        "shuffle": false,
+        "variant": "nominal",
+        "N": 20,
+        "pOffset": 0,
+        "frames": 7307,
+        "counted": 6117,
+        "seconds": 101.95,
+        "seamCount": 1,
+        "invalid": 1171,
+        "invalidShare": 0.1602353585112206,
+        "raw": {
+          "birth": 37,
+          "death": 37,
+          "merge": 1,
+          "split": 2,
+          "total": 77
+        },
+        "plain": {
+          "birth": 19,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "total": 35
+        },
+        "latched": {
+          "birth": 19,
+          "death": 19,
+          "merge": 1,
+          "split": 2,
+          "total": 41,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 5,
+            "death": 5,
+            "merge": 1,
+            "split": 0,
+            "total": 11
+          },
+          "plain": {
+            "birth": 2,
+            "death": 5,
+            "merge": 0,
+            "split": 0,
+            "total": 7
+          },
+          "latched": {
+            "birth": 2,
+            "death": 3,
+            "merge": 0,
+            "split": 0,
+            "total": 5
+          }
+        },
+        "all": {
+          "raw": 88,
+          "plain": 42,
+          "latched": 46
+        },
+        "b1": {
+          "crossings": 96,
+          "loads": 290,
+          "seconds": 121.78333333333333,
+          "perSec": 0.7882852059668811,
+          "loadsPerSec": 2.381278226358287
+        },
+        "cls": {
+          "framesWithOver": 0,
+          "framesWithBand": 95,
+          "framesWithSolid": 327,
+          "meanOccludedShare": 0.029428900691023534,
+          "meanSolidComponents": 0.044745484400656815
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.030899999997927807,
+          "analyseP95": 0.10790000000270084
+        }
+      },
+      {
+        "seed": 2,
+        "shuffle": false,
+        "variant": "nominal",
+        "N": 20,
+        "pOffset": 0,
+        "frames": 7307,
+        "counted": 6302,
+        "seconds": 105.03333333333333,
+        "seamCount": 1,
+        "invalid": 987,
+        "invalidShare": 0.13505747126436782,
+        "raw": {
+          "birth": 33,
+          "death": 34,
+          "merge": 0,
+          "split": 0,
+          "total": 67
+        },
+        "plain": {
+          "birth": 16,
+          "death": 15,
+          "merge": 0,
+          "split": 0,
+          "total": 31
+        },
+        "latched": {
+          "birth": 16,
+          "death": 17,
+          "merge": 0,
+          "split": 0,
+          "total": 33,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 3,
+            "death": 1,
+            "merge": 1,
+            "split": 0,
+            "total": 5
+          },
+          "plain": {
+            "birth": 2,
+            "death": 3,
+            "merge": 0,
+            "split": 0,
+            "total": 5
+          },
+          "latched": {
+            "birth": 2,
+            "death": 1,
+            "merge": 0,
+            "split": 0,
+            "total": 3
+          }
+        },
+        "all": {
+          "raw": 72,
+          "plain": 36,
+          "latched": 36
+        },
+        "b1": {
+          "crossings": 84,
+          "loads": 254,
+          "seconds": 121.78333333333333,
+          "perSec": 0.689749555221021,
+          "loadsPerSec": 2.085671274120706
+        },
+        "cls": {
+          "framesWithOver": 0,
+          "framesWithBand": 88,
+          "framesWithSolid": 292,
+          "meanOccludedShare": 0.028250290777230434,
+          "meanSolidComponents": 0.040093048713738366
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.031000000002677552,
+          "analyseP95": 0.098599999997532
+        }
+      },
+      {
+        "seed": 3,
+        "shuffle": false,
+        "variant": "nominal",
+        "N": 20,
+        "pOffset": 0,
+        "frames": 7307,
+        "counted": 6274,
+        "seconds": 104.56666666666666,
+        "seamCount": 1,
+        "invalid": 1011,
+        "invalidShare": 0.1383415435139573,
+        "raw": {
+          "birth": 34,
+          "death": 38,
+          "merge": 3,
+          "split": 5,
+          "total": 80
+        },
+        "plain": {
+          "birth": 16,
+          "death": 17,
+          "merge": 3,
+          "split": 4,
+          "total": 40
+        },
+        "latched": {
+          "birth": 16,
+          "death": 20,
+          "merge": 3,
+          "split": 5,
+          "total": 44,
+          "frame0Births": 0
+        },
+        "excluded": {
+          "raw": {
+            "birth": 5,
+            "death": 1,
+            "merge": 3,
+            "split": 1,
+            "total": 10
+          },
+          "plain": {
+            "birth": 5,
+            "death": 4,
+            "merge": 1,
+            "split": 0,
+            "total": 10
+          },
+          "latched": {
+            "birth": 4,
+            "death": 1,
+            "merge": 2,
+            "split": 1,
+            "total": 8
+          }
+        },
+        "all": {
+          "raw": 90,
+          "plain": 50,
+          "latched": 52
+        },
+        "b1": {
+          "crossings": 96,
+          "loads": 290,
+          "seconds": 121.78333333333333,
+          "perSec": 0.7882852059668811,
+          "loadsPerSec": 2.381278226358287
+        },
+        "cls": {
+          "framesWithOver": 0,
+          "framesWithBand": 110,
+          "framesWithSolid": 403,
+          "meanOccludedShare": 0.03541856420190202,
+          "meanSolidComponents": 0.05665024630541872
+        },
+        "tracking": {
+          "birthDeathSameFrame": 14
+        },
+        "invariant": {
+          "plainHolds": true,
+          "latchedHolds": true
+        },
+        "ms": {
+          "analyseMedian": 0.031000000002677552,
+          "analyseP95": 0.13189999999303836
+        }
+      }
+    ]
+  }
+}

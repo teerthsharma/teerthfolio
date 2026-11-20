@@ -1,0 +1,3777 @@
+{
+  "env": {
+    "head": "bb9a44698d169898be8da5689a8a99f9927ba203",
+    "node": "v25.8.1",
+    "cpu": "Intel(R) Core(TM) i7-14700HX",
+    "cpuCount": 28,
+    "date": "2026-11-20T09:11:26.876Z"
+  },
+  "known": {
+    "passed": true,
+    "status": 0,
+    "tests": [
+      {
+        "name": "T0 geometry: cell counts at R=84 for h=2, 4, 8",
+        "pass": true
+      },
+      {
+        "name": "T0 geometry: deg-6 neighbours at distance h, symmetric adjacency, border ring",
+        "pass": true
+      },
+      {
+        "name": "T1 diffComponents: birth, death, continuation, merge, split, 2 to 2, zero-overlap move",
+        "pass": true
+      },
+      {
+        "name": "K1 static disc: no events",
+        "pass": true
+      },
+      {
+        "name": "K2 disc split by a slit at frame 100: exactly one split, no hole",
+        "pass": true
+      },
+      {
+        "name": "K3 smooth grow then shrink: no events",
+        "pass": true
+      },
+      {
+        "name": "K4 baked island opens inside the disc at frame 100: exactly one hole-open",
+        "pass": true
+      },
+      {
+        "name": "K6 persistence filter: blip at 0.30 is raw-only, 0.20 and 0.25 pass the filter",
+        "pass": true
+      },
+      {
+        "name": "K7 hysteresis: 0.30/0.60 oscillation makes no events; 0.30 to 0.70 to 0.30 makes one death and one birth",
+        "pass": true
+      },
+      {
+        "name": "det.live keeps its identity across calls",
+        "pass": true
+      },
+      {
+        "name": "K8 persistence filter matches h0Superlevel on five seeds",
+        "pass": true
+      },
+      {
+        "name": "K9 sticky (post-hoc SIMP-H): a blob wobbling 0.24/0.27 flickers in SIMPLIFIED, SIMP-H has one birth and no events after it",
+        "pass": true
+      },
+      {
+        "name": "K10 sticky (post-hoc SIMP-H): a real split of a significant component is exactly one split",
+        "pass": true
+      },
+      {
+        "name": "K11 sticky (post-hoc SIMP-H): a blob born insignificant at 0.30 that never dips to 0.25 gives 0 SIMP-H events",
+        "pass": true
+      },
+      {
+        "name": "K13 warm start (post-hoc SIMP-H): a component live at frame 0 that turns significant later gives one SIMP-H birth and one frame-0 birth, and no RAW event",
+        "pass": true
+      },
+      {
+        "name": "K12 sticky (post-hoc SIMP-H): a significant lineage that drifts to 0.40 (above 0.35, still live) stays significant",
+        "pass": true
+      }
+    ]
+  },
+  "e1": [
+    {
+      "h": 2,
+      "N": 0,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 16922,
+        "noHystPerSec": 138.95169016012042,
+        "hystFlips": 15817,
+        "hystPerSec": 129.87819898727247,
+        "perCellPerSec": 0.020264970976325868
+      },
+      "ms": {
+        "coreMedian": 0.1451999999999316,
+        "coreP95": 0.21680000000014843,
+        "fullMedian": 0.6402000000000498,
+        "fullP95": 0.72820000000047
+      }
+    },
+    {
+      "h": 2,
+      "N": 0,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 8,
+        "split": 7,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 15,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 8,
+        "split": 7,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 15,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 8,
+        "split": 7,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 15,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 15936,
+        "noHystPerSec": 130.85534419050225,
+        "hystFlips": 14908,
+        "hystPerSec": 122.41412344327358,
+        "perCellPerSec": 0.019100346925148007
+      },
+      "ms": {
+        "coreMedian": 0.17360000000007858,
+        "coreP95": 0.2360999999982596,
+        "fullMedian": 0.6881000000012136,
+        "fullP95": 0.7928000000028987
+      }
+    },
+    {
+      "h": 2,
+      "N": 0,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 15948,
+        "noHystPerSec": 130.95387984124812,
+        "hystFlips": 14664,
+        "hystPerSec": 120.41056521144108,
+        "perCellPerSec": 0.018787730568176172
+      },
+      "ms": {
+        "coreMedian": 0.1680000000014843,
+        "coreP95": 0.22339999999894644,
+        "fullMedian": 0.6716999999989639,
+        "fullP95": 0.7355999999999767
+      }
+    },
+    {
+      "h": 2,
+      "N": 20,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 55,
+        "split": 53,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 110,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 55,
+        "split": 53,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 110,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 55,
+        "split": 53,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 110,
+        "frame0Births": 0,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 21416,
+        "noHystPerSec": 175.85329136444506,
+        "hystFlips": 19464,
+        "hystPerSec": 159.82482550978514,
+        "perCellPerSec": 0.024937560541392595
+      },
+      "ms": {
+        "coreMedian": 0.36239999999816064,
+        "coreP95": 0.42629999999917345,
+        "fullMedian": 0.8703999999997905,
+        "fullP95": 0.9487000000008265
+      }
+    },
+    {
+      "h": 2,
+      "N": 20,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 74,
+        "split": 75,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 151,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 74,
+        "split": 75,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 151,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 74,
+        "split": 75,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 151,
+        "frame0Births": 0,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 20990,
+        "noHystPerSec": 172.355275762967,
+        "hystFlips": 19038,
+        "hystPerSec": 156.3268099083071,
+        "perCellPerSec": 0.024391763131269638
+      },
+      "ms": {
+        "coreMedian": 0.3525999999983469,
+        "coreP95": 0.41709999999875436,
+        "fullMedian": 0.8484500000013213,
+        "fullP95": 0.9283999999970547
+      }
+    },
+    {
+      "h": 2,
+      "N": 20,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 76,
+        "split": 77,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 157,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 76,
+        "split": 77,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 157,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 76,
+        "split": 77,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 157,
+        "frame0Births": 0,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 20579,
+        "noHystPerSec": 168.98042972492132,
+        "hystFlips": 18397,
+        "hystPerSec": 151.0633638976324,
+        "perCellPerSec": 0.023570504586929695
+      },
+      "ms": {
+        "coreMedian": 0.35310000000026776,
+        "coreP95": 0.4135999999998603,
+        "fullMedian": 0.8476000000009662,
+        "fullP95": 0.91990000000078
+      }
+    },
+    {
+      "h": 2,
+      "N": 60,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 300,
+        "split": 299,
+        "holeOpen": 13,
+        "holeClose": 13,
+        "total": 625,
+        "medianPerSec": 5,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 300,
+        "split": 299,
+        "holeOpen": 13,
+        "holeClose": 13,
+        "total": 625,
+        "medianPerSec": 5,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 300,
+        "split": 299,
+        "holeOpen": 13,
+        "holeClose": 13,
+        "total": 625,
+        "frame0Births": 0,
+        "medianPerSec": 5,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 30391,
+        "noHystPerSec": 249.54974681811962,
+        "hystFlips": 26628,
+        "hystPerSec": 218.65060900506364,
+        "perCellPerSec": 0.034116181776418106
+      },
+      "ms": {
+        "coreMedian": 0.6751000000003842,
+        "coreP95": 0.7455000000045402,
+        "fullMedian": 1.1874000000098022,
+        "fullP95": 1.2753000000084285
+      }
+    },
+    {
+      "h": 2,
+      "N": 60,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 271,
+        "split": 270,
+        "holeOpen": 9,
+        "holeClose": 9,
+        "total": 559,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 271,
+        "split": 270,
+        "holeOpen": 9,
+        "holeClose": 9,
+        "total": 559,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 271,
+        "split": 270,
+        "holeOpen": 9,
+        "holeClose": 9,
+        "total": 559,
+        "frame0Births": 0,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 30159,
+        "noHystPerSec": 247.644724237033,
+        "hystFlips": 26354,
+        "hystPerSec": 216.4007116463665,
+        "perCellPerSec": 0.03376512898211367
+      },
+      "ms": {
+        "coreMedian": 0.6674999999959255,
+        "coreP95": 0.7431000000069616,
+        "fullMedian": 1.175600000002305,
+        "fullP95": 1.2758000000030734
+      }
+    },
+    {
+      "h": 2,
+      "N": 60,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 255,
+        "split": 249,
+        "holeOpen": 8,
+        "holeClose": 8,
+        "total": 520,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 255,
+        "split": 249,
+        "holeOpen": 8,
+        "holeClose": 8,
+        "total": 520,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 255,
+        "split": 249,
+        "holeOpen": 8,
+        "holeClose": 8,
+        "total": 520,
+        "frame0Births": 0,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 29731,
+        "noHystPerSec": 244.1302860270973,
+        "hystFlips": 25852,
+        "hystPerSec": 212.27863692349803,
+        "perCellPerSec": 0.03312195926408145
+      },
+      "ms": {
+        "coreMedian": 0.6662999999971362,
+        "coreP95": 0.7384999999922002,
+        "fullMedian": 1.171199999997043,
+        "fullP95": 1.2654999999940628
+      }
+    },
+    {
+      "h": 4,
+      "N": 0,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 4229,
+        "noHystPerSec": 34.72560558368688,
+        "hystFlips": 3932,
+        "hystPerSec": 32.286848227726836,
+        "perCellPerSec": 0.019991856487756556
+      },
+      "ms": {
+        "coreMedian": 0.04140000000188593,
+        "coreP95": 0.04589999999734573,
+        "fullMedian": 0.16079999999783468,
+        "fullP95": 0.1768000000010943
+      }
+    },
+    {
+      "h": 4,
+      "N": 0,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 8,
+        "split": 7,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 15,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 8,
+        "split": 7,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 15,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 8,
+        "split": 7,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 15,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 3940,
+        "noHystPerSec": 32.35253866155741,
+        "hystFlips": 3696,
+        "hystPerSec": 30.34898042972492,
+        "perCellPerSec": 0.0187919383465789
+      },
+      "ms": {
+        "coreMedian": 0.0415999999968335,
+        "coreP95": 0.04550000000745058,
+        "fullMedian": 0.16190000000642613,
+        "fullP95": 0.17290000000502914
+      }
+    },
+    {
+      "h": 4,
+      "N": 0,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 10,
+        "split": 9,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 19,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 10,
+        "split": 9,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 19,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 10,
+        "split": 9,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 19,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 3947,
+        "noHystPerSec": 32.41001779115916,
+        "hystFlips": 3644,
+        "hystPerSec": 29.921992609826194,
+        "perCellPerSec": 0.01852754960360755
+      },
+      "ms": {
+        "coreMedian": 0.04080000000249129,
+        "coreP95": 0.045799999992595986,
+        "fullMedian": 0.15970000000379514,
+        "fullP95": 0.17470000000321306
+      }
+    },
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 47,
+        "death": 50,
+        "merge": 59,
+        "split": 61,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 217,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 462,
+        "death": 477,
+        "merge": 45,
+        "split": 56,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 1040,
+        "medianPerSec": 8,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 47,
+        "death": 50,
+        "merge": 59,
+        "split": 61,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 217,
+        "frame0Births": 0,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 5275,
+        "noHystPerSec": 43.31462980703435,
+        "hystFlips": 4784,
+        "hystPerSec": 39.282879430682904,
+        "perCellPerSec": 0.024323764353364027
+      },
+      "ms": {
+        "coreMedian": 0.08990000000630971,
+        "coreP95": 0.09700000000884756,
+        "fullMedian": 0.21379999999771826,
+        "fullP95": 0.22990000000572763
+      }
+    },
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 52,
+        "death": 55,
+        "merge": 69,
+        "split": 75,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 251,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 475,
+        "death": 485,
+        "merge": 49,
+        "split": 61,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 1070,
+        "medianPerSec": 9,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 51,
+        "death": 54,
+        "merge": 69,
+        "split": 75,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 249,
+        "frame0Births": 0,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 5237,
+        "noHystPerSec": 43.00260024633913,
+        "hystFlips": 4752,
+        "hystPerSec": 39.02011769536061,
+        "perCellPerSec": 0.024161063588458584
+      },
+      "ms": {
+        "coreMedian": 0.08950000000186265,
+        "coreP95": 0.09720000000379514,
+        "fullMedian": 0.213900000002468,
+        "fullP95": 0.23200000000360887
+      }
+    },
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 47,
+        "death": 44,
+        "merge": 76,
+        "split": 76,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 243,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 413,
+        "death": 420,
+        "merge": 54,
+        "split": 63,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 950,
+        "medianPerSec": 8,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 47,
+        "death": 44,
+        "merge": 76,
+        "split": 76,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 243,
+        "frame0Births": 0,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 5118,
+        "noHystPerSec": 42.025455043109346,
+        "hystFlips": 4597,
+        "hystPerSec": 37.74736553989325,
+        "perCellPerSec": 0.023372981758447833
+      },
+      "ms": {
+        "coreMedian": 0.08879999999771826,
+        "coreP95": 0.0991000000067288,
+        "fullMedian": 0.21259999999892898,
+        "fullP95": 0.2363000000041211
+      }
+    },
+    {
+      "h": 4,
+      "N": 60,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 88,
+        "death": 91,
+        "merge": 297,
+        "split": 305,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 785,
+        "medianPerSec": 6,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 962,
+        "death": 1012,
+        "merge": 223,
+        "split": 276,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 2477,
+        "medianPerSec": 19,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 85,
+        "death": 91,
+        "merge": 294,
+        "split": 305,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 779,
+        "frame0Births": 0,
+        "medianPerSec": 6,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 7481,
+        "noHystPerSec": 61.42876693581497,
+        "hystFlips": 6531,
+        "hystPerSec": 53.62802791843438,
+        "perCellPerSec": 0.03320620923742067
+      },
+      "ms": {
+        "coreMedian": 0.17169999999168795,
+        "coreP95": 0.18369999999413267,
+        "fullMedian": 0.30040000000735745,
+        "fullP95": 0.32580000000598375
+      }
+    },
+    {
+      "h": 4,
+      "N": 60,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 117,
+        "death": 108,
+        "merge": 283,
+        "split": 274,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 784,
+        "medianPerSec": 6,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 975,
+        "death": 1018,
+        "merge": 199,
+        "split": 241,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 2435,
+        "medianPerSec": 20,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 114,
+        "death": 108,
+        "merge": 279,
+        "split": 274,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 777,
+        "frame0Births": 1,
+        "medianPerSec": 6,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 7409,
+        "noHystPerSec": 60.83755303133981,
+        "hystFlips": 6503,
+        "hystPerSec": 53.398111400027375,
+        "perCellPerSec": 0.0330638460681284
+      },
+      "ms": {
+        "coreMedian": 0.17190000000118744,
+        "coreP95": 0.1915000000008149,
+        "fullMedian": 0.30120000000169966,
+        "fullP95": 0.33980000000155997
+      }
+    },
+    {
+      "h": 4,
+      "N": 60,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 107,
+        "death": 112,
+        "merge": 227,
+        "split": 234,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 682,
+        "medianPerSec": 6,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 1041,
+        "death": 1085,
+        "merge": 151,
+        "split": 195,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 2474,
+        "medianPerSec": 20,
+        "seam": {
+          "birth": 1,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 1
+        }
+      },
+      "simpH": {
+        "birth": 105,
+        "death": 112,
+        "merge": 224,
+        "split": 234,
+        "holeOpen": 1,
+        "holeClose": 1,
+        "total": 677,
+        "frame0Births": 1,
+        "medianPerSec": 5,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 7281,
+        "noHystPerSec": 59.786506090050636,
+        "hystFlips": 6336,
+        "hystPerSec": 52.02682359381415,
+        "perCellPerSec": 0.03221475145127811
+      },
+      "ms": {
+        "coreMedian": 0.17069999998784624,
+        "coreP95": 0.18419999998877756,
+        "fullMedian": 0.2985000000044238,
+        "fullP95": 0.32679999999527354
+      }
+    },
+    {
+      "h": 8,
+      "N": 0,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 11,
+        "split": 10,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 21,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 1038,
+        "noHystPerSec": 8.523333789516903,
+        "hystFlips": 975,
+        "hystPerSec": 8.006021623101136,
+        "perCellPerSec": 0.020166301317635103
+      },
+      "ms": {
+        "coreMedian": 0.00969999999506399,
+        "coreP95": 0.010400000013760291,
+        "fullMedian": 0.03749999999126885,
+        "fullP95": 0.04020000000309665
+      }
+    },
+    {
+      "h": 8,
+      "N": 0,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 7,
+        "split": 6,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 13,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 7,
+        "split": 6,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 13,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 7,
+        "split": 6,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 13,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 959,
+        "noHystPerSec": 7.874640755439989,
+        "hystFlips": 902,
+        "hystPerSec": 7.406596414397153,
+        "perCellPerSec": 0.018656414142058323
+      },
+      "ms": {
+        "coreMedian": 0.009599999990314245,
+        "coreP95": 0.010300000009010546,
+        "fullMedian": 0.037299999996321276,
+        "fullP95": 0.0400999999983469
+      }
+    },
+    {
+      "h": 8,
+      "N": 0,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 0,
+        "death": 0,
+        "merge": 9,
+        "split": 8,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 17,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 0,
+        "death": 0,
+        "merge": 9,
+        "split": 8,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 17,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 0,
+        "death": 0,
+        "merge": 9,
+        "split": 8,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 17,
+        "frame0Births": 0,
+        "medianPerSec": 0,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 959,
+        "noHystPerSec": 7.874640755439989,
+        "hystFlips": 902,
+        "hystPerSec": 7.406596414397153,
+        "perCellPerSec": 0.018656414142058323
+      },
+      "ms": {
+        "coreMedian": 0.00960000000486616,
+        "coreP95": 0.010699999998905696,
+        "fullMedian": 0.037200000006123446,
+        "fullP95": 0.04129999999713618
+      }
+    },
+    {
+      "h": 8,
+      "N": 20,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 96,
+        "death": 96,
+        "merge": 18,
+        "split": 20,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 230,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 111,
+        "death": 109,
+        "merge": 18,
+        "split": 17,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 255,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 89,
+        "death": 90,
+        "merge": 18,
+        "split": 20,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 217,
+        "frame0Births": 0,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 1292,
+        "noHystPerSec": 10.609005063637609,
+        "hystFlips": 1191,
+        "hystPerSec": 9.77966333652662,
+        "perCellPerSec": 0.024633912686465035
+      },
+      "ms": {
+        "coreMedian": 0.022899999996297993,
+        "coreP95": 0.024999999994179234,
+        "fullMedian": 0.05099999999220017,
+        "fullP95": 0.05559999999240972
+      }
+    },
+    {
+      "h": 8,
+      "N": 20,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 118,
+        "death": 115,
+        "merge": 20,
+        "split": 18,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 271,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 141,
+        "death": 138,
+        "merge": 18,
+        "split": 14,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 311,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 111,
+        "death": 108,
+        "merge": 20,
+        "split": 18,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 257,
+        "frame0Births": 0,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 1299,
+        "noHystPerSec": 10.66648419323936,
+        "hystFlips": 1186,
+        "hystPerSec": 9.73860681538251,
+        "perCellPerSec": 0.02453049575663101
+      },
+      "ms": {
+        "coreMedian": 0.022800000006100163,
+        "coreP95": 0.024300000004586764,
+        "fullMedian": 0.05070000000705477,
+        "fullP95": 0.054400000008172356
+      }
+    },
+    {
+      "h": 8,
+      "N": 20,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 88,
+        "death": 86,
+        "merge": 19,
+        "split": 20,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 213,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 1,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 1
+        }
+      },
+      "simp": {
+        "birth": 107,
+        "death": 104,
+        "merge": 18,
+        "split": 17,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 246,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 75,
+        "death": 74,
+        "merge": 18,
+        "split": 20,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 187,
+        "frame0Births": 0,
+        "medianPerSec": 1,
+        "seam": {
+          "birth": 0,
+          "death": 1,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 1
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 1264,
+        "noHystPerSec": 10.379088545230601,
+        "hystFlips": 1151,
+        "hystPerSec": 9.451211167373751,
+        "perCellPerSec": 0.023806577247792827
+      },
+      "ms": {
+        "coreMedian": 0.022899999996297993,
+        "coreP95": 0.02459999998973217,
+        "fullMedian": 0.050800000011804514,
+        "fullP95": 0.05469999999331776
+      }
+    },
+    {
+      "h": 8,
+      "N": 60,
+      "seed": 1,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 199,
+        "death": 204,
+        "merge": 54,
+        "split": 53,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 510,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 243,
+        "death": 251,
+        "merge": 44,
+        "split": 45,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 583,
+        "medianPerSec": 5,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 185,
+        "death": 194,
+        "merge": 50,
+        "split": 53,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 482,
+        "frame0Births": 0,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 1844,
+        "noHystPerSec": 15.141644997947175,
+        "hystFlips": 1623,
+        "hystPerSec": 13.326946763377583,
+        "perCellPerSec": 0.033569135424124895
+      },
+      "ms": {
+        "coreMedian": 0.045499999992898665,
+        "coreP95": 0.049299999998766,
+        "fullMedian": 0.0742000000027474,
+        "fullP95": 0.08129999999073334
+      }
+    },
+    {
+      "h": 8,
+      "N": 60,
+      "seed": 2,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 209,
+        "death": 203,
+        "merge": 41,
+        "split": 37,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 490,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 246,
+        "death": 242,
+        "merge": 32,
+        "split": 28,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 548,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 188,
+        "death": 186,
+        "merge": 38,
+        "split": 37,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 449,
+        "frame0Births": 0,
+        "medianPerSec": 3,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 1777,
+        "noHystPerSec": 14.591487614616122,
+        "hystFlips": 1584,
+        "hystPerSec": 13.006705898453538,
+        "perCellPerSec": 0.032762483371419494
+      },
+      "ms": {
+        "coreMedian": 0.04559999999764841,
+        "coreP95": 0.04909999998926651,
+        "fullMedian": 0.07460000000719447,
+        "fullP95": 0.08080000001064036
+      }
+    },
+    {
+      "h": 8,
+      "N": 60,
+      "seed": 3,
+      "shuffle": false,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 221,
+        "death": 233,
+        "merge": 39,
+        "split": 46,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 539,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 261,
+        "death": 273,
+        "merge": 33,
+        "split": 40,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 607,
+        "medianPerSec": 5,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 196,
+        "death": 211,
+        "merge": 36,
+        "split": 46,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 489,
+        "frame0Births": 0,
+        "medianPerSec": 4,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 1767,
+        "noHystPerSec": 14.509374572327905,
+        "hystFlips": 1572,
+        "hystPerSec": 12.908170247707679,
+        "perCellPerSec": 0.03251428273981783
+      },
+      "ms": {
+        "coreMedian": 0.045199999993201345,
+        "coreP95": 0.04889999999431893,
+        "fullMedian": 0.0737000000081025,
+        "fullP95": 0.08080000001064036
+      }
+    }
+  ],
+  "k5": [
+    {
+      "h": 2,
+      "N": 20,
+      "seed": 1,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 105070,
+        "death": 104866,
+        "merge": 376,
+        "split": 178,
+        "holeOpen": 88,
+        "holeClose": 88,
+        "total": 210666,
+        "medianPerSec": 1727,
+        "seam": {
+          "birth": 17,
+          "death": 18,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 35
+        }
+      },
+      "simp": {
+        "birth": 105093,
+        "death": 105044,
+        "merge": 201,
+        "split": 157,
+        "holeOpen": 88,
+        "holeClose": 88,
+        "total": 210671,
+        "medianPerSec": 1727,
+        "seam": {
+          "birth": 17,
+          "death": 18,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 35
+        }
+      },
+      "simpH": {
+        "birth": 105070,
+        "death": 104866,
+        "merge": 376,
+        "split": 178,
+        "holeOpen": 88,
+        "holeClose": 88,
+        "total": 210666,
+        "frame0Births": 0,
+        "medianPerSec": 1727,
+        "seam": {
+          "birth": 17,
+          "death": 18,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 35
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 1025603,
+        "noHystPerSec": 8421.5382509922,
+        "hystFlips": 1005162,
+        "hystPerSec": 8253.690981250855,
+        "perCellPerSec": 1.2878282074037846
+      },
+      "ms": {
+        "coreMedian": 0.3399000000208616,
+        "coreP95": 0.40600000001722947,
+        "fullMedian": 0.8196999999927357,
+        "fullP95": 0.9086999999999534
+      }
+    },
+    {
+      "h": 2,
+      "N": 20,
+      "seed": 2,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 105652,
+        "death": 105412,
+        "merge": 379,
+        "split": 135,
+        "holeOpen": 90,
+        "holeClose": 90,
+        "total": 211758,
+        "medianPerSec": 1732,
+        "seam": {
+          "birth": 16,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 32
+        }
+      },
+      "simp": {
+        "birth": 105679,
+        "death": 105614,
+        "merge": 182,
+        "split": 113,
+        "holeOpen": 90,
+        "holeClose": 90,
+        "total": 211768,
+        "medianPerSec": 1733,
+        "seam": {
+          "birth": 16,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 32
+        }
+      },
+      "simpH": {
+        "birth": 105652,
+        "death": 105412,
+        "merge": 379,
+        "split": 135,
+        "holeOpen": 90,
+        "holeClose": 90,
+        "total": 211758,
+        "frame0Births": 0,
+        "medianPerSec": 1732,
+        "seam": {
+          "birth": 16,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 32
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 1027413,
+        "noHystPerSec": 8436.400711646367,
+        "hystFlips": 1007751,
+        "hystPerSec": 8274.950047899274,
+        "perCellPerSec": 1.2911452719455883
+      },
+      "ms": {
+        "coreMedian": 0.3386999999929685,
+        "coreP95": 0.401400000002468,
+        "fullMedian": 0.815600000001723,
+        "fullP95": 0.9070000000065193
+      }
+    },
+    {
+      "h": 2,
+      "N": 20,
+      "seed": 3,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 6409,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 105797,
+        "death": 105591,
+        "merge": 357,
+        "split": 143,
+        "holeOpen": 58,
+        "holeClose": 58,
+        "total": 212004,
+        "medianPerSec": 1741,
+        "seam": {
+          "birth": 17,
+          "death": 13,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 30
+        }
+      },
+      "simp": {
+        "birth": 105825,
+        "death": 105763,
+        "merge": 197,
+        "split": 127,
+        "holeOpen": 58,
+        "holeClose": 58,
+        "total": 212028,
+        "medianPerSec": 1741,
+        "seam": {
+          "birth": 17,
+          "death": 13,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 30
+        }
+      },
+      "simpH": {
+        "birth": 105797,
+        "death": 105591,
+        "merge": 357,
+        "split": 143,
+        "holeOpen": 58,
+        "holeClose": 58,
+        "total": 212004,
+        "frame0Births": 0,
+        "medianPerSec": 1741,
+        "seam": {
+          "birth": 17,
+          "death": 13,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 30
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 1025749,
+        "noHystPerSec": 8422.737101409608,
+        "hystFlips": 1006015,
+        "hystPerSec": 8260.69522375804,
+        "perCellPerSec": 1.2889210834386082
+      },
+      "ms": {
+        "coreMedian": 0.33749999999417923,
+        "coreP95": 0.4021000000066124,
+        "fullMedian": 0.8139999999839347,
+        "fullP95": 0.9076999999815598
+      }
+    },
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 1,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 98778,
+        "death": 98752,
+        "merge": 81,
+        "split": 60,
+        "holeOpen": 3,
+        "holeClose": 3,
+        "total": 197677,
+        "medianPerSec": 1618,
+        "seam": {
+          "birth": 16,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 32
+        }
+      },
+      "simp": {
+        "birth": 92806,
+        "death": 92784,
+        "merge": 75,
+        "split": 59,
+        "holeOpen": 3,
+        "holeClose": 3,
+        "total": 185730,
+        "medianPerSec": 1519,
+        "seam": {
+          "birth": 15,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 31
+        }
+      },
+      "simpH": {
+        "birth": 92799,
+        "death": 92773,
+        "merge": 80,
+        "split": 60,
+        "holeOpen": 3,
+        "holeClose": 3,
+        "total": 185718,
+        "frame0Births": 0,
+        "medianPerSec": 1520,
+        "seam": {
+          "birth": 15,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 31
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 252444,
+        "noHystPerSec": 2072.8944847406597,
+        "hystFlips": 247383,
+        "hystPerSec": 2031.337074038593,
+        "perCellPerSec": 1.2577938538938656
+      },
+      "ms": {
+        "coreMedian": 0.08930000002146699,
+        "coreP95": 0.09820000000763685,
+        "fullMedian": 0.21580000000540167,
+        "fullP95": 0.24190000002272427
+      }
+    },
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 2,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 99267,
+        "death": 99239,
+        "merge": 73,
+        "split": 43,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 198626,
+        "medianPerSec": 1629,
+        "seam": {
+          "birth": 14,
+          "death": 16,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 30
+        }
+      },
+      "simp": {
+        "birth": 93068,
+        "death": 93048,
+        "merge": 62,
+        "split": 39,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 186221,
+        "medianPerSec": 1522,
+        "seam": {
+          "birth": 13,
+          "death": 14,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 27
+        }
+      },
+      "simpH": {
+        "birth": 93061,
+        "death": 93036,
+        "merge": 70,
+        "split": 43,
+        "holeOpen": 2,
+        "holeClose": 2,
+        "total": 186214,
+        "frame0Births": 0,
+        "medianPerSec": 1522,
+        "seam": {
+          "birth": 13,
+          "death": 15,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 28
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 252784,
+        "noHystPerSec": 2075.686328178459,
+        "hystFlips": 247986,
+        "hystPerSec": 2036.2884904885727,
+        "perCellPerSec": 1.2608597464325526
+      },
+      "ms": {
+        "coreMedian": 0.08849999998346902,
+        "coreP95": 0.09779999998863786,
+        "fullMedian": 0.21420000001671724,
+        "fullP95": 0.23880000002100132
+      }
+    },
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 3,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 99520,
+        "death": 99504,
+        "merge": 62,
+        "split": 40,
+        "holeOpen": 6,
+        "holeClose": 6,
+        "total": 199138,
+        "medianPerSec": 1631,
+        "seam": {
+          "birth": 16,
+          "death": 13,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 29
+        }
+      },
+      "simp": {
+        "birth": 93427,
+        "death": 93411,
+        "merge": 58,
+        "split": 39,
+        "holeOpen": 6,
+        "holeClose": 6,
+        "total": 186947,
+        "medianPerSec": 1534,
+        "seam": {
+          "birth": 15,
+          "death": 13,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 28
+        }
+      },
+      "simpH": {
+        "birth": 93424,
+        "death": 93406,
+        "merge": 61,
+        "split": 40,
+        "holeOpen": 6,
+        "holeClose": 6,
+        "total": 186943,
+        "frame0Births": 0,
+        "medianPerSec": 1534,
+        "seam": {
+          "birth": 15,
+          "death": 13,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 28
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 252632,
+        "noHystPerSec": 2074.438209935678,
+        "hystFlips": 247736,
+        "hystPerSec": 2034.2356644313672,
+        "perCellPerSec": 1.2595886467067288
+      },
+      "ms": {
+        "coreMedian": 0.08840000000782311,
+        "coreP95": 0.09599999999045394,
+        "fullMedian": 0.213900000002468,
+        "fullP95": 0.23410000000149012
+      }
+    },
+    {
+      "h": 8,
+      "N": 20,
+      "seed": 1,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 21897,
+        "death": 21899,
+        "merge": 63,
+        "split": 61,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 43920,
+        "medianPerSec": 362,
+        "seam": {
+          "birth": 1,
+          "death": 3,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 4
+        }
+      },
+      "simp": {
+        "birth": 19822,
+        "death": 19822,
+        "merge": 63,
+        "split": 59,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 39766,
+        "medianPerSec": 326,
+        "seam": {
+          "birth": 1,
+          "death": 3,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 4
+        }
+      },
+      "simpH": {
+        "birth": 19820,
+        "death": 19822,
+        "merge": 63,
+        "split": 61,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 39766,
+        "frame0Births": 0,
+        "medianPerSec": 326,
+        "seam": {
+          "birth": 1,
+          "death": 3,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 4
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 61869,
+        "noHystPerSec": 508.0251813329684,
+        "hystFlips": 60634,
+        "hystPerSec": 497.88422061037363,
+        "perCellPerSec": 1.2541164247112686
+      },
+      "ms": {
+        "coreMedian": 0.022999999986495823,
+        "coreP95": 0.024799999984679744,
+        "fullMedian": 0.05400000000372529,
+        "fullP95": 0.05840000000898726
+      }
+    },
+    {
+      "h": 8,
+      "N": 20,
+      "seed": 2,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 22088,
+        "death": 22086,
+        "merge": 39,
+        "split": 36,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 44249,
+        "medianPerSec": 360,
+        "seam": {
+          "birth": 4,
+          "death": 6,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 10
+        }
+      },
+      "simp": {
+        "birth": 19978,
+        "death": 19977,
+        "merge": 39,
+        "split": 36,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 40030,
+        "medianPerSec": 329,
+        "seam": {
+          "birth": 4,
+          "death": 5,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 9
+        }
+      },
+      "simpH": {
+        "birth": 19976,
+        "death": 19974,
+        "merge": 39,
+        "split": 36,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 40025,
+        "frame0Births": 0,
+        "medianPerSec": 329,
+        "seam": {
+          "birth": 4,
+          "death": 6,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 10
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 61720,
+        "noHystPerSec": 506.80169700287394,
+        "hystFlips": 60603,
+        "hystPerSec": 497.62967017928014,
+        "perCellPerSec": 1.2534752397462976
+      },
+      "ms": {
+        "coreMedian": 0.022800000006100163,
+        "coreP95": 0.024600000004284084,
+        "fullMedian": 0.05400000000372529,
+        "fullP95": 0.05830000000423752
+      }
+    },
+    {
+      "h": 8,
+      "N": 20,
+      "seed": 3,
+      "shuffle": true,
+      "water": true,
+      "delta": 0.1,
+      "ncells": 397,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 22070,
+        "death": 22071,
+        "merge": 52,
+        "split": 51,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 44244,
+        "medianPerSec": 365,
+        "seam": {
+          "birth": 2,
+          "death": 3,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 5
+        }
+      },
+      "simp": {
+        "birth": 19995,
+        "death": 19996,
+        "merge": 52,
+        "split": 51,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 40094,
+        "medianPerSec": 328,
+        "seam": {
+          "birth": 2,
+          "death": 3,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 5
+        }
+      },
+      "simpH": {
+        "birth": 19995,
+        "death": 19996,
+        "merge": 52,
+        "split": 51,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 40094,
+        "frame0Births": 0,
+        "medianPerSec": 328,
+        "seam": {
+          "birth": 2,
+          "death": 3,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 5
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 61145,
+        "noHystPerSec": 502.0801970713015,
+        "hystFlips": 60074,
+        "hystPerSec": 493.2858902422335,
+        "perCellPerSec": 1.2425337285698577
+      },
+      "ms": {
+        "coreMedian": 0.022800000006100163,
+        "coreP95": 0.02470000000903383,
+        "fullMedian": 0.053899999998975545,
+        "fullP95": 0.05839999997988343
+      }
+    }
+  ],
+  "water": [
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 1,
+      "shuffle": false,
+      "water": false,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 57,
+        "death": 57,
+        "merge": 46,
+        "split": 48,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 208,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 575,
+        "death": 585,
+        "merge": 37,
+        "split": 45,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 1242,
+        "medianPerSec": 10,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 57,
+        "death": 57,
+        "merge": 46,
+        "split": 48,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 208,
+        "frame0Births": 0,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 5891,
+        "noHystPerSec": 48.37279321198851,
+        "hystFlips": 5349,
+        "hystPerSec": 43.92226631996716,
+        "perCellPerSec": 0.02719644973372579
+      },
+      "ms": {
+        "coreMedian": 0.07979999999224674,
+        "coreP95": 0.0861000000149943,
+        "fullMedian": 0.19750000000931323,
+        "fullP95": 0.21280000000842847
+      }
+    },
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 2,
+      "shuffle": false,
+      "water": false,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 63,
+        "death": 66,
+        "merge": 54,
+        "split": 59,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 242,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 577,
+        "death": 585,
+        "merge": 38,
+        "split": 47,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 1247,
+        "medianPerSec": 10,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 62,
+        "death": 65,
+        "merge": 54,
+        "split": 59,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 240,
+        "frame0Births": 1,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 84,
+        "loads": 254,
+        "seconds": 121.78333333333333,
+        "perSec": 0.689749555221021,
+        "loadsPerSec": 2.085671274120706
+      },
+      "b2": {
+        "noHystFlips": 5905,
+        "noHystPerSec": 48.487751471192006,
+        "hystFlips": 5355,
+        "hystPerSec": 43.97153414534009,
+        "perCellPerSec": 0.02722695612714556
+      },
+      "ms": {
+        "coreMedian": 0.07959999999729916,
+        "coreP95": 0.0868999999947846,
+        "fullMedian": 0.19629999998142011,
+        "fullP95": 0.21470000001136214
+      }
+    },
+    {
+      "h": 4,
+      "N": 20,
+      "seed": 3,
+      "shuffle": false,
+      "water": false,
+      "delta": 0.1,
+      "ncells": 1615,
+      "frames": 7307,
+      "seconds": 121.78333333333333,
+      "tourFrames": 3707,
+      "raw": {
+        "birth": 56,
+        "death": 53,
+        "merge": 65,
+        "split": 63,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 237,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simp": {
+        "birth": 556,
+        "death": 563,
+        "merge": 43,
+        "split": 50,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 1212,
+        "medianPerSec": 10,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "simpH": {
+        "birth": 56,
+        "death": 53,
+        "merge": 65,
+        "split": 63,
+        "holeOpen": 0,
+        "holeClose": 0,
+        "total": 237,
+        "frame0Births": 0,
+        "medianPerSec": 2,
+        "seam": {
+          "birth": 0,
+          "death": 0,
+          "merge": 0,
+          "split": 0,
+          "holeOpen": 0,
+          "holeClose": 0,
+          "total": 0
+        }
+      },
+      "b1": {
+        "crossings": 96,
+        "loads": 290,
+        "seconds": 121.78333333333333,
+        "perSec": 0.7882852059668811,
+        "loadsPerSec": 2.381278226358287
+      },
+      "b2": {
+        "noHystFlips": 5896,
+        "noHystPerSec": 48.413849733132615,
+        "hystFlips": 5297,
+        "hystPerSec": 43.49527850006843,
+        "perCellPerSec": 0.026932060990754444
+      },
+      "ms": {
+        "coreMedian": 0.07939999998779967,
+        "coreP95": 0.0859000000054948,
+        "fullMedian": 0.1949999999778811,
+        "fullP95": 0.2116999999852851
+      }
+    }
+  ],
+  "k5Ratio": {
+    "judged": 182.64640522875817,
+    "byH": {
+      "2": {
+        "raw": 1517.7703349282297,
+        "simp": 1517.8636363636363,
+        "simpH": 1517.7703349282297,
+        "realPerFrame": {
+          "raw": 0.01906847315359701,
+          "simp": 0.01906847315359701,
+          "simpH": 0.01906847315359701
+        },
+        "shuffledPerFrame": {
+          "raw": 28.941562884904886,
+          "simp": 28.94334200082113,
+          "simpH": 28.941562884904886
+        }
+      },
+      "4": {
+        "raw": 837.4697609001406,
+        "simp": 182.64640522875817,
+        "simpH": 788.2581100141043,
+        "realPerFrame": {
+          "raw": 0.03243465170384563,
+          "simp": 0.13959217188996853,
+          "simpH": 0.032343414990192054
+        },
+        "shuffledPerFrame": {
+          "raw": 27.16304000729894,
+          "simp": 25.496008393777657,
+          "simpH": 25.49495917157064
+        }
+      },
+      "8": {
+        "raw": 185.45238095238096,
+        "simp": 147.64778325123154,
+        "simpH": 181.36913767019666,
+        "realPerFrame": {
+          "raw": 0.032571506774325985,
+          "simp": 0.03704210574335112,
+          "simpH": 0.030153733862506273
+        },
+        "shuffledPerFrame": {
+          "raw": 6.04046348250536,
+          "simp": 5.4691847999635055,
+          "simpH": 5.4689567081793715
+        }
+      }
+    }
+  },
+  "e2": {
+    "byCell": [
+      {
+        "h": 2,
+        "N": 0,
+        "coreMedian": 0.16226666666716483,
+        "coreP95": 0.2254333333324515,
+        "fullMedian": 0.6666666666667425,
+        "fullP95": 0.7522000000011152
+      },
+      {
+        "h": 2,
+        "N": 20,
+        "coreMedian": 0.35603333333225845,
+        "coreP95": 0.4189999999992627,
+        "fullMedian": 0.855483333334026,
+        "fullP95": 0.932333333332887
+      },
+      {
+        "h": 2,
+        "N": 60,
+        "coreMedian": 0.6696333333311486,
+        "coreP95": 0.7423666666679006,
+        "fullMedian": 1.1780666666697168,
+        "fullP95": 1.272200000001855
+      },
+      {
+        "h": 4,
+        "N": 0,
+        "coreMedian": 0.04126666666707024,
+        "coreP95": 0.0457333333324641,
+        "fullMedian": 0.16080000000268532,
+        "fullP95": 0.17480000000311216
+      },
+      {
+        "h": 4,
+        "N": 20,
+        "coreMedian": 0.08940000000196353,
+        "coreP95": 0.09776666667312384,
+        "fullMedian": 0.2134333333330384,
+        "fullP95": 0.2327333333378192
+      },
+      {
+        "h": 4,
+        "N": 60,
+        "coreMedian": 0.17143333332690722,
+        "coreP95": 0.1864666666612417,
+        "fullMedian": 0.30003333333782695,
+        "fullP95": 0.33080000000093907
+      },
+      {
+        "h": 8,
+        "N": 0,
+        "coreMedian": 0.009633333330081465,
+        "coreP95": 0.010466666673892178,
+        "fullMedian": 0.03733333333123786,
+        "fullP95": 0.04053333333285991
+      },
+      {
+        "h": 8,
+        "N": 20,
+        "coreMedian": 0.02286666666623205,
+        "coreP95": 0.02463333332949939,
+        "fullMedian": 0.050833333337019816,
+        "fullP95": 0.05489999999796661
+      },
+      {
+        "h": 8,
+        "N": 60,
+        "coreMedian": 0.04543333332791614,
+        "coreP95": 0.04909999999411715,
+        "fullMedian": 0.07416666667268146,
+        "fullP95": 0.08096666667067136
+      }
+    ],
+    "pooled": {
+      "coreMedian": 0.0893999999971129,
+      "coreP95": 0.09770000001299195,
+      "fullMedian": 0.2134000000078231,
+      "fullP95": 0.23339999999734573
+    },
+    "judged": "h=4,N=20"
+  },
+  "verdict": {
+    "e1": "DEAD",
+    "e2": "PASS",
+    "reasons": [
+      "E1 DEAD: SIMPLIFIED events 3060 over 21921 frames is 0.1396 per frame, above 0.1.",
+      "E2 PASS: pooled core p95 0.09770000001299195 ms per frame at h=4, N=20 (bar <= 0.5 ms)."
+    ]
+  },
+  "postHoc": {
+    "k5": 788.2581100141043,
+    "verdict": {
+      "e1": "UNRESOLVED",
+      "e2": "PASS",
+      "reasons": [
+        "E1 UNRESOLVED on seed 1: SIMP-H median 2/s (bar <= 1), mean 1.7819/s vs 0.1 x B1 = 0.0788/s.",
+        "E1 UNRESOLVED on seed 2: SIMP-H median 2/s (bar <= 1), mean 2.0446/s vs 0.1 x B1 = 0.0690/s.",
+        "E1 UNRESOLVED on seed 3: SIMP-H median 2/s (bar <= 1), mean 1.9953/s vs 0.1 x B1 = 0.0788/s.",
+        "E2 PASS: pooled core p95 0.09770000001299195 ms per frame at h=4, N=20 (bar <= 0.5 ms)."
+      ]
+    },
+    "economics": {
+      "rows": [
+        {
+          "seed": 1,
+          "rawPerSec": 1.7818530176543041,
+          "simpHPerSec": 1.7818530176543041,
+          "b1PerSec": 0.7882852059668811
+        },
+        {
+          "seed": 2,
+          "rawPerSec": 2.061037361434241,
+          "simpHPerSec": 2.0446147529765977,
+          "b1PerSec": 0.689749555221021
+        },
+        {
+          "seed": 3,
+          "rawPerSec": 1.9953469276036677,
+          "simpHPerSec": 1.9953469276036677,
+          "b1PerSec": 0.7882852059668811
+        }
+      ],
+      "pooled": {
+        "rawPerSec": 1.9460791022307375,
+        "simpHPerSec": 1.940604899411523,
+        "b1PerSec": 0.7554399890515943
+      }
+    }
+  },
+  "sweepSeconds": 179.102335
+}

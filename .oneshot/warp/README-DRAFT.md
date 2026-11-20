@@ -60,8 +60,8 @@ scripts/                 the world check, capture, load and frame tools
 docs/                    ARCHITECTURE.md, TESTING.md and the subsystem notes
 ```
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) describes the cutscene loading path: what decides which renderer plays an arrival, and the fallback chain.
-- [docs/TESTING.md](docs/TESTING.md) lists the Node checks and the load gate, with the commands that produce each number.
+- [docs/architecture/overview.md](docs/architecture/overview.md) describes the cutscene loading path: what decides which renderer plays an arrival, and the fallback chain.
+- [docs/testing/gates.md](docs/testing/gates.md) lists the Node checks and the load gate, with the commands that produce each number.
 
 ## Contributions and lab projects
 
@@ -72,7 +72,7 @@ The lab buildings are the eleven repositories in `data/workbench.json`: resolven
 ## How to contribute
 
 - **Data is generated, never hand-edited.** `data/showcase.json` comes from `scripts/extract-showcase.mjs`, `data/contributions.json` from `scripts/extract-contributions.mjs`, and `data/workbench.json` from `scripts/extract-workbench.mjs`. Change the script, then run it.
-- **Check before you open a pull request.** Run `npm run check`, `npm run lint` and `npm run build`. [docs/TESTING.md](docs/TESTING.md) lists the other Node checks and what each one guards.
+- **Check before you open a pull request.** Run `npm run check`, `npm run lint` and `npm run build`. [docs/testing/gates.md](docs/testing/gates.md) lists the other Node checks and what each one guards.
 - **Open the pull request against `main`.** Describe the subsystem you changed and the check output that shows it works.
 
 <!--
@@ -99,8 +99,8 @@ Sources cited (count: 22):
 16. data/showcase.json: contains pr-anyps5-12609 and the TensorFlow #128930 entry (grep count 6 for 12609|128930).
 17. data/workbench.json: 11 repos, names listed in the draft.
 18. lib/anime/live.js line 4: ENGINE_DOCKS list (includes pr-anyps5-12609 and pr-tensorflow-128930).
-19. docs/ARCHITECTURE.md: cutscene loading path, fallback chain.
-20. docs/TESTING.md: check table (node lib/anime/live.check.mjs, scripts/cutscene-isolation.mjs, scripts/cutscene-smoke.mjs, scripts/check-world.mjs) and the load gate.
+19. docs/architecture/overview.md: cutscene loading path, fallback chain.
+20. docs/testing/gates.md: check table (node lib/anime/live.check.mjs, scripts/cutscene-isolation.mjs, scripts/cutscene-smoke.mjs, scripts/check-world.mjs) and the load gate.
 21. Directory layout: `ls` of components/world, components/anime, lib/anime, lib/world, lib/world/cutscene, docs (run in the worktree).
 22. Git remote: git remote -v shows origin https://github.com/teerthsharma/teerthfolio.git (the old README links Debyte404/teerthfolio; not used here).
 
@@ -108,6 +108,6 @@ Notes for the later reader:
 - lib/world/plots.js does not exist, so the reserved seal-named plots section is omitted.
 - The live-site badge and link are omitted: the target was not verified (the old README names teerthfolio.vercel.app; project memory names evilseal.si).
 - No LICENSE file exists at the repository root; a stranger will look for one.
-- docs/ARCHITECTURE.md currently covers only the cutscene loading path, not the whole architecture.
+- docs/architecture/overview.md currently covers only the cutscene loading path, not the whole architecture.
 - The old README contained a personal email address; it is not carried into this draft.
 -->

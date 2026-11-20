@@ -26,11 +26,14 @@ assert.match(src, /engine-fault/, "the fault injection is in the host");
 assert.match(src, /"hang"/);
 assert.match(src, /prep\.configure\(\{/, "the host supplies the prep's loaders and factories");
 assert.match(src, /modeOf: \(engine\) => modeForTier\(engine\.tier\)/, "the mode comes from lib/quality/modes.js");
+assert.match(src, /off: new URLSearchParams\(location\.search\)\.get\("hot"\) === "off" \|\| modeForTier\(classify\(window\.__world\?\.gpu\)\) === "low"/, "a low-mode GPU never spins the resident engine");
 
 assert.match(src, /registerEngineProvider\(\{/, "the engine's jobs are registered with the shared prewarm");
 assert.match(src, /critical: \(\) => true/, "the shared modules load before ready");
 assert.match(src, /prep\.preload\(\)/);
 assert.match(src, /prep\.prepare\(dock\)/, "a dock is prepared once the seal is within the horizon");
+assert.match(src, /for \(const mesh of meshes\) \{\s*gl\.setRenderTarget\(rt\);\s*await gl\.compileAsync\(mesh, player\.camera, player\.root\);\s*gl\.setRenderTarget\(null\);\s*await new Promise\(\(r\) => setTimeout\(r, 16\)\);\s*\}/, "the player links one mesh per task, with a frame between links");
+assert.match(src, /const compiled = gl\.compileAsync\(player\.root, player\.camera\);/, "the cold arrival path keeps a single compileAsync");
 assert.match(src, /markEngineFail\(place\); \}\);/, "a failed prepare marks the place at once");
 assert.match(src, /drop\(place\) \{ prep\.drop/, "a dock the seal leaves is dropped");
 assert.doesNotMatch(src, /^import .*lib\/anime\/engine\.js"/m, "the engine is loaded on demand, not in the Scene chunk");
