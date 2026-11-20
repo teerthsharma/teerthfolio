@@ -17,6 +17,17 @@ const LIMITS = 'Occlusion term not modelled (the camera never rotates). No colli
 
 const f = (x, d = 3) => (typeof x === 'number' && Number.isFinite(x) ? x.toFixed(d) : String(x));
 
+export function economicsRows(cells) {
+  const rows = cells.map((c) => ({ seed: c.seed, rawPerSec: c.raw.total / c.seconds, simpHPerSec: c.simpH.total / c.seconds, b1PerSec: c.b1.perSec }));
+  const sec = cells.reduce((s, c) => s + c.seconds, 0);
+  const pooled = {
+    rawPerSec: cells.reduce((s, c) => s + c.raw.total, 0) / sec,
+    simpHPerSec: cells.reduce((s, c) => s + c.simpH.total, 0) / sec,
+    b1PerSec: cells.reduce((s, c) => s + c.b1.perSec * c.seconds, 0) / sec,
+  };
+  return { rows, pooled };
+}
+
 export function renderMarkdown(r) {
   const L = [];
   const push = (...s) => L.push(...s, '');
@@ -29,6 +40,27 @@ export function renderMarkdown(r) {
   for (const s of r.verdict.reasons) push(`- ${s}`);
   push('Bars, verbatim from the prereg:');
   push(`- ${BARS.pass}`, `- ${BARS.dead}`, `- ${BARS.e2}`, `- ${BARS.k5}`);
+
+  push('## Post-hoc variant SIMP-H (not pre-registered)');
+  push('The SIMP-H rule (lineage latch: a raw live component is significant if its min c <= 0.25 now, or it overlaps a component that was significant last frame) was chosen after the pre-registered numbers were seen, by a reviewer who had seen them. It can only add information. It never replaces the pre-registered verdict, which is the Verdict section above, printed first and unchanged.');
+  push(`SIMP-H post-hoc reading (same bars, same pure verdict function, fed the SIMP-H counts): E1 **${r.postHoc.verdict.e1}**, E2 **${r.postHoc.verdict.e2}**. K5 ratio on SIMP-H at h=4, N=20: ${f(r.postHoc.k5, 2)}x.`);
+  for (const s of r.postHoc.verdict.reasons) L.push(`- ${s}`);
+  L.push('');
+  push('Invariant reading, per cell: SIMP-H total <= RAW total + SIMP-H frame-0 births (the column after SIMP-H total). Subtract that column to compare. The tests also assert SIMP-H death, merge, split and hole kinds are each <= RAW.');
+  push('Known defect 1 (recorded, not fixed): the pre-registered SIMPLIFIED column can exceed RAW (h8 N20 seed 1, 5 s roam: RAW 121, SIMPLIFIED 127), because its significance test has no memory from frame to frame.');
+  push('Known defect 2 (recorded, not fixed, warm start): frame-0 events are suppressed in both detectors (G9), so a component already live at frame 0 has no birth on record; if it turns significant later, SIMP-H records a birth that RAW cannot match, so the excess is bounded by the frame-0 births column (witness h4 N60 seed 3: RAW 361, SIMP-H 362).');
+  push('| h | N | seed | ncells | seconds | RAW total | SIMP-H total | SIMP-H frame-0 births | SIMP-H birth | SIMP-H death | SIMP-H merge | SIMP-H split | SIMP-H holeOpen | SIMP-H holeClose | SIMP-H seam | SIMP-H events/s (mean) | SIMP-H median/s |', '|' + '---|'.repeat(17));
+  for (const c of r.e1) {
+    const s = c.simpH;
+    L.push(`| ${c.h} | ${c.N} | ${c.seed} | ${c.ncells} | ${f(c.seconds, 2)} | ${c.raw.total} | ${s.total} | ${s.frame0Births} | ${s.birth} | ${s.death} | ${s.merge} | ${s.split} | ${s.holeOpen} | ${s.holeClose} | ${s.seam.total} | ${f(s.total / c.seconds)} | ${f(s.medianPerSec, 1)} |`);
+  }
+  L.push('');
+  push('Economics at h=4, N=20, all three seeds: RAW and SIMP-H events per second against B1 chunk-boundary crossings per second (mean rates over the judged walk).');
+  push('| seed | RAW events/s | SIMP-H events/s | B1 crossings/s |', '|---|---|---|---|');
+  for (const e of r.postHoc.economics.rows) L.push(`| ${e.seed} | ${f(e.rawPerSec)} | ${f(e.simpHPerSec)} | ${f(e.b1PerSec)} |`);
+  const p = r.postHoc.economics.pooled;
+  L.push(`| pooled | ${f(p.rawPerSec)} | ${f(p.simpHPerSec)} | ${f(p.b1PerSec)} |`);
+  L.push('');
 
   push('## Known-answer tests');
   push(`Gate: \`node --test experiments/topo-field/test/known.test.mjs\`, exit status ${r.known.status}.`);

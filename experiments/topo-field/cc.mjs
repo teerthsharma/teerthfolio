@@ -80,13 +80,15 @@ export function touchMask(g, water = null) {
   return out;
 }
 
-export function makeDetector(g, { touch = g.border, lo = LO, hi = HI, delta = DELTA } = {}) {
+export function makeDetector(g, { touch = g.border, lo = LO, hi = HI, delta = DELTA, sticky = false } = {}) {
   const n = g.n;
   const label = makeLabeler(g);
   const lane = () => ({ prev: new Int32Array(n), cur: new Int32Array(n), kPrev: 0, k: 0 });
   const rawLive = lane(), simpLive = lane(), rawHole = lane(), simpHole = lane();
   const live = new Uint8Array(n), prevLive = new Uint8Array(n);
-  const S = new Uint8Array(n);
+  const S = new Uint8Array(n), prevS = new Uint8Array(n);
+  const lin0 = new Uint8Array(n), lineComp = new Uint8Array(n), hadS = new Uint8Array(n);
+  let frame0Births = 0;
   const minC = new Float64Array(n), sig = new Uint8Array(n);
   const compMask = new Uint8Array(n), compLab = new Int32Array(n);
   const outFlag = new Uint8Array(n), holeId = new Int32Array(n);
@@ -131,6 +133,20 @@ export function makeDetector(g, { touch = g.border, lo = LO, hi = HI, delta = DE
     det.k = rawLive.k;
   };
 
+  const lineage = (k) => {
+    frame0Births = 0;
+    if (firstEvents) { for (let i = 0; i < n; i++) lin0[i] = live[i]; return; }
+    lineComp.fill(0, 0, k); hadS.fill(0, 0, k);
+    for (let i = 0; i < n; i++) {
+      if (!live[i]) continue;
+      const q = rawLive.cur[i];
+      if (lin0[i]) lineComp[q] = 1;
+      if (prevS[i]) hadS[q] = 1;
+    }
+    for (let q = 0; q < k; q++) if (sig[q] && !hadS[q] && lineComp[q]) frame0Births++;
+    for (let i = 0; i < n; i++) lin0[i] = live[i] ? lineComp[rawLive.cur[i]] : 0;
+  };
+
   det.events = () => {
     const k = rawLive.k;
     minC.fill(Infinity, 0, k);
@@ -140,7 +156,9 @@ export function makeDetector(g, { touch = g.border, lo = LO, hi = HI, delta = DE
       if (cArr[i] < minC[q]) minC[q] = cArr[i];
     }
     for (let q = 0; q < k; q++) sig[q] = minC[q] <= thr ? 1 : 0;
+    if (sticky) for (let i = 0; i < n; i++) if (live[i] && prevS[i]) sig[rawLive.cur[i]] = 1;
     for (let i = 0; i < n; i++) S[i] = live[i] && sig[rawLive.cur[i]] ? 1 : 0;
+    if (sticky) { lineage(k); prevS.set(S); }
     simpLive.k = label(S, simpLive.cur);
     rawHole.k = holeLabels(live, rawHole.cur);
     simpHole.k = holeLabels(S, simpHole.cur);
@@ -158,10 +176,12 @@ export function makeDetector(g, { touch = g.border, lo = LO, hi = HI, delta = DE
     for (const L of [rawLive, simpLive, rawHole, simpHole]) {
       const t = L.prev; L.prev = L.cur; L.cur = t; L.kPrev = L.k;
     }
-    return {
+    const out = {
       raw: { birth: dRaw.birth, death: dRaw.death, merge: dRaw.merge, split: dRaw.split, holeOpen: hRaw.birth, holeClose: hRaw.death, nLive: rawLive.kPrev, nHoles: rawHole.kPrev },
       simp: { birth: dSimp.birth, death: dSimp.death, merge: dSimp.merge, split: dSimp.split, holeOpen: hSimp.birth, holeClose: hSimp.death, nLive: simpLive.kPrev, nHoles: simpHole.kPrev },
     };
+    if (sticky) out.frame0Births = frame0Births;
+    return out;
   };
 
   det.step = (c) => {

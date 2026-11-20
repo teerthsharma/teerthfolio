@@ -10,8 +10,8 @@ import { makeDetector, touchMask } from './cc.mjs';
 import { makeField } from './field.mjs';
 import { makePath } from './path.mjs';
 import { chunkCrossings, makeFlipCounter } from './baselines.mjs';
-import { verdict } from './verdict.mjs';
-import { renderMarkdown } from './report.mjs';
+import { verdict, verdictPostHoc } from './verdict.mjs';
+import { economicsRows, renderMarkdown } from './report.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WARMUP = 300;
@@ -62,12 +62,15 @@ export function runCell({ h, N, seed, shuffle = false, water = true, roamSeconds
   const field = makeField(g, { N, seed, shuffle, water });
   const touch = touchMask(g, water ? field.water : null);
   const det = makeDetector(g, { touch, delta });
+  const detH = makeDetector(g, { touch, delta, sticky: true });
   const flips = makeFlipCounter(g.n);
   const seams = new Set(seamFrames(path));
 
   const raw = zeroCounts(), simp = zeroCounts(), rawSeam = zeroCounts(), simpSeam = zeroCounts();
+  const simpH = zeroCounts(), simpHSeam = zeroCounts();
+  let simpH0 = 0;
   const nBins = Math.floor((F - 1) / 60);
-  const rawBins = new Array(nBins).fill(0), simpBins = new Array(nBins).fill(0);
+  const rawBins = new Array(nBins).fill(0), simpBins = new Array(nBins).fill(0), simpHBins = new Array(nBins).fill(0);
   let hystFlips = 0;
   const core = new Float64Array(F), full = new Float64Array(F);
 
@@ -81,6 +84,7 @@ export function runCell({ h, N, seed, shuffle = false, water = true, roamSeconds
     const t2 = performance.now();
     core[f] = t1 - t0;
     full[f] = t2 - t0;
+    const evH = detH.step(field.c);
 
     flips.step(field.c);
     if (f >= 1) {
@@ -88,13 +92,17 @@ export function runCell({ h, N, seed, shuffle = false, water = true, roamSeconds
       if (seams.has(f)) {
         addCounts(rawSeam, ev.raw);
         addCounts(simpSeam, ev.simp);
+        addCounts(simpHSeam, evH.simp);
       } else {
         addCounts(raw, ev.raw);
         addCounts(simp, ev.simp);
+        addCounts(simpH, evH.simp);
+        simpH0 += evH.frame0Births;
         const b = Math.floor((f - 1) / 60);
         if (b < nBins) {
           rawBins[b] += sumCounts(ev.raw);
           simpBins[b] += sumCounts(ev.simp);
+          simpHBins[b] += sumCounts(evH.simp);
         }
       }
     }
@@ -111,6 +119,7 @@ export function runCell({ h, N, seed, shuffle = false, water = true, roamSeconds
     tourFrames: path.tourFrames,
     raw: { ...raw, total: sumCounts(raw), medianPerSec: median(rawBins), seam: { ...rawSeam, total: sumCounts(rawSeam) } },
     simp: { ...simp, total: sumCounts(simp), medianPerSec: median(simpBins), seam: { ...simpSeam, total: sumCounts(simpSeam) } },
+    simpH: { ...simpH, total: sumCounts(simpH), frame0Births: simpH0, medianPerSec: median(simpHBins), seam: { ...simpHSeam, total: sumCounts(simpHSeam) } },
     b1,
     b2: {
       noHystFlips: flips.total,
@@ -196,13 +205,14 @@ function main(argv) {
   for (const h of [2, 4, 8]) {
     const real = e1.filter((c) => c.h === h && c.N === 20);
     const shuf = k5.filter((c) => c.h === h);
-    const rR = rate(real, 'raw'), rS = rate(real, 'simp');
-    const sR = rate(shuf, 'raw'), sS = rate(shuf, 'simp');
+    const rR = rate(real, 'raw'), rS = rate(real, 'simp'), rH = rate(real, 'simpH');
+    const sR = rate(shuf, 'raw'), sS = rate(shuf, 'simp'), sH = rate(shuf, 'simpH');
     byH[h] = {
       raw: ratioOf(sR.ev, sR.fr, rR.ev, rR.fr),
       simp: ratioOf(sS.ev, sS.fr, rS.ev, rS.fr),
-      realPerFrame: { raw: rR.perFrame, simp: rS.perFrame },
-      shuffledPerFrame: { raw: sR.perFrame, simp: sS.perFrame },
+      simpH: ratioOf(sH.ev, sH.fr, rH.ev, rH.fr),
+      realPerFrame: { raw: rR.perFrame, simp: rS.perFrame, simpH: rH.perFrame },
+      shuffledPerFrame: { raw: sR.perFrame, simp: sS.perFrame, simpH: sH.perFrame },
     };
   }
   const k5Ratio = { judged: byH[4].simp, byH };
@@ -228,6 +238,12 @@ function main(argv) {
     e2P95Ms: pooled.coreP95,
   });
 
+  const postHoc = {
+    k5: byH[4].simpH,
+    verdict: verdictPostHoc({ kPassed: known.passed, k5Ratio: byH[4].simpH, simpHCells: e1Judged, e2P95Ms: pooled.coreP95 }),
+    economics: economicsRows(e1Judged),
+  };
+
   const results = {
     env: {
       head: gitHead(),
@@ -243,13 +259,14 @@ function main(argv) {
     k5Ratio,
     e2: { byCell: e2ByCell, pooled, judged: 'h=4,N=20' },
     verdict: v,
+    postHoc,
     sweepSeconds: (performance.now() - sweepStart) / 1000,
   };
 
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, 'results.json'), JSON.stringify(results, (k, x) => (typeof x === 'number' && !Number.isFinite(x) ? String(x) : x), 2) + '\n');
   writeFileSync(join(outDir, 'results.md'), renderMarkdown(results) + '\n');
-  log(`verdict: E1 ${v.e1}, E2 ${v.e2}; K5 ratio (SIMP, h=4) ${byH[4].simp}; wall ${results.sweepSeconds.toFixed(1)} s; wrote ${outDir}`);
+  log(`verdict: E1 ${v.e1}, E2 ${v.e2}; post-hoc SIMP-H E1 ${postHoc.verdict.e1}; K5 ratio (SIMP, h=4) ${byH[4].simp}; wall ${results.sweepSeconds.toFixed(1)} s; wrote ${outDir}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv.slice(2));

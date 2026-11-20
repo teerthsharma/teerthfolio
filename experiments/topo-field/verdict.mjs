@@ -6,6 +6,16 @@ export const BARS = {
   k5: 'K5 negative control: same walk with mover positions re-randomised every frame: events/frame must be at least 20x the real walk (shows the detector can see events).',
 };
 
+export function verdictPostHoc({ kPassed, k5Ratio, simpHCells, e2P95Ms }) {
+  const v = verdict({
+    kPassed,
+    k5Ratio,
+    e1Cells: simpHCells.map((c) => ({ seed: c.seed, frames: c.frames, simpEvents: c.simpH.total, simpMedianPerSec: c.simpH.medianPerSec, b1PerSec: c.b1.perSec })),
+    e2P95Ms,
+  });
+  return { e1: v.e1, e2: v.e2, reasons: v.reasons.map((s) => s.replaceAll('SIMPLIFIED', 'SIMP-H')) };
+}
+
 export function verdict({ kPassed, k5Ratio, e1Cells, e2P95Ms }) {
   const reasons = [];
   let e1;
