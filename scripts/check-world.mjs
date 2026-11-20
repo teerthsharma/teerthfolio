@@ -1639,9 +1639,9 @@ for (const [k, g] of Object.entries(buildConcreteWall())) assert.ok(g, `dam-wall
 }
 
 {
-  const ctl = readFileSync(new URL("../components/world/Controller.jsx", import.meta.url), "utf8");
+  const rep = readFileSync(new URL("../components/world/replay.js", import.meta.url), "utf8");
   const hud = readFileSync(new URL("../components/world/Hud.jsx", import.meta.url), "utf8");
-  assert.ok(/export function replayArrival/.test(ctl) && /replayArrival\(place\.id\)/.test(hud) && /aria-label="Replay the cutscene"/.test(hud), "the building panel replays its cutscene through replayArrival");
+  assert.ok(/export function replayArrival/.test(rep) && /replayArrival\(place\.id\)/.test(hud) && /aria-label="Replay the cutscene"/.test(hud), "the building panel replays its cutscene through replayArrival");
 }
 // A pup mid-ride or mid-throw must not be pinned by an arrival (Controller
 // skips stepSeal while holding, freezing a ride upside down): it is
